@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { Place } from "@/lib/types";
@@ -295,6 +295,21 @@ describe("MapScreen — design 화면 1의 1~9", () => {
     renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "제보" }));
     expect(screen.getByRole("status")).toHaveTextContent("제보는 준비 중이에요");
+  });
+
+  it("NCP 인증 실패(navermap_authFailure) → 지도 자리와 시트 모두 에러 상태", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    const w = window as Window & { navermap_authFailure?: () => void };
+    expect(typeof w.navermap_authFailure).toBe("function");
+    act(() => {
+      w.navermap_authFailure?.();
+    });
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(2);
+    for (const alert of alerts) expect(alert).toHaveTextContent("지도를 불러오지 못했어요");
+    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(2);
+    expect(screen.queryByTestId("map")).not.toBeInTheDocument();
   });
 
   it("위치 권한 없음(jsdom 기본) → 카드에 거리 없음", async () => {

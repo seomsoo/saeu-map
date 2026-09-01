@@ -22,6 +22,8 @@ export const SHEET_SHORT_VIEWPORT_MAX = 639;
 
 const DRAG_THRESHOLD_PX = 4;
 const FLING_VELOCITY = 0.6; // px/ms
+/** 포인터 탭으로 스냅을 바꾼 직후 따라오는 click(캡처로 리타겟될 수 있음)을 무시하는 창 */
+const CLICK_SUPPRESS_MS = 250;
 
 /** 스냅별 보이는 높이(px). 카드 탭 시 지도 오프셋 계산에도 쓴다. */
 export function sheetVisiblePx(snap: SheetSnap, viewportHeight: number): number {
@@ -35,6 +37,38 @@ export function sheetVisiblePx(snap: SheetSnap, viewportHeight: number): number 
     case "full":
       return Math.round(viewportHeight * SHEET_FULL_RATIO);
   }
+}
+
+/** 낮은 뷰포트에서는 half가 collapsed와 같은 높이라 단계에서 뺀다 (탭·플링이 무반응으로 보이지 않게). */
+function halfIsCollapsed(viewportHeight: number): boolean {
+  return sheetVisiblePx("half", viewportHeight) === SHEET_COLLAPSED_PX;
+}
+
+/** 핸들 탭: collapsed → half → full → collapsed */
+export function nextSnapOnTap(current: SheetSnap, viewportHeight: number): SheetSnap {
+  switch (current) {
+    case "collapsed":
+      return halfIsCollapsed(viewportHeight) ? "full" : "half";
+    case "half":
+      return "full";
+    case "full":
+      return "collapsed";
+  }
+}
+
+/** 플링: 한 단계만 이동 */
+export function neighborSnap(
+  current: SheetSnap,
+  direction: "up" | "down",
+  viewportHeight: number,
+): SheetSnap {
+  const skipHalf = halfIsCollapsed(viewportHeight);
+  if (direction === "up") {
+    if (current === "collapsed") return skipHalf ? "full" : "half";
+    return "full";
+  }
+  if (current === "full") return skipHalf ? "collapsed" : "half";
+  return "collapsed";
 }
 
 function nearestSnap(visible: number, viewportHeight: number): SheetSnap {
@@ -51,11 +85,6 @@ function nearestSnap(visible: number, viewportHeight: number): SheetSnap {
   return best;
 }
 
-function neighborSnap(current: SheetSnap, direction: "up" | "down"): SheetSnap {
-  if (direction === "up") return current === "collapsed" ? "half" : "full";
-  return current === "full" ? "half" : "collapsed";
-}
-
 interface DragState {
   pointerId: number;
   startY: number;
@@ -67,9 +96,6 @@ interface DragState {
   /** 핸들 버튼에서 시작한 포인터 — 움직임 없이 떼면 탭으로 간주해 스냅을 순환 */
   fromHandle: boolean;
 }
-
-/** 포인터 탭으로 스냅을 바꾼 직후 따라오는 click(캡처로 리타겟될 수 있음)을 무시하는 창 */
-const CLICK_SUPPRESS_MS = 250;
 
 interface BottomSheetProps {
   snap: SheetSnap;
@@ -99,9 +125,7 @@ export function BottomSheet({
   const lastPointerCycleAt = useRef(0);
 
   const cycleSnap = useCallback(() => {
-    const next: SheetSnap =
-      snap === "collapsed" ? "half" : snap === "half" ? "full" : "collapsed";
-    onSnapChange(next);
+    onSnapChange(nextSnapOnTap(snap, window.innerHeight));
   }, [snap, onSnapChange]);
 
   const setDragOffset = (px: number, dragging: boolean) => {
@@ -172,12 +196,10 @@ export function BottomSheet({
 
     const vh = window.innerHeight;
     const visible = drag.startVisible - (e.clientY - drag.startY);
-    let next: SheetSnap;
-    if (Math.abs(drag.velocity) > FLING_VELOCITY) {
-      next = neighborSnap(snap, drag.velocity < 0 ? "up" : "down");
-    } else {
-      next = nearestSnap(visible, vh);
-    }
+    const next =
+      Math.abs(drag.velocity) > FLING_VELOCITY
+        ? neighborSnap(snap, drag.velocity < 0 ? "up" : "down", vh)
+        : nearestSnap(visible, vh);
     if (next !== snap) onSnapChange(next);
   };
 

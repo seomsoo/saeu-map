@@ -13,7 +13,7 @@ import { PlaceSheet } from "./place-sheet";
 import { SearchBar } from "./search-bar";
 import { SeasonCounter } from "./season-counter";
 import { TopBar } from "./top-bar";
-import { INITIAL_ZOOM, useMapScreen } from "./use-map-screen";
+import { useMapScreen } from "./use-map-screen";
 
 export interface MapScreenProps {
   /** 서버 렌더 시각(ISO). 모든 상대 시간 계산의 기준 — 클라이언트에서 new Date() 금지. */
@@ -48,33 +48,33 @@ export default function MapScreen({
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-surface-dim">
-      {/* 7. 지도 */}
+      {/* 7. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태 */}
       <div className="absolute inset-0">
-        <ErrorBoundary
-          onError={s.handleMapError}
-          fallback={() => (
-            <ErrorState
-              className="h-full"
-              title="지도를 불러오지 못했어요"
-              description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
-              onRetry={reloadPage}
-            />
-          )}
-        >
-          <NaverMapProvider>
-            <MapView
-              items={s.items}
-              selectedId={s.selectedId}
-              now={now}
-              initialCenter={s.initialCenter}
-              initialZoom={INITIAL_ZOOM}
-              handleRef={mapRef}
-              onViewportChange={s.handleViewportChange}
-              onPlaceClick={s.selectFromMarker}
-              onClusterClick={s.handleClusterClick}
-            />
-          </NaverMapProvider>
-        </ErrorBoundary>
+        {s.status === "error" ? (
+          <ErrorState
+            className="h-full"
+            title="지도를 불러오지 못했어요"
+            description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
+            onRetry={reloadPage}
+          />
+        ) : (
+          <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
+            <NaverMapProvider>
+              <MapView
+                items={s.items}
+                selectedId={s.selectedId}
+                now={now}
+                initialCenter={s.initialCenter}
+                initialZoom={s.initialZoom}
+                handleRef={mapRef}
+                onViewportChange={s.handleViewportChange}
+                onPlaceClick={s.selectFromMarker}
+                onClusterClick={s.handleClusterClick}
+                onAuthFailure={s.handleMapError}
+              />
+            </NaverMapProvider>
+          </ErrorBoundary>
+        )}
       </div>
 
       {/* 1~6. 지도 위 상단 스택 — 빈 곳은 지도 터치가 통과한다 */}

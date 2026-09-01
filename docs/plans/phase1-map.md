@@ -83,7 +83,7 @@ docs/plans/phase1-map.md · docs/decisions.md · docs/roadmap.md · docs/plans/p
 - 마커 탭 → 선택 + 카드로 스크롤·하이라이트. 카드 탭 → 선택 + 지도 이동(가시 영역=상단 스택~시트 사이 중앙에 오도록 오프셋). 상세 시트는 Phase 2.
 - 프로그램적 이동(`panTo`/`fitBounds`) 다음 `idle`은 **정렬 기준점(지도 중심) 갱신 생략** — 탭한 카드가 손가락 밑에서 이동하는 것 방지. "지도 내 N곳" 집합은 매 idle 갱신.
 - 검색: 입력 즉시 필터(150ms 디바운스, IME `isComposing` 가드), Enter → 결과 `fitBounds`(top/bottom 여백). 비우기 ×.
-- 4상태: 첫 idle 전 **스켈레톤**(Container fallback + 리스트 스켈레톤; `idle` 미발화 대비 `onInit` 폴백) / **빈**: 지도 내 0곳·검색 0곳 "이 동네엔 아직 없어요 · 제보해주세요 [+ 제보]", 찜 칩 "아직 찜한 곳이 없어요" / **에러**: 지도 스크립트·인증 실패(`useNavermaps`가 `use(promise)` → ErrorBoundary로 잡아 재시도) + 라우트 `error.tsx` / **정상**.
+- 4상태: 첫 idle 전 **스켈레톤**(Container fallback + 리스트 스켈레톤; `idle` 미발화 대비 `onInit` 폴백) / **빈**: 지도 내 0곳·검색 0곳 "이 동네엔 아직 없어요 · 제보해주세요 [+ 제보]", 찜 칩 "아직 찜한 곳이 없어요" / **에러**: 지도 스크립트 실패(`useNavermaps`의 `use(promise)` → ErrorBoundary) + NCP 인증 실패(SDK의 `window.navermap_authFailure` 콜백 → 같은 에러 상태; 스크립트는 정상 로드되므로 ErrorBoundary로는 안 잡힘) + 라우트 `error.tsx` / **정상**.
   - 검증용 트리거: 에러 = Playwright로 SDK 스크립트 요청 차단 + dev 전용 `?mock=error`(page.tsx, production 무시) → error.tsx. 빈 = 검색 "없는동네".
 - 시즌 카운터 세그먼트 3개(spec) 한 줄, 320px에선 말줄임. 이벤트 카드 닫기 = 메모리만(규칙 4, 새로고침 시 재노출).
 - [+ 제보]: 레드 유지, 탭 시 2초 인라인 메시지 "제보는 준비 중이에요"(Phase 3 연결). 전역 토스트는 Phase 2에 도입.

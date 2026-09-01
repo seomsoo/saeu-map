@@ -43,7 +43,7 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
         type="button"
         onClick={onDismiss}
         aria-label="이벤트 카드 닫기"
-        className="flex size-7 shrink-0 items-center justify-center text-ink-tertiary hit-44"
+        className="flex size-9 shrink-0 items-center justify-center text-ink-tertiary hit-44"
       >
         <span className="icon-[ci--close-md] size-4" aria-hidden="true" />
       </button>

@@ -146,7 +146,7 @@ export function unitChipLabel(menu: Menu): string | null {
     case "serving":
       return raw ?? null;
     case "size":
-      return raw ? `${raw}자` : null;
+      return raw ?? null;
     case "none":
       return null;
   }

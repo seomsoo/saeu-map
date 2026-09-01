@@ -137,7 +137,7 @@ describe("카드 표시용", () => {
     [menu({ unit: "g", unit_raw: "500" }), "500g"],
     [menu({ unit: "pan", unit_raw: "한판" }), "한판"],
     [menu({ unit: "count", unit_raw: "15마리" }), "15마리"],
-    [menu({ unit: "size", unit_raw: "소" }), "소자"],
+    [menu({ unit: "size", unit_raw: "소" }), "소"],
     [menu({ unit: "none", unit_raw: null }), null],
     [menu({ unit: "kg", unit_raw: null }), null],
   ])("단위 칩 %o → %s", (m, label) => {

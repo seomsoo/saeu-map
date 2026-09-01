@@ -28,12 +28,12 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="flex h-10 items-center gap-2 rounded-control border border-border bg-surface pl-3 pr-1 shadow-[0_1px_2px_var(--color-shadow)]"
+      className="flex h-10 items-center gap-1 rounded-control border border-border bg-surface pl-1 pr-0.5 shadow-[0_1px_2px_var(--color-shadow)]"
     >
       <button
         type="submit"
         aria-label="검색"
-        className="flex size-8 shrink-0 items-center justify-center text-ink-secondary"
+        className="flex size-10 shrink-0 items-center justify-center text-ink-secondary hit-44"
       >
         <span className="icon-[ci--search-magnifying-glass] size-5" aria-hidden="true" />
       </button>
@@ -61,7 +61,7 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
           type="button"
           onClick={onClear}
           aria-label="검색어 지우기"
-          className="flex size-8 shrink-0 items-center justify-center text-ink-tertiary"
+          className="flex size-10 shrink-0 items-center justify-center text-ink-tertiary hit-44"
         >
           <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
         </button>

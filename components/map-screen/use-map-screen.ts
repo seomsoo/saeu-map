@@ -29,6 +29,8 @@ const SEARCH_FIT_MAX_ZOOM = 16;
 /** 서울·근교. 위치가 이 밖이면 거리 정렬에만 쓰고 지도는 옮기지 않는다. */
 const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
 const NOTICE_MS = 2000;
+/** 프로그램적 이동(카드 탭·위치 이동) 뒤 이 시간 안에 온 idle은 정렬 기준점을 갱신하지 않는다 */
+const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 
 export type MapStatus = "loading" | "ready" | "error";
 export type EmptyKind = "area" | "bookmarks";
@@ -81,8 +83,8 @@ export function useMapScreen({
   const [snap, setSnap] = useState<SheetSnap>("half");
   const [notice, setNotice] = useState<string | null>(null);
 
-  /** 카드 탭 등 프로그램적 이동 뒤의 idle에서는 정렬 기준점을 갱신하지 않는다 (탭한 카드가 손가락 밑에서 이동 방지) */
-  const skipNextOriginUpdate = useRef(false);
+  /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
+  const programmaticMoveAt = useRef(0);
   const noticeTimer = useRef<number | null>(null);
 
   /* ── 파생 ── */
@@ -135,19 +137,20 @@ export function useMapScreen({
   );
 
   const status: MapStatus = mapFailed ? "error" : viewport ? "ready" : "loading";
+  const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0 ? "bookmarks" : "area";
 
   /* ── 지도 이벤트 ── */
   const handleViewportChange = useCallback((next: Viewport) => {
     setViewport(next);
-    if (skipNextOriginUpdate.current) {
-      skipNextOriginUpdate.current = false;
+    if (performance.now() - programmaticMoveAt.current < PROGRAMMATIC_MOVE_WINDOW_MS) {
       return;
     }
     setSortOrigin(next.center);
   }, []);
 
+  /** 스크립트 로드 실패(ErrorBoundary)와 NCP 인증 실패(navermap_authFailure) 모두 여기로 */
   const handleMapError = useCallback(() => {
     setMapFailed(true);
   }, []);
@@ -158,8 +161,9 @@ export function useMapScreen({
     void requestPosition().then((pos) => {
       if (cancelled || !pos) return;
       setUserLocation(pos);
+      // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다
       if (inBounds(pos, SEOUL_AREA) && mapRef.current) {
-        skipNextOriginUpdate.current = true;
+        programmaticMoveAt.current = performance.now();
         mapRef.current.morph(pos, USER_ZOOM);
       }
     });
@@ -186,7 +190,7 @@ export function useMapScreen({
       setSelectedId(id);
       const place = places.find((p) => p.id === id);
       if (!place || !mapRef.current) return;
-      skipNextOriginUpdate.current = true;
+      programmaticMoveAt.current = performance.now();
       mapRef.current.panTo(place, { screenY: visibleStripCenterY() });
     },
     [places, visibleStripCenterY, mapRef],
@@ -267,7 +271,9 @@ export function useMapScreen({
     items,
     sorted,
     inViewCount: inView.length,
-    initialCenter: userLocation ?? SEOUL_CENTER,
+    // 위치가 SDK보다 먼저 왔을 때: 서울 근교일 때만 그 위치·줌 14로 시작 (밖이면 서울 중심 — 결정 "위치 폴백")
+    initialCenter: userInSeoul ? userLocation : SEOUL_CENTER,
+    initialZoom: userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,

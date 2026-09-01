@@ -52,6 +52,26 @@ export interface MapViewProps {
   onViewportChange: (viewport: Viewport) => void;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
+  /**
+   * NCP 인증 실패(키 오류·미등록 도메인). 스크립트는 정상 로드되고 SDK가 window.navermap_authFailure를
+   * 부를 뿐이라 ErrorBoundary로는 잡히지 않는다 — 여기서 에러 상태로 넘긴다.
+   */
+  onAuthFailure: () => void;
+}
+
+type WindowWithNaverAuth = Window & { navermap_authFailure?: (() => void) | undefined };
+
+function useNaverAuthFailure(onAuthFailure: () => void): void {
+  useEffect(() => {
+    const w = window as WindowWithNaverAuth;
+    const previous = w.navermap_authFailure;
+    w.navermap_authFailure = () => {
+      onAuthFailure();
+    };
+    return () => {
+      w.navermap_authFailure = previous;
+    };
+  }, [onAuthFailure]);
 }
 
 const MIN_ZOOM = 10;
@@ -67,7 +87,10 @@ export function MapView({
   onViewportChange,
   onPlaceClick,
   onClusterClick,
+  onAuthFailure,
 }: MapViewProps) {
+  useNaverAuthFailure(onAuthFailure);
+
   return (
     <Container
       style={{ position: "relative", width: "100%", height: "100%" }}

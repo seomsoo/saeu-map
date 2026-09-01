@@ -89,7 +89,7 @@ function dataset(now: DateInput): Dataset {
   return built;
 }
 
-/** 찜 — 익명 기기 한정 메모리 상태. Phase 4에서 토글 추가. */
+/** 찜 자리 — 지금은 항상 빈 목록. 모듈 전역이라 서버(Workers isolate)에서 공유되므로 Phase 4 토글은 여기가 아니라 사용자 단위 상태로 만들 것. */
 const bookmarkedIds = new Set<string>();
 
 /* ══════════════════════════════════════════════════════════════════════════
