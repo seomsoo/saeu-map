@@ -42,6 +42,53 @@ export interface Checkin {
   actor: string;
 }
 
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface BoundsLiteral {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+/** 지도 카메라 상태 (naver 객체가 아닌 plain literal — lib·테스트에서 그대로 사용). */
+export interface Viewport {
+  bounds: BoundsLiteral;
+  zoom: number;
+  center: LatLng;
+}
+
+/** 지도 메인 탭: 다중 태그 매칭 */
+export type TabKey = "all" | "grill" | "raw";
+
+/** 지도 메인 칩 (최대 5개 자리) */
+export type ChipKey = "new" | "bookmarked";
+
+/** 정렬: 가까운순(기본) / 최근 확인순 / 확인 많은 순 */
+export type SortKey = "distance" | "recent" | "checks";
+
+/** 이벤트 카드 슬롯 설정값 (spec 4.1: 제목·링크·기간을 설정값으로) */
+export interface EventCard {
+  id: string;
+  title: string;
+  href: string | null;
+  startsAt: string;
+  endsAt: string;
+}
+
+/** 시즌 카운터 (checkins 이벤트에서 계산) */
+export interface SeasonStats {
+  /** 이번 주(월 00:00 KST~) 확인이 있었던 가게 수 */
+  weekPlaceCount: number;
+  /** 오늘(KST) 확인 건수 */
+  todayCheckinCount: number;
+  /** 이번 주 최다 확인 가게 (없으면 null) */
+  topPlace: { id: string; name: string; count: number } | null;
+}
+
 export interface Review {
   placeId: string;
   rating: number;

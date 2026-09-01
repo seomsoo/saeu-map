@@ -126,12 +126,6 @@
     "actor": "anon-8104"
   },
   {
-    "placeId": "p004",
-    "type": "menu_verified",
-    "at": "2026-08-25T10:00:00+09:00",
-    "actor": "admin"
-  },
-  {
     "placeId": "p018",
     "type": "menu_verified",
     "at": "2026-08-25T10:00:00+09:00",
@@ -205,12 +199,6 @@
   },
   {
     "placeId": "p110",
-    "type": "menu_verified",
-    "at": "2026-08-25T10:00:00+09:00",
-    "actor": "admin"
-  },
-  {
-    "placeId": "p115",
     "type": "menu_verified",
     "at": "2026-08-25T10:00:00+09:00",
     "actor": "admin"
