@@ -152,6 +152,7 @@ check (기존, dummy ID 빌드) ─▶ preview (pull_request) : vars ID로 재�
 - NCP 인증 실패는 ErrorBoundary가 아니라 SDK의 `window.navermap_authFailure` 콜백으로 잡는다(스크립트는 정상 로드되므로).
 - 바텀시트: 스냅 높이는 CSS 변수, 본문 높이는 `flex-1` 없이 CSS가 정함(처음엔 92dvh까지 늘어나 선택 카드 스크롤이 화면 밖으로 갔음). 핸들 탭은 포인터 캡처 때문에 click이 래퍼로 가서 pointerup에서 처리.
 - 이벤트 카드 링크는 `prefetch={false}` — `/test` 404가 매 로드 콘솔 에러로 남아서.
+- 인증 실패 시 지도를 언마운트하지 않는다: 언마운트하면 SDK `map.destroy()`가 내부 예외를 던져 라우트 에러로 번졌다(:8788 미등록 도메인에서 재현). 에러 상태는 지도 위에 덮는다. 이 상태에선 SDK 내부 예외가 콘솔에 남지만(네임스페이스가 비워진 뒤 마커 정리) 화면·동작에는 영향 없음 — 정상 도메인에선 발생하지 않는다.
 - 파비콘 임시 에셋(`app/icon.svg` 색점) 추가 — 404 콘솔 에러 제거. 커스텀 에셋 목록에 기록.
 - CI `check`에 workerd 스모크 스텝 추가(빌드 후 `wrangler dev` 기동 → `/` 200 + "새우맵").
 
