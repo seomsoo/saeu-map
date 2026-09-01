@@ -116,3 +116,68 @@ body {
   font-variant-numeric: tabular-nums;
   box-shadow: 0 1px 3px var(--color-shadow);
 }
+
+/* ---------------------------------------------------------------------------
+ * 유틸
+ * ------------------------------------------------------------------------- */
+/* 시각 크기는 작아도 터치 타겟 44px 확보 (세로로만 확장) */
+.hit-44 {
+  position: relative;
+}
+.hit-44::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 바텀시트 — 스냅 위치는 CSS가 담당 (SSR 첫 렌더부터 정확).
+ * 상수는 components/ui/bottom-sheet.tsx의 SHEET_* 와 반드시 같아야 한다.
+ * ------------------------------------------------------------------------- */
+.saeu-sheet {
+  --sheet-collapsed: 88px;
+  --sheet-half: 40dvh;
+  --sheet-full: 92dvh;
+  --sheet-header-h: 64px;
+  --sheet-visible: var(--sheet-half);
+  --sheet-drag: 0px;
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--sheet-full);
+  transform: translateY(
+    calc(var(--sheet-full) - var(--sheet-visible) + var(--sheet-drag))
+  );
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+.saeu-sheet[data-dragging="true"] {
+  transition: none;
+}
+.saeu-sheet[data-snap="collapsed"] {
+  --sheet-visible: var(--sheet-collapsed);
+}
+.saeu-sheet[data-snap="half"] {
+  --sheet-visible: var(--sheet-half);
+}
+.saeu-sheet[data-snap="full"] {
+  --sheet-visible: var(--sheet-full);
+}
+/* 낮은 뷰포트(≤639px, 예: 320×568)에서는 half = collapsed — 상단 스택이 지도를 다 가리지 않게 */
+@media (max-height: 639px) {
+  .saeu-sheet {
+    --sheet-half: var(--sheet-collapsed);
+  }
+}
+.saeu-sheet__body {
+  height: calc(var(--sheet-visible) - var(--sheet-header-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}

@@ -1,0 +1,297 @@
+"use client";
+
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  type Ref,
+} from "react";
+import {
+  Container,
+  Marker,
+  NaverMap,
+  useListener,
+  useMap,
+  useNavermaps,
+} from "react-naver-maps";
+import type { ClusterItem } from "@/lib/cluster";
+import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
+import { isInactive } from "@/lib/time";
+import { markerCategory } from "@/lib/places";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getClusterIcon, getPlaceMarkerIcon } from "./marker-icons";
+
+type Navermaps = typeof naver.maps;
+
+export interface FitMargin {
+  top?: number | undefined;
+  right?: number | undefined;
+  bottom?: number | undefined;
+  left?: number | undefined;
+  maxZoom?: number | undefined;
+}
+
+/** 부모가 지도를 움직일 때 쓰는 명령형 핸들. lib에는 naver 객체가 새지 않는다. */
+export interface MapHandle {
+  /** target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙. */
+  panTo(target: LatLng, options?: { screenY?: number | undefined }): void;
+  morph(target: LatLng, zoom: number): void;
+  fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
+  getViewport(): Viewport | null;
+}
+
+export interface MapViewProps {
+  items: ClusterItem[];
+  selectedId: string | null;
+  /** 서버가 내려준 기준 시각(ISO). 6개월 무활동 판정용 — 렌더 중 new Date() 금지. */
+  now: string;
+  initialCenter: LatLng;
+  initialZoom: number;
+  handleRef: Ref<MapHandle>;
+  onViewportChange: (viewport: Viewport) => void;
+  onPlaceClick: (placeId: string) => void;
+  onClusterClick: (clusterId: number, center: LatLng) => void;
+}
+
+const MIN_ZOOM = 10;
+const MAX_ZOOM = 19;
+
+export function MapView({
+  items,
+  selectedId,
+  now,
+  initialCenter,
+  initialZoom,
+  handleRef,
+  onViewportChange,
+  onPlaceClick,
+  onClusterClick,
+}: MapViewProps) {
+  return (
+    <Container
+      style={{ position: "relative", width: "100%", height: "100%" }}
+      fallback={
+        <Skeleton
+          className="h-full w-full rounded-none"
+          data-testid="map-skeleton"
+        />
+      }
+    >
+      <NaverMap
+        defaultCenter={initialCenter}
+        defaultZoom={initialZoom}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
+        zoomControl={false}
+        scaleControl={false}
+        mapDataControl={false}
+      >
+        <MapController handleRef={handleRef} onViewportChange={onViewportChange} />
+        <PlaceMarkers
+          items={items}
+          selectedId={selectedId}
+          now={now}
+          onPlaceClick={onPlaceClick}
+          onClusterClick={onClusterClick}
+        />
+      </NaverMap>
+    </Container>
+  );
+}
+
+/* ────────────────────────── 뷰포트 보고 · 명령형 핸들 ────────────────────────── */
+
+function toLatLng(navermaps: Navermaps, coord: naver.maps.Coord): LatLng {
+  if (coord instanceof navermaps.LatLng) {
+    return { lat: coord.lat(), lng: coord.lng() };
+  }
+  return { lat: coord.y, lng: coord.x };
+}
+
+function readViewport(
+  navermaps: Navermaps,
+  map: naver.maps.Map,
+): Viewport | null {
+  const bounds = map.getBounds();
+  if (!(bounds instanceof navermaps.LatLngBounds)) return null;
+  const ne = bounds.getNE();
+  const sw = bounds.getSW();
+  return {
+    bounds: { north: ne.lat(), east: ne.lng(), south: sw.lat(), west: sw.lng() },
+    zoom: map.getZoom(),
+    center: toLatLng(navermaps, map.getCenter()),
+  };
+}
+
+function MapController({
+  handleRef,
+  onViewportChange,
+}: {
+  handleRef: Ref<MapHandle>;
+  onViewportChange: (viewport: Viewport) => void;
+}) {
+  const map = useMap();
+  const navermaps = useNavermaps();
+
+  const report = useCallback(() => {
+    const viewport = readViewport(navermaps, map);
+    if (viewport) onViewportChange(viewport);
+  }, [map, navermaps, onViewportChange]);
+
+  // idle은 이동이 끝날 때마다. 초기 상태는 idle이 안 올 수 있어 마운트 시 한 번 직접 보고.
+  useListener(map, "idle", report);
+  useEffect(() => {
+    report();
+  }, [report]);
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      panTo(target, options) {
+        const latlng = new navermaps.LatLng(target.lat, target.lng);
+        const screenY = options?.screenY;
+        if (screenY === undefined) {
+          map.panTo(latlng);
+          return;
+        }
+        // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
+        const projection = map.getProjection();
+        const size = map.getSize();
+        const offset = projection.fromCoordToOffset(latlng);
+        const centerOffset = new navermaps.Point(
+          offset.x,
+          size.height / 2 + (offset.y - screenY),
+        );
+        map.panTo(projection.fromOffsetToCoord(centerOffset));
+      },
+      morph(target, zoom) {
+        map.morph(new navermaps.LatLng(target.lat, target.lng), zoom);
+      },
+      fitBounds(bounds, margin) {
+        const latLngBounds = new navermaps.LatLngBounds(
+          new navermaps.LatLng(bounds.south, bounds.west),
+          new navermaps.LatLng(bounds.north, bounds.east),
+        );
+        const options: naver.maps.FitBoundsOptions = {
+          ...(margin?.top !== undefined && { top: margin.top }),
+          ...(margin?.right !== undefined && { right: margin.right }),
+          ...(margin?.bottom !== undefined && { bottom: margin.bottom }),
+          ...(margin?.left !== undefined && { left: margin.left }),
+          ...(margin?.maxZoom !== undefined && { maxZoom: margin.maxZoom }),
+        };
+        map.fitBounds(latLngBounds, options);
+      },
+      getViewport() {
+        return readViewport(navermaps, map);
+      },
+    }),
+    [map, navermaps],
+  );
+
+  return null;
+}
+
+/* ────────────────────────── 마커 ────────────────────────── */
+
+const PlaceMarkers = memo(function PlaceMarkers({
+  items,
+  selectedId,
+  now,
+  onPlaceClick,
+  onClusterClick,
+}: {
+  items: ClusterItem[];
+  selectedId: string | null;
+  now: string;
+  onPlaceClick: (placeId: string) => void;
+  onClusterClick: (clusterId: number, center: LatLng) => void;
+}) {
+  return (
+    <>
+      {items.map((item) =>
+        item.kind === "cluster" ? (
+          <ClusterMarker
+            key={`cluster-${item.id}`}
+            id={item.id}
+            lat={item.lat}
+            lng={item.lng}
+            count={item.count}
+            onClick={onClusterClick}
+          />
+        ) : (
+          <PlaceMarker
+            key={item.place.id}
+            place={item.place}
+            selected={item.place.id === selectedId}
+            inactive={isInactive(item.place.lastCheckedAt, now)}
+            onSelect={onPlaceClick}
+          />
+        ),
+      )}
+    </>
+  );
+});
+
+const PlaceMarker = memo(function PlaceMarker({
+  place,
+  selected,
+  inactive,
+  onSelect,
+}: {
+  place: Place;
+  selected: boolean;
+  inactive: boolean;
+  onSelect: (placeId: string) => void;
+}) {
+  const navermaps = useNavermaps();
+  const icon = getPlaceMarkerIcon(navermaps, {
+    category: markerCategory(place.tags),
+    isNew: place.isNew,
+    inactive,
+    selected,
+  });
+  const handleClick = useCallback(() => {
+    onSelect(place.id);
+  }, [onSelect, place.id]);
+
+  return (
+    <Marker
+      defaultPosition={{ lat: place.lat, lng: place.lng }}
+      icon={icon}
+      title={place.name}
+      zIndex={selected ? 300 : inactive ? 10 : 100}
+      onClick={handleClick}
+    />
+  );
+});
+
+const ClusterMarker = memo(function ClusterMarker({
+  id,
+  lat,
+  lng,
+  count,
+  onClick,
+}: {
+  id: number;
+  lat: number;
+  lng: number;
+  count: number;
+  onClick: (clusterId: number, center: LatLng) => void;
+}) {
+  const navermaps = useNavermaps();
+  const icon = getClusterIcon(navermaps, count);
+  const handleClick = useCallback(() => {
+    onClick(id, { lat, lng });
+  }, [onClick, id, lat, lng]);
+
+  return (
+    <Marker
+      defaultPosition={{ lat, lng }}
+      icon={icon}
+      title={`${count}곳`}
+      zIndex={200}
+      onClick={handleClick}
+    />
+  );
+});

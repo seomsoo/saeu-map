@@ -1,4 +1,11 @@
 import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+
+// globals: false 라서 RTL 자동 cleanup이 등록되지 않는다 → 직접 등록 (테스트 간 DOM 누적 방지)
+afterEach(() => {
+  cleanup();
+});
 
 /* jsdom 30에 없는 브라우저 API 스텁. 동작 검증이 필요한 테스트는 개별로 vi.spyOn한다. */
 
