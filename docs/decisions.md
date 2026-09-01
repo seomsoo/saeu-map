@@ -26,6 +26,13 @@
   6. 폰트는 dynamic subset (아래 결정).
 - **재검토 조건**: Pro 전환 시, 또는 Phase 5 SSR 페이지 추가 시 이 목록 재확인.
 
+## 2026-09-01 — 호스팅: Vercel Hobby 유지, Cloudflare 이전은 트리거 기반
+- **맥락**: Vercel 요금 폭탄 실사례 조사 — Cara $96k(1주 유저 65만, 함수 5,600만/일), DDoS $23k, 크롤러 8.4TB $1.5k, 봇 95% 트래픽 과금 등. 공통점: 전부 **Pro 이상 + Spend Management 미설정**. Hobby는 초과 시 과금이 아니라 정지라 폭탄 불가능.
+- **결정**: PMF 확인까지 Vercel Hobby 유지. 단 이전 비용을 싸게 유지하는 패턴 준수 — Vercel 전용 기능 미사용, 사진 외부 스토리지(R2 예정), on-demand ISR (전부 OpenNext 호환 패턴).
+- **Cloudflare(Workers + OpenNext) 트레이드오프**: 장점 = egress 무료(대역폭 폭탄 원천 차단), 요청당 과금($5/월에 1,000만 req), WAF·봇 방어가 본업, 스펙의 R2·Turnstile과 궁합. 단점 = OpenNext 어댑터 레이어(Next 신버전 시차·런타임 갭 디버깅), ISR 캐시 직접 구성(KV/R2/DO), 프리뷰 DX 열세.
+- **이전 트리거** (하나라도 해당 시 재검토): ① Pro 전환 필요 시점(Hobby 정지 경험 또는 상업화) ② 봇·크롤러 트래픽 유의미 ③ 사진 트래픽 본격화(R2 이전과 동시 진행이 자연스러움).
+- **Pro로 가게 되면**: 전환 당일 Spend Management 상한 설정이 선행 조건 (기본값이 무상한 — 사례들의 공통 원인).
+
 ## 2026-09-01 — Pretendard dynamic subset 전환 (단일 2MB woff2 폐기)
 - **맥락**: PretendardVariable.woff2 단일 파일 2MB를 전 방문자가 다운로드하는 구조였음. DAU 2천 가정 시 폰트만 월 60~120GB 전송 → Hobby 무료 한도(100GB) 위협.
 - **결정**: pretendard 패키지의 dynamic subset(unicode-range 92분할)으로 전환. 화면에 쓰인 글자 범위의 조각만 다운로드 — 방문당 ~100KB, 약 95% 절감. `/fonts/*`는 immutable 캐시 헤더.
