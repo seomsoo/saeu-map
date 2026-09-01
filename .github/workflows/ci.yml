@@ -104,23 +104,29 @@ jobs:
 
       - name: Build + upload preview version
         if: steps.gate.outputs.enabled == 'true'
+        shell: bash # 명시해야 -o pipefail이 켜진다 (기본 셸은 pipefail 없음 → `| tee`가 실패를 삼킴)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지
-          pnpm run upload --preview-alias preview --message "pr${{ github.event.pull_request.number }}-${GITHUB_SHA::7}" 2>&1 | tee upload.log
+          pnpm run upload --preview-alias preview --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
+          # wrangler가 별칭 URL을 찍지 않았으면 업로드가 안 된 것 — 여기서 확실히 실패시킨다
+          grep -q "Version Preview Alias URL" upload.log || { echo "::error::preview upload did not produce an alias URL"; exit 1; }
 
       - name: Comment preview URL on PR
         if: steps.gate.outputs.enabled == 'true'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           URL=$(grep -oE 'https://preview-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' upload.log | head -1)
-          URL=${URL:-https://preview-saeu-map.saeu-map.workers.dev}
-          BODY="프리뷰: ${URL} (alias \`preview\`, 커밋 ${GITHUB_SHA::7}) — 같은 PR의 새 커밋이 이 URL을 덮어씁니다."
+          [ -n "$URL" ] || { echo "::error::alias URL not found in upload.log"; exit 1; }
+          BODY="프리뷰: ${URL} (alias \`preview\`, 커밋 ${HEAD_SHA::7}) — 같은 PR의 새 커밋이 이 URL을 덮어씁니다."
           gh pr comment "$PR" --body "$BODY" --edit-last --create-if-none \
             || gh pr comment "$PR" --body "$BODY"
 
@@ -162,6 +168,7 @@ jobs:
 
       - name: Build + deploy to Cloudflare Workers
         if: steps.gate.outputs.enabled == 'true'
+        shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
