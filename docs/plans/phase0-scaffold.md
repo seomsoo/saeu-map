@@ -193,4 +193,5 @@ saeu-map/
 - **TypeScript 7.0.2 → 6.0.3** — typescript-eslint 미지원으로 다운그레이드.
 - **네이버 지도 인증: `ncpClientId` → `ncpKeyId`** — 신규 NCP Maps 상품은 ncpKeyId 사용.
 - **Pretendard: 단일 woff2 → dynamic subset** — 방문당 전송 2MB → ~100KB.
+- **(Phase 1에서 변경) @iconify/react → @iconify/tailwind4 + @iconify-json/ci** — 미사용·런타임 fetch 문제 (decisions.md 2026-09-01 패키지 결정). boundaries 린트는 Phase 0 내내 `@/` import에 미발화였음 — Phase 1에서 리졸버 추가로 수정.
 - **추가**: gap-sweeper 에이전트 (스펙 대조 감사), CI 액션 SHA 고정 + Node 24 세대 업그레이드.

@@ -7,7 +7,8 @@
 - lint: `pnpm lint` (eslint flat config)
 - typecheck: `pnpm typecheck` (tsc --noEmit)
 - 전체 검증: `pnpm typecheck && pnpm lint && pnpm test`
-- 배포 전 확인: `pnpm preview` (:8787, 실제 Workers 런타임) / 배포: `pnpm deploy` (Cloudflare Workers — decisions.md 2026-09-01)
+- 배포 전 확인: `pnpm preview` (:8787, 실제 Workers 런타임) / 배포: main 머지 → GH Actions `deploy` 잡 자동, PR → `preview` 잡이 https://preview-saeu-map.saeu-map.workers.dev 갱신 (Cloudflare Workers — decisions.md 2026-09-01). 수동은 `pnpm run deploy`.
+- dev 전용 상태 토글: `/?mock=error` → 라우트 에러 화면(app/error.tsx). production에선 무시.
 
 서울 새우구이 지도. 모바일 퍼스트 웹. 상세 스펙은 docs/를 먼저 읽어라:
 - docs/spec.md — 통합 기획서 (모든 제품 결정과 이유)

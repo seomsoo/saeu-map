@@ -40,6 +40,8 @@
 ## 2026-09-01 — 자동 배포: GitHub Actions, 배선은 Phase 1 첫 PR 때
 - **맥락**: 자동 배포 타이밍 논의. 배포를 1회만 해본 시점의 배선은 하네스 선완성("미리 완성하지 않는다" 위반).
 - **결정**: 방식만 확정 — 기존 ci.yml 확장: main push → check 잡 통과 후 `opennextjs-cloudflare deploy` / PR → `opennextjs-cloudflare upload`(프리뷰 버전). 배선은 Phase 1 첫 PR과 함께. 그때까지 `pnpm deploy` 수동.
+- **배선 결과 (Phase 1, 2026-09-01)**: PR → `pnpm run upload --preview-alias preview` (opennextjs-cloudflare upload가 미지 인자를 wrangler `versions upload`로 전달함을 `--dry-run`으로 확인) → 고정 URL `https://preview-saeu-map.saeu-map.workers.dev`, PR에 코멘트. main push → `pnpm run deploy`. 시크릿 미등록 시 잡 실패 대신 스텝 스킵(+notice). CI에선 `pnpm deploy`가 pnpm 내장 명령과 겹치므로 항상 `pnpm run`.
+- **프리뷰 URL을 고정 별칭 하나로 한 이유**: NCP Maps는 등록된 Web 서비스 URL에서만 인증되고 와일드카드가 없다. PR별 URL이면 매번 콘솔 등록이 필요 → 별칭 `preview` 하나만 등록. 동시 PR이면 마지막 업로드가 덮어씀(1인 개발이라 수용). NCP 콘솔 등록은 사용자 작업.
 - **Workers Builds(대시보드 git 연동) 배제 이유**: CI(테스트·gitleaks)를 우회하고 배포됨.
 - **필요 시크릿** (배선 시점에 사용자가 등록): `CLOUDFLARE_API_TOKEN`("Edit Cloudflare Workers" 템플릿) + `CLOUDFLARE_ACCOUNT_ID` → GitHub repo secrets.
 
@@ -59,5 +61,27 @@
 - 다크 모드(야장모드) — 라이트 우선, 토큰 두 벌만 준비. 재검토: 런칭 후.
 - 무인 장시간 루프(/goal 야간 실행 등) — 정지 조건·비용 상한 설계 후. 재검토: 11월.
 
+## 2026-09-01 — Phase 1 지도 메인: 스펙에 없던 UI 결정 6건
+- **위치 폴백**: 첫 로드 시 조용히 `geolocation` 요청. 허용 → 내 위치 기준 거리 표시·"가까운순" 정렬, 서울 근교면 지도도 이동(줌 14). 거부·실패·미지원 → 카드에 **구만** 표시(거리 숨김), "가까운순"은 **지도 중심 기준**. 근거: 지도 중심 거리를 "거리"로 보여주면 사용자 위치와 무관한 숫자라 오해를 부른다.
+- **목 날짜 상대 이동**: lib/data.ts(목 레이어)에서 JSON의 최신 체크인 날짜가 오늘(KST)이 되도록 모든 날짜를 같은 일수만큼 이동. date-only 값은 KST 달력일로 읽어 UTC ISO로 출력(컨벤션 일치). `isNew`는 정적 플래그 대신 `createdAt` 7일 이내로 파생(spec 5). 6개월 무활동 표본 2곳(p004 철수네포장마차, p115 프로간장새우 옥수)은 1월로 고정. Supabase 교체 시 이 블록 삭제.
+- **`needsReview: true` 숨김**: 새우 메뉴 파싱 실패로 검수 대기인 가게는 노출하지 않는다(목 1곳 p108). 검수 후 false면 자동 노출.
+- **비서울 노출**: 시드의 서울 밖 가게(김포 등 31곳)도 지도에 보인다 — spec 1 "시드 452곳으로 열고". `/gu/[name]`(Phase 5)는 서울 25개 구만.
+- **이벤트 카드 링크 `/test`**: 라우트는 Phase 7. 그때까지 404 허용(설정값이라 갈아끼움). 닫기는 메모리 상태만(규칙 4) — 새로고침 시 재노출, 지속은 서버 단계에서.
+- **카드 탭 후 정렬 고정**: 카드 탭으로 지도를 옮긴 직후의 `idle`에서는 "지도 중심" 정렬 기준점을 갱신하지 않는다(탭한 카드가 손가락 밑에서 이동하는 것 방지). 사용자가 직접 드래그하면 다시 갱신.
+- **재검토 조건**: 위치 폴백은 사용자 피드백 시, 목 관련은 Phase 6 교체 시 자동 소멸.
+
+## 2026-09-01 — 메인 페이지는 요청 시 렌더 (`await connection()`)
+- **맥락**: `app/page.tsx`가 요청 시 API를 안 써서 빌드 시 정적 프리렌더됐다. 그러면 목 날짜 이동·"이번 주"·"○일 전"이 **배포 시각에 고정**되고, `loading.tsx`도 안 보인다. 리뷰(플랜 단계)에서 발견.
+- **결정**: `connection()`으로 요청 시 렌더. `now`(ISO)는 서버가 만들어 클라이언트에 props로 내려주고, 클라이언트는 렌더 중 `new Date()`를 부르지 않는다(Workers UTC vs 브라우저 KST 하이드레이션 불일치 + react-hooks 7 purity 룰).
+- **spec 6 "핀 목록 캐시 필수"와의 관계**: 목 50곳·정적 JSON이라 지금은 비용 0. Phase 5~6에서 on-demand 재검증(위 Vercel 비용 방어 정책 1번 원칙 그대로)으로 설계할 때 이 결정을 캐시 전략으로 대체한다.
+
+## 2026-09-01 — 패키지 결정 (Phase 1)
+- **supercluster 8.0.1 핀**: 마커 클러스터링. 9.0.0이 2026-08-10 출시된 메이저 직후 → 정책대로 한 마이너 대기. `lib/cluster.ts` 래퍼로 감싸 naver 전역 없이 테스트. extent 256(네이버 타일 256px)·radius 60·maxZoom 16.
+- **@iconify/react 제거 → @iconify/tailwind4 + @iconify-json/ci**: 기존 것은 미사용이었고 기본 동작이 api.iconify.design 런타임 fetch라 "외부 도메인 금지" 취지와 충돌. 새 방식은 빌드 타임 CSS mask, 쓴 아이콘만 포함. 사용법 `<span class="icon-[ci--search-magnifying-glass]" />`. (docs/plans/phase0-scaffold.md의 @iconify/react 표기는 이 결정으로 대체)
+- **eslint-import-resolver-typescript 추가 (하네스 결함 수정)**: boundaries 린트가 `@/` 별칭 import를 external로 오인해 **Phase 0 내내 한 번도 발화하지 않았다**(절대 규칙 1이 기계 강제되지 않고 있었음). 리졸버 추가 + v7 문법(요소=폴더, `lib/data.ts`는 `boundaries/files` 카테고리) + `lib/mock`은 data.ts만 import 가능. 위반 파일을 일부러 만들어 에러 발화를 확인한 뒤 완료 처리 — "하네스는 발화 검증이 완료 조건" 규칙의 사례.
+- **바텀시트 직접 구현** (vaul 미채택): 항상 열린 비모달 + Phase 2 드래그 확장·스와이프 닫기까지 제어 필요, vaul 1.1.2는 2024-12 이후 무업데이트. 스냅 위치는 CSS 변수(SSR 첫 렌더부터 정확), JS는 드래그 놓을 때 판정만. 뷰포트 높이 ≤639px이면 half=collapsed.
+- **vitest**: tsconfig `jsx: preserve` 때문에 Vite 8이 tsx 테스트를 거부 → vitest 설정에 `oxc.jsx.runtime = automatic` (plugin-react 불필요). `globals: false`라 RTL cleanup을 setup에서 직접 등록.
+
 ## 커스텀 에셋 필요 목록
 - 새우 마커·로고 (그 전까지 카테고리 색점)
+- 파비콘 (그 전까지 `app/icon.svg` 코랄 색점)
