@@ -28,7 +28,12 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
       aria-label="이벤트"
     >
       {card.href ? (
-        <Link href={card.href} className="flex min-w-0 flex-1 items-center gap-1">
+        // 링크 대상은 설정값(/test는 Phase 7까지 404) — 프리페치하면 매 로드마다 404 콘솔 에러가 남는다
+        <Link
+          href={card.href}
+          prefetch={false}
+          className="flex min-w-0 flex-1 items-center gap-1"
+        >
           {body}
         </Link>
       ) : (
