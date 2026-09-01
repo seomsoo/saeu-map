@@ -1,0 +1,2369 @@
+[
+  {
+    "id": "p004",
+    "name": "철수네포장마차",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 선릉로66길 8 1층",
+    "addressJibun": "서울 강남구 대치동 922-14",
+    "lat": 37.4984999,
+    "lng": 127.0526285,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/13485012/home",
+    "menus": [
+      {
+        "raw": "철판새우소금구이 15000",
+        "name": "철판새우소금구이",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "깔끔우렁골뱅이/시원한대합탕/탱탱철판새우구이/영양만점유동번데기/노릇노릇 삼겹살/부들굴비구이/홖느한 오징어볶음 11000",
+        "name": "깔끔우렁골뱅이/시원한대합탕/탱탱철판새우구이/영양만점유동번데기/노릇노릇 삼겹살/부들굴비구이/홖느한 오징어볶음",
+        "price": 11000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우소금구이 11000",
+        "name": "새우소금구이",
+        "price": 11000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p018",
+    "name": "뚝섬포구",
+    "gu": "성동구",
+    "addressRoad": "서울 성동구 왕십리로8길 19-4 1층",
+    "addressJibun": "서울 성동구 성수동1가 656-988",
+    "lat": 37.5461394,
+    "lng": 127.0469067,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1018200585/home",
+    "menus": [
+      {
+        "raw": "새우구이 29900",
+        "name": "새우구이",
+        "price": 29900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우회 29900",
+        "name": "새우회",
+        "price": 29900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우구이/생새우회(가을 한정 판매) 29900",
+        "name": "새우구이/생새우회(가을 한정 판매)",
+        "price": 29900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "쭈꾸미새우전(김동민전) 17900",
+        "name": "쭈꾸미새우전(김동민전)",
+        "price": 17900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우머리튀김 0",
+        "name": "새우머리튀김 0",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p019",
+    "name": "성수부두",
+    "gu": "성동구",
+    "addressRoad": "서울 성동구 연무장길 41-26 지하1층",
+    "addressJibun": "서울 성동구 성수동2가 316-22",
+    "lat": 37.5434226,
+    "lng": 127.0542854,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1879202437/home",
+    "menus": [
+      {
+        "raw": "생새우회 29900",
+        "name": "생새우회",
+        "price": 29900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우구이 29900",
+        "name": "새우구이",
+        "price": 29900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우머리튀김 0",
+        "name": "새우머리튀김 0",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "report",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": true,
+    "createdAt": "2026-08-27"
+  },
+  {
+    "id": "p025",
+    "name": "명가수산",
+    "gu": "송파구",
+    "addressRoad": "서울 송파구 양재대로 932 가락몰 1층 수산매장 C라인 15호 명가수산입니다.",
+    "addressJibun": "서울 송파구 가락동 600",
+    "lat": 37.4931893,
+    "lng": 127.1168967,
+    "tags": [
+      "raw"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/36358289/home",
+    "menus": [
+      {
+        "raw": "활새우 (소(18마리 내외), 소(35마리 내외)) 18000~35000",
+        "name": "활새우 (소(18마리 내외), 소(35마리 내외)) 18000",
+        "price": 35000,
+        "unit": "count",
+        "unit_raw": "18마리"
+      },
+      {
+        "raw": "활새우회(손질O)(300g~400g) 35000",
+        "name": "활새우회(손질O)(300g~400g)",
+        "price": 35000,
+        "unit": "g",
+        "unit_raw": "300"
+      },
+      {
+        "raw": "활새우회 + 찍먹소스 ((손질전무게)400g내외) 29000",
+        "name": "활새우회 + 찍먹소스 ((손질전무게)400g내외)",
+        "price": 29000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활새우(손질X) 25000",
+        "name": "활새우(손질X)",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우찜1kg 25000",
+        "name": "새우찜1kg",
+        "price": 25000,
+        "unit": "kg",
+        "unit_raw": "1"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-27",
+    "checkCount": 3,
+    "isNew": false
+  },
+  {
+    "id": "p041",
+    "name": "뻘",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 강남대로154길 21 지층",
+    "addressJibun": "서울 강남구 신사동 511-13",
+    "lat": 37.5179668,
+    "lng": 127.0208766,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1593387379/home",
+    "menus": [
+      {
+        "raw": "청도미나리 벌교대하전 36000",
+        "name": "청도미나리 벌교대하전",
+        "price": 36000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "통마늘듬뿍 벌교대하감바스 33000",
+        "name": "통마늘듬뿍 벌교대하감바스",
+        "price": 33000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "벌교대하소금구이",
+        "name": "벌교대하소금구이",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-26",
+    "checkCount": 3,
+    "isNew": false
+  },
+  {
+    "id": "p042",
+    "name": "해운대대구탕 역삼점",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 논현로95길 29-11 삼아빌딩 1층",
+    "addressJibun": "서울 강남구 역삼동 644-1",
+    "lat": 37.5012539,
+    "lng": 127.0341252,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1464819408/home",
+    "menus": [
+      {
+        "raw": "대하구이 25000",
+        "name": "대하구이",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "간장새우정식 12000",
+        "name": "간장새우정식",
+        "price": 12000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "간장새우 12000",
+        "name": "간장새우",
+        "price": 12000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p045",
+    "name": "이수쭈꾸미 & Yakiniku 중심",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 압구정로46길 26 1층",
+    "addressJibun": "서울 강남구 신사동 643-26",
+    "lat": 37.5270887,
+    "lng": 127.0362692,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1862316107/home",
+    "menus": [
+      {
+        "raw": "숯불 대하구이(싱싱해요) 23000",
+        "name": "숯불 대하구이(싱싱해요)",
+        "price": 23000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "대하라면(대하 2마리와 오짬의 만남) 9900",
+        "name": "대하라면(대하 2마리와 오짬의 만남)",
+        "price": 9900,
+        "unit": "count",
+        "unit_raw": "2마리"
+      },
+      {
+        "raw": "새란탕(새우와 계란찜의 만남) 7000",
+        "name": "새란탕(새우와 계란찜의 만남)",
+        "price": 7000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": true
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-27",
+    "checkCount": 5,
+    "isNew": false
+  },
+  {
+    "id": "p046",
+    "name": "강남조개구이&어촌",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 언주로134길 8 1층",
+    "addressJibun": "서울 강남구 논현동 115-3",
+    "lat": 37.5165427,
+    "lng": 127.0363181,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2027397399/home",
+    "menus": [
+      {
+        "raw": "생새우대하구이 한판 42000",
+        "name": "생새우대하구이 한판",
+        "price": 42000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "꽃새우회",
+        "name": "꽃새우회",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "report",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": true,
+    "createdAt": "2026-08-27"
+  },
+  {
+    "id": "p049",
+    "name": "해화로 수산시장 The 야장포차",
+    "gu": "송파구",
+    "addressRoad": "서울 송파구 오금로15길 9-12 2층",
+    "addressJibun": "서울 송파구 방이동 69-10",
+    "lat": 37.5131591,
+    "lng": 127.1093504,
+    "tags": [
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1824807602/home",
+    "menus": [
+      {
+        "raw": "생 깐새우회&버터머리구이/15마리 42000",
+        "name": "생 깐새우회&버터머리구이/15마리",
+        "price": 42000,
+        "unit": "count",
+        "unit_raw": "15마리"
+      },
+      {
+        "raw": "대하 구이&버터머리구이/15마리 42000",
+        "name": "대하 구이&버터머리구이/15마리",
+        "price": 42000,
+        "unit": "count",
+        "unit_raw": "15마리"
+      },
+      {
+        "raw": "딱새우10미 19900",
+        "name": "딱새우10미",
+        "price": 19900,
+        "unit": "count",
+        "unit_raw": "10미"
+      },
+      {
+        "raw": "수제 새우 튀김 15900",
+        "name": "수제 새우 튀김",
+        "price": 15900,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "코코넛 새우튀김 13900",
+        "name": "코코넛 새우튀김",
+        "price": 13900,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p063",
+    "name": "선주가 선릉점",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 역삼로69길 27 1층",
+    "addressJibun": "서울 강남구 대치동 900-56",
+    "lat": 37.5034969,
+    "lng": 127.0539444,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1042796273/home",
+    "menus": [
+      {
+        "raw": "생새우회&머리튀김 42000",
+        "name": "생새우회&머리튀김",
+        "price": 42000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "대하소금구이 35000",
+        "name": "대하소금구이",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "眞녹진한 단새우성게알 35000",
+        "name": "眞녹진한 단새우성게알",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "대하꽃게탕 29000",
+        "name": "대하꽃게탕",
+        "price": 29000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-28",
+    "checkCount": 1,
+    "isNew": false
+  },
+  {
+    "id": "p078",
+    "name": "강남초장",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 개포로82길 5-8 1층 5~6호",
+    "addressJibun": "서울 강남구 개포동 186-11",
+    "lat": 37.4889583,
+    "lng": 127.0677751,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1277913587/home",
+    "menus": [
+      {
+        "raw": "새우소금구이 20000",
+        "name": "새우소금구이",
+        "price": 20000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "블랙타이거 왕새우튀김 15000",
+        "name": "블랙타이거 왕새우튀김",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "게살.새우튀김 9000",
+        "name": "게살.새우튀김",
+        "price": 9000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p080",
+    "name": "바다해장집 강남점 신관",
+    "gu": "강남구",
+    "addressRoad": "서울 강남구 봉은사로2길 16 지상1층 102호",
+    "addressJibun": "서울 강남구 역삼동 809-6",
+    "lat": 37.5035724,
+    "lng": 127.0256684,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2024294133/home",
+    "menus": [
+      {
+        "raw": "생새우소금구이 43000",
+        "name": "생새우소금구이",
+        "price": 43000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우오징어튀김 25000",
+        "name": "새우오징어튀김",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p108",
+    "name": "연어는 옳다",
+    "gu": "송파구",
+    "addressRoad": "서울 송파구 새말로 62 송파 푸르지오시티 지하1층 B13호 연어는옳다",
+    "addressJibun": "서울 송파구 문정동 620",
+    "lat": 37.4808349,
+    "lng": 127.1211831,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/38457402/home",
+    "menus": [],
+    "sides": {
+      "headButter": true,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": true,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p110",
+    "name": "일월수산",
+    "gu": "송파구",
+    "addressRoad": "서울 송파구 양재대로 932 가락시장 가락몰 1층 수산매장C -15호 일월수산",
+    "addressJibun": "서울 송파구 가락동 600",
+    "lat": 37.4932024,
+    "lng": 127.1169412,
+    "tags": [
+      "raw"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/37929344/home",
+    "menus": [
+      {
+        "raw": "활새우 (소(18마리 내외), 소(35마리 내외)) 18000~35000",
+        "name": "활새우 (소(18마리 내외), 소(35마리 내외)) 18000",
+        "price": 35000,
+        "unit": "count",
+        "unit_raw": "18마리"
+      },
+      {
+        "raw": "활새우회(손질O)(300g~400g) 35000",
+        "name": "활새우회(손질O)(300g~400g)",
+        "price": 35000,
+        "unit": "g",
+        "unit_raw": "300"
+      },
+      {
+        "raw": "활새우회 + 찍먹소스 ((손질전무게)400g 내외) 29000",
+        "name": "활새우회 + 찍먹소스 ((손질전무게)400g 내외)",
+        "price": 29000,
+        "unit": "g",
+        "unit_raw": "400"
+      },
+      {
+        "raw": "활새우(손질X) 25000",
+        "name": "활새우(손질X)",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우찜(냉동)1kg 25000",
+        "name": "새우찜(냉동)1kg",
+        "price": 25000,
+        "unit": "kg",
+        "unit_raw": "1"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p115",
+    "name": "프로간장새우 옥수",
+    "gu": "성동구",
+    "addressRoad": "서울 성동구 한림말5길 7 2층",
+    "addressJibun": "서울 성동구 옥수동 365-21",
+    "lat": 37.5418377,
+    "lng": 127.0168319,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/37391636/home",
+    "menus": [
+      {
+        "raw": "간장새우+알비빔밥 27000",
+        "name": "간장새우+알비빔밥",
+        "price": 27000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "크림치즈새우퐁듀 25000",
+        "name": "크림치즈새우퐁듀",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우관자감바스 25000",
+        "name": "새우관자감바스",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "버터새우구이 22000",
+        "name": "버터새우구이",
+        "price": 22000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우소금구이 22000",
+        "name": "새우소금구이",
+        "price": 22000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p123",
+    "name": "속초오징어어시장 천호점",
+    "gu": "강동구",
+    "addressRoad": "서울 강동구 천호대로 1027 1층",
+    "addressJibun": "서울 강동구 천호동 454-15",
+    "lat": 37.5383316,
+    "lng": 127.1261446,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2049961658/home",
+    "menus": [
+      {
+        "raw": "대하구이 33000",
+        "name": "대하구이",
+        "price": 33000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "생새우회 33000",
+        "name": "생새우회",
+        "price": 33000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p132",
+    "name": "왕새우직판장 수유점",
+    "gu": "강북구",
+    "addressRoad": "서울 강북구 도봉로 370 1층",
+    "addressJibun": "서울 강북구 번동 463-48",
+    "lat": 37.6399756,
+    "lng": 127.0281579,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2012386067/home",
+    "menus": [
+      {
+        "raw": "왕새우소금구이 1kg 50000",
+        "name": "왕새우소금구이 1kg",
+        "price": 50000,
+        "unit": "kg",
+        "unit_raw": "1"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p137",
+    "name": "해로",
+    "gu": "도봉구",
+    "addressRoad": "서울 도봉구 도봉로110나길 11 1층",
+    "addressJibun": "서울 도봉구 창동 655-6",
+    "lat": 37.6467273,
+    "lng": 127.0345569,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1388108658/home",
+    "menus": [
+      {
+        "raw": "단새우 우니 한판[BEST]🍣 66000",
+        "name": "단새우 우니 한판",
+        "price": 66000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "NEW 대하 소금구이 45000",
+        "name": "NEW 대하 소금구이",
+        "price": 45000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "제주도산 딱새우 한판[BEST]🦐 36000",
+        "name": "제주도산 딱새우 한판",
+        "price": 36000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "NEW 대하 생새우회 23000",
+        "name": "NEW 대하 생새우회",
+        "price": 23000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p140",
+    "name": "황제꼼장어",
+    "gu": "강북구",
+    "addressRoad": "서울 강북구 노해로 42",
+    "addressJibun": "서울 강북구 수유동 221-21",
+    "lat": 37.639204,
+    "lng": 127.022922,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/13154568/home",
+    "menus": [
+      {
+        "raw": "왕새우구이 15000",
+        "name": "왕새우구이",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p156",
+    "name": "국민어시장 강서구청점",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 공항대로46길 13-1 1층",
+    "addressJibun": "서울 강서구 화곡동 1114-28",
+    "lat": 37.5545168,
+    "lng": 126.8536693,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2034286084/home",
+    "menus": [
+      {
+        "raw": "새우소금구이 54000",
+        "name": "새우소금구이",
+        "price": 54000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활새우회(오도리) 1Kg 50000",
+        "name": "활새우회(오도리) 1Kg",
+        "price": 50000,
+        "unit": "kg",
+        "unit_raw": "1"
+      },
+      {
+        "raw": "단새우회(12미) 30000",
+        "name": "단새우회(12미)",
+        "price": 30000,
+        "unit": "count",
+        "unit_raw": "12미"
+      },
+      {
+        "raw": "갈릭버터새우구이 25000",
+        "name": "갈릭버터새우구이",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "깐풍칠리새우 25000",
+        "name": "깐풍칠리새우",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p162",
+    "name": "토박이활어어시장",
+    "gu": "양천구",
+    "addressRoad": "서울 양천구 곰달래로 26-1",
+    "addressJibun": "서울 양천구 신월동 226-6",
+    "lat": 37.5297734,
+    "lng": 126.8355726,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1515256924/home",
+    "menus": [
+      {
+        "raw": "생새우회한판 35000",
+        "name": "생새우회한판",
+        "price": 35000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "새우구이한판 35000",
+        "name": "새우구이한판",
+        "price": 35000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "생새우회8마리 20000",
+        "name": "생새우회8마리",
+        "price": 20000,
+        "unit": "count",
+        "unit_raw": "8마리"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-28",
+    "checkCount": 3,
+    "isNew": false
+  },
+  {
+    "id": "p163",
+    "name": "홍초장 목동점 오목교 막회집",
+    "gu": "양천구",
+    "addressRoad": "서울 양천구 목동동로12길 42 1층",
+    "addressJibun": "서울 양천구 신정동 118-3",
+    "lat": 37.5223933,
+    "lng": 126.8757911,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2098802648/home",
+    "menus": [
+      {
+        "raw": "생새우소금구이 38000",
+        "name": "생새우소금구이",
+        "price": 38000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "바삭탱글 새우튀김 12000",
+        "name": "바삭탱글 새우튀김",
+        "price": 12000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "탱글탱글 촉촉한생새우소금구이 0",
+        "name": "탱글탱글 촉촉한생새우소금구이 0",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "바다의 달콤한 선물, 해풍생새우 0",
+        "name": "바다의 달콤한 선물, 해풍생새우 0",
+        "price": null,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p164",
+    "name": "김포 왕새우 직판장 고촌점",
+    "gu": "김포시(경기)",
+    "addressRoad": "경기 김포시 고촌읍 태리로 285 111호",
+    "addressJibun": null,
+    "lat": 37.5934204,
+    "lng": 126.7639943,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2025658032/home",
+    "menus": [
+      {
+        "raw": "왕새우소금구이 [대] *머리구이포함* 80000",
+        "name": "왕새우소금구이 *머리구이포함*",
+        "price": 80000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우소금구이 [중] *머리구이포함* 55000",
+        "name": "왕새우소금구이 *머리구이포함*",
+        "price": 55000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우튀김 12000",
+        "name": "새우튀김",
+        "price": 12000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p165",
+    "name": "민스포",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 방화대로21길 81 1층",
+    "addressJibun": "서울 강서구 공항동 18-3",
+    "lat": 37.5639622,
+    "lng": 126.8121777,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1744377875/home",
+    "menus": [
+      {
+        "raw": "새우구이 12마리 15000",
+        "name": "새우구이 12마리",
+        "price": 15000,
+        "unit": "count",
+        "unit_raw": "12마리"
+      },
+      {
+        "raw": "새우튀김(8마리) 7900",
+        "name": "새우튀김(8마리)",
+        "price": 7900,
+        "unit": "count",
+        "unit_raw": "8마리"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p168",
+    "name": "황제숯불꼼장어쭈꾸미",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 강서로 381-7 2층",
+    "addressJibun": "서울 강서구 마곡동 722",
+    "lat": 37.5595652,
+    "lng": 126.8379432,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2015274960/home",
+    "menus": [
+      {
+        "raw": "활 새우구이 39000",
+        "name": "활 새우구이",
+        "price": 39000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우구이 17000",
+        "name": "왕새우구이",
+        "price": 17000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p169",
+    "name": "서울대하구이 본점",
+    "gu": "양천구",
+    "addressRoad": "서울 양천구 화곡로 54 1층 2호",
+    "addressJibun": "서울 양천구 신월동 54-2",
+    "lat": 37.5391429,
+    "lng": 126.8278448,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2072605083/home",
+    "menus": [
+      {
+        "raw": "왕새우 세트 ( 가성비 최고!) 75000",
+        "name": "왕새우 세트 ( 가성비 최고!)",
+        "price": 75000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우 소금구이 ( 1kg ) 50000",
+        "name": "왕새우 소금구이 ( 1kg )",
+        "price": 50000,
+        "unit": "kg",
+        "unit_raw": "1"
+      },
+      {
+        "raw": "왕새우라면 ( 셀프 ) 6000",
+        "name": "왕새우라면 ( 셀프 )",
+        "price": 6000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-28",
+    "checkCount": 2,
+    "isNew": false
+  },
+  {
+    "id": "p172",
+    "name": "바다품은달",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 화곡로21길 71 1층 111호",
+    "addressJibun": "서울 강서구 화곡동 1168",
+    "lat": 37.5440689,
+    "lng": 126.8362731,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1239844233/home",
+    "menus": [
+      {
+        "raw": "새우(대하)소금구이 1kg 55000",
+        "name": "새우(대하)소금구이 1kg",
+        "price": 55000,
+        "unit": "kg",
+        "unit_raw": "1"
+      },
+      {
+        "raw": "대하 소금구이 (소) 35000",
+        "name": "대하 소금구이 (소)",
+        "price": 35000,
+        "unit": "size",
+        "unit_raw": "소"
+      },
+      {
+        "raw": "딱새우 30000",
+        "name": "딱새우",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "단새우 30000",
+        "name": "단새우",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p176",
+    "name": "너울 마곡본점",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 마곡중앙8로 90 마곡아이파크 1층 127호",
+    "addressJibun": "서울 강서구 마곡동 795-2",
+    "lat": 37.5604514,
+    "lng": 126.8371351,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1033122719/home",
+    "menus": [
+      {
+        "raw": "생새우&머리버터구이 38000",
+        "name": "생새우&머리버터구이",
+        "price": 38000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "민물새우 매운탕 28000",
+        "name": "민물새우 매운탕",
+        "price": 28000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p191",
+    "name": "어다리횟집 목동점",
+    "gu": "양천구",
+    "addressRoad": "서울 양천구 목동동로10길 12 1, 2층",
+    "addressJibun": "서울 양천구 신정동 294-18",
+    "lat": 37.5187304,
+    "lng": 126.8711129,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2093338344/home",
+    "menus": [
+      {
+        "raw": "새우소금구이 1kg 60000",
+        "name": "새우소금구이 1kg",
+        "price": 60000,
+        "unit": "kg",
+        "unit_raw": "1"
+      },
+      {
+        "raw": "새우소금구이 500g 35000",
+        "name": "새우소금구이 500g",
+        "price": 35000,
+        "unit": "g",
+        "unit_raw": "500"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p198",
+    "name": "어촌계1번지",
+    "gu": "강서구",
+    "addressRoad": "서울 강서구 화곡로 123",
+    "addressJibun": "서울 강서구 화곡동 1067-30",
+    "lat": 37.5405748,
+    "lng": 126.835624,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1312360435/home",
+    "menus": [
+      {
+        "raw": "새우버터구이 25000",
+        "name": "새우버터구이",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우찜 25000",
+        "name": "새우찜",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "수제새우튀김 20000",
+        "name": "수제새우튀김",
+        "price": 20000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p261",
+    "name": "맛있는바다",
+    "gu": "금천구",
+    "addressRoad": "서울 금천구 벚꽃로 298 대륭포스트타워6차1층120",
+    "addressJibun": "서울 금천구 가산동 50-3",
+    "lat": 37.4815645,
+    "lng": 126.8834556,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1002024319/home",
+    "menus": [
+      {
+        "raw": "새우구이 35000",
+        "name": "새우구이",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p268",
+    "name": "장수촌 풍천장어",
+    "gu": "금천구",
+    "addressRoad": "서울 금천구 벚꽃로46길 1",
+    "addressJibun": "서울 금천구 가산동 36-6",
+    "lat": 37.4829263,
+    "lng": 126.8825886,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1195137238/home",
+    "menus": [
+      {
+        "raw": "왕새우구이 15000",
+        "name": "왕새우구이",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p274",
+    "name": "팔팔수산",
+    "gu": "구로구",
+    "addressRoad": "서울 구로구 신도림로 7 금강리빙스텔 2층 팔팔수산(구로역,신도림동)",
+    "addressJibun": "서울 구로구 신도림동 400-1 금강리빙스텔 2층 팔팔수산(구로역,)",
+    "lat": 37.5061838,
+    "lng": 126.8773056,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/18417325/home",
+    "menus": [
+      {
+        "raw": "왕새우 소금구이 1kg (계절메뉴) 65000",
+        "name": "왕새우 소금구이 1kg (계절메뉴)",
+        "price": 65000,
+        "unit": "kg",
+        "unit_raw": "1"
+      },
+      {
+        "raw": "왕새우 소금구이 500g (계절메뉴) 35000",
+        "name": "왕새우 소금구이 500g (계절메뉴)",
+        "price": 35000,
+        "unit": "g",
+        "unit_raw": "500"
+      },
+      {
+        "raw": "새우튀김 15000",
+        "name": "새우튀김",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "report",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": true,
+    "createdAt": "2026-08-27"
+  },
+  {
+    "id": "p306",
+    "name": "전시회 제기본점",
+    "gu": "동대문구",
+    "addressRoad": "서울 동대문구 왕산로 131 2층 전시회",
+    "addressJibun": "서울 동대문구 제기동 1051-1",
+    "lat": 37.57837,
+    "lng": 127.0380429,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2060945807/home",
+    "menus": [
+      {
+        "raw": "[편하게] 깐 생새우회 (15마리) 35000",
+        "name": "깐 생새우회 (15마리)",
+        "price": 35000,
+        "unit": "count",
+        "unit_raw": "15마리"
+      },
+      {
+        "raw": "[가을별미] 새우 소금구이(15마리) 33000",
+        "name": "새우 소금구이(15마리)",
+        "price": 33000,
+        "unit": "count",
+        "unit_raw": "15마리"
+      },
+      {
+        "raw": "[팔딱팔딱] 생새우회 (15마리) 29000",
+        "name": "생새우회 (15마리)",
+        "price": 29000,
+        "unit": "count",
+        "unit_raw": "15마리"
+      },
+      {
+        "raw": "새우튀김 6000",
+        "name": "새우튀김",
+        "price": 6000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "[고소꼬소]새우머리 버터구이 3000",
+        "name": "새우머리 버터구이",
+        "price": 3000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p307",
+    "name": "왕새우직판장 상봉점",
+    "gu": "중랑구",
+    "addressRoad": "서울 중랑구 봉우재로 118 1층",
+    "addressJibun": "서울 중랑구 면목동 131-7",
+    "lat": 37.5924492,
+    "lng": 127.0861367,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1796135175/home",
+    "menus": [
+      {
+        "raw": "생새우 소금구이 한판 54000",
+        "name": "생새우 소금구이 한판",
+        "price": 54000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "생새우 소금구이 반판 44000",
+        "name": "생새우 소금구이 반판",
+        "price": 44000,
+        "unit": "pan",
+        "unit_raw": "반판"
+      },
+      {
+        "raw": "선동새우소금구이한판 38000",
+        "name": "선동새우소금구이한판",
+        "price": 38000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "새우매운탕 28000",
+        "name": "새우매운탕",
+        "price": 28000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "간장새우 한접시 25000",
+        "name": "간장새우 한접시",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": true,
+      "ramen": true,
+      "friedRice": true
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-27",
+    "checkCount": 3,
+    "isNew": false
+  },
+  {
+    "id": "p343",
+    "name": "양화진",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 양화진길 55",
+    "addressJibun": "서울 마포구 합정동 376-17",
+    "lat": 37.5462421,
+    "lng": 126.9121016,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1642232876/home",
+    "menus": [
+      {
+        "raw": "저녁특선-타이거새우구이 30000",
+        "name": "저녁특선-타이거새우구이",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "저녁특선-타이거새우찜 30000",
+        "name": "저녁특선-타이거새우찜",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "저녁특선-흰다리새우구이 30000",
+        "name": "저녁특선-흰다리새우구이",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "저녁특선-칠리새우 20000",
+        "name": "저녁특선-칠리새우",
+        "price": 20000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "점심특선-타이거새우구이정식 10000",
+        "name": "점심특선-타이거새우구이정식",
+        "price": 10000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p344",
+    "name": "동강해물찜",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 와우산로23길 15",
+    "addressJibun": "서울 마포구 서교동 344-3",
+    "lat": 37.5536452,
+    "lng": 126.9242483,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/13566901/home",
+    "menus": [
+      {
+        "raw": "홍새우구이 30000",
+        "name": "홍새우구이",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p349",
+    "name": "동피랑",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 와우산로3길 29",
+    "addressJibun": "서울 마포구 상수동 337-5",
+    "lat": 37.5458266,
+    "lng": 126.9214087,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/37349717/home",
+    "menus": [
+      {
+        "raw": "생새우 소금구이&생새우회 32000",
+        "name": "생새우 소금구이&생새우회",
+        "price": 32000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p355",
+    "name": "하와이조개 당산점",
+    "gu": "영등포구",
+    "addressRoad": "서울 영등포구 당산로47길 8 1층 2호",
+    "addressJibun": "서울 영등포구 당산동6가 314",
+    "lat": 37.5348374,
+    "lng": 126.9018955,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1282032368/home",
+    "menus": [
+      {
+        "raw": "활새우구이와 새우회 3~4인 SET 119000",
+        "name": "활새우구이와 새우회 3~4인 SET",
+        "price": 119000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활새우구이와 조개구이 3~4인 SET 119000",
+        "name": "활새우구이와 조개구이 3~4인 SET",
+        "price": 119000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활생새우회와 조개구이 3~4인 SET 119000",
+        "name": "활생새우회와 조개구이 3~4인 SET",
+        "price": 119000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활새우 소금구이 1.5kg(3~4인) 78000",
+        "name": "활새우 소금구이 1.5kg(3~4인)",
+        "price": 78000,
+        "unit": "kg",
+        "unit_raw": "1.5"
+      },
+      {
+        "raw": "활새우구이와 생새우회 2인 SET 75000",
+        "name": "활새우구이와 생새우회 2인 SET",
+        "price": 75000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p363",
+    "name": "동해안생태찌개",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 도화길 51",
+    "addressJibun": "서울 마포구 도화동 181-2",
+    "lat": 37.5419445,
+    "lng": 126.9507819,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/807065794/home",
+    "menus": [
+      {
+        "raw": "대하소금구이 38000",
+        "name": "대하소금구이",
+        "price": 38000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우오징어튀김 25000",
+        "name": "새우오징어튀김",
+        "price": 25000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우튀김 15000",
+        "name": "새우튀김",
+        "price": 15000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p366",
+    "name": "숯불 이수쭈꾸미 서여의도점",
+    "gu": "영등포구",
+    "addressRoad": "서울 영등포구 국회대로74길 20 2층 208호",
+    "addressJibun": "서울 영등포구 여의도동 13-21",
+    "lat": 37.5296087,
+    "lng": 126.9215695,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1116117514/home",
+    "menus": [
+      {
+        "raw": "신메뉴) 숯불 대하구이 22000",
+        "name": "신메뉴) 숯불 대하구이",
+        "price": 22000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "대하라면 9000",
+        "name": "대하라면",
+        "price": 9000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": true
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p374",
+    "name": "서담해물",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 독막로15길 3-7 이현S 지1층",
+    "addressJibun": "서울 마포구 상수동 314-5",
+    "lat": 37.54828,
+    "lng": 126.921534,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1068155109/home",
+    "menus": [
+      {
+        "raw": "생새우 한 판 세트 52000",
+        "name": "생새우 한 판 세트",
+        "price": 52000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "우니와 단새우 42000",
+        "name": "우니와 단새우",
+        "price": 42000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "(여름) 생새우소금구이 35000",
+        "name": "(여름) 생새우소금구이",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "(여름) 생새우회 32000",
+        "name": "(여름) 생새우회",
+        "price": 32000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "단새우회 20000",
+        "name": "단새우회",
+        "price": 20000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": true
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-26",
+    "checkCount": 1,
+    "isNew": false
+  },
+  {
+    "id": "p380",
+    "name": "양화포차 당산역점",
+    "gu": "영등포구",
+    "addressRoad": "서울 영등포구 선유로52길 14-1 2층",
+    "addressJibun": "서울 영등포구 당산동6가 338-2",
+    "lat": 37.5354437,
+    "lng": 126.8998208,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1087691082/home",
+    "menus": [
+      {
+        "raw": "새우소금구이 35000",
+        "name": "새우소금구이",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "생새우회 32000",
+        "name": "생새우회",
+        "price": 32000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우전 21000",
+        "name": "왕새우전",
+        "price": 21000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p386",
+    "name": "어수선",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 망원로 96-1",
+    "addressJibun": "서울 마포구 망원동 485-2",
+    "lat": 37.5577667,
+    "lng": 126.9075584,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1550561303/home",
+    "menus": [
+      {
+        "raw": "팔딱팰딱 활새우 ( 비조리) 45000",
+        "name": "팔딱팰딱 활새우 ( 비조리)",
+        "price": 45000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "활새우소금구이(한판) 45000",
+        "name": "활새우소금구이(한판)",
+        "price": 45000,
+        "unit": "pan",
+        "unit_raw": "한판"
+      },
+      {
+        "raw": "왕새우튀김(6p) 18000",
+        "name": "왕새우튀김(6p)",
+        "price": 18000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우튀김(6p) 18000",
+        "name": "왕새우튀김(6p)",
+        "price": 18000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p393",
+    "name": "동백상회 합정",
+    "gu": "마포구",
+    "addressRoad": "서울 마포구 양화로6길 57-24 제이투빌딩 지1층 B01호",
+    "addressJibun": "서울 마포구 서교동 399-18",
+    "lat": 37.5495152,
+    "lng": 126.9181022,
+    "tags": [
+      "raw"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1771272316/home",
+    "menus": [
+      {
+        "raw": "방급잡아올린 생새우회 39000",
+        "name": "방급잡아올린 생새우회",
+        "price": 39000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": true
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p397",
+    "name": "왕새우직판장",
+    "gu": "은평구",
+    "addressRoad": "서울 은평구 통일로 718 1층",
+    "addressJibun": "서울 은평구 불광동 281-173",
+    "lat": 37.6100123,
+    "lng": 126.9306577,
+    "tags": [
+      "grill"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2035605567/home",
+    "menus": [
+      {
+        "raw": "왕새우구이 1kg 50000",
+        "name": "왕새우구이 1kg",
+        "price": 50000,
+        "unit": "kg",
+        "unit_raw": "1"
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p405",
+    "name": "광화문 해물포차 회포",
+    "gu": "종로구",
+    "addressRoad": "서울 종로구 새문안로5길 10 1층",
+    "addressJibun": "서울 종로구 당주동 38-2",
+    "lat": 37.5710982,
+    "lng": 126.9750135,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1882699288/home",
+    "menus": [
+      {
+        "raw": "단새우 성게알쌈 35000",
+        "name": "단새우 성게알쌈",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "새우소금구이 30000",
+        "name": "새우소금구이",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "미나리 새우전 20000",
+        "name": "미나리 새우전",
+        "price": 20000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p412",
+    "name": "용산 여남동",
+    "gu": "용산구",
+    "addressRoad": "서울 용산구 한강대로52길 35 1층~3층",
+    "addressJibun": "서울 용산구 한강로1가 221-4",
+    "lat": 37.5316072,
+    "lng": 126.972934,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/2039589923/home",
+    "menus": [
+      {
+        "raw": "포뜬 산 오징어+생 새우회 75000",
+        "name": "포뜬 산 오징어+생 새우회",
+        "price": 75000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "생 새우 소금구이 38000",
+        "name": "생 새우 소금구이",
+        "price": 38000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "생새우회 35000",
+        "name": "생새우회",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "중화풍 깐풍새우 30000",
+        "name": "중화풍 깐풍새우",
+        "price": 30000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": false,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p448",
+    "name": "연신내포항물회",
+    "gu": "은평구",
+    "addressRoad": "서울 은평구 통일로83길 15-1 1층",
+    "addressJibun": "서울 은평구 갈현동 403-27",
+    "lat": 37.6207599,
+    "lng": 126.9180228,
+    "tags": [
+      "grill"
+    ],
+    "specialist": false,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1337173070/home",
+    "menus": [
+      {
+        "raw": "새우직화구이(소) 30000",
+        "name": "새우직화구이(소)",
+        "price": 30000,
+        "unit": "size",
+        "unit_raw": "소"
+      },
+      {
+        "raw": "새우튀김 18000",
+        "name": "새우튀김",
+        "price": 18000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  },
+  {
+    "id": "p451",
+    "name": "어씨막장집 본점",
+    "gu": "중랑구",
+    "addressRoad": "서울 중랑구 봉우재로 141 1층",
+    "addressJibun": "서울 중랑구 상봉동 105-85",
+    "lat": 37.5933481,
+    "lng": 127.0887395,
+    "tags": [
+      "grill",
+      "raw"
+    ],
+    "specialist": true,
+    "naverPlaceUrl": "https://m.place.naver.com/restaurant/1571551494/home",
+    "menus": [
+      {
+        "raw": "활새우 소금구이 39000",
+        "name": "활새우 소금구이",
+        "price": 39000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "딱새우회 35000",
+        "name": "딱새우회",
+        "price": 35000,
+        "unit": "none",
+        "unit_raw": null
+      },
+      {
+        "raw": "왕새우튀김 11000",
+        "name": "왕새우튀김",
+        "price": 11000,
+        "unit": "none",
+        "unit_raw": null
+      }
+    ],
+    "sides": {
+      "headButter": false,
+      "ramen": true,
+      "friedRice": false
+    },
+    "source": "seed",
+    "needsReview": false,
+    "lastCheckedAt": "2026-08-25",
+    "checkCount": 0,
+    "isNew": false
+  }
+]

@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+
+# build
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env*.local
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# vercel
+.vercel
+
+# test
+coverage/
+test-results/
+playwright-report/
+
+# claude code (settings.json은 커밋, 개인 로컬 설정만 제외)
+.claude/settings.local.json
+
+# playwright mcp artifacts
+.playwright-mcp/
+
+# python (scripts/)
+__pycache__/
+*.py[cod]
+.venv/

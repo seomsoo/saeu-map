@@ -1,0 +1,428 @@
+[
+  {
+    "placeId": "p169",
+    "type": "visited",
+    "at": "2026-08-28T21:00:00+09:00",
+    "actor": "anon-2013"
+  },
+  {
+    "placeId": "p169",
+    "type": "visited",
+    "at": "2026-08-28T21:00:00+09:00",
+    "actor": "anon-7499"
+  },
+  {
+    "placeId": "p041",
+    "type": "visited",
+    "at": "2026-08-28T20:00:00+09:00",
+    "actor": "anon-8005"
+  },
+  {
+    "placeId": "p307",
+    "type": "visited",
+    "at": "2026-08-28T19:00:00+09:00",
+    "actor": "anon-6924"
+  },
+  {
+    "placeId": "p045",
+    "type": "visited",
+    "at": "2026-08-28T19:00:00+09:00",
+    "actor": "anon-6627"
+  },
+  {
+    "placeId": "p045",
+    "type": "visited",
+    "at": "2026-08-28T19:00:00+09:00",
+    "actor": "anon-5717"
+  },
+  {
+    "placeId": "p045",
+    "type": "visited",
+    "at": "2026-08-28T18:00:00+09:00",
+    "actor": "anon-3702"
+  },
+  {
+    "placeId": "p025",
+    "type": "visited",
+    "at": "2026-08-28T16:00:00+09:00",
+    "actor": "anon-3961"
+  },
+  {
+    "placeId": "p041",
+    "type": "visited",
+    "at": "2026-08-28T15:00:00+09:00",
+    "actor": "anon-9133"
+  },
+  {
+    "placeId": "p307",
+    "type": "visited",
+    "at": "2026-08-28T15:00:00+09:00",
+    "actor": "anon-2341"
+  },
+  {
+    "placeId": "p041",
+    "type": "visited",
+    "at": "2026-08-28T13:00:00+09:00",
+    "actor": "anon-1976"
+  },
+  {
+    "placeId": "p045",
+    "type": "visited",
+    "at": "2026-08-28T13:00:00+09:00",
+    "actor": "anon-2934"
+  },
+  {
+    "placeId": "p307",
+    "type": "visited",
+    "at": "2026-08-27T15:00:00+09:00",
+    "actor": "anon-3945"
+  },
+  {
+    "placeId": "p045",
+    "type": "visited",
+    "at": "2026-08-27T14:00:00+09:00",
+    "actor": "anon-9011"
+  },
+  {
+    "placeId": "p162",
+    "type": "visited",
+    "at": "2026-08-27T13:00:00+09:00",
+    "actor": "anon-4943"
+  },
+  {
+    "placeId": "p063",
+    "type": "visited",
+    "at": "2026-08-27T12:00:00+09:00",
+    "actor": "anon-3028"
+  },
+  {
+    "placeId": "p025",
+    "type": "visited",
+    "at": "2026-08-26T21:00:00+09:00",
+    "actor": "anon-4078"
+  },
+  {
+    "placeId": "p162",
+    "type": "visited",
+    "at": "2026-08-26T20:00:00+09:00",
+    "actor": "anon-4517"
+  },
+  {
+    "placeId": "p374",
+    "type": "visited",
+    "at": "2026-08-26T20:00:00+09:00",
+    "actor": "anon-3181"
+  },
+  {
+    "placeId": "p025",
+    "type": "visited",
+    "at": "2026-08-26T20:00:00+09:00",
+    "actor": "anon-2929"
+  },
+  {
+    "placeId": "p162",
+    "type": "visited",
+    "at": "2026-08-26T13:00:00+09:00",
+    "actor": "anon-8104"
+  },
+  {
+    "placeId": "p004",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p018",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p019",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p025",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p041",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p042",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p045",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p046",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p049",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p063",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p078",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p080",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p108",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p110",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p115",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p123",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p132",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p137",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p140",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p156",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p162",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p163",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p164",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p165",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p168",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p169",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p172",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p176",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p191",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p198",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p261",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p268",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p274",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p306",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p307",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p343",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p344",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p349",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p355",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p363",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p366",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p374",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p380",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p386",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p393",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p397",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p405",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p412",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p448",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  },
+  {
+    "placeId": "p451",
+    "type": "menu_verified",
+    "at": "2026-08-25T10:00:00+09:00",
+    "actor": "admin"
+  }
+]
