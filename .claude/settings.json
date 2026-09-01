@@ -1,20 +1,36 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "json=$(cat); file=$(printf '%s' \"$json\" | jq -r '.tool_input.file_path // empty'); case \"$file\" in */.claude/settings.json) exit 0 ;; esac; content=$(printf '%s' \"$json\" | jq -r '(.tool_input.content // \"\") + (.tool_input.new_string // \"\")'); if printf '%s' \"$content\" | grep -qE 'sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{30,}|service_role|-----BEGIN [A-Z ]*PRIVATE KEY'; then echo '차단: 시크릿으로 보이는 문자열이 파일에 들어가려 함. 시크릿은 .env에만.' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
-        "command": "file=\"$CLAUDE_FILE_PATH\"; ext=\"${file##*.}\"; if [ \"$ext\" = \"ts\" ] || [ \"$ext\" = \"tsx\" ] || [ \"$ext\" = \"js\" ] || [ \"$ext\" = \"mjs\" ]; then npx eslint --fix \"$file\" 2>&1 | tail -5; fi"
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(jq -r '.tool_input.file_path // empty'); case \"$file\" in *.ts|*.tsx|*.js|*.mjs) cd \"$CLAUDE_PROJECT_DIR\" && npx eslint --fix \"$file\" 2>&1 | tail -5 ;; esac"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "command": "pnpm typecheck && pnpm lint && pnpm test"
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Write",
-        "command": "if echo \"$CLAUDE_FILE_CONTENT\" | grep -qiE '(sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|password\\s*=\\s*[\"'\\'']{1}[^\"'\\'']+[\"'\\'']{1}|service_role|secret_key\\s*=)'; then echo 'BLOCKED: possible secret detected in file content' && exit 1; fi"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$(jq -r '.stop_hook_active // false')\" = \"true\" ] && exit 0; cd \"$CLAUDE_PROJECT_DIR\" && { pnpm typecheck && pnpm lint && pnpm test; } > /tmp/saeu-stop-hook.log 2>&1 || { echo '검증 실패 — typecheck/lint/test 확인 필요:' >&2; tail -20 /tmp/saeu-stop-hook.log >&2; exit 2; }",
+            "timeout": 120
+          }
+        ]
       }
     ]
   }
