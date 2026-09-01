@@ -1,24 +1,118 @@
 @import "tailwindcss";
+/* coolicons (Iconify ci) — 빌드 타임 CSS mask. 사용법: <span class="icon-[ci--search-magnifying-glass]" /> */
+@plugin "@iconify/tailwind4";
 
+/* 디자인 토큰 (docs/design.md 공통 블록이 원본). 라이트 한 벌 — 다크는 같은 이름으로 두 번째 벌을 덮어쓴다. */
 @theme {
   --font-sans: "Pretendard Variable", Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI",
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 
+  /* 액센트: 화면당 한 곳 */
   --color-accent: #f04a28;
+  --color-on-accent: #ffffff;
+
+  /* 카테고리: 마커·카드 색점에만 */
   --color-grill: #f0885c;
   --color-raw: #14957b;
+
+  /* 잉크 */
   --color-ink: #191f28;
   --color-ink-secondary: #6b7280;
+  --color-ink-tertiary: #9ca3af;
+  --color-on-ink: #ffffff;
+
+  /* 서피스·보더 */
   --color-surface: #ffffff;
   --color-surface-dim: #f9fafb;
+  --color-surface-sunken: #f3f4f6;
+  --color-surface-translucent: rgb(255 255 255 / 0.88);
   --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
 
+  /* 상태 */
+  --color-chip-active: #191f28;
+  --color-on-chip-active: #ffffff;
+  --color-selected-bg: #f3f4f6;
+  --color-marker-ring: #ffffff;
+  --color-shadow: rgb(25 31 40 / 0.12);
+
+  /* 형태: 라운드 12px 내외 통일, 전면 라운드 없음 */
   --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-chip: 8px;
 }
 
 body {
   color: var(--color-ink);
   background-color: var(--color-surface);
+}
+
+/* 지도 위 오버스크롤 방지 (풀스크린 지도 화면) */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 지도 마커 (HtmlIcon content). Tailwind 스캔에 의존하지 않도록 일반 CSS로 둔다.
+ * 크기는 components/map/marker-icons.ts의 size/anchor와 맞춰야 한다.
+ * ------------------------------------------------------------------------- */
+.saeu-marker {
+  --marker-color: var(--color-grill);
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--marker-color);
+  box-shadow:
+    0 0 0 2px var(--color-marker-ring),
+    0 1px 3px var(--color-shadow);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+.saeu-marker--grill {
+  --marker-color: var(--color-grill);
+}
+.saeu-marker--raw {
+  --marker-color: var(--color-raw);
+}
+/* 신규(7일 이내): 점선 테두리 */
+.saeu-marker--new {
+  background: color-mix(in srgb, var(--marker-color) 30%, var(--color-surface));
+  border: 2px dashed var(--marker-color);
+}
+/* 6개월 무활동: 투명도만 낮춤 */
+.saeu-marker--inactive {
+  opacity: 0.4;
+}
+/* 선택: 크게 + 링 */
+.saeu-marker--selected {
+  transform: scale(1.5);
+  box-shadow:
+    0 0 0 2px var(--color-marker-ring),
+    0 0 0 4px var(--marker-color),
+    0 2px 6px var(--color-shadow);
+}
+
+/* 클러스터: 뉴트럴 원 + 카운트 */
+.saeu-cluster {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px var(--color-shadow);
 }
