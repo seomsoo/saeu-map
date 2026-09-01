@@ -183,3 +183,14 @@ saeu-map/
 | .claude/agents/reviewer.md | 단계 13 | |
 | Codex PR 리뷰 | AGENTS.md 기존 완료, 앱 설치는 수동 | |
 | 네이버 지도 + 핀 | 단계 9 | NCP ID는 수동 |
+
+---
+
+## 결과 (2026-09-01 완료)
+
+계획과 달라진 것:
+- **배포: Vercel → Cloudflare Workers(OpenNext)** — 비용 사례 분석 후 당일 스파이크로 전환 (decisions.md 참조). 수동 작업 안내의 Vercel 항목은 무효.
+- **TypeScript 7.0.2 → 6.0.3** — typescript-eslint 미지원으로 다운그레이드.
+- **네이버 지도 인증: `ncpClientId` → `ncpKeyId`** — 신규 NCP Maps 상품은 ncpKeyId 사용.
+- **Pretendard: 단일 woff2 → dynamic subset** — 방문당 전송 2MB → ~100KB.
+- **추가**: gap-sweeper 에이전트 (스펙 대조 감사), CI 액션 SHA 고정 + Node 24 세대 업그레이드.

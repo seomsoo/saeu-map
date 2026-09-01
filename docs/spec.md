@@ -116,7 +116,7 @@ v1 브리프 4장(수집 OK 범위, 리뷰·사진 재배포 금지, 판례 근�
 - 공급자는 카카오만. 30일 무활동 익명 유저 월 1회 정리 크론(활동 기록 있는 유저 제외).
 
 ### 스팸 4겹
-1. Turnstile(모든 쓰기) + Vercel 방화벽
+1. Turnstile(모든 쓰기) + Cloudflare WAF·봇 차단
 2. 속도 제한(Upstash: 제보 시간당 5, 다녀왔다면 핀당 일 1, 신고 일 10) + 급증 텔레그램 알림
 3. 내용: 중복 감지, URL 패턴 거부, 욕설 블록리스트, 이미지 sharp 재인코딩+EXIF 제거, presigned 5분
 4. RLS(자기 행만 쓰기) + zod 검증 + 섀도 밴 + 관리자 차단 목록
@@ -124,7 +124,7 @@ v1 브리프 4장(수집 OK 범위, 리뷰·사진 재배포 금지, 판례 근�
 ## 6. 기술
 
 ### 스택
-- Next.js(App Router, TS) + Tailwind / **네이버 지도 SDK(NCP 신규 Maps 상품)** — Web Dynamic Map 월 600만 건 무료·초과 0.1원/건, 지오코딩도 Maps(월 300만 무료)로 통일, 콘솔에서 사용량 알림(월 400만) 설정 / Supabase(익명 auth·RLS·Postgres) / Vercel
+- Next.js(App Router, TS) + Tailwind / **네이버 지도 SDK(NCP 신규 Maps 상품)** — Web Dynamic Map 월 600만 건 무료·초과 0.1원/건, 지오코딩도 Maps(월 300만 무료)로 통일, 콘솔에서 사용량 알림(월 400만) 설정 / Supabase(익명 auth·RLS·Postgres) / Cloudflare Workers(OpenNext 어댑터 — decisions.md 2026-09-01, 원안 Vercel에서 변경)
 - 사진: NCP Object Storage(크레딧, ~11/30) → 이후 Cloudflare R2 이전. 업로드 시 1200px webp 리사이즈.
 - 길찾기·플레이스 링크도 네이버(딥링크·링크). 카톡 공유·카카오 로그인은 유지(지도 SDK와 무관). VWorld 지오코딩은 네이버 Geocoding으로 대체.
 - 운영: Sentry, 텔레그램 봇, Cloudflare(DNS·Turnstile), Upstash, 네이버 서치어드바이저.
