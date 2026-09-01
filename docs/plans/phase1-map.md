@@ -158,5 +158,6 @@ check (기존, dummy ID 빌드) ─▶ preview (pull_request) : vars ID로 재�
 
 **남은 것 (사용자 작업 → 그 다음 PR 재실행으로 발화 검증)**
 - GitHub repo secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` / repo variable `NEXT_PUBLIC_NCP_CLIENT_ID` 등록 → `preview` 잡이 PR에 프리뷰 URL 코멘트, 머지 시 `deploy` 잡 동작.
-- NCP 콘솔 Web 서비스 URL에 `https://preview-saeu-map.saeu-map.workers.dev` 추가(미등록이면 프리뷰에서 지도 자리에 "지도를 불러오지 못했어요" 에러 상태가 뜬다 — 이제 인증 실패도 에러 상태로 처리됨).
+- ~~NCP 콘솔 Web 서비스 URL에 프리뷰 URL 추가~~ → 불필요 확인: 로컬에서 `pnpm run upload --preview-alias preview`로 올린 https://preview-saeu-map.saeu-map.workers.dev 에서 지도·마커 정상 렌더(2026-09-01). 인증 실패가 나더라도 이제 에러 상태로 처리됨.
+- PR #2 CI: `check` 통과(스모크 "smoke ok: 64680 bytes"), `preview` 잡은 게이트에서 시크릿 미등록 notice 후 스텝 스킵(설계대로 발화), `deploy`는 main push가 아니라 skipping.
 - Codex PR 리뷰 발동 확인은 PR 생성 시점에.

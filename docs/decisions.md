@@ -41,7 +41,7 @@
 - **맥락**: 자동 배포 타이밍 논의. 배포를 1회만 해본 시점의 배선은 하네스 선완성("미리 완성하지 않는다" 위반).
 - **결정**: 방식만 확정 — 기존 ci.yml 확장: main push → check 잡 통과 후 `opennextjs-cloudflare deploy` / PR → `opennextjs-cloudflare upload`(프리뷰 버전). 배선은 Phase 1 첫 PR과 함께. 그때까지 `pnpm deploy` 수동.
 - **배선 결과 (Phase 1, 2026-09-01)**: PR → `pnpm run upload --preview-alias preview` (opennextjs-cloudflare upload가 미지 인자를 wrangler `versions upload`로 전달함을 `--dry-run`으로 확인) → 고정 URL `https://preview-saeu-map.saeu-map.workers.dev`, PR에 코멘트. main push → `pnpm run deploy`. 시크릿 미등록 시 잡 실패 대신 스텝 스킵(+notice). CI에선 `pnpm deploy`가 pnpm 내장 명령과 겹치므로 항상 `pnpm run`.
-- **프리뷰 URL을 고정 별칭 하나로 한 이유**: NCP Maps는 등록된 Web 서비스 URL에서만 인증되고 와일드카드가 없다. PR별 URL이면 매번 콘솔 등록이 필요 → 별칭 `preview` 하나만 등록. 동시 PR이면 마지막 업로드가 덮어씀(1인 개발이라 수용). NCP 콘솔 등록은 사용자 작업.
+- **프리뷰 URL을 고정 별칭 하나로 한 이유**: NCP Maps는 등록된 Web 서비스 URL에서만 인증되고 와일드카드가 없다. PR별 URL이면 매번 콘솔 등록이 필요 → 별칭 `preview` 하나만 등록. 동시 PR이면 마지막 업로드가 덮어씀(1인 개발이라 수용). **확인(2026-09-01)**: 프로덕션 URL 등록만으로 `preview-saeu-map.saeu-map.workers.dev`에서도 인증 통과 — NCP의 "서브 도메인은 대표 도메인만 입력" 규칙이 `*.saeu-map.workers.dev`를 커버한다. 추가 등록 불필요.
 - **Workers Builds(대시보드 git 연동) 배제 이유**: CI(테스트·gitleaks)를 우회하고 배포됨.
 - **필요 시크릿** (배선 시점에 사용자가 등록): `CLOUDFLARE_API_TOKEN`("Edit Cloudflare Workers" 템플릿) + `CLOUDFLARE_ACCOUNT_ID` → GitHub repo secrets.
 
