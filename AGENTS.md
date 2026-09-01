@@ -23,3 +23,13 @@
 - 새 화면·상태에 4상태(로딩/빈/에러/정상) 누락 여부.
 - 쓰기 동작의 낙관적 업데이트에 실패 롤백이 있는지.
 - 시간 계산이 Asia/Seoul 고정인지 (저장은 UTC).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

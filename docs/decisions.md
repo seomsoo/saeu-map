@@ -33,6 +33,13 @@
 - **이전 트리거** (하나라도 해당 시 재검토): ① Pro 전환 필요 시점(Hobby 정지 경험 또는 상업화) ② 봇·크롤러 트래픽 유의미 ③ 사진 트래픽 본격화(R2 이전과 동시 진행이 자연스러움).
 - **Pro로 가게 되면**: 전환 당일 Spend Management 상한 설정이 선행 조건 (기본값이 무상한 — 사례들의 공통 원인).
 
+## 2026-09-01 — 호스팅 변경: Cloudflare Workers 선(先)채택 (당일 "Vercel Hobby 유지" 결정 뒤집음)
+- **맥락**: 스파이크 결과 OpenNext 어댑터가 Next 16.3.3을 정확히 지원, 자동 마이그레이션·로컬 workerd 렌더·배포까지 당일 완료. 이전 비용이 최저점(페이지 1개, ISR·이미지 없음)이고, 사용자의 Vercel 계정은 다른 프로젝트들과 Hobby 무료 한도(계정 단위 100GB)를 공유 중이었음.
+- **결정**: 처음부터 Cloudflare Workers(OpenNext)로 배포. Vercel은 쓰지 않는다. 프로덕션: https://saeu-map.saeu-map.workers.dev (Phase 7에서 새우맵.kr 연결 예정).
+- **요금 안전**: Workers Free는 한도 초과 시 과금이 아니라 에러(하루 10만 요청). Cloudflare 폭탄 사례는 R2 Infrequent Access 오해($9~10)가 대부분 — **R2는 Standard 등급만 쓴다**.
+- **운영 수칙**: ① Next 업그레이드 전 @opennextjs/cloudflare 호환(peerDeps) 확인 ② 배포 전 `pnpm preview`(workerd, :8787)로 런타임 확인 ③ ISR 도입 시(Phase 5~6) R2 incremental cache 바인딩 설정 필요 (지금은 미설정 — 정적이라 무관)
+- **재검토 조건**: OpenNext가 Next 메이저를 4주 이상 못 쫓아오거나, 런타임 갭 디버깅이 반복될 때.
+
 ## 2026-09-01 — Pretendard dynamic subset 전환 (단일 2MB woff2 폐기)
 - **맥락**: PretendardVariable.woff2 단일 파일 2MB를 전 방문자가 다운로드하는 구조였음. DAU 2천 가정 시 폰트만 월 60~120GB 전송 → Hobby 무료 한도(100GB) 위협.
 - **결정**: pretendard 패키지의 dynamic subset(unicode-range 92분할)으로 전환. 화면에 쓰인 글자 범위의 조각만 다운로드 — 방문당 ~100KB, 약 95% 절감. `/fonts/*`는 immutable 캐시 헤더.

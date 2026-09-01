@@ -6,7 +6,15 @@ import nextPlugin from "@next/eslint-plugin-next";
 
 export default tseslint.config(
   {
-    ignores: [".next/", "node_modules/", "coverage/", "*.config.*"],
+    ignores: [
+      ".next/",
+      ".open-next/",
+      ".wrangler/",
+      "node_modules/",
+      "coverage/",
+      "*.config.*",
+      "cloudflare-env.d.ts",
+    ],
   },
   ...tseslint.configs.strictTypeChecked,
   {

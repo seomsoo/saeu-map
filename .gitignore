@@ -45,3 +45,11 @@ playwright-report/
 __pycache__/
 *.py[cod]
 .venv/
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

@@ -1,12 +1,13 @@
 # CLAUDE.md — 새우맵
 
 ## 명령어
-- dev: `pnpm dev`
+- dev: `pnpm dev` (:3000, 평상시)
 - build: `pnpm build`
 - test: `pnpm test` (vitest)
 - lint: `pnpm lint` (eslint flat config)
 - typecheck: `pnpm typecheck` (tsc --noEmit)
 - 전체 검증: `pnpm typecheck && pnpm lint && pnpm test`
+- 배포 전 확인: `pnpm preview` (:8787, 실제 Workers 런타임) / 배포: `pnpm deploy` (Cloudflare Workers — decisions.md 2026-09-01)
 
 서울 새우구이 지도. 모바일 퍼스트 웹. 상세 스펙은 docs/를 먼저 읽어라:
 - docs/spec.md — 통합 기획서 (모든 제품 결정과 이유)
