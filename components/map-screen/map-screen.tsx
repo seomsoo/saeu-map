@@ -48,32 +48,35 @@ export default function MapScreen({
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-surface-dim">
-      {/* 7. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태 */}
+      {/* 7. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
+          에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
+          라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현). */}
       <div className="absolute inset-0">
-        {s.status === "error" ? (
-          <ErrorState
-            className="h-full"
-            title="지도를 불러오지 못했어요"
-            description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
-            onRetry={reloadPage}
-          />
-        ) : (
-          <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
-            <NaverMapProvider>
-              <MapView
-                items={s.items}
-                selectedId={s.selectedId}
-                now={now}
-                initialCenter={s.initialCenter}
-                initialZoom={s.initialZoom}
-                handleRef={mapRef}
-                onViewportChange={s.handleViewportChange}
-                onPlaceClick={s.selectFromMarker}
-                onClusterClick={s.handleClusterClick}
-                onAuthFailure={s.handleMapError}
-              />
-            </NaverMapProvider>
-          </ErrorBoundary>
+        <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
+          <NaverMapProvider>
+            <MapView
+              items={s.items}
+              selectedId={s.selectedId}
+              now={now}
+              initialCenter={s.initialCenter}
+              initialZoom={s.initialZoom}
+              handleRef={mapRef}
+              onViewportChange={s.handleViewportChange}
+              onPlaceClick={s.selectFromMarker}
+              onClusterClick={s.handleClusterClick}
+              onAuthFailure={s.handleMapError}
+            />
+          </NaverMapProvider>
+        </ErrorBoundary>
+        {s.status === "error" && (
+          <div className="absolute inset-0 z-[1] bg-surface">
+            <ErrorState
+              className="h-full"
+              title="지도를 불러오지 못했어요"
+              description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
+              onRetry={reloadPage}
+            />
+          </div>
         )}
       </div>
 

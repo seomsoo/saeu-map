@@ -309,7 +309,8 @@ describe("MapScreen — design 화면 1의 1~9", () => {
     expect(alerts).toHaveLength(2);
     for (const alert of alerts) expect(alert).toHaveTextContent("지도를 불러오지 못했어요");
     expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(2);
-    expect(screen.queryByTestId("map")).not.toBeInTheDocument();
+    // 지도는 언마운트하지 않는다 (인증 실패 뒤 SDK destroy()가 throw → 라우트 에러로 번짐)
+    expect(screen.getByTestId("map")).toBeInTheDocument();
   });
 
   it("위치 권한 없음(jsdom 기본) → 카드에 거리 없음", async () => {
