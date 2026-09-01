@@ -15,7 +15,21 @@
 - **결정**: TypeScript 6.0.3 사용. Next.js 16.3.3과 호환 확인됨.
 - **재검토 조건**: typescript-eslint이 TS 7.x 지원 시 업그레이드.
 
-## 보류 목록
+## 2026-09-01 — Vercel 비용 방어 정책
+- **맥락**: DAU 2천 서비스가 월 $86 청구된 실사례 분석 (Threads @kindainvestor). 원인은 트래픽이 아니라 **ISR 남용**: `revalidate: 60` × 동적 URL 9,649개 → 재생성마다 Function Duration + ISR Writes 이중 과금. 부가 요인: next.config `headers()`의 Cache-Control이 페이지 `revalidate`를 덮어써 s-maxage=60 고정(두 번 배포하고 발견), 크롤러 트래픽, Observability 과금.
+- **우리 방어선 (Phase 5~6에서 지킬 것)**:
+  1. **페이지 캐시는 on-demand 우선**: 쓰기(제보·다녀왔다면·리뷰)가 우리 앱을 거치므로 `revalidateTag`/`revalidatePath`로 변경 시에만 재생성. 주기 revalidate는 보조로 3600s 이상. **`revalidate: 60` 같은 분 단위 금지** — 우리 데이터는 분 단위 신선도가 필요 없다.
+  2. **next.config `headers()`에 페이지 경로 Cache-Control 금지** — 페이지 revalidate를 무력화한다. 폰트·정적 자산(`/fonts/*` 등)만 허용.
+  3. URL 규모 자각: /place/[id] 452 + /gu/[name] 25 ≈ 477개 (그 사례의 1/20). on-demand면 재생성은 실제 데이터 변경 횟수에 비례.
+  4. Observability Plus 켜지 않는다.
+  5. **Hobby 플랜 유지** — 한도 초과 시 과금이 아니라 정지라 요금 폭탄이 구조적으로 불가능. Pro 전환 시 Spend Management 지출 상한을 반드시 같이 설정.
+  6. 폰트는 dynamic subset (아래 결정).
+- **재검토 조건**: Pro 전환 시, 또는 Phase 5 SSR 페이지 추가 시 이 목록 재확인.
+
+## 2026-09-01 — Pretendard dynamic subset 전환 (단일 2MB woff2 폐기)
+- **맥락**: PretendardVariable.woff2 단일 파일 2MB를 전 방문자가 다운로드하는 구조였음. DAU 2천 가정 시 폰트만 월 60~120GB 전송 → Hobby 무료 한도(100GB) 위협.
+- **결정**: pretendard 패키지의 dynamic subset(unicode-range 92분할)으로 전환. 화면에 쓰인 글자 범위의 조각만 다운로드 — 방문당 ~100KB, 약 95% 절감. `/fonts/*`는 immutable 캐시 헤더.
+- **트레이드오프**: next/font 최적화(preload) 포기. FOUT은 font-display: swap + 시스템 폴백으로 수용.
 - TanStack Query — 서버 컴포넌트 구조라 클라이언트 fetch 없음. 재검토: 지도 뷰포트 단위 로딩 도입 시.
 - 가격 뱃지·가격 지수 — kg 단위 표본 20곳 미만. 재검토: 시즌 중 표본 충족 시.
 - 다크 모드(야장모드) — 라이트 우선, 토큰 두 벌만 준비. 재검토: 런칭 후.
