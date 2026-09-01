@@ -4,15 +4,15 @@
 상세 계획은 각 Phase 시작 시 플랜 모드로 docs/plans/phaseN-*.md 에 작성.
 
 ## Phase 0 — 스캐폴드 · 하네스
-- [ ] Next.js(App Router, TS) + Tailwind + Pretendard self-host + coolicons(Iconify ci)
-- [ ] 프리셋: @tsconfig/strictest, typescript-eslint strict-type-checked, eslint-plugin-jsx-a11y, eslint-plugin-boundaries, t3-env, react-hook-form+zod, cva, PR 템플릿
-- [ ] CLAUDE.md + docs/ 배치 (spec, design-prompts, roadmap, decisions, plans/)
-- [ ] lib/mock/ 에 places·checkins·reviews JSON + lib/data.ts 읽기 함수
-- [ ] 훅: 편집 후 lint / Stop 시 typecheck·lint·test / 시크릿 쓰기 차단 + gitleaks
-- [ ] ci.yml (typecheck→lint→test→gitleaks→build→스모크)
-- [ ] .claude/agents/reviewer.md
-- [ ] Codex PR 리뷰 연결: GitHub 앱 설치 + repo에서 Code review·Automatic reviews 켜기 + AGENTS.md 배치
-- [ ] 네이버 지도(NCP Maps, Client ID) + 목 핀 렌더 → Vercel 배포 · 콘솔 사용량 알림 설정
+- [x] Next.js(App Router, TS) + Tailwind + Pretendard self-host + coolicons(Iconify ci)
+- [x] 프리셋: @tsconfig/strictest, typescript-eslint strict-type-checked, eslint-plugin-jsx-a11y, eslint-plugin-boundaries, t3-env, react-hook-form+zod, cva, PR 템플릿
+- [x] CLAUDE.md + docs/ 배치 (spec, design-prompts, roadmap, decisions, plans/)
+- [x] lib/mock/ 에 places·checkins·reviews JSON + lib/data.ts 읽기 함수
+- [x] 훅: 편집 후 lint / Stop 시 typecheck·lint·test / 시크릿 쓰기 차단 + gitleaks
+- [x] ci.yml (typecheck→lint→test→gitleaks→build→스모크)
+- [x] .claude/agents/reviewer.md (+ gap-sweeper.md 스펙 대조 감사)
+- [ ] Codex PR 리뷰 연결: GitHub 앱 설치 + repo에서 Code review·Automatic reviews 켜기 + AGENTS.md 배치 (AGENTS.md 완료, 앱 설치 남음)
+- [ ] 네이버 지도(NCP Maps, Client ID) + 목 핀 렌더 → Vercel 배포 · 콘솔 사용량 알림 설정 (로컬 핀 렌더 완료, Vercel·알림 남음)
 - 완료: 프리뷰 URL을 폰에서 열면 지도에 핀 50개, CI 초록, `pnpm typecheck && lint && test` 로컬 통과
 
 ## Phase 1 — 지도 메인 (spec 4.1 · design 화면 1)
