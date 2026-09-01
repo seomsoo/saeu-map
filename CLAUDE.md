@@ -60,6 +60,6 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 - 작업 끝날 때마다: pnpm typecheck && pnpm lint && pnpm test
 - Phase 완료 선언 전 갭 스윕: gap-sweeper 에이전트로 spec·design 항목을 전수 대조. 미구현 0건이 완료 조건 (roadmap의 "갭 스윕 0건"이 이것).
 - 결정이 바뀌면(호스팅·SDK·버전 등) 한 작업 단위로: decisions.md 기록 + 옛 용어를 docs/·CLAUDE.md·AGENTS.md에서 grep해 잔재 정정. 문서 정정 없는 결정 변경 커밋 금지.
-- 커밋은 작게. PR 전에 자기 리뷰: 모바일 뷰포트 확인했나 / 절대 규칙 1~7 지켰나 / 4상태 있나.
+- git 워크플로: 커밋은 로컬에서 작업 단위마다 작게(세이브 포인트, 자유). **push·PR 생성·머지는 사용자 승인 시에만 — 임의 push 금지.** 모든 변경은 짧은 브랜치 → PR 경유(main은 branch protection으로 직push 차단). 코드 PR은 Codex 리뷰 → 사람이 코멘트 선별 → 머지. 문서만 PR은 CI 통과 후 셀프 머지 OK. 자기 리뷰는 PR 템플릿 체크리스트로.
 - Codex PR 코멘트는 사람이 판단한다. 자동으로 수정하지 마라 — 사람이 "N번 코멘트만 고쳐, M번은 무시(이유)"로 선별 지시했을 때만 수정. 같은 종류 지적이 2회 오면 고치는 대신 규칙(CLAUDE.md·린트) 승격을 제안하라.
 - 같은 실수 2회 → 이 파일이나 린트 규칙에 승격해서 기록. (auto memory가 스스로 남긴 것도 /memory로 주기 검토)

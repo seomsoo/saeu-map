@@ -33,6 +33,16 @@
 - **이전 트리거** (하나라도 해당 시 재검토): ① Pro 전환 필요 시점(Hobby 정지 경험 또는 상업화) ② 봇·크롤러 트래픽 유의미 ③ 사진 트래픽 본격화(R2 이전과 동시 진행이 자연스러움).
 - **Pro로 가게 되면**: 전환 당일 Spend Management 상한 설정이 선행 조건 (기본값이 무상한 — 사례들의 공통 원인).
 
+## 2026-09-01 — git 워크플로: 모든 변경 PR 경유, push는 승인 필수
+- **맥락**: Phase 0 동안 커밋 12개가 전부 main 직push, PR 0개 — Codex PR 리뷰 설정이 발동 불가능한 모순. 사용자 지적으로 규칙화.
+- **결정**: 커밋은 로컬 자유(세이브 포인트) / push·PR·머지는 사용자 승인 필수 / 모든 변경 짧은 브랜치→PR (main은 branch protection으로 기계 차단, CI `check` 통과 필수) / 코드 PR은 Codex 리뷰 경유, 문서만 PR은 셀프 머지 OK.
+
+## 2026-09-01 — 자동 배포: GitHub Actions, 배선은 Phase 1 첫 PR 때
+- **맥락**: 자동 배포 타이밍 논의. 배포를 1회만 해본 시점의 배선은 하네스 선완성("미리 완성하지 않는다" 위반).
+- **결정**: 방식만 확정 — 기존 ci.yml 확장: main push → check 잡 통과 후 `opennextjs-cloudflare deploy` / PR → `opennextjs-cloudflare upload`(프리뷰 버전). 배선은 Phase 1 첫 PR과 함께. 그때까지 `pnpm deploy` 수동.
+- **Workers Builds(대시보드 git 연동) 배제 이유**: CI(테스트·gitleaks)를 우회하고 배포됨.
+- **필요 시크릿** (배선 시점에 사용자가 등록): `CLOUDFLARE_API_TOKEN`("Edit Cloudflare Workers" 템플릿) + `CLOUDFLARE_ACCOUNT_ID` → GitHub repo secrets.
+
 ## 2026-09-01 — 호스팅 변경: Cloudflare Workers 선(先)채택 (당일 "Vercel Hobby 유지" 결정 뒤집음)
 - **맥락**: 스파이크 결과 OpenNext 어댑터가 Next 16.3.3을 정확히 지원, 자동 마이그레이션·로컬 workerd 렌더·배포까지 당일 완료. 이전 비용이 최저점(페이지 1개, ISR·이미지 없음)이고, 사용자의 Vercel 계정은 다른 프로젝트들과 Hobby 무료 한도(계정 단위 100GB)를 공유 중이었음.
 - **결정**: 처음부터 Cloudflare Workers(OpenNext)로 배포. Vercel은 쓰지 않는다. 프로덕션: https://saeu-map.saeu-map.workers.dev (Phase 7에서 새우맵.kr 연결 예정).
