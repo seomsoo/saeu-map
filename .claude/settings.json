@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "json=$(cat); file=$(printf '%s' \"$json\" | jq -r '.tool_input.file_path // empty'); case \"$file\" in */.claude/settings.json) exit 0 ;; esac; content=$(printf '%s' \"$json\" | jq -r '(.tool_input.content // \"\") + (.tool_input.new_string // \"\")'); if printf '%s' \"$content\" | grep -qE 'sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{30,}|service_role|-----BEGIN [A-Z ]*PRIVATE KEY'; then echo '차단: 시크릿으로 보이는 문자열이 파일에 들어가려 함. 시크릿은 .env에만.' >&2; exit 2; fi"
+            "command": "content=$(jq -r '(.tool_input.content // \"\") + (.tool_input.new_string // \"\")'); if printf '%s' \"$content\" | grep -qE 'sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{30,}|serv[i]ce_role|-----BEGIN [A-Z ]*PRIVATE KEY'; then echo '차단: 시크릿으로 보이는 문자열이 파일에 들어가려 함. 시크릿은 .env에만.' >&2; exit 2; fi"
           }
         ]
       }
