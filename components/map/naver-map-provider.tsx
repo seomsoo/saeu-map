@@ -1,25 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import { NavermapsProvider } from "react-naver-maps";
+
+interface NaverMapProviderProps {
+  children: React.ReactNode;
+  /** NEXT_PUBLIC_NCP_CLIENT_ID가 빌드에 없을 때 — 화면이 에러 상태로 전환한다 (4상태 계약). */
+  onMissingConfig: () => void;
+}
 
 export default function NaverMapProvider({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  onMissingConfig,
+}: NaverMapProviderProps) {
   const clientId = process.env["NEXT_PUBLIC_NCP_CLIENT_ID"];
+  const missing = !clientId;
 
-  if (!clientId) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-surface-dim text-ink-secondary">
-        <p>
-          NEXT_PUBLIC_NCP_CLIENT_ID 환경변수를 설정해주세요.
-          <br />
-          .env.local에 NCP Maps Client ID를 넣으면 지도가 표시됩니다.
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (missing) onMissingConfig();
+  }, [missing, onMissingConfig]);
+
+  if (missing || !clientId) return null;
 
   return <NavermapsProvider ncpKeyId={clientId}>{children}</NavermapsProvider>;
 }
