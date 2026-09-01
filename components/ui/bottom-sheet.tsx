@@ -64,7 +64,12 @@ interface DragState {
   lastT: number;
   velocity: number;
   moved: boolean;
+  /** 핸들 버튼에서 시작한 포인터 — 움직임 없이 떼면 탭으로 간주해 스냅을 순환 */
+  fromHandle: boolean;
 }
+
+/** 포인터 탭으로 스냅을 바꾼 직후 따라오는 click(캡처로 리타겟될 수 있음)을 무시하는 창 */
+const CLICK_SUPPRESS_MS = 250;
 
 interface BottomSheetProps {
   snap: SheetSnap;
@@ -91,6 +96,13 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const lastPointerCycleAt = useRef(0);
+
+  const cycleSnap = useCallback(() => {
+    const next: SheetSnap =
+      snap === "collapsed" ? "half" : snap === "half" ? "full" : "collapsed";
+    onSnapChange(next);
+  }, [snap, onSnapChange]);
 
   const setDragOffset = (px: number, dragging: boolean) => {
     const el = sheetRef.current;
@@ -121,6 +133,7 @@ export function BottomSheet({
       lastT: e.timeStamp,
       velocity: 0,
       moved: false,
+      fromHandle: target.closest("[data-sheet-handle]") !== null,
     };
   };
 
@@ -148,7 +161,14 @@ export function BottomSheet({
     dragRef.current = null;
     e.currentTarget.releasePointerCapture(e.pointerId);
     setDragOffset(0, false);
-    if (!drag.moved) return;
+    if (!drag.moved) {
+      // 포인터 캡처 중엔 click이 핸들 버튼이 아니라 래퍼로 갈 수 있어 탭을 여기서 처리한다
+      if (drag.fromHandle && e.type === "pointerup") {
+        lastPointerCycleAt.current = e.timeStamp;
+        cycleSnap();
+      }
+      return;
+    }
 
     const vh = window.innerHeight;
     const visible = drag.startVisible - (e.clientY - drag.startY);
@@ -161,15 +181,9 @@ export function BottomSheet({
     if (next !== snap) onSnapChange(next);
   };
 
-  const cycleSnap = useCallback(() => {
-    const next: SheetSnap =
-      snap === "collapsed" ? "half" : snap === "half" ? "full" : "collapsed";
-    onSnapChange(next);
-  }, [snap, onSnapChange]);
-
-  const onHandleClick = () => {
-    // 드래그 직후의 click은 무시 (moved면 finishDrag가 이미 처리)
-    if (dragRef.current?.moved) return;
+  // 키보드(Enter/Space) 경로. 포인터 탭은 finishDrag가 이미 처리했으므로 직후 click은 무시.
+  const onHandleClick = (e: { timeStamp: number }) => {
+    if (e.timeStamp - lastPointerCycleAt.current < CLICK_SUPPRESS_MS) return;
     cycleSnap();
   };
 
@@ -205,7 +219,8 @@ export function BottomSheet({
         </button>
         <div className="flex min-h-0 flex-1 items-center px-4">{header}</div>
       </div>
-      <div className="saeu-sheet__body min-h-0 flex-1">{children}</div>
+      {/* 높이는 CSS(.saeu-sheet__body)가 스냅별로 정한다 — flex-1을 주면 92dvh 전체로 늘어나 스크롤 영역이 화면 밖까지 이어진다 */}
+      <div className="saeu-sheet__body min-h-0 shrink-0">{children}</div>
     </section>
   );
 }

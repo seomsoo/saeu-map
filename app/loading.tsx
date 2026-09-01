@@ -8,7 +8,8 @@ export default function Loading() {
       aria-busy="true"
       aria-label="불러오는 중"
     >
-      <Skeleton className="absolute inset-0 rounded-none" />
+      {/* 지도 자리: 스켈레톤 조각(surface-sunken)이 보이도록 한 단계 밝은 바탕 */}
+      <div className="absolute inset-0 animate-pulse bg-surface-dim" aria-hidden="true" />
       <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 px-3 pt-2">
         <div className="flex h-9 items-center justify-between">
           <Skeleton className="h-6 w-16" />

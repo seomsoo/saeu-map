@@ -14,7 +14,7 @@ describe("sheetVisiblePx — CSS 변수와 같은 규칙", () => {
 });
 
 describe("BottomSheet", () => {
-  it("스냅을 data 속성으로 노출하고 핸들 클릭이 다음 단계로", () => {
+  it("스냅을 data 속성으로 노출하고 핸들 클릭(키보드 경로)이 다음 단계로", () => {
     const onSnapChange = vi.fn();
     render(
       <BottomSheet snap="half" onSnapChange={onSnapChange} header={<span>헤더</span>} label="가게 목록">
@@ -23,7 +23,22 @@ describe("BottomSheet", () => {
     );
     const sheet = screen.getByRole("region", { name: "가게 목록" });
     expect(sheet).toHaveAttribute("data-snap", "half");
-    fireEvent.click(screen.getByRole("button", { name: "목록 크기 조절" }));
+    fireEvent.click(screen.getByRole("button", { name: "목록 크기 조절" }), { timeStamp: 5000 });
+    expect(onSnapChange).toHaveBeenCalledWith("full");
+  });
+
+  it("핸들을 포인터로 탭(이동 없음)하면 한 번만 순환하고, 따라오는 click은 무시", () => {
+    const onSnapChange = vi.fn();
+    render(
+      <BottomSheet snap="half" onSnapChange={onSnapChange} header={<span>헤더</span>} label="가게 목록">
+        <p>내용</p>
+      </BottomSheet>,
+    );
+    const handle = screen.getByRole("button", { name: "목록 크기 조절" });
+    fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientY: 500, timeStamp: 1000 });
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 501, timeStamp: 1080 });
+    fireEvent.click(handle, { timeStamp: 1085 });
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
     expect(onSnapChange).toHaveBeenCalledWith("full");
   });
 
