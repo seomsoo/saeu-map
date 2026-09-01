@@ -33,6 +33,8 @@ const NOTICE_MS = 2000;
 const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 
 export type MapStatus = "loading" | "ready" | "error";
+/** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
+export type MapErrorReason = "runtime" | "config";
 export type EmptyKind = "area" | "bookmarks";
 
 interface UseMapScreenInput {
@@ -78,7 +80,7 @@ export function useMapScreen({
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [sortOrigin, setSortOrigin] = useState<LatLng | null>(null);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
-  const [mapFailed, setMapFailed] = useState(false);
+  const [mapError, setMapError] = useState<MapErrorReason | null>(null);
   const [eventDismissed, setEventDismissed] = useState(false);
   const [snap, setSnap] = useState<SheetSnap>("half");
   const [notice, setNotice] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export function useMapScreen({
     [inView, sort, origin],
   );
 
-  const status: MapStatus = mapFailed ? "error" : viewport ? "ready" : "loading";
+  const status: MapStatus = mapError ? "error" : viewport ? "ready" : "loading";
   const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0 ? "bookmarks" : "area";
@@ -150,9 +152,13 @@ export function useMapScreen({
     setSortOrigin(next.center);
   }, []);
 
-  /** 스크립트 로드 실패(ErrorBoundary)와 NCP 인증 실패(navermap_authFailure) 모두 여기로 */
+  /** 스크립트 로드 실패(ErrorBoundary)·NCP 인증 실패(navermap_authFailure) → runtime */
   const handleMapError = useCallback(() => {
-    setMapFailed(true);
+    setMapError((prev) => prev ?? "runtime");
+  }, []);
+  /** 빌드에 NEXT_PUBLIC_NCP_CLIENT_ID 없음 → config (Codex #3: 영원한 로딩 대신 에러 상태) */
+  const handleMissingConfig = useCallback(() => {
+    setMapError("config");
   }, []);
 
   /* ── 위치: 첫 로드 시 조용히 ── */
@@ -266,6 +272,7 @@ export function useMapScreen({
     userLocation,
     eventDismissed,
     status,
+    mapErrorReason: mapError,
     emptyKind,
     // 파생
     items,
@@ -287,6 +294,7 @@ export function useMapScreen({
     handleClusterClick,
     handleViewportChange,
     handleMapError,
+    handleMissingConfig,
     dismissEvent,
     showNotice,
   };

@@ -235,7 +235,8 @@ const PlaceMarkers = memo(function PlaceMarkers({
       {items.map((item) =>
         item.kind === "cluster" ? (
           <ClusterMarker
-            key={`cluster-${item.id}`}
+            // 인덱스 재구성 시 supercluster ID가 다른 중심으로 재사용될 수 있어 좌표까지 key에 넣어 리마운트 (Codex #1)
+            key={`cluster-${item.id}-${item.lat.toFixed(5)}-${item.lng.toFixed(5)}`}
             id={item.id}
             lat={item.lat}
             lng={item.lng}

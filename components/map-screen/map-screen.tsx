@@ -53,7 +53,7 @@ export default function MapScreen({
           라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현). */}
       <div className="absolute inset-0">
         <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
-          <NaverMapProvider>
+          <NaverMapProvider onMissingConfig={s.handleMissingConfig}>
             <MapView
               items={s.items}
               selectedId={s.selectedId}
@@ -70,12 +70,20 @@ export default function MapScreen({
         </ErrorBoundary>
         {s.status === "error" && (
           <div className="absolute inset-0 z-[1] bg-surface">
-            <ErrorState
-              className="h-full"
-              title="지도를 불러오지 못했어요"
-              description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
-              onRetry={reloadPage}
-            />
+            {s.mapErrorReason === "config" ? (
+              <ErrorState
+                className="h-full"
+                title="지도 설정이 없어요"
+                description="NEXT_PUBLIC_NCP_CLIENT_ID가 빌드에 없습니다. .env.local(또는 CI 변수)을 확인해주세요."
+              />
+            ) : (
+              <ErrorState
+                className="h-full"
+                title="지도를 불러오지 못했어요"
+                description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
+                onRetry={reloadPage}
+              />
+            )}
           </div>
         )}
       </div>

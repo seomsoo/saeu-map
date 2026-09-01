@@ -313,6 +313,14 @@ describe("MapScreen — design 화면 1의 1~9", () => {
     expect(screen.getByTestId("map")).toBeInTheDocument();
   });
 
+  it("NEXT_PUBLIC_NCP_CLIENT_ID가 없으면 로딩에 갇히지 않고 설정 에러 상태", async () => {
+    vi.stubEnv("NEXT_PUBLIC_NCP_CLIENT_ID", "");
+    renderScreen();
+    expect(await screen.findByText("지도 설정이 없어요")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByRole("list", { name: "가게 목록 불러오는 중" })).not.toBeInTheDocument();
+  });
+
   it("위치 권한 없음(jsdom 기본) → 카드에 거리 없음", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "지도 내 4곳" });
