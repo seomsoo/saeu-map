@@ -135,3 +135,27 @@ check (기존, dummy ID 빌드) ─▶ preview (pull_request) : vars ID로 재�
 - react-naver-maps `idle` 초기 발화 여부 / `Marker.icon` controlled 반영 — 실행 초반에 확인, 폴백(onInit / key 재마운트) 준비.
 - 320px 상단 스택 높이 → 지도 가시 영역 축소. 스냅 규칙·말줄임으로 흡수.
 - Stop 훅 120s — 테스트 증가 시 vitest 시간 확인.
+
+---
+
+## 결과 (2026-09-01 완료)
+
+**검증**
+- `pnpm typecheck && pnpm lint && pnpm test` 통과 — 테스트 98개(lib 72 + 컴포넌트 26), bottom-sheet 플링 테스트는 Date 가짜 타이머로 결정적(3회 연속 통과).
+- Playwright 실측(dev :3000 + workerd 프리뷰 :8787): 390/320/430 스크린샷, 화면 1의 1~9 존재, 탭·칩·정렬 3종·검색(fitBounds)·이벤트 닫기·마커/카드/클러스터 탭·시트 드래그/탭, 4상태(로딩·빈·에러×2·정상), 위치 허용/거부 두 경로. 콘솔 에러 0.
+- 갭 스윕(gap-sweeper): 78항목 — 구현 76 / 부분 1 / 미구현 0 / 모호 1. 부분(위치가 SDK보다 먼저 오면 줌 12) → `initialZoom` 가드로 같은 날 수정. 모호("스모크 통과" 정의) → decisions.md에 정의 + CI 스모크 스텝 추가.
+- 리뷰어(reviewer): 지적 6건(비결정적 테스트·NCP 인증 실패 미처리·초기 중심 가드·정렬 기준점 플래그·낮은 뷰포트 스냅·단위 칩 "소자") + 체크리스트 3건(터치 타겟·CI 게이트·북마크 전역 주석) 전부 반영.
+
+**계획과 달라진 것**
+- `@vitejs/plugin-react` 불필요 — vitest `oxc.jsx.runtime = automatic`으로 해결. `globals: false`라 RTL cleanup은 setup에서 직접 등록.
+- boundaries 린트는 v7 문법(요소=폴더, `partialMatch:false`, `lib/data.ts`는 `boundaries/files` 카테고리)으로 재작성. 위반 파일 2개로 발화 검증 후 삭제.
+- NCP 인증 실패는 ErrorBoundary가 아니라 SDK의 `window.navermap_authFailure` 콜백으로 잡는다(스크립트는 정상 로드되므로).
+- 바텀시트: 스냅 높이는 CSS 변수, 본문 높이는 `flex-1` 없이 CSS가 정함(처음엔 92dvh까지 늘어나 선택 카드 스크롤이 화면 밖으로 갔음). 핸들 탭은 포인터 캡처 때문에 click이 래퍼로 가서 pointerup에서 처리.
+- 이벤트 카드 링크는 `prefetch={false}` — `/test` 404가 매 로드 콘솔 에러로 남아서.
+- 파비콘 임시 에셋(`app/icon.svg` 색점) 추가 — 404 콘솔 에러 제거. 커스텀 에셋 목록에 기록.
+- CI `check`에 workerd 스모크 스텝 추가(빌드 후 `wrangler dev` 기동 → `/` 200 + "새우맵").
+
+**남은 것 (사용자 작업 → 그 다음 PR 재실행으로 발화 검증)**
+- GitHub repo secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` / repo variable `NEXT_PUBLIC_NCP_CLIENT_ID` 등록 → `preview` 잡이 PR에 프리뷰 URL 코멘트, 머지 시 `deploy` 잡 동작.
+- NCP 콘솔 Web 서비스 URL에 `https://preview-saeu-map.saeu-map.workers.dev` 추가(미등록이면 프리뷰에서 지도 자리에 "지도를 불러오지 못했어요" 에러 상태가 뜬다 — 이제 인증 실패도 에러 상태로 처리됨).
+- Codex PR 리뷰 발동 확인은 PR 생성 시점에.

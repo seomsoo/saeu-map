@@ -47,6 +47,21 @@ jobs:
         env:
           NEXT_PUBLIC_NCP_CLIENT_ID: dummy-for-build
 
+      # 스모크 = 빌드된 워커가 workerd에서 실제로 기동하고 /가 200 + "새우맵"을 돌려주는지 (decisions.md 2026-09-01 스모크 정의)
+      - name: Smoke (workerd boots and serves /)
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          npx wrangler dev --port 8787 --log-level warn > wrangler.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8787/ -o smoke.html; then break; fi
+            sleep 2
+          done
+          if ! grep -q "새우맵" smoke.html 2>/dev/null; then
+            echo "::error::smoke failed — worker did not serve /"; tail -50 wrangler.log; exit 1
+          fi
+          echo "smoke ok: $(wc -c < smoke.html) bytes"
+
   # PR → 프리뷰 버전 업로드 (배포 아님). 고정 별칭 preview → https://preview-saeu-map.saeu-map.workers.dev
   # 시크릿이 없으면 실패 대신 건너뛴다 (decisions.md 2026-09-01 자동 배포).
   preview:

@@ -82,6 +82,11 @@
 - **바텀시트 직접 구현** (vaul 미채택): 항상 열린 비모달 + Phase 2 드래그 확장·스와이프 닫기까지 제어 필요, vaul 1.1.2는 2024-12 이후 무업데이트. 스냅 위치는 CSS 변수(SSR 첫 렌더부터 정확), JS는 드래그 놓을 때 판정만. 뷰포트 높이 ≤639px이면 half=collapsed.
 - **vitest**: tsconfig `jsx: preserve` 때문에 Vite 8이 tsx 테스트를 거부 → vitest 설정에 `oxc.jsx.runtime = automatic` (plugin-react 불필요). `globals: false`라 RTL cleanup을 setup에서 직접 등록.
 
+## 2026-09-01 — "스모크 통과"의 정의
+- **맥락**: roadmap Phase 0·1 완료 조건의 "스모크"가 정의돼 있지 않았다(Phase 0 플랜은 "build 성공 = 통과"로 읽었고, ci.yml엔 스모크 스텝이 없었음). Phase 1 갭 스윕에서 "모호"로 보고됨.
+- **결정**: 스모크 = ① CI `check` 잡에서 OpenNext 빌드 후 **workerd(`wrangler dev`)를 실제 기동해 `/`가 200 + "새우맵"을 돌려주는지** 확인(2026-09-01부터 ci.yml 스텝) + ② 배포 전 `pnpm preview`로 사람이 한 번 보는 것. 빌드 성공만으로는 런타임 갭(OpenNext 어댑터)을 못 잡는다는 게 이유.
+- **재검토 조건**: Phase 5 SSR 라우트 추가 시 스모크 URL 목록(/place/[id], /gu/[name]) 확장.
+
 ## 커스텀 에셋 필요 목록
 - 새우 마커·로고 (그 전까지 카테고리 색점)
 - 파비콘 (그 전까지 `app/icon.svg` 코랄 색점)
