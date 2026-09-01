@@ -109,7 +109,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
         run: |
-          pnpm run upload --preview-alias preview --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}" 2>&1 | tee upload.log
+          # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지
+          pnpm run upload --preview-alias preview --message "pr${{ github.event.pull_request.number }}-${GITHUB_SHA::7}" 2>&1 | tee upload.log
 
       - name: Comment preview URL on PR
         if: steps.gate.outputs.enabled == 'true'
