@@ -43,7 +43,7 @@
 - **배선 결과 (Phase 1, 2026-09-01)**: PR → `pnpm run upload --preview-alias preview` (opennextjs-cloudflare upload가 미지 인자를 wrangler `versions upload`로 전달함을 `--dry-run`으로 확인) → 고정 URL `https://preview-saeu-map.saeu-map.workers.dev`, PR에 코멘트. main push → `pnpm run deploy`. 시크릿 미등록 시 잡 실패 대신 스텝 스킵(+notice). CI에선 `pnpm deploy`가 pnpm 내장 명령과 겹치므로 항상 `pnpm run`.
 - **프리뷰 URL을 고정 별칭 하나로 한 이유**: NCP Maps는 등록된 Web 서비스 URL에서만 인증되고 와일드카드가 없다. PR별 URL이면 매번 콘솔 등록이 필요 → 별칭 `preview` 하나만 등록. 동시 PR이면 마지막 업로드가 덮어씀(1인 개발이라 수용). **확인(2026-09-01)**: 프로덕션 URL 등록만으로 `preview-saeu-map.saeu-map.workers.dev`에서도 인증 통과 — NCP의 "서브 도메인은 대표 도메인만 입력" 규칙이 `*.saeu-map.workers.dev`를 커버한다. 추가 등록 불필요.
 - **Workers Builds(대시보드 git 연동) 배제 이유**: CI(테스트·gitleaks)를 우회하고 배포됨.
-- **필요 시크릿** (배선 시점에 사용자가 등록): `CLOUDFLARE_API_TOKEN`("Edit Cloudflare Workers" 템플릿) + `CLOUDFLARE_ACCOUNT_ID` → GitHub repo secrets.
+- **필요 시크릿** (배선 시점에 사용자가 등록): `CLOUDFLARE_API_TOKEN`("Edit Cloudflare Workers" 템플릿) + `CLOUDFLARE_ACCOUNT_ID` → GitHub repo secrets, `NEXT_PUBLIC_NCP_CLIENT_ID` → repo variable. **등록 완료(2026-09-01)**. 토큰은 공백 없이 넣고 저장 전 `curl -H "Authorization: Bearer $T" https://api.cloudflare.com/client/v4/user/tokens/verify`로 `active` 확인할 것 — 공백 섞인 값은 6111 에러로 프리뷰 잡이 실패한다.
 
 ## 2026-09-01 — 호스팅 변경: Cloudflare Workers 선(先)채택 (당일 "Vercel Hobby 유지" 결정 뒤집음)
 - **맥락**: 스파이크 결과 OpenNext 어댑터가 Next 16.3.3을 정확히 지원, 자동 마이그레이션·로컬 workerd 렌더·배포까지 당일 완료. 이전 비용이 최저점(페이지 1개, ISR·이미지 없음)이고, 사용자의 Vercel 계정은 다른 프로젝트들과 Hobby 무료 한도(계정 단위 100GB)를 공유 중이었음.

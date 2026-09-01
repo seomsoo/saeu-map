@@ -159,5 +159,6 @@ check (기존, dummy ID 빌드) ─▶ preview (pull_request) : vars ID로 재�
 **남은 것 (사용자 작업 → 그 다음 PR 재실행으로 발화 검증)**
 - GitHub repo secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` / repo variable `NEXT_PUBLIC_NCP_CLIENT_ID` 등록 → `preview` 잡이 PR에 프리뷰 URL 코멘트, 머지 시 `deploy` 잡 동작.
 - ~~NCP 콘솔 Web 서비스 URL에 프리뷰 URL 추가~~ → 불필요 확인: 로컬에서 `pnpm run upload --preview-alias preview`로 올린 https://preview-saeu-map.saeu-map.workers.dev 에서 지도·마커 정상 렌더(2026-09-01). 인증 실패가 나더라도 이제 에러 상태로 처리됨.
-- PR #2 CI: `check` 통과(스모크 "smoke ok: 64680 bytes"), `preview` 잡은 게이트에서 시크릿 미등록 notice 후 스텝 스킵(설계대로 발화), `deploy`는 main push가 아니라 skipping.
+- PR #2 CI: `check` 통과(스모크 "smoke ok: 64680 bytes"). 시크릿 등록 전엔 `preview` 잡이 게이트 notice 후 스킵(설계대로), 등록 후 재실행에서 **프리뷰 업로드 → PR 코멘트까지 발화 확인**(run 33523969425, Version 634b1f0f, 코멘트 커밋 988f4e0). `deploy`는 머지 시 첫 발화.
+- 시크릿 등록에서 배운 것: `pbpaste | gh secret set`으로 넣은 토큰에 공백이 섞여 Cloudflare 6111(Authorization 헤더 형식)로 실패 → **저장 전에 `/user/tokens/verify`로 검증**하는 한 줄 절차로 해결. 또 `pnpm run upload | tee`가 종료 코드를 삼켜 실패가 초록으로 보였음 → `shell: bash`(pipefail) + 별칭 URL 검증으로 수정. 둘 다 "하네스는 발화 검증이 완료 조건" 규칙의 사례.
 - Codex PR 리뷰 발동 확인은 PR 생성 시점에.
