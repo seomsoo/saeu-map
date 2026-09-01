@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "file=\"$CLAUDE_FILE_PATH\"; ext=\"${file##*.}\"; if [ \"$ext\" = \"ts\" ] || [ \"$ext\" = \"tsx\" ] || [ \"$ext\" = \"js\" ] || [ \"$ext\" = \"mjs\" ]; then npx eslint --fix \"$file\" 2>&1 | tail -5; fi"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "pnpm typecheck && pnpm lint && pnpm test"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "command": "if echo \"$CLAUDE_FILE_CONTENT\" | grep -qiE '(sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|password\\s*=\\s*[\"'\\'']{1}[^\"'\\'']+[\"'\\'']{1}|service_role|secret_key\\s*=)'; then echo 'BLOCKED: possible secret detected in file content' && exit 1; fi"
+      }
+    ]
+  }
+}
