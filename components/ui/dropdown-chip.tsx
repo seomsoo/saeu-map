@@ -16,8 +16,12 @@ interface DropdownChipProps<K extends string> {
   value: K;
   options: readonly DropdownOption<K>[];
   onChange: (key: K) => void;
-  /** 틴트(활성) 여부. 기본은 첫 옵션(기본값)이 아닐 때 */
+  /** 틴트(활성) 여부. 기본은 첫 옵션(기본값)이 아닐 때 (chip 전용) */
   active?: boolean | undefined;
+  /** chip = pill 칩(기본) / text = 보더 없는 텍스트 트리거(시트 헤더 정렬용) */
+  appearance?: "chip" | "text" | undefined;
+  /** 목록을 트리거의 왼쪽 끝(start)·오른쪽 끝(end)에 맞춘다 */
+  align?: "start" | "end" | undefined;
   className?: string | undefined;
 }
 
@@ -37,6 +41,8 @@ export function DropdownChip<K extends string>({
   options,
   onChange,
   active,
+  appearance = "chip",
+  align = "start",
   className,
 }: DropdownChipProps<K>) {
   const [open, setOpen] = useState(false);
@@ -52,11 +58,12 @@ export function DropdownChip<K extends string>({
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - LIST_WIDTH - VIEWPORT_MARGIN);
+    const wanted = align === "end" ? rect.right - LIST_WIDTH : rect.left;
     setPos({
       top: rect.bottom + LIST_GAP,
-      left: Math.min(Math.max(rect.left, VIEWPORT_MARGIN), maxLeft),
+      left: Math.min(Math.max(wanted, VIEWPORT_MARGIN), maxLeft),
     });
-  }, []);
+  }, [align]);
 
   useLayoutEffect(() => {
     if (open) place();
@@ -137,16 +144,21 @@ export function DropdownChip<K extends string>({
         onClick={() => {
           setOpen((v) => !v);
         }}
-        className={cx(
-          chipVariants({ size: "md", tone: isActive ? "active" : "outline" }),
-          "press hit-44 pr-2 shadow-float",
-        )}
+        className={
+          appearance === "text"
+            ? "press hit-44 inline-flex items-center gap-0.5 text-body-m-medium text-fg-secondary"
+            : cx(
+                chipVariants({ size: "md", tone: isActive ? "active" : "outline" }),
+                "press hit-44 pr-2 shadow-float",
+              )
+        }
       >
         {current?.label}
         <span
           className={cx(
-            "icon-[ci--chevron-down] size-5 transition-transform",
-            isActive ? "text-brand-fg" : "text-fg-placeholder",
+            "icon-[ci--chevron-down] transition-transform",
+            appearance === "text" ? "size-4 text-fg-placeholder" : "size-5",
+            appearance === "chip" && (isActive ? "text-brand-fg" : "text-fg-placeholder"),
             open && "rotate-180",
           )}
           aria-hidden="true"

@@ -6,14 +6,14 @@ interface EventCardProps {
   onDismiss: () => void;
 }
 
-/** 5. 이벤트 카드 슬롯 — 시트 본문 맨 위. 제목·링크·기간은 설정값, 닫기는 메모리 상태(새로고침 시 재노출). */
+/** 5. 이벤트 배너 — 시트 본문 맨 위, 브랜드 틴트 한 줄. 제목·링크·기간은 설정값, 닫기는 메모리 상태(새로고침 시 재노출). */
 export function EventCard({ card, onDismiss }: EventCardProps) {
   const body = (
     <>
-      <span className="min-w-0 flex-1 truncate text-body-m-medium text-fg">{card.title}</span>
+      <span className="min-w-0 flex-1 truncate text-body-m-medium text-brand-fg">{card.title}</span>
       {card.href && (
         <span
-          className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder"
+          className="icon-[ci--chevron-right] size-4 shrink-0 text-brand-fg"
           aria-hidden="true"
         />
       )}
@@ -22,7 +22,7 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
 
   return (
     <div
-      className="mx-5 mt-3 flex h-10 items-center gap-1 rounded-12 bg-bg-sunken pl-4 pr-1"
+      className="mx-5 mt-3 flex h-11 items-center gap-1 rounded-12 bg-brand-tint pl-4 pr-1"
       aria-label="이벤트"
     >
       {card.href ? (
@@ -41,7 +41,7 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
         type="button"
         onClick={onDismiss}
         aria-label="이벤트 카드 닫기"
-        className="flex size-8 shrink-0 items-center justify-center text-fg-placeholder hit-44"
+        className="flex size-9 shrink-0 items-center justify-center text-brand-fg hit-44"
       >
         <span className="icon-[ci--close-md] size-4" aria-hidden="true" />
       </button>

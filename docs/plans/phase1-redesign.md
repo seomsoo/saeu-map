@@ -52,4 +52,5 @@ Phase 1(지도 메인)은 기능·테스트·갭 스윕까지 끝났지만 시�
 - 계획과 달라진 것: 지도 래퍼에 `z-0`(스태킹 컨텍스트) 추가 — SDK 컨트롤이 시트 위로 새지 않게 하는 방어. 스크린샷 하단의 "N" 배지는 Next.js 개발 도구(NEXTJS-PORTAL)라 프로덕션엔 없음. `OutlineButton` 프리미티브를 추가해 빈/에러 상태 버튼을 통일.
 - 2차 피드백 반영: 카테고리 탭 3개 → [전체 ▾] 드롭다운 칩(`components/ui/dropdown-chip.tsx`, `category-dropdown.tsx`), 라벨 소금구이·생새우회, `--shadow-card` 토큰 추가.
 - 3차 피드백 반영: 사이드 필터 칩 3개(머리버터구이·라면·볶음밥) 추가로 칩 5개(spec 상한). `EmptyKind "filter"` + [필터 해제], `assertNever` exhaustive switch, 용어 "곁들임"→"사이드"(spec·design·코드).
+- 4차 피드백 반영(시트): 정렬 세그먼트 → 헤더 우측 텍스트 트리거, 카운터 캡션 "● 오늘 N건 확인됐어요 │ 이번 주 N곳", 이벤트 틴트 배너, 카드 64px 썸네일(플레이스홀더 = 마커 톤)·카테고리 텍스트 메타, FAB 왼쪽 현위치(크로스헤어 SVG)/오른쪽 제보, 헤더 88px.
 - 남은 것: 새우 마커 플레이스홀더 아이콘 에셋(decisions 목록). 정렬 세그먼트 사용감 재검토. Figma Desktop MCP 등록(`claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp`)은 다음 화면 작업 전에.

@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { DropdownChip } from "@/components/ui/dropdown-chip";
 import { OutlineButton } from "@/components/ui/outline-button";
-import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assertNever } from "@/lib/assert-never";
 import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
@@ -84,7 +84,7 @@ function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => 
   }
 }
 
-/** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 부제 시즌 카운터 / 이벤트 카드 / 정렬 세그먼트 / 카드 리스트(4상태). */
+/** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 정렬 트리거 / 캡션 시즌 카운터 / 이벤트 배너 / 카드 리스트(4상태). */
 export function PlaceSheet({
   status,
   places,
@@ -109,13 +109,23 @@ export function PlaceSheet({
 }: PlaceSheetProps) {
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
-      {status === "ready" ? (
-        <h2 className="truncate text-title-s-semibold text-fg tabular-nums">
-          {areaLabel} {count}곳
-        </h2>
-      ) : (
-        <Skeleton className="h-7 w-32" />
-      )}
+      <div className="flex items-center justify-between gap-3">
+        {status === "ready" ? (
+          <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums">
+            {areaLabel} {count}곳
+          </h2>
+        ) : (
+          <Skeleton className="h-7 w-32" />
+        )}
+        <DropdownChip
+          label="정렬"
+          value={sort}
+          options={SORT_OPTIONS}
+          onChange={onSortChange}
+          appearance="text"
+          align="end"
+        />
+      </div>
       <SeasonCounter stats={stats} />
     </div>
   );
@@ -129,10 +139,6 @@ export function PlaceSheet({
       label="가게 목록"
     >
       {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
-
-      <div className="px-5 pt-3 pb-1">
-        <Segmented label="정렬" value={sort} options={SORT_OPTIONS} onChange={onSortChange} />
-      </div>
 
       {status === "loading" && (
         <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">

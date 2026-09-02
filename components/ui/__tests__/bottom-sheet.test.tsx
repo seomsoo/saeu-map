@@ -8,13 +8,13 @@ import {
 } from "../bottom-sheet";
 
 describe("sheetVisiblePx — CSS 변수와 같은 규칙", () => {
-  it("844px: collapsed 98 / half 40% / full 92%", () => {
-    expect(sheetVisiblePx("collapsed", 844)).toBe(98);
+  it("844px: collapsed 88 / half 40% / full 92%", () => {
+    expect(sheetVisiblePx("collapsed", 844)).toBe(88);
     expect(sheetVisiblePx("half", 844)).toBe(338);
     expect(sheetVisiblePx("full", 844)).toBe(776);
   });
   it("낮은 뷰포트(≤639)에서는 half = collapsed", () => {
-    expect(sheetVisiblePx("half", 568)).toBe(98);
+    expect(sheetVisiblePx("half", 568)).toBe(88);
   });
 });
 

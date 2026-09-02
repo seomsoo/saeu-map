@@ -177,16 +177,17 @@ beforeEach(() => {
 });
 
 describe("MapScreen — design 화면 1의 1~8", () => {
-  it("검색·카테고리 드롭다운·칩·FAB(제보·내 위치)·시트 헤더(지역 N곳 + 시즌 카운터)·이벤트 카드·정렬이 모두 있다", async () => {
+  it("검색·카테고리 드롭다운·칩·FAB(내 위치·제보)·시트 헤더(지역 N곳 + 정렬 + 시즌 카운터)·이벤트 배너가 모두 있다", async () => {
     renderScreen();
     // 워드마크는 화면에서 뺐지만 문서 제목(h1)은 남긴다
     expect(screen.getByRole("heading", { level: 1, name: "새우맵" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "내 위치" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "가게·동네 검색" })).toBeInTheDocument();
-    expect(screen.getByLabelText("시즌 카운터")).toHaveTextContent(
-      "이번 주 확인 47곳 · 오늘 12건 · 이번 주 최다 확인 나라수산",
-    );
+    const counter = screen.getByLabelText("시즌 카운터");
+    expect(counter).toHaveTextContent(/오늘 12건 ?확인됐어요/);
+    expect(counter).toHaveTextContent(/이번 주 47곳/);
+    expect(counter).not.toHaveTextContent("최다 확인");
     expect(screen.getByText("새우 까주기 테스트 — 당신은 까주는 쪽?")).toBeInTheDocument();
     const category = screen.getByRole("button", { name: "카테고리: 전체" });
     expect(category).toHaveAttribute("aria-haspopup", "listbox");
@@ -201,9 +202,10 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     // 뷰포트 보고 후 "{지역} N곳" — 밖의 1곳은 제외. 시드 5곳 중 4곳(80%)이 보이므로 "서울 전체"
     expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
-    const sort = within(screen.getByRole("group", { name: "정렬" })).getAllByRole("button");
-    expect(sort.map((b) => b.textContent)).toEqual(["가까운순", "최근 확인순", "확인 많은 순"]);
-    expect(sort[0]).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "정렬: 가까운순" })).toHaveAttribute(
+      "aria-haspopup",
+      "listbox",
+    );
     expect(listCards()).toHaveLength(4);
   });
 
@@ -306,17 +308,20 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
   });
 
-  it("정렬 3종(세그먼트): 기본 가까운순, 최근 확인순·확인 많은 순으로 바뀐다", async () => {
+  it("정렬 3종(헤더 트리거): 기본 가까운순, 최근 확인순·확인 많은 순으로 바뀐다", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    const sortGroup = () => within(screen.getByRole("group", { name: "정렬" }));
 
-    fireEvent.click(sortGroup().getByRole("button", { name: "최근 확인순" }));
-    expect(sortGroup().getByRole("button", { name: "최근 확인순" })).toHaveAttribute("aria-pressed", "true");
-    expect(sortGroup().getByRole("button", { name: "가까운순" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: "정렬: 가까운순" }));
+    const options = within(screen.getByRole("listbox", { name: "정렬" })).getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(["가까운순", "최근 확인순", "확인 많은 순"]);
+    fireEvent.click(screen.getByRole("option", { name: "최근 확인순" }));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "정렬: 최근 확인순" })).toBeInTheDocument();
     expect(listCards()[0]).toHaveTextContent("나라수산"); // 1일 전이 가장 최근
 
-    fireEvent.click(sortGroup().getByRole("button", { name: "확인 많은 순" }));
+    fireEvent.click(screen.getByRole("button", { name: "정렬: 최근 확인순" }));
+    fireEvent.click(screen.getByRole("option", { name: "확인 많은 순" }));
     const names = listCards().map((h) => h.textContent);
     expect(names.slice(0, 2)).toEqual(["나라수산", "노량진수산시장 하나수산"]); // 3회, 1회
   });

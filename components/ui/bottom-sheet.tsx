@@ -14,7 +14,7 @@ export type SheetSnap = "collapsed" | "half" | "full";
  * 스냅 위치 상수 — app/globals.css의 .saeu-sheet 변수와 반드시 같아야 한다.
  * CSS가 초기 렌더(SSR)와 전환을 담당하고, JS는 드래그 놓을 때의 스냅 판정에만 쓴다.
  */
-export const SHEET_COLLAPSED_PX = 98;
+export const SHEET_COLLAPSED_PX = 88;
 export const SHEET_HALF_RATIO = 0.4;
 export const SHEET_FULL_RATIO = 0.92;
 /** 이 높이 이하(예: 320×568)에서는 half = collapsed (상단 스택이 지도를 다 가리는 것 방지) */
@@ -100,7 +100,7 @@ interface DragState {
 interface BottomSheetProps {
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
-  /** 핸들 아래 헤더. 이 영역이 드래그 영역이다. 높이는 --sheet-header-h(98px)로 고정. */
+  /** 핸들 아래 헤더. 이 영역이 드래그 영역이다. 높이는 --sheet-header-h(88px)로 고정. */
   header: ReactNode;
   /** 시트 가장자리 위에 얹히는 요소(FAB 줄). 시트와 함께 움직이고 full에서는 숨긴다. */
   aside?: ReactNode;
@@ -226,7 +226,7 @@ export function BottomSheet({
       {aside && (
         <div
           className={cx(
-            "absolute -top-12 right-5 flex items-center gap-2",
+            "absolute inset-x-5 -top-13 flex items-center justify-between",
             snap === "full" && "hidden",
           )}
         >

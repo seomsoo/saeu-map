@@ -294,10 +294,10 @@ body {
  * 상수는 components/ui/bottom-sheet.tsx의 SHEET_* 와 반드시 같아야 한다.
  * ------------------------------------------------------------------------- */
 .saeu-sheet {
-  --sheet-collapsed: 98px;
+  --sheet-collapsed: 88px;
   --sheet-half: 40dvh;
   --sheet-full: 92dvh;
-  --sheet-header-h: 98px;
+  --sheet-header-h: 88px;
   --sheet-visible: var(--sheet-half);
   --sheet-drag: 0px;
   position: fixed;
