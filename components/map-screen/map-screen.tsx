@@ -6,9 +6,9 @@ import NaverMapProvider from "@/components/map/naver-map-provider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorState } from "@/components/ui/error-state";
 import type { EventCard as EventCardData, Place, SeasonStats } from "@/lib/types";
+import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
-import { FilterTabs } from "./filter-tabs";
 import { PlaceSheet } from "./place-sheet";
 import { SearchBar } from "./search-bar";
 import { useMapScreen } from "./use-map-screen";
@@ -106,9 +106,12 @@ export default function MapScreen({
             onSubmit={s.submitSearch}
           />
         </div>
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
-          <FilterTabs tab={s.tab} onChange={s.setTab} />
-          <FilterChips chips={s.chips} onToggle={s.toggleChip} />
+        {/* 카테고리 드롭다운은 스크롤 밖(목록이 잘리지 않게), 토글 칩만 가로 스크롤 */}
+        <div className="flex items-start gap-1.5 pl-5">
+          <CategoryDropdown tab={s.tab} onChange={s.setTab} />
+          <div className="no-scrollbar flex flex-1 gap-1.5 overflow-x-auto pr-5 pb-1">
+            <FilterChips chips={s.chips} onToggle={s.toggleChip} />
+          </div>
         </div>
         {s.notice && (
           <p

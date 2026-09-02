@@ -157,9 +157,10 @@ export function markerCategory(tags: readonly PlaceTag[]): PlaceTag {
   return tags.includes("grill") ? "grill" : "raw";
 }
 
+/** 화면 라벨 (2026-09-02: 구이→소금구이, 회→생새우회). 데이터 태그 이름은 grill/raw 그대로. */
 export const TAG_LABELS: Record<PlaceTag, string> = {
-  grill: "구이",
-  raw: "회",
+  grill: "소금구이",
+  raw: "생새우회",
 };
 
 export interface SideChip {

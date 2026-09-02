@@ -130,6 +130,7 @@
   --shadow-upper: 0 -4px 12px 0 rgb(0 0 0 / 0.06);
   --shadow-marker: 0 0 16px 0 rgb(0 0 0 / 0.06);
   --shadow-fab: 0 0 5px 0 rgb(0 0 0 / 0.29);
+  --shadow-card: 0 2px 20px 0 rgb(0 0 0 / 0.1);
 
   /* ===== Primitive / Spacing (safe-area) ===== */
   --spacing-safe-top: env(safe-area-inset-top);

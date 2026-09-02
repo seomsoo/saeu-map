@@ -175,7 +175,7 @@ beforeEach(() => {
 });
 
 describe("MapScreen — design 화면 1의 1~8", () => {
-  it("검색·칩 행·FAB(제보·내 위치)·시트 헤더(지역 N곳 + 시즌 카운터)·이벤트 카드·정렬이 모두 있다", async () => {
+  it("검색·카테고리 드롭다운·칩·FAB(제보·내 위치)·시트 헤더(지역 N곳 + 시즌 카운터)·이벤트 카드·정렬이 모두 있다", async () => {
     renderScreen();
     // 워드마크는 화면에서 뺐지만 문서 제목(h1)은 남긴다
     expect(screen.getByRole("heading", { level: 1, name: "새우맵" })).toBeInTheDocument();
@@ -186,9 +186,8 @@ describe("MapScreen — design 화면 1의 1~8", () => {
       "이번 주 확인 47곳 · 오늘 12건 · 이번 주 최다 확인 나라수산",
     );
     expect(screen.getByText("새우 까주기 테스트 — 당신은 까주는 쪽?")).toBeInTheDocument();
-    const tabs = within(screen.getByRole("group", { name: "카테고리" })).getAllByRole("button");
-    expect(tabs.map((t) => t.textContent)).toEqual(["전체", "구이", "회"]);
-    expect(tabs[0]).toHaveAttribute("aria-pressed", "true");
+    const category = screen.getByRole("button", { name: "카테고리: 전체" });
+    expect(category).toHaveAttribute("aria-haspopup", "listbox");
     const chips = within(screen.getByRole("group", { name: "필터" })).getAllByRole("button");
     expect(chips.map((c) => c.textContent)).toEqual(["새로 들어온 집", "찜한 곳"]);
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
@@ -221,16 +220,24 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
   });
 
-  it("탭 '회' → 회 태그 가게만, 구이+회 가게는 양쪽에", async () => {
+  it("카테고리 드롭다운: '생새우회' → 회 태그 가게만, 구이+회 가게는 양쪽에", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: "회" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "카테고리: 전체" }));
+    const options = within(screen.getByRole("listbox", { name: "카테고리" })).getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(["전체", "소금구이", "생새우회"]);
+    fireEvent.click(screen.getByRole("option", { name: "생새우회" }));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "카테고리: 생새우회" })).toBeInTheDocument();
     // 회: 나라수산(마포구)·하나수산(동작구) — 동률이라 가나다순 첫 구
     expect(await screen.findByRole("heading", { name: "동작구 일대 2곳" })).toBeInTheDocument();
     expect(listCards().map((h) => h.textContent).sort()).toEqual(
       ["나라수산", "노량진수산시장 하나수산"].sort(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "구이" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "카테고리: 생새우회" }));
+    fireEvent.click(screen.getByRole("option", { name: "소금구이" }));
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 

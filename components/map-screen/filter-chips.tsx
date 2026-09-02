@@ -7,7 +7,7 @@ const CHIPS: readonly { key: ChipKey; label: string }[] = [
   { key: "bookmarked", label: "찜한 곳" },
 ];
 
-/** 2b. 필터 칩 — 토글 pill, 켜면 틴트. 카테고리와 같은 줄에서 가로 스크롤. */
+/** 2b. 필터 칩 — 토글 pill, 켜면 틴트. 카테고리 드롭다운 오른쪽에서 가로 스크롤. */
 export function FilterChips({
   chips,
   onToggle,
