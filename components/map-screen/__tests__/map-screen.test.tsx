@@ -479,7 +479,9 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
   it("찜 → '찜한 곳' 칩 필터에 바로 반영 (목: 클라이언트 메모리)", async () => {
     await openNara();
     fireEvent.click(screen.getByRole("button", { name: "찜" }));
-    expect(await screen.findByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "true");
+    });
     fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
     fireEvent.click(screen.getByRole("button", { name: "찜한 곳" }));
     expect(await screen.findByRole("heading", { name: "마포구 1곳" })).toBeInTheDocument();
@@ -487,7 +489,9 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     // 다음 테스트를 위해 원복 (모듈 메모리)
     fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
     fireEvent.click(await screen.findByRole("button", { name: "찜" }));
-    expect(await screen.findByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "false");
+    });
   });
 
   it("다녀왔다면 성공 → 닫은 뒤 카드도 '오늘 확인'·확인 수 반영", async () => {
