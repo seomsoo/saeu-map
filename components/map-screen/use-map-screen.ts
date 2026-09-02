@@ -299,6 +299,8 @@ export function useMapScreen({
     snap,
     notice,
     userLocation,
+    /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
+    origin,
     eventDismissed,
     status,
     mapErrorReason: mapError,

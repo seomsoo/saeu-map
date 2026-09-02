@@ -4,15 +4,7 @@ import Image from "next/image";
 import { memo, useEffect, useRef } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  TAG_LABELS,
-  distanceKm,
-  formatPrice,
-  markerCategory,
-  primaryMenu,
-  sideChips,
-  unitChipLabel,
-} from "@/lib/places";
+import { TAG_LABELS, distanceKm, markerCategory, sideChips } from "@/lib/places";
 import { formatDistance } from "@/lib/geo";
 import { relativeCheckLabel } from "@/lib/time";
 import type { LatLng, Place, PlaceTag } from "@/lib/types";
@@ -21,8 +13,8 @@ import { cx } from "@/lib/cx";
 interface PlaceCardProps {
   place: Place;
   now: string;
-  /** 사용자 위치. 없으면 거리는 숨기고 구만 보여준다 (플랜 결정 1). */
-  userLocation: LatLng | null;
+  /** 거리 기준점 — 내 위치, 없으면 지도 중심("가까운순"과 같은 기준). null이면 거리 숨김. */
+  origin: LatLng | null;
   selected: boolean;
   onSelect: (id: string) => void;
 }
@@ -57,13 +49,14 @@ function Thumbnail({ place }: { place: Place }) {
 }
 
 /**
- * 7. 카드 — 왼쪽 썸네일 + 상호 / 카테고리·구·거리 / 대표메뉴+단위+가격(우측) / 사이드 미니칩 / "○일 전 확인".
- * 신규(7일 이내)는 확인 텍스트 자리에 "새로 제보됨" 틴트 라벨.
+ * 7. 카드 — 왼쪽 썸네일 + 상호 / "거리 · 구 · 카테고리" / 사이드 미니칩 / "○일 전 확인".
+ * 메뉴·가격은 상세에서(카드는 훑어보기 밀도). 신규(7일 이내)는 확인 텍스트 자리에 "새로 제보됨" 틴트 라벨.
+ * 평점은 리뷰 3개 이상일 때만 우측에 붙일 자리 (decisions 2026-09-02, 아직 미구현).
  */
 export const PlaceCard = memo(function PlaceCard({
   place,
   now,
-  userLocation,
+  origin,
   selected,
   onSelect,
 }: PlaceCardProps) {
@@ -73,19 +66,9 @@ export const PlaceCard = memo(function PlaceCard({
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selected]);
 
-  const menu = primaryMenu(place);
-  const unit = menu ? unitChipLabel(menu) : null;
   const sides = sideChips(place.sides).filter((s) => s.active);
-  const distance = userLocation
-    ? formatDistance(distanceKm(place, userLocation))
-    : null;
-  const meta = [
-    place.tags.map((tag) => TAG_LABELS[tag]).join(" · "),
-    place.gu,
-    distance,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const distance = origin ? formatDistance(distanceKm(place, origin)) : null;
+  const categories = place.tags.map((tag) => TAG_LABELS[tag]).join(" · ");
 
   return (
     <li ref={ref} data-place-id={place.id}>
@@ -117,24 +100,14 @@ export const PlaceCard = memo(function PlaceCard({
             </span>
           </div>
           <p className="mt-0.5 truncate text-caption-l-regular text-fg-secondary tabular-nums">
-            {meta}
+            {distance && (
+              <>
+                <span className="font-medium text-fg">{distance}</span>
+                {" · "}
+              </>
+            )}
+            {place.gu} · {categories}
           </p>
-
-          {menu && (
-            <p className="mt-1.5 flex items-baseline gap-1.5 text-body-m-regular text-fg">
-              <span className="min-w-0 truncate">{menu.name}</span>
-              {unit && (
-                <span className="shrink-0 text-caption-l-regular text-fg-tertiary tabular-nums">
-                  {unit}
-                </span>
-              )}
-              {menu.price !== null && (
-                <span className="ml-auto shrink-0 text-body-m-semibold tabular-nums">
-                  {formatPrice(menu.price)}
-                </span>
-              )}
-            </p>
-          )}
 
           {sides.length > 0 && (
             <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="사이드">
@@ -163,8 +136,11 @@ export function PlaceCardSkeleton() {
           <Skeleton className="h-5 w-2/5" />
           <Skeleton className="h-4 w-14" />
         </div>
-        <Skeleton className="mt-1.5 h-4 w-1/2" />
-        <Skeleton className="mt-2 h-5 w-3/5" />
+        <Skeleton className="mt-1.5 h-4 w-3/5" />
+        <div className="mt-2 flex gap-1">
+          <Skeleton className="h-5 w-16 rounded-max" />
+          <Skeleton className="h-5 w-10 rounded-max" />
+        </div>
       </div>
     </li>
   );

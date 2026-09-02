@@ -130,7 +130,7 @@ export default function MapScreen({
         stats={stats}
         eventCard={eventCard && !s.eventDismissed ? eventCard : null}
         now={now}
-        userLocation={s.userLocation}
+        origin={s.origin}
         selectedId={s.selectedId}
         sort={s.sort}
         snap={s.snap}

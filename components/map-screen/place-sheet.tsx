@@ -32,7 +32,8 @@ interface PlaceSheetProps {
   stats: SeasonStats;
   eventCard: EventCardData | null;
   now: string;
-  userLocation: LatLng | null;
+  /** 거리 기준점 — 내 위치 또는 지도 중심. null이면 거리 숨김 */
+  origin: LatLng | null;
   selectedId: string | null;
   sort: SortKey;
   snap: SheetSnap;
@@ -93,7 +94,7 @@ export function PlaceSheet({
   stats,
   eventCard,
   now,
-  userLocation,
+  origin,
   selectedId,
   sort,
   snap,
@@ -165,7 +166,7 @@ export function PlaceSheet({
               key={place.id}
               place={place}
               now={now}
-              userLocation={userLocation}
+              origin={origin}
               selected={place.id === selectedId}
               onSelect={onSelect}
             />

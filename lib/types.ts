@@ -76,6 +76,8 @@ export type SortKey = "distance" | "recent" | "checks";
 export interface EventCard {
   id: string;
   title: string;
+  /** 제목 아래 한 줄(설정값). 없으면 제목만 */
+  description: string | null;
   href: string | null;
   startsAt: string;
   endsAt: string;

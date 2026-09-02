@@ -53,4 +53,5 @@ Phase 1(지도 메인)은 기능·테스트·갭 스윕까지 끝났지만 시�
 - 2차 피드백 반영: 카테고리 탭 3개 → [전체 ▾] 드롭다운 칩(`components/ui/dropdown-chip.tsx`, `category-dropdown.tsx`), 라벨 소금구이·생새우회, `--shadow-card` 토큰 추가.
 - 3차 피드백 반영: 사이드 필터 칩 3개(머리버터구이·라면·볶음밥) 추가로 칩 5개(spec 상한). `EmptyKind "filter"` + [필터 해제], `assertNever` exhaustive switch, 용어 "곁들임"→"사이드"(spec·design·코드).
 - 4차 피드백 반영(시트): 정렬 세그먼트 → 헤더 우측 텍스트 트리거, 카운터 캡션 "● 오늘 N건 확인됐어요 │ 이번 주 N곳", 이벤트 틴트 배너, 카드 64px 썸네일(플레이스홀더 = 마커 톤)·카테고리 텍스트 메타, FAB 왼쪽 현위치(크로스헤어 SVG)/오른쪽 제보, 헤더 88px.
+- 5차 피드백 반영: 이벤트 행(아이콘 타일 + 제목/부제 + ×, `EventCard.description`), 카드 메뉴·가격 줄 삭제 → "거리 · 구 · 카테고리"(거리는 내 위치 → 지도 중심), 평점은 리뷰 3개 이상 조건으로 보류.
 - 남은 것: 새우 마커 플레이스홀더 아이콘 에셋(decisions 목록). 정렬 세그먼트 사용감 재검토. Figma Desktop MCP 등록(`claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp`)은 다음 화면 작업 전에.

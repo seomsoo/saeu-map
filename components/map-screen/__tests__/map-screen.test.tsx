@@ -145,7 +145,8 @@ const stats = {
 };
 const eventCard = {
   id: "ev",
-  title: "새우 까주기 테스트 — 당신은 까주는 쪽?",
+  title: "새우 까주기 테스트",
+  description: "당신은 까주는 쪽?",
   href: "/test",
   startsAt: "2026-08-01T00:00:00+09:00",
   endsAt: "2026-12-31T23:59:59+09:00",
@@ -188,7 +189,10 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(counter).toHaveTextContent(/오늘 12건 ?확인됐어요/);
     expect(counter).toHaveTextContent(/이번 주 47곳/);
     expect(counter).not.toHaveTextContent("최다 확인");
-    expect(screen.getByText("새우 까주기 테스트 — 당신은 까주는 쪽?")).toBeInTheDocument();
+    const event = screen.getByLabelText("이벤트");
+    expect(event).toHaveTextContent("새우 까주기 테스트");
+    expect(event).toHaveTextContent("당신은 까주는 쪽?");
+    expect(within(event).getByRole("link")).toHaveAttribute("href", "/test");
     const category = screen.getByRole("button", { name: "카테고리: 전체" });
     expect(category).toHaveAttribute("aria-haspopup", "listbox");
     const chips = within(screen.getByRole("group", { name: "필터" })).getAllByRole("button");
@@ -337,7 +341,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
   it("이벤트 카드 닫기 → 사라짐 (메모리 상태)", () => {
     renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "이벤트 카드 닫기" }));
-    expect(screen.queryByText("새우 까주기 테스트 — 당신은 까주는 쪽?")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("이벤트")).not.toBeInTheDocument();
   });
 
   it("이벤트 카드가 null이면 슬롯이 비어 있다", () => {
@@ -375,9 +379,10 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(screen.queryByRole("list", { name: "가게 목록 불러오는 중" })).not.toBeInTheDocument();
   });
 
-  it("위치 권한 없음(jsdom 기본) → 카드에 거리 없음", async () => {
+  it("위치 권한 없음(jsdom 기본) → 지도 중심 기준 거리가 카드에 보인다", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    expect(screen.queryByText(/km|\dm\b/)).not.toBeInTheDocument();
+    // 가짜 지도 중심 (37.55, 127.0) ↔ 나라수산 (37.54, 126.95) ≈ 4.5km
+    expect(screen.getByRole("button", { name: /나라수산, 마포구/ })).toHaveTextContent(/\d(\.\d)?km · 마포구/);
   });
 });
