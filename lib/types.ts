@@ -25,7 +25,9 @@ export interface Place {
   tags: PlaceTag[];
   specialist: boolean;
   naverPlaceUrl: string | null;
-  /** 대표 썸네일. 우리 스토리지 경로만(규칙 3). 없으면 null → 마커는 플레이스홀더. */
+  /** 가게 사진 전부(제보·업로드 순). 우리 스토리지 경로만(규칙 3). 상세가 이 순서로 가로 스트립을 그린다. */
+  photoUrls: string[];
+  /** 대표 = photoUrls[0]. 카드·마커가 쓴다. 없으면 null → 마커는 플레이스홀더. */
   thumbnailUrl: string | null;
   /** 영업시간 메모(제보 자유 입력, spec 4.3-4). 없으면 null → 상세에 "영업시간을 알려주세요" 입구. "영업 중" 판정은 하지 않는다(2026-09-02). */
   hoursNote: string | null;

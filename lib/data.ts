@@ -46,12 +46,12 @@ import eventCardJson from "./mock/event-card.json";
 
 type RawPlace = Omit<
   Place,
-  "isNew" | "lastCheckedAt" | "createdAt" | "thumbnailUrl" | "hoursNote"
+  "isNew" | "lastCheckedAt" | "createdAt" | "photoUrls" | "thumbnailUrl" | "hoursNote"
 > & {
   isNew: boolean;
   lastCheckedAt: string; // "YYYY-MM-DD"
   createdAt?: string; // "YYYY-MM-DD"
-  thumbnail?: string; // /public 경로. 사진 업로드 전까지 목 샘플만
+  photos?: string[]; // /public 경로. 사진 업로드 전까지 목 샘플만
   hoursNote?: string; // 영업시간 메모 샘플
 };
 
@@ -85,12 +85,16 @@ function dataset(now: DateInput): Dataset {
 
   const places: Place[] = rawPlaces
     .filter((p) => !p.needsReview) // 검수 대기(새우 메뉴 파싱 실패)는 숨김 — 플랜 결정 4
-    .map(({ thumbnail, hoursNote, ...raw }) => {
+    .map(({ photos, hoursNote, ...raw }) => {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
+      // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 그 장만 버린다)
+      const photoUrls = (photos ?? [])
+        .map(safeAssetPath)
+        .filter((url): url is string => url !== null);
       return {
         ...raw,
-        // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 플레이스홀더로)
-        thumbnailUrl: safeAssetPath(thumbnail),
+        photoUrls,
+        thumbnailUrl: photoUrls[0] ?? null,
         hoursNote: hoursNote ?? null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),

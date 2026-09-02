@@ -123,6 +123,17 @@ describe("getPlaceDetail", () => {
     expect(noNote?.place.hoursNote).toBeNull();
     expect(await getPlaceDetail("nonexistent", now)).toBeUndefined();
   });
+
+  it("사진은 여러 장, 대표(thumbnailUrl)는 첫 장", async () => {
+    const now = NOWS[0] as string;
+    const withPhotos = await getPlaceDetail("p018", now);
+    expect(withPhotos?.place.photoUrls.length).toBeGreaterThan(1);
+    expect(withPhotos?.place.thumbnailUrl).toBe(withPhotos?.place.photoUrls[0]);
+
+    const noPhoto = await getPlaceDetail("p004", now);
+    expect(noPhoto?.place.photoUrls).toEqual([]);
+    expect(noPhoto?.place.thumbnailUrl).toBeNull();
+  });
 });
 
 describe("checkIn — 목 쓰기 (400ms 지연, 10% 실패)", () => {
