@@ -27,6 +27,8 @@ export interface Place {
   naverPlaceUrl: string | null;
   /** 대표 썸네일. 우리 스토리지 경로만(규칙 3). 없으면 null → 마커는 플레이스홀더. */
   thumbnailUrl: string | null;
+  /** 영업시간 메모(제보 자유 입력, spec 4.3-4). 없으면 null → 상세에 "영업시간을 알려주세요" 입구. "영업 중" 판정은 하지 않는다(2026-09-02). */
+  hoursNote: string | null;
   menus: Menu[];
   sides: Sides;
   source: "seed" | "report";
@@ -99,4 +101,12 @@ export interface Review {
   text: string;
   nickname: string;
   at: string;
+  /** 리뷰 사진. 우리 스토리지 경로만(규칙 3). 업로드는 Phase 4 리뷰 폼에서. */
+  photoUrl?: string;
+}
+
+/** 상세 화면 데이터 묶음 — 가게 + 그 가게 리뷰(최신순). */
+export interface PlaceDetail {
+  place: Place;
+  reviews: Review[];
 }
