@@ -142,6 +142,7 @@ export default function MapScreen({
         onSnapChange={s.setSnap}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
+        onClearChips={s.clearChips}
         onReport={handleReport}
         onRetry={reloadPage}
       />

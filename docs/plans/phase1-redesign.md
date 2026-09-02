@@ -51,4 +51,5 @@ Phase 1(지도 메인)은 기능·테스트·갭 스윕까지 끝났지만 시�
 - Playwright 스크린샷 `.playwright-mcp/redesign-*.png`: 390 초기·줌인 썸네일 마커·마커 선택·시트 full/collapsed·칩 활성·에러, 320·430 초기. 상단 스택 실측 122px(예산 220), 320에서 칩 행 가로 스크롤 동작, 320×568에선 half=collapsed(98px)로 제목·부제·FAB까지 보임. 썸네일 마커는 성동구 줌인(p018·p019)에서 img로 렌더, 신규는 점선 링, 선택은 확대+잉크 링.
 - 계획과 달라진 것: 지도 래퍼에 `z-0`(스태킹 컨텍스트) 추가 — SDK 컨트롤이 시트 위로 새지 않게 하는 방어. 스크린샷 하단의 "N" 배지는 Next.js 개발 도구(NEXTJS-PORTAL)라 프로덕션엔 없음. `OutlineButton` 프리미티브를 추가해 빈/에러 상태 버튼을 통일.
 - 2차 피드백 반영: 카테고리 탭 3개 → [전체 ▾] 드롭다운 칩(`components/ui/dropdown-chip.tsx`, `category-dropdown.tsx`), 라벨 소금구이·생새우회, `--shadow-card` 토큰 추가.
+- 3차 피드백 반영: 사이드 필터 칩 3개(머리버터구이·라면·볶음밥) 추가로 칩 5개(spec 상한). `EmptyKind "filter"` + [필터 해제], `assertNever` exhaustive switch, 용어 "곁들임"→"사이드"(spec·design·코드).
 - 남은 것: 새우 마커 플레이스홀더 아이콘 에셋(decisions 목록). 정렬 세그먼트 사용감 재검토. Figma Desktop MCP 등록(`claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp`)은 다음 화면 작업 전에.

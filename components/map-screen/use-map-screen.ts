@@ -13,7 +13,7 @@ import type { MapHandle } from "@/components/map/map-view";
 import { sheetVisiblePx, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { areaLabel as computeAreaLabel, filterPlaces, sortPlaces } from "@/lib/places";
+import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
 import type {
   ChipKey,
   LatLng,
@@ -35,7 +35,8 @@ const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
 export type MapErrorReason = "runtime" | "config";
-export type EmptyKind = "area" | "bookmarks";
+/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) */
+export type EmptyKind = "area" | "bookmarks" | "filter";
 
 interface UseMapScreenInput {
   places: Place[];
@@ -146,7 +147,11 @@ export function useMapScreen({
   const status: MapStatus = mapError ? "error" : viewport ? "ready" : "loading";
   const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
-    chips.includes("bookmarked") && bookmarked.size === 0 ? "bookmarks" : "area";
+    chips.includes("bookmarked") && bookmarked.size === 0
+      ? "bookmarks"
+      : chips.some(isSideChip)
+        ? "filter"
+        : "area";
 
   /* ── 지도 이벤트 ── */
   const handleViewportChange = useCallback((next: Viewport) => {
@@ -223,6 +228,11 @@ export function useMapScreen({
 
   const clearQuery = useCallback(() => {
     setQuery("");
+  }, []);
+
+  /** 필터 빈 상태의 [필터 해제] — 칩 전부 해제 */
+  const clearChips = useCallback(() => {
+    setChips([]);
   }, []);
 
   /** 검색 확정(Enter/돋보기): 결과가 다 보이게 지도 이동 */
@@ -304,6 +314,7 @@ export function useMapScreen({
     // 액션
     setTab,
     toggleChip,
+    clearChips,
     setQuery,
     clearQuery,
     submitSearch,

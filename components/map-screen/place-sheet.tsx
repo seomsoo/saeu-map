@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { OutlineButton } from "@/components/ui/outline-button";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { assertNever } from "@/lib/assert-never";
 import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
 import type {
   EventCard as EventCardData,
@@ -42,8 +43,45 @@ interface PlaceSheetProps {
   onSnapChange: (snap: SheetSnap) => void;
   onSelect: (id: string) => void;
   onDismissEvent: () => void;
+  onClearChips: () => void;
   onReport: () => void;
   onRetry: () => void;
+}
+
+/** 빈 상태 3종 — EmptyKind에 케이스가 늘면 여기서 컴파일 에러로 잡힌다. */
+function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => void) {
+  switch (kind) {
+    case "bookmarks":
+      return (
+        <EmptyState
+          title="아직 찜한 곳이 없어요"
+          description="가게 상세의 하트로 찜할 수 있어요"
+        />
+      );
+    case "filter":
+      return (
+        <EmptyState
+          title="조건에 맞는 집이 없어요"
+          description="칩을 풀거나 지도를 옮겨보세요"
+          action={<OutlineButton onClick={onClearChips}>필터 해제</OutlineButton>}
+        />
+      );
+    case "area":
+      return (
+        <EmptyState
+          title="이 동네엔 아직 없어요"
+          description="아는 새우집이 있다면 제보해주세요"
+          action={
+            <OutlineButton onClick={onReport} className="pl-3">
+              <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
+              제보
+            </OutlineButton>
+          }
+        />
+      );
+    default:
+      return assertNever(kind);
+  }
 }
 
 /** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 부제 시즌 카운터 / 이벤트 카드 / 정렬 세그먼트 / 카드 리스트(4상태). */
@@ -65,6 +103,7 @@ export function PlaceSheet({
   onSnapChange,
   onSelect,
   onDismissEvent,
+  onClearChips,
   onReport,
   onRetry,
 }: PlaceSheetProps) {
@@ -111,25 +150,7 @@ export function PlaceSheet({
         />
       )}
 
-      {status === "ready" && places.length === 0 && emptyKind === "bookmarks" && (
-        <EmptyState
-          title="아직 찜한 곳이 없어요"
-          description="가게 상세의 하트로 찜할 수 있어요"
-        />
-      )}
-
-      {status === "ready" && places.length === 0 && emptyKind === "area" && (
-        <EmptyState
-          title="이 동네엔 아직 없어요"
-          description="아는 새우집이 있다면 제보해주세요"
-          action={
-            <OutlineButton onClick={onReport} className="pl-3">
-              <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
-              제보
-            </OutlineButton>
-          }
-        />
-      )}
+      {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearChips)}
 
       {status === "ready" && places.length > 0 && (
         <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">

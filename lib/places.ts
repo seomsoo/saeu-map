@@ -9,6 +9,7 @@ import type {
   TabKey,
 } from "./types";
 import { haversineKm } from "./geo";
+import { assertNever } from "./assert-never";
 
 /* ────────────────────────── 필터 ────────────────────────── */
 
@@ -45,14 +46,42 @@ export function matchesTab(place: Place, tab: TabKey): boolean {
   return place.tags.includes(tab);
 }
 
+/** 사이드 3종 — 순서 고정 (칩 행·카드 미니칩·상세가 같은 순서) */
+export const SIDE_KEYS: readonly (keyof Sides)[] = ["headButter", "ramen", "friedRice"];
+
+/** 사이드 라벨 단일 출처 — 필터 칩과 카드 미니칩이 같은 문자열을 쓴다 */
+export const SIDE_LABELS: Record<keyof Sides, string> = {
+  headButter: "머리버터구이",
+  ramen: "라면",
+  friedRice: "볶음밥",
+};
+
+export function isSideChip(chip: ChipKey): chip is keyof Sides {
+  return chip === "headButter" || chip === "ramen" || chip === "friedRice";
+}
+
+/** 칩은 AND — 켜진 칩 조건을 전부 만족해야 남는다. */
 export function matchesChips(
   place: Place,
   chips: readonly ChipKey[],
   bookmarkedIds: ReadonlySet<string>,
 ): boolean {
   for (const chip of chips) {
-    if (chip === "new" && !place.isNew) return false;
-    if (chip === "bookmarked" && !bookmarkedIds.has(place.id)) return false;
+    switch (chip) {
+      case "new":
+        if (!place.isNew) return false;
+        break;
+      case "bookmarked":
+        if (!bookmarkedIds.has(place.id)) return false;
+        break;
+      case "headButter":
+      case "ramen":
+      case "friedRice":
+        if (!place.sides[chip]) return false;
+        break;
+      default:
+        return assertNever(chip);
+    }
   }
   return true;
 }
@@ -169,13 +198,9 @@ export interface SideChip {
   active: boolean;
 }
 
-/** 곁들임 3종 — 있으면 강조, 없으면 회색. */
+/** 사이드 3종 — 있으면 강조, 없으면 회색. */
 export function sideChips(sides: Sides): SideChip[] {
-  return [
-    { key: "headButter", label: "머리버터구이", active: sides.headButter },
-    { key: "ramen", label: "라면", active: sides.ramen },
-    { key: "friedRice", label: "볶음밥", active: sides.friedRice },
-  ];
+  return SIDE_KEYS.map((key) => ({ key, label: SIDE_LABELS[key], active: sides[key] }));
 }
 
 export function formatPrice(price: number): string {

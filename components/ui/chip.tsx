@@ -16,7 +16,7 @@ export const chipVariants = cva(
         outline: "rounded-max border-line bg-bg text-fg",
         active: "rounded-max border-brand bg-brand-tint text-brand-fg",
         muted: "rounded-max border-line bg-bg text-fg-tertiary",
-        /* 단위·곁들임 미니칩: 보더 없이 가라앉은 배경 */
+        /* 단위·사이드 미니칩: 보더 없이 가라앉은 배경 */
         subtle: "rounded-6 border-transparent bg-bg-sunken text-fg-secondary",
       },
     },

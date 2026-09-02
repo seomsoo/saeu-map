@@ -34,7 +34,7 @@ function renderCard(overrides: Partial<Parameters<typeof PlaceCard>[0]> = {}) {
 }
 
 describe("PlaceCard", () => {
-  it("상호 · 구 · 메뉴+단위칩+가격 · 곁들임 · 확인 라벨", () => {
+  it("상호 · 구 · 메뉴+단위칩+가격 · 사이드 · 확인 라벨", () => {
     renderCard();
     expect(screen.getByRole("heading", { name: "나라수산" })).toBeInTheDocument();
     expect(screen.getByText("마포구")).toBeInTheDocument();
@@ -42,8 +42,8 @@ describe("PlaceCard", () => {
     expect(screen.getByText("1kg")).toBeInTheDocument();
     expect(screen.getByText("60,000")).toBeInTheDocument();
     expect(screen.getByText("어제 확인")).toBeInTheDocument();
-    // 곁들임: 있는 것만
-    const sides = screen.getByRole("list", { name: "곁들임" });
+    // 사이드: 있는 것만
+    const sides = screen.getByRole("list", { name: "사이드" });
     expect(sides).toHaveTextContent("머리버터구이");
     expect(sides).toHaveTextContent("라면");
     expect(sides).not.toHaveTextContent("볶음밥");

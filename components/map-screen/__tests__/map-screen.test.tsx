@@ -96,6 +96,7 @@ function seed(): Place[] {
       tags: ["grill", "raw"],
       lastCheckedAt: day(1),
       checkCount: 3,
+      sides: { headButter: true, ramen: true, friedRice: false },
       menus: [makeMenu({ name: "생새우소금구이", price: 60000, unit: "kg", unit_raw: "1" })],
     }),
     makePlace({
@@ -130,6 +131,7 @@ function seed(): Place[] {
       tags: ["raw"],
       lastCheckedAt: day(14),
       checkCount: 1,
+      sides: { headButter: false, ramen: true, friedRice: false },
     }),
     // 지도 밖 (bounds 북쪽) — "지도 내 N곳"에 안 들어가야 함
     makePlace({ id: "outside", name: "의정부새우", gu: "의정부시", lat: 37.9, lng: 127.05 }),
@@ -189,7 +191,13 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     const category = screen.getByRole("button", { name: "카테고리: 전체" });
     expect(category).toHaveAttribute("aria-haspopup", "listbox");
     const chips = within(screen.getByRole("group", { name: "필터" })).getAllByRole("button");
-    expect(chips.map((c) => c.textContent)).toEqual(["새로 들어온 집", "찜한 곳"]);
+    expect(chips.map((c) => c.textContent)).toEqual([
+      "머리버터구이",
+      "라면",
+      "볶음밥",
+      "새로 들어온 집",
+      "찜한 곳",
+    ]);
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     // 뷰포트 보고 후 "{지역} N곳" — 밖의 1곳은 제외. 시드 5곳 중 4곳(80%)이 보이므로 "서울 전체"
     expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
@@ -252,6 +260,30 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
     fireEvent.click(screen.getByRole("button", { name: "찜한 곳" }));
     expect(await screen.findByText("아직 찜한 곳이 없어요")).toBeInTheDocument();
+  });
+
+  it("사이드 칩: 라면 → 라면 되는 집만(AND), 볶음밥 → 필터 빈 상태 + [필터 해제]", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+
+    fireEvent.click(screen.getByRole("button", { name: "라면" }));
+    // 라면: 나라수산(마포구)·하나수산(동작구) — 동률이라 가나다순 첫 구
+    expect(await screen.findByRole("heading", { name: "동작구 일대 2곳" })).toBeInTheDocument();
+    expect(listCards().map((h) => h.textContent).sort()).toEqual(
+      ["나라수산", "노량진수산시장 하나수산"].sort(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "머리버터구이" }));
+    expect(await screen.findByRole("heading", { name: "마포구 1곳" })).toBeInTheDocument();
+
+    // 볶음밥 되는 집은 시드에 없음 → "제보" 유도가 아니라 필터 해제 유도
+    fireEvent.click(screen.getByRole("button", { name: "볶음밥" }));
+    expect(await screen.findByText("조건에 맞는 집이 없어요")).toBeInTheDocument();
+    expect(screen.queryByText("이 동네엔 아직 없어요")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "필터 해제" }));
+    expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
+    for (const name of ["라면", "머리버터구이", "볶음밥"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
   });
 
   it("검색: 동네·상호 필터, 없는 동네는 빈 상태 + 제보, Enter로 지도 fitBounds", async () => {

@@ -24,7 +24,7 @@ const DOT_CLASS: Record<PlaceTag, string> = {
 };
 
 /**
- * 7. 카드 — 색점+상호 / 구·거리 / 대표메뉴+단위칩+가격(우측) / 곁들임 미니칩 / "○일 전 확인".
+ * 7. 카드 — 색점+상호 / 구·거리 / 대표메뉴+단위칩+가격(우측) / 사이드 미니칩 / "○일 전 확인".
  * 신규(7일 이내)는 확인 텍스트 자리에 "새로 제보됨" 틴트 라벨.
  */
 export const PlaceCard = memo(function PlaceCard({
@@ -107,7 +107,7 @@ export const PlaceCard = memo(function PlaceCard({
         )}
 
         {sides.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-1" aria-label="곁들임">
+          <ul className="mt-2 flex flex-wrap gap-1" aria-label="사이드">
             {sides.map((s) => (
               <li key={s.key}>
                 <Chip size="xs" tone="muted">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu as menu, makePlace } from "./fixtures";
 import {
+  SIDE_LABELS,
   areaLabel,
   filterPlaces,
   markerCategory,
@@ -60,6 +61,40 @@ describe("filterPlaces — 칩", () => {
         bookmarkedIds: new Set([old.id]),
       }),
     ).toEqual([]);
+  });
+});
+
+describe("filterPlaces — 사이드 칩", () => {
+  const both = makePlace({ sides: { headButter: true, ramen: true, friedRice: true } });
+  const ramenOnly = makePlace({ sides: { headButter: false, ramen: true, friedRice: false } });
+  const none = makePlace();
+
+  it("라면 → 라면 되는 집만", () => {
+    expect(
+      filterPlaces([both, ramenOnly, none], { tab: "all", ...noChips, chips: ["ramen"] }),
+    ).toEqual([both, ramenOnly]);
+  });
+  it("라면 + 볶음밥은 AND", () => {
+    expect(
+      filterPlaces([both, ramenOnly, none], {
+        tab: "all",
+        ...noChips,
+        chips: ["ramen", "friedRice"],
+      }),
+    ).toEqual([both]);
+  });
+  it("사이드 칩과 새로 들어온 집도 AND", () => {
+    const freshRamen = makePlace({ isNew: true, sides: { headButter: false, ramen: true, friedRice: false } });
+    expect(
+      filterPlaces([freshRamen, ramenOnly], { tab: "all", ...noChips, chips: ["ramen", "new"] }),
+    ).toEqual([freshRamen]);
+  });
+  it("카드 미니칩 라벨과 필터 라벨은 같은 출처", () => {
+    expect(sideChips({ headButter: true, ramen: true, friedRice: true }).map((c) => c.label)).toEqual([
+      SIDE_LABELS.headButter,
+      SIDE_LABELS.ramen,
+      SIDE_LABELS.friedRice,
+    ]);
   });
 });
 
@@ -150,7 +185,7 @@ describe("카드 표시용", () => {
     expect(markerCategory(["raw"])).toBe("raw");
   });
 
-  it("곁들임 3종 순서 고정", () => {
+  it("사이드 3종 순서 고정", () => {
     expect(
       sideChips({ headButter: true, ramen: false, friedRice: true }).map((c) => [
         c.label,
