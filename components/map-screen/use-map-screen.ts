@@ -10,8 +10,9 @@ import {
   type RefObject,
 } from "react";
 import type { MapHandle } from "@/components/map/map-view";
-import { sheetVisiblePx, type SheetSnap } from "@/components/ui/bottom-sheet";
+import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
+import { toggleBookmark as requestToggleBookmark } from "@/lib/data";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
 import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
 import type {
@@ -31,6 +32,7 @@ const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
 const NOTICE_MS = 2000;
 /** 프로그램적 이동(카드 탭·위치 이동) 뒤 이 시간 안에 온 idle은 정렬 기준점을 갱신하지 않는다 */
 const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
+const PLACE_PATH = /^\/place\/([^/]+)\/?$/;
 
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
@@ -38,9 +40,25 @@ export type MapErrorReason = "runtime" | "config";
 /** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) */
 export type EmptyKind = "area" | "bookmarks" | "filter";
 
+/** 우리가 pushState로 만든 히스토리 엔트리 표식 — Next가 자기 상태(__NA·tree)를 이 객체에 덧붙여 보존한다 */
+interface DetailHistoryState {
+  saeuDetail: true;
+}
+
+function isDetailHistoryState(state: unknown): state is DetailHistoryState {
+  return typeof state === "object" && state !== null && "saeuDetail" in state;
+}
+
+export function placeIdFromPath(pathname: string): string | null {
+  const match = PLACE_PATH.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
 interface UseMapScreenInput {
   places: Place[];
   bookmarkedIds: string[];
+  /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
+  initialPlaceId?: string | undefined;
   /** 지도 명령 핸들 — 화면 컴포넌트가 만들어 MapView에 꽂고, 훅은 핸들러 안에서만 읽는다 */
   mapRef: RefObject<MapHandle | null>;
   /** 상단 스택 DOM — 가시 영역 계산용 */
@@ -67,17 +85,25 @@ function requestPosition(): Promise<LatLng | null> {
 }
 
 export function useMapScreen({
-  places,
-  bookmarkedIds,
+  places: initialPlaces,
+  bookmarkedIds: initialBookmarkedIds,
+  initialPlaceId,
   mapRef,
   topStackRef,
 }: UseMapScreenInput) {
+  // 가게·찜은 서버 초기값에서 시작해 클라이언트 state가 진실이 된다 (다녀왔다면·찜 결과를 카드·칩 필터에 반영)
+  const [places, setPlaces] = useState(initialPlaces);
+  const [bookmarkedIds, setBookmarkedIds] = useState(initialBookmarkedIds);
   const [tab, setTab] = useState<TabKey>("all");
   const [chips, setChips] = useState<ChipKey[]>([]);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [sort, setSort] = useState<SortKey>("distance");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialPlaceId ?? null);
+  /** 열린 상세. null이면 목록 시트 */
+  const [detailId, setDetailId] = useState<string | null>(initialPlaceId ?? null);
+  /** 이 세션에서 "다녀왔다면"을 누른 가게 — 핀당 하루 1회 (속도 제한 자리, 지속은 Phase 6) */
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [sortOrigin, setSortOrigin] = useState<LatLng | null>(null);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -89,6 +115,8 @@ export function useMapScreen({
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
   const noticeTimer = useRef<number | null>(null);
+  /** 상세를 열 때의 목록 시트 높이 — 닫으면 복원 */
+  const listSnapRef = useRef<SheetSnap>("half");
 
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
@@ -109,6 +137,13 @@ export function useMapScreen({
     () => filtered.find((p) => p.id === selectedId) ?? null,
     [filtered, selectedId],
   );
+
+  // 상세는 필터와 무관 (칩을 바꿔도 열린 상세는 유지)
+  const detailPlace = useMemo(
+    () => (detailId ? (places.find((p) => p.id === detailId) ?? null) : null),
+    [places, detailId],
+  );
+  const mode: SheetMode = detailPlace ? "detail" : "list";
 
   // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
   const index = useMemo(
@@ -188,29 +223,93 @@ export function useMapScreen({
     };
   }, [mapRef]);
 
-  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드 탭 시 지도 이동 목표) ── */
-  const visibleStripCenterY = useCallback(() => {
-    const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
-    const vh = window.innerHeight;
-    const bottom = vh - sheetVisiblePx(snap, vh);
-    return top + Math.max(0, bottom - top) / 2;
-  }, [snap, topStackRef]);
+  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
+  const visibleStripCenterY = useCallback(
+    (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
+      const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
+      const vh = window.innerHeight;
+      const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
+      return top + Math.max(0, bottom - top) / 2;
+    },
+    [topStackRef],
+  );
+
+  /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
+  const openDetail = useCallback(
+    (id: string, source: "card" | "marker" | "history") => {
+      const place = places.find((p) => p.id === id);
+      if (!place) return;
+      setSelectedId(id);
+      setDetailId((prev) => {
+        if (prev === null) listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억
+        return id;
+      });
+      setSnap("half");
+      if (source !== "history") {
+        // 이벤트 핸들러 안에서만 호출 — Next의 History 패치가 상태(__NA·tree)를 덧붙여 popstate가 클라이언트에서 처리된다
+        const state: DetailHistoryState = { saeuDetail: true };
+        window.history.pushState(state, "", `/place/${encodeURIComponent(id)}`);
+      }
+      if (mapRef.current) {
+        programmaticMoveAt.current = performance.now();
+        mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+      }
+    },
+    [places, snap, mapRef, visibleStripCenterY],
+  );
+
+  const closeDetail = useCallback((source: "ui" | "history" = "ui") => {
+    setDetailId(null);
+    setSnap(listSnapRef.current);
+    if (source === "history") return;
+    if (isDetailHistoryState(window.history.state)) {
+      window.history.back(); // 우리가 push한 엔트리 → 뒤로. popstate가 다시 closeDetail("history")를 부르지만 멱등.
+    } else {
+      window.history.replaceState(null, "", "/"); // /place/[id] 직접 진입
+    }
+  }, []);
+
+  // 브라우저 뒤로/앞으로 → 경로를 읽어 열기/닫기. id 출처는 pathname (useParams는 / 트리를 보고한다)
+  useEffect(() => {
+    const onPopState = () => {
+      const id = placeIdFromPath(window.location.pathname);
+      if (id) openDetail(id, "history");
+      else closeDetail("history");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [openDetail, closeDetail]);
 
   /* ── 상호작용 ── */
-  const selectFromMarker = useCallback((id: string) => {
-    setSelectedId(id);
-  }, []);
+  const selectFromMarker = useCallback(
+    (id: string) => {
+      openDetail(id, "marker");
+    },
+    [openDetail],
+  );
 
   const selectFromCard = useCallback(
     (id: string) => {
-      setSelectedId(id);
-      const place = places.find((p) => p.id === id);
-      if (!place || !mapRef.current) return;
-      programmaticMoveAt.current = performance.now();
-      mapRef.current.panTo(place, { screenY: visibleStripCenterY() });
+      openDetail(id, "card");
     },
-    [places, visibleStripCenterY, mapRef],
+    [openDetail],
   );
+
+  /** 다녀왔다면 성공 등으로 갱신된 가게를 목록·마커에 반영 */
+  const patchPlace = useCallback((updated: Place) => {
+    setPlaces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  }, []);
+
+  const markChecked = useCallback((id: string) => {
+    setCheckedIds((prev) => new Set(prev).add(id));
+  }, []);
+
+  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
+  const toggleBookmark = useCallback((id: string) => {
+    void requestToggleBookmark(id).then(setBookmarkedIds);
+  }, []);
 
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
@@ -246,7 +345,7 @@ export function useMapScreen({
     const bounds = boundsOf(matches);
     if (!bounds || !mapRef.current) return;
     const top = (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-    const bottom = sheetVisiblePx(snap, window.innerHeight) + 16;
+    const bottom = sheetVisiblePx(snap, window.innerHeight, mode) + 16;
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
@@ -254,7 +353,7 @@ export function useMapScreen({
       right: 24,
       maxZoom: SEARCH_FIT_MAX_ZOOM,
     });
-  }, [places, tab, chips, query, bookmarked, snap, mapRef, topStackRef]);
+  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef]);
 
   const dismissEvent = useCallback(() => {
     setEventDismissed(true);
@@ -296,6 +395,10 @@ export function useMapScreen({
     query,
     sort,
     selectedId: selectedPlace?.id ?? null,
+    detailPlace,
+    mode,
+    bookmarkedIds,
+    checkedIds,
     snap,
     notice,
     userLocation,
@@ -324,6 +427,10 @@ export function useMapScreen({
     setSnap,
     selectFromMarker,
     selectFromCard,
+    closeDetail,
+    patchPlace,
+    markChecked,
+    toggleBookmark,
     handleClusterClick,
     handleViewportChange,
     handleMapError,

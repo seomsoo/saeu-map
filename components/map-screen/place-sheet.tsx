@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
+import { BottomSheet, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { DropdownChip } from "@/components/ui/dropdown-chip";
@@ -37,11 +37,16 @@ interface PlaceSheetProps {
   selectedId: string | null;
   sort: SortKey;
   snap: SheetSnap;
+  /** list = 목록 / detail = 상세(화면 2). 목록 본문은 상세 동안 hidden으로 유지된다(스크롤·스냅 복원). */
+  mode: SheetMode;
+  /** 상세 본문 (mode === "detail"일 때) */
+  detail: ReactNode;
   emptyKind: EmptyKind;
-  /** 시트 가장자리 위에 얹히는 FAB 줄 */
+  /** 시트 가장자리 위에 얹히는 FAB 줄 (상세 동안은 없음) */
   aside: ReactNode;
   onSortChange: (sort: SortKey) => void;
   onSnapChange: (snap: SheetSnap) => void;
+  onDismissDetail: () => void;
   onSelect: (id: string) => void;
   onDismissEvent: () => void;
   onClearChips: () => void;
@@ -85,7 +90,10 @@ function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => 
   }
 }
 
-/** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 정렬 트리거 / 캡션 시즌 카운터 / 이벤트 배너 / 카드 리스트(4상태). */
+/**
+ * 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 정렬 트리거 / 캡션 시즌 카운터 / 이벤트 배너 / 카드 리스트(4상태).
+ * 상세 모드에선 같은 시트의 내용만 화면 2로 바뀐다 (헤더는 핸들만).
+ */
 export function PlaceSheet({
   status,
   places,
@@ -98,16 +106,20 @@ export function PlaceSheet({
   selectedId,
   sort,
   snap,
+  mode,
+  detail,
   emptyKind,
   aside,
   onSortChange,
   onSnapChange,
+  onDismissDetail,
   onSelect,
   onDismissEvent,
   onClearChips,
   onReport,
   onRetry,
 }: PlaceSheetProps) {
+  const isDetail = mode === "detail";
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
@@ -133,46 +145,53 @@ export function PlaceSheet({
 
   return (
     <BottomSheet
+      mode={mode}
       snap={snap}
       onSnapChange={onSnapChange}
+      onDismiss={onDismissDetail}
       header={header}
       aside={aside}
-      label="가게 목록"
+      label={isDetail ? "가게 상세" : "가게 목록"}
+      handleLabel={isDetail ? "상세 크기 조절" : "목록 크기 조절"}
     >
-      {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
+      {isDetail && detail}
 
-      {status === "loading" && (
-        <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">
-          <PlaceCardSkeleton />
-          <PlaceCardSkeleton />
-          <PlaceCardSkeleton />
-        </ul>
-      )}
+      <div hidden={isDetail}>
+        {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
 
-      {status === "error" && (
-        <ErrorState
-          title="지도를 불러오지 못했어요"
-          description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
-          onRetry={onRetry}
-        />
-      )}
+        {status === "loading" && (
+          <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">
+            <PlaceCardSkeleton />
+            <PlaceCardSkeleton />
+            <PlaceCardSkeleton />
+          </ul>
+        )}
 
-      {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearChips)}
+        {status === "error" && (
+          <ErrorState
+            title="지도를 불러오지 못했어요"
+            description="네트워크 상태를 확인한 뒤 다시 시도해주세요."
+            onRetry={onRetry}
+          />
+        )}
 
-      {status === "ready" && places.length > 0 && (
-        <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
-          {places.map((place) => (
-            <PlaceCard
-              key={place.id}
-              place={place}
-              now={now}
-              origin={origin}
-              selected={place.id === selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </ul>
-      )}
+        {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearChips)}
+
+        {status === "ready" && places.length > 0 && (
+          <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
+            {places.map((place) => (
+              <PlaceCard
+                key={place.id}
+                place={place}
+                now={now}
+                origin={origin}
+                selected={place.id === selectedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </BottomSheet>
   );
 }

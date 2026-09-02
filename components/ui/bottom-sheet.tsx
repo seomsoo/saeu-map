@@ -368,6 +368,15 @@ export function BottomSheet({
     if (detail && snap === "half" && bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [detail, snap]);
 
+  // 목록 스크롤 위치는 상세가 열리는 동안 기억했다가 돌아올 때 복원 (목록 본문은 hidden으로 유지된다)
+  const listScrollTop = useRef(0);
+  const onBodyScroll = (e: { currentTarget: HTMLDivElement }) => {
+    if (!detail) listScrollTop.current = e.currentTarget.scrollTop;
+  };
+  useEffect(() => {
+    if (!detail && bodyRef.current) bodyRef.current.scrollTop = listScrollTop.current;
+  }, [detail]);
+
   return (
     <section
       ref={sheetRef}
@@ -420,6 +429,7 @@ export function BottomSheet({
       <div
         ref={bodyRef}
         className="saeu-sheet__body min-h-0 shrink-0"
+        onScroll={onBodyScroll}
         {...(detail && {
           onPointerDown: onBodyPointerDown,
           onPointerMove,

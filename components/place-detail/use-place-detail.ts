@@ -60,13 +60,13 @@ export function usePlaceDetail({
   const [attempt, setAttempt] = useState(0);
   const pendingRef = useRef(false);
 
-  /* ── 리뷰 로드 ── */
+  /* ── 리뷰 로드 (컴포넌트는 place.id로 key되어 가게가 바뀌면 처음 상태에서 다시 시작) ── */
   useEffect(() => {
     if (initialReviews && attempt === 0) return;
     let cancelled = false;
-    setStatus("loading");
-    getPlaceDetail(place.id, now).then(
-      (detail) => {
+    const load = async () => {
+      try {
+        const detail = await getPlaceDetail(place.id, now);
         if (cancelled) return;
         if (!detail) {
           setStatus("error");
@@ -74,17 +74,18 @@ export function usePlaceDetail({
         }
         setReviews(detail.reviews);
         setStatus("ready");
-      },
-      () => {
+      } catch {
         if (!cancelled) setStatus("error");
-      },
-    );
+      }
+    };
+    void load();
     return () => {
       cancelled = true;
     };
   }, [place.id, now, initialReviews, attempt]);
 
   const retryReviews = useCallback(() => {
+    setStatus("loading");
     setAttempt((n) => n + 1);
   }, []);
 

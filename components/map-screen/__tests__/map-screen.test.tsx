@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { Place } from "@/lib/types";
@@ -65,6 +65,15 @@ const fake = vi.hoisted(() => {
   };
   return { navermaps, map };
 });
+
+// lib/data는 진짜(찜 토글은 클라이언트 메모리)지만, 쓰기 checkIn만 가짜 — 시드 가게는 목 JSON에 없다
+const dataMocks = vi.hoisted(() => ({
+  checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
+}));
+vi.mock("@/lib/data", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data")>()),
+  checkIn: dataMocks.checkIn,
+}));
 
 vi.mock("react-naver-maps", () => ({
   NavermapsProvider: ({ children }: { children: ReactNode }) => children,
@@ -220,11 +229,17 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(markers.length).toBeGreaterThan(0);
     const nara = markers.find((m) => m.textContent === "나라수산");
     if (!nara) throw new Error("marker expected");
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
     fireEvent.click(nara);
+    // 마커 탭 = 상세 열기 (화면 2). 닫으면 카드가 선택 상태로 남는다
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
     expect(screen.getByRole("button", { name: /나라수산, 마포구/ })).toHaveAttribute(
       "aria-current",
       "true",
     );
+    vi.restoreAllMocks();
   });
 
   it("카드 탭 → 선택 + 지도 이동(panTo)", async () => {
@@ -384,5 +399,119 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 가짜 지도 중심 (37.55, 127.0) ↔ 나라수산 (37.54, 126.95) ≈ 4.5km
     expect(screen.getByRole("button", { name: /나라수산, 마포구/ })).toHaveTextContent(/\d(\.\d)?km · 마포구/);
+  });
+});
+
+describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
+  const openNara = async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+  };
+
+  const history = { pushState: vi.fn(), replaceState: vi.fn(), back: vi.fn() };
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    history.pushState = vi.spyOn(window.history, "pushState");
+    history.replaceState = vi.spyOn(window.history, "replaceState");
+    history.back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("카드 탭 → 같은 시트가 상세 요약으로, FAB 숨김, URL /place/[id] push, 지도 이동", async () => {
+    await openNara();
+    const sheet = screen.getByRole("region", { name: "가게 상세" });
+    expect(sheet).toHaveAttribute("data-mode", "detail");
+    expect(sheet).toHaveAttribute("data-snap", "half");
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "가게 목록" })).toBeNull(); // hidden으로 유지
+    expect(history.pushState).toHaveBeenCalledWith({ saeuDetail: true }, "", "/place/nara");
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("× 닫기 → 목록 복귀(history.back), 마커 탭도 상세를 연다", async () => {
+    await openNara();
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(screen.getByRole("region", { name: "가게 목록" })).toHaveAttribute("data-mode", "list");
+    expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
+    expect(history.back).toHaveBeenCalledTimes(1);
+
+    const marker = screen.getAllByTestId("marker").find((m) => m.textContent === "노량진수산시장 하나수산");
+    if (!marker) throw new Error("marker expected");
+    fireEvent.click(marker);
+    expect(screen.getByRole("article", { name: "노량진수산시장 하나수산 상세" })).toBeInTheDocument();
+    expect(history.pushState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/hana");
+  });
+
+  it("initialPlaceId → 처음부터 상세, 닫으면 replaceState('/') (직접 진입은 뒤로 갈 곳이 없다)", () => {
+    window.history.replaceState(null, "", "/place/nara");
+    renderScreen({ initialPlaceId: "nara" });
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(history.replaceState).toHaveBeenLastCalledWith(null, "", "/");
+    expect(history.back).not.toHaveBeenCalled();
+    expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("popstate: 경로가 /place/[id]면 열고, /면 닫는다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    window.history.replaceState(null, "", "/place/suseong");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("article", { name: "수성2호왕새우소금구이 상세" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("새로 제보된 곳이에요");
+    expect(history.pushState).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", "/");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.queryByRole("article")).toBeNull();
+    expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("찜 → '찜한 곳' 칩 필터에 바로 반영 (목: 클라이언트 메모리)", async () => {
+    await openNara();
+    fireEvent.click(screen.getByRole("button", { name: "찜" }));
+    expect(await screen.findByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    fireEvent.click(screen.getByRole("button", { name: "찜한 곳" }));
+    expect(await screen.findByRole("heading", { name: "마포구 1곳" })).toBeInTheDocument();
+    expect(listCards()[0]).toHaveTextContent("나라수산");
+    // 다음 테스트를 위해 원복 (모듈 메모리)
+    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "찜" }));
+    expect(await screen.findByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("다녀왔다면 성공 → 닫은 뒤 카드도 '오늘 확인'·확인 수 반영", async () => {
+    const naraSeed = seed().find((p) => p.id === "nara");
+    if (!naraSeed) throw new Error("seed expected");
+    dataMocks.checkIn.mockImplementation(
+      (id, now) =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ ...naraSeed, id, checkCount: naraSeed.checkCount + 1, lastCheckedAt: now });
+          }, 400);
+        }),
+    );
+    await openNara();
+    fireEvent.click(screen.getByRole("button", { name: "다녀왔다면" }));
+    expect(screen.getByText("확인 4회")).toBeInTheDocument(); // 3 + 1 낙관
+    expect(screen.getByText("확인했어요")).toBeInTheDocument();
+    // 목 쓰기 지연(400ms)이 끝나야 부모 places에 확정된다
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, 450)));
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    const card = screen.getByRole("button", { name: /나라수산, 마포구/ });
+    expect(card).toHaveTextContent("오늘 확인");
+    await waitFor(() => {
+      expect(card).toHaveTextContent("오늘 확인");
+    });
   });
 });

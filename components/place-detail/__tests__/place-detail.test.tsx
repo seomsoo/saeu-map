@@ -112,7 +112,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     // 7~10 제목 순서
     const headings = within(article)
       .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent?.trim());
+      .map((h) => h.textContent.trim());
     expect(headings[0]).toBe("대표 메뉴");
     expect(headings[1]).toBe("사이드");
     expect(headings[2]).toMatch(/^리뷰/);

@@ -3,9 +3,16 @@
 import { useRef } from "react";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
+import { PlaceDetail } from "@/components/place-detail/place-detail";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorState } from "@/components/ui/error-state";
-import type { EventCard as EventCardData, Place, SeasonStats } from "@/lib/types";
+import { Toast } from "@/components/ui/toast";
+import type {
+  EventCard as EventCardData,
+  Place,
+  PlaceDetail as PlaceDetailData,
+  SeasonStats,
+} from "@/lib/types";
 import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
@@ -20,6 +27,10 @@ export interface MapScreenProps {
   stats: SeasonStats;
   eventCard: EventCardData | null;
   bookmarkedIds: string[];
+  /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
+  initialPlaceId?: string | undefined;
+  /** 서버가 함께 내려준 상세(리뷰 포함) — SSR HTML에 상세가 들어가고 클라이언트 재요청이 없다 */
+  initialDetail?: PlaceDetailData | undefined;
 }
 
 const REPORT_NOTICE = "제보는 준비 중이에요";
@@ -29,7 +40,7 @@ function reloadPage() {
 }
 
 /**
- * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트.
+ * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로 바뀐다.
  * 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
  */
 export default function MapScreen({
@@ -38,14 +49,18 @@ export default function MapScreen({
   stats,
   eventCard,
   bookmarkedIds,
+  initialPlaceId,
+  initialDetail,
 }: MapScreenProps) {
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
-  const s = useMapScreen({ places, bookmarkedIds, mapRef, topStackRef });
+  const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const handleReport = () => {
     s.showNotice(REPORT_NOTICE);
   };
+
+  const detailPlace = s.detailPlace;
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
@@ -111,17 +126,10 @@ export default function MapScreen({
           <CategoryDropdown tab={s.tab} onChange={s.setTab} />
           <FilterChips chips={s.chips} onToggle={s.toggleChip} />
         </div>
-        {s.notice && (
-          <p
-            role="status"
-            className="mx-auto rounded-12 bg-toast px-4 py-3 text-body-m-regular text-fg-on-brand"
-          >
-            {s.notice}
-          </p>
-        )}
+        <Toast message={s.notice} />
       </div>
 
-      {/* 3~7. 바텀시트 (+ FAB 줄) */}
+      {/* 3~7. 바텀시트 (+ FAB 줄). 상세가 열리면 FAB는 숨긴다 — 채운 레드는 [다녀왔다면] 한 곳 */}
       <PlaceSheet
         status={s.status}
         places={s.sorted}
@@ -134,10 +142,33 @@ export default function MapScreen({
         selectedId={s.selectedId}
         sort={s.sort}
         snap={s.snap}
+        mode={s.mode}
+        detail={
+          detailPlace && (
+            <PlaceDetail
+              key={detailPlace.id}
+              place={detailPlace}
+              now={now}
+              bookmarked={s.bookmarkedIds.includes(detailPlace.id)}
+              checked={s.checkedIds.has(detailPlace.id)}
+              initialReviews={
+                initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
+              }
+              onClose={s.closeDetail}
+              onPatchPlace={s.patchPlace}
+              onChecked={s.markChecked}
+              onToggleBookmark={() => {
+                s.toggleBookmark(detailPlace.id);
+              }}
+              onNotice={s.showNotice}
+            />
+          )
+        }
         emptyKind={s.emptyKind}
-        aside={<FabRow onLocate={s.locateMe} onReport={handleReport} />}
+        aside={s.mode === "list" ? <FabRow onLocate={s.locateMe} onReport={handleReport} /> : undefined}
         onSortChange={s.setSort}
         onSnapChange={s.setSnap}
+        onDismissDetail={s.closeDetail}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
         onClearChips={s.clearChips}
