@@ -31,7 +31,7 @@ export function PhotoArea({ place, naverUrl, onUploadPhoto }: PhotoAreaProps) {
   }
 
   return (
-    <div className="relative flex items-center gap-3 border-b border-line-hairline py-2 pr-4 pl-5">
+    <div className="relative flex items-center gap-3 border-b h-14 border-line-hairline pr-4 pl-5">
       <span
         className="flex size-8 shrink-0 items-center justify-center rounded-max bg-bg-sunken text-fg-tertiary"
         aria-hidden="true"

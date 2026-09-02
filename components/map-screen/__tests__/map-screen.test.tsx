@@ -457,6 +457,15 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
   });
 
+  it("initialPlaceId → 지도가 뜨면 핀을 요약 시트 위 가시 영역으로 panTo 1회 (공유 링크로 핀이 보인다)", async () => {
+    window.history.replaceState(null, "", "/place/nara");
+    renderScreen({ initialPlaceId: "nara" });
+    await waitFor(() => {
+      expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    });
+    expect(fake.map.morph).not.toHaveBeenCalled();
+  });
+
   it("popstate: 경로가 /place/[id]면 열고, /면 닫는다", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });

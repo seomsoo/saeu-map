@@ -181,6 +181,10 @@ export function useMapScreen({
   );
 
   const status: MapStatus = mapError ? "error" : viewport ? "ready" : "loading";
+  const initialPlace = useMemo(
+    () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
+    [initialPlaces, initialPlaceId],
+  );
   const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
@@ -213,8 +217,9 @@ export function useMapScreen({
     void requestPosition().then((pos) => {
       if (cancelled || !pos) return;
       setUserLocation(pos);
-      // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다
-      if (inBounds(pos, SEOUL_AREA) && mapRef.current) {
+      // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다.
+      // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
+      if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
         programmaticMoveAt.current = performance.now();
         mapRef.current.morph(pos, USER_ZOOM);
       }
@@ -222,7 +227,7 @@ export function useMapScreen({
     return () => {
       cancelled = true;
     };
-  }, [mapRef]);
+  }, [mapRef, initialPlaceId]);
 
   /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
   const visibleStripCenterY = useCallback(
@@ -234,6 +239,17 @@ export function useMapScreen({
     },
     [topStackRef],
   );
+
+  /* ── /place/[id] 직접 진입: 지도가 뜨면 핀을 요약 시트 위 가시 영역 중앙으로 (카드 탭과 같은 목표) ── */
+  const initialPanDone = useRef(false);
+  useEffect(() => {
+    if (initialPanDone.current || !initialPlaceId || !viewport || !mapRef.current) return;
+    const place = places.find((p) => p.id === initialPlaceId);
+    if (!place) return;
+    initialPanDone.current = true;
+    programmaticMoveAt.current = performance.now();
+    mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+  }, [initialPlaceId, viewport, places, mapRef, visibleStripCenterY]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
   const openDetail = useCallback(
@@ -419,9 +435,10 @@ export function useMapScreen({
     sorted,
     inViewCount: inView.length,
     areaLabel,
-    // 위치가 SDK보다 먼저 왔을 때: 서울 근교일 때만 그 위치·줌 14로 시작 (밖이면 서울 중심 — 결정 "위치 폴백")
-    initialCenter: userInSeoul ? userLocation : SEOUL_CENTER,
-    initialZoom: userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
+    // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
+    // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
+    initialCenter: initialPlace ?? (userInSeoul ? userLocation : SEOUL_CENTER),
+    initialZoom: initialPlace || userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,
