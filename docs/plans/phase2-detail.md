@@ -67,3 +67,20 @@ Phase 1(지도 메인 + 리디자인)이 main에 머지된 뒤(#3) 다음 항목
 - Playwright 390: 카드 탭 → 요약 / 드래그 → 전체 / 스와이프 → 닫힘 / `/place/p019`(신규 배너·사진) / `/place/p018`(리뷰 3건 별점) / `/place/p162`(별점 숨김) / 다녀왔다면 성공·실패(`Math.random=()=>0`) / 찜 → "찜한 곳" 칩 / 복사·공유 토스트 / `/place/nope` not-found + noindex / 320·430 → `.playwright-mcp/detail-*.png`, 버틸까 176:1140과 문법 비교
 - `pnpm preview`: `/place/p018` 200, `/place/nope` 상태 코드 기록
 - gap-sweeper 0건, security-reviewer 실행 결과 기록
+
+## 결과 (2026-09-03)
+- 커밋 7개(docs → lib → ui → detail → route → fix → test). 검증: typecheck 0, lint 0, vitest 12파일 165/165.
+- Playwright 390·320·430: `.playwright-mcp/detail-00~16` 20장. 요약 높이 844에서 422px, 568에서 300px. 상세 열림 시 `.bg-brand` 1곳. URL 동기화·popstate·FAB 숨김·다녀왔다면 낙관/롤백·찜 칩·복사/공유 토스트·not-found + noindex 확인.
+- `pnpm preview`(workerd): `/` 200, `/place/p018` 200, `/place/nope` 200 + not-found 카피 + noindex (decisions 2026-09-02에 기록).
+- security-reviewer: 높음 0·중간 0·낮음 4·정보 5. 낮음 4 전부 반영(id 화이트리스트, 공유 URL 인코딩, `safeAssetPath` 공용화, 길찾기 타이머 정리, 찜 실패 토스트). "noindex 메타 누락" 지적은 오판(Next가 자동 주입, 실측 확인).
+- 발견한 버그: 본문 pointerdown에서 바로 `setPointerCapture`하면 click이 캡처 요소로 리타겟돼 상세 버튼 전부 무반응. jsdom은 캡처를 스텁해 165개 테스트가 다 통과했고 Playwright에서만 드러남. 드래그 임계값 뒤 캡처로 수정. 포인터 제스처 변경은 Playwright 클릭 확인 필수.
+- 하네스: `.claude/agents/security-reviewer.md`는 만든 세션에서 로드되지 않아 general-purpose에 정의 파일을 읽혀 대행. 2026-09-03 새 세션에서 `subagent_type: security-reviewer`가 목록에 뜨는 것 확인.
+- 후속 후보(리뷰어 정보 항목): 다녀왔다면 더블클릭·응답 중 언마운트 테스트.
+- gap-sweeper(2026-09-03, "표 40줄 이내"로 요구 → 결과 약 2,600자): 체크 78항목 중 구현 73·부분 5·미구현 0. 부분 5건 처리:
+  1. 공유 링크 직접 진입 시 지도가 서울 전체(줌 12) 그대로라 핀이 안 보임 → 그 핀·줌 14에서 시작 + 지도 뜨면 가시 영역 중앙으로 `panTo`(위치 권한보다 핀 우선), 테스트 1개 추가 (decisions 2026-09-03).
+  2. 사진 없음 입력 행 59px → `h-14`로 56px (320/390/430 실측 56).
+  3. "사진 있는 가게는 1~5 보이고 6 걸침"은 실측(p018, 390×844) 1~4 + 5 걸침(버튼 줄 y=860) → design 문구를 실측대로 정정. 행 여백 축소는 디자인 결정이라 하지 않음.
+  4. 메뉴 없음 상태: 코드·단위 테스트 있음. 목에서 메뉴 0인 곳은 p108뿐인데 `needsReview`(새우 메뉴 파싱 실패)로 데이터셋에서 숨겨져 화면 재현 불가 — 목 단계 한정.
+  5. 리뷰 로딩·에러 상태: 코드·단위 테스트 있음. 목 읽기(`getPlaceDetail`)는 지연·실패하지 않아 화면 재현 불가 — Supabase 연결(Phase 6) 때 실기 확인.
+  스펙 외 구현(기록): 주소·링크 복사 실패 토스트, 찜 실패 토스트, 지번 없으면 줄 숨김, 리뷰 개수는 ready일 때만 표시, 없는 id에 noindex.
+- 최종 검증(2026-09-03): typecheck 0, lint 0, vitest 12파일 166/166.

@@ -104,7 +104,7 @@
 ## 2026-09-02 — Phase 2 상세: 화면 2 v2 재작성과 스펙에 없던 결정
 - **맥락**: roadmap 절차대로 design 화면 2를 v2 언어로 재작성(Figma 버틸까 구 상세 `176:1140`·Components `156:1204` 문법: 핸들 → 제목 20/부제 16 → 섹션 제목 16 semibold → 8px 가라앉은 띠 → 작은 아웃라인 [수정] 28px → 잉크 채움 주 버튼 → 알림 행 = 아이콘 타일 + 두 줄)한 뒤 구현. 플랜 docs/plans/phase2-detail.md.
 - **미리 정한 것(사용자)**: 채운 레드 = [다녀왔다면] 레드 pill 한 곳(상세가 열린 동안 FAB 줄을 숨겨 화면당 1을 유지). 길찾기 잉크 채움, 공유·찜 아웃라인. 상단 사진 = 카드·마커와 같은 `thumbnailUrl`. 평점은 리뷰 3개 이상일 때만 별점. 용어 사이드·소금구이·생새우회, UI 문장에 em dash·가운데 점 연결 금지.
-- **`/place/[id]` 얕은 라우트 선행(roadmap Phase 5 → Phase 2)**: [공유] 버튼이 실제 링크를 가지려면 라우트가 필요. `app/place/[id]/page.tsx`가 같은 지도 화면을 해당 가게 열린 상태로 렌더(서버에서 상세까지 불러 `initialDetail`로), 열기/닫기는 **이벤트 핸들러 안에서** `history.pushState`/`back`/`replaceState`(Next 16 네이티브 History 통합 — 서버 왕복 없음. 마운트 effect에서 호출하면 AppRouter 패치 전이라 popstate가 리로드함). id 출처는 `detailId` 상태 + `location.pathname`(`useParams`는 `/` 트리를 보고). SSR 메타·OG·진짜 404는 Phase 5. **없는 id는 200 + not-found UI + noindex** — 루트 `app/loading.tsx`(Suspense) 때문에 스트리밍되어 상태 코드를 바꿀 수 없다(Next 문서 loading.md "Status Codes"). 새로고침 후 닫기는 replace라 `/` 엔트리가 하나 남을 수 있음(무해).
+- **`/place/[id]` 얕은 라우트 선행(roadmap Phase 5 → Phase 2)**: [공유] 버튼이 실제 링크를 가지려면 라우트가 필요. `app/place/[id]/page.tsx`가 같은 지도 화면을 해당 가게 열린 상태로 렌더(서버에서 상세까지 불러 `initialDetail`로), 열기/닫기는 **이벤트 핸들러 안에서** `history.pushState`/`back`/`replaceState`(Next 16 네이티브 History 통합 — 서버 왕복 없음. 마운트 effect에서 호출하면 AppRouter 패치 전이라 popstate가 리로드함). id 출처는 `detailId` 상태 + `location.pathname`(`useParams`는 `/` 트리를 보고). SSR 메타·OG·진짜 404는 Phase 5. **없는 id는 200 + not-found UI + noindex** — 루트 `app/loading.tsx`(Suspense) 때문에 스트리밍되어 상태 코드를 바꿀 수 없다(Next 문서 loading.md "Status Codes"). 실측(2026-09-02, workerd `pnpm preview`): `/` 200, `/place/p018` 200(상호 렌더), `/place/nope` 200 + not-found 카피 + `<meta name="robots" content="noindex">`(Next 자동 주입). 새로고침 후 닫기는 replace라 `/` 엔트리가 하나 남을 수 있음(무해).
 - **영업시간 = 메모 문자열** `Place.hoursNote: string | null`: 제보 플로우(spec 4.3-4)가 자유 메모 입력이고 크롤 데이터에 구조화 영업시간이 없다. "영업 중" 초록 판정은 없음(spec 4.2-5 정정). 목 5곳 샘플.
 - **요약 상태 정의**: 같은 본문을 50dvh(최소 300px)로 열어 위에서 잘림(스펙 순서 그대로). 시트는 `mode`(list/detail)로 내용만 전환하고 `SheetSnap` 3종은 유지, 닫기는 4번째 스냅이 아니라 `resolveRelease` 콜백(half에서 아래 플링 또는 halfPx − 100px 아래에 놓음). 본문 드래그: half는 스크롤 잠금 + `touch-action: none`(body에), full은 `pan-y` + non-passive `touchmove`로 맨 위에서 아래로 끌 때만 선점(`setPointerCapture`만으로는 터치 스크롤 선점을 못 막음). 목록 본문은 `hidden`으로 유지해 스크롤·스냅 복원.
 - **빈 사진 = 입력 행**(2차 자기 검토): 목 50곳 중 48곳이 사진이 없어 160px 빈 타일은 AI티 + 요약 공간 낭비 → 5번 영업시간 빈 상태와 같은 입력 행 문법(카메라 타일 + "첫 사진을 올려주세요" / "네이버에서 사진 보기 ↗" + ›). 닫기 ×는 상호 행 오른쪽(사진 위 오버레이는 사진 없을 때 자리가 없음). 확인 줄의 절대 날짜는 상대 표기와 중복이라 삭제. 확인 후 pill은 비활성 아웃라인 대신 틴트 "확인했어요".
@@ -114,6 +114,10 @@
 - **길찾기 딥링크**: `nmap://route/public?dlat&dlng&dname&appname`(NCP "지도 앱 연동 URL Scheme") + 모바일에서 1.5초 안에 앱이 안 열리면(visibilitychange 없음) 웹 폴백. 웹 길찾기 URL은 공식 문서가 없어 네이버 지도팀이 포럼에서 안내한 좌표 표시 링크 `https://map.naver.com/?lng&lat&title`을 쓴다(데스크탑은 처음부터 이 링크, 새 탭). "네이버에서 사진 보기"는 `naverPlaceUrl` 호스트 화이트리스트(`m.place.naver.com`·`map.naver.com`) 통과 시만 렌더.
 - **완료 조건의 목업 기준**: 별도 목업 없이 재작성 블록 항목을 gap-sweeper가 전수 대조 + 버틸까 Figma 문법 비교(roadmap Phase 2 문구 정정).
 - **재검토 조건**: 요약 높이 50%는 사용감 피드백 시. 수정 입구는 각 Phase 연결 시 재배치. 진짜 404·OG는 Phase 5. 리뷰 사진(`Review.photoUrl`)은 Phase 4 폼에서.
+
+## 2026-09-03 — 공유 링크 직접 진입의 지도 시작점
+- `/place/[id]`로 직접 들어오면 지도는 **그 핀·줌 14**(현위치 줌과 동일)에서 시작하고, 지도가 뜨면 핀을 요약 시트 위 가시 영역 중앙으로 `panTo`(카드·마커 탭과 같은 목표). 위치 권한이 있어도 핀이 우선 — 위치는 거리 정렬 기준으로만 쓴다. 이유: 서울 전체(줌 12)로 시작하면 공유받은 핀이 화면에 없다(gap-sweeper 2026-09-03). 줌은 새 상수 대신 기존 현위치 줌을 재사용.
+- 요약 상태에서 사진 있는 가게는 1~4 + 5(영업시간) 걸침으로 design 문구를 실측대로 정정. 행 여백을 줄여 버튼 줄까지 넣는 건 디자인 결정이라 하지 않았다(필요하면 별도 결정).
 
 ## 커스텀 에셋 필요 목록
 - 새우 마커·카드 썸네일 플레이스홀더 아이콘 — 36px 원·64px 타일 안, 사진 없는 가게용 (그 전까지 카테고리 색점)
