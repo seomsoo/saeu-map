@@ -106,12 +106,10 @@ export default function MapScreen({
             onSubmit={s.submitSearch}
           />
         </div>
-        {/* 카테고리 드롭다운은 스크롤 밖(목록이 잘리지 않게), 토글 칩만 가로 스크롤 */}
-        <div className="flex items-start gap-1.5 pl-5">
+        {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
           <CategoryDropdown tab={s.tab} onChange={s.setTab} />
-          <div className="no-scrollbar flex flex-1 gap-1.5 overflow-x-auto pr-5 pb-1">
-            <FilterChips chips={s.chips} onToggle={s.toggleChip} />
-          </div>
+          <FilterChips chips={s.chips} onToggle={s.toggleChip} />
         </div>
         {s.notice && (
           <p
