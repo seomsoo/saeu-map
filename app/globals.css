@@ -337,11 +337,11 @@ body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-/* 상세 모드 (design 화면 2): 헤더 = 핸들만(26px), 요약 = 50%(최소 300px, 낮은 뷰포트에서도 접지 않음).
+/* 상세 모드 (design 화면 2): 헤더 = 핸들 + 닫기 ✕(44px), 요약 = 50%(최소 300px, 낮은 뷰포트에서도 접지 않음).
    특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
 .saeu-sheet[data-mode="detail"] {
   --sheet-half: max(50dvh, 300px);
-  --sheet-header-h: 26px;
+  --sheet-header-h: 44px;
 }
 /* 요약: 본문 스크롤 잠금 — 어디를 끌어도 시트가 움직인다 (touch-action은 스크롤 컨테이너 자신에 줘야 먹는다) */
 .saeu-sheet[data-mode="detail"][data-snap="half"] .saeu-sheet__body {

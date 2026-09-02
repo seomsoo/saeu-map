@@ -23,7 +23,6 @@ export interface PlaceDetailProps {
   /** 이 세션에서 이미 "다녀왔다면"을 누른 가게 */
   checked: boolean;
   initialReviews?: Review[] | undefined;
-  onClose: () => void;
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
   onToggleBookmark: () => void;
@@ -33,6 +32,7 @@ export interface PlaceDetailProps {
 /**
  * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~10 엄수). 바텀시트 detail 모드 안에 들어간다.
  * 채운 레드는 3번 [다녀왔다면] 한 곳. 섹션 사이는 8px 띠, 안쪽 행은 헤어라인.
+ * 닫기 ✕는 본문이 아니라 시트 헤더에 있다(bottom-sheet의 onDismiss).
  */
 export function PlaceDetail({
   place,
@@ -40,7 +40,6 @@ export function PlaceDetail({
   bookmarked,
   checked,
   initialReviews,
-  onClose,
   onPatchPlace,
   onChecked,
   onToggleBookmark,
@@ -64,7 +63,7 @@ export function PlaceDetail({
       {/* 1 */}
       <PhotoArea place={d.place} naverUrl={hasPhoto ? null : naverUrl} onUploadPhoto={d.comingSoon} />
       {/* 2 */}
-      <PlaceHeader place={d.place} onClose={onClose} />
+      <PlaceHeader place={d.place} />
       {d.place.isNew && <NewPlaceBanner />}
       {/* 3 */}
       <CheckLine place={d.place} now={now} done={d.done} onCheckIn={d.checkIn} />

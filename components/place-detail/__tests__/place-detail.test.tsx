@@ -55,7 +55,6 @@ function renderDetail(place: Place, overrides: Partial<PlaceDetailProps> = {}) {
     now: NOW,
     bookmarked: false,
     checked: false,
-    onClose: vi.fn(),
     onPatchPlace: vi.fn(),
     onChecked: vi.fn(),
     onToggleBookmark: vi.fn(),
@@ -87,10 +86,9 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     expect(naverLink).toHaveAttribute("target", "_blank");
     expect(naverLink).toHaveAttribute("rel", "noopener noreferrer");
 
-    // 2. 상호 + 텍스트 태그 + 닫기
+    // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
     const title = within(article).getByRole("heading", { level: 2, name: "나라수산" });
     expect(within(article).getByText("소금구이 · 생새우회 · 마포구")).toBeInTheDocument();
-    expect(within(article).getByRole("button", { name: "상세 닫기" })).toBeInTheDocument();
     expect(upload.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // 3. 확인 줄

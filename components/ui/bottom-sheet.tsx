@@ -27,8 +27,8 @@ export const SHEET_SHORT_VIEWPORT_MAX = 639;
 /** 상세 요약 = 50%, 최소 300px (낮은 뷰포트에서도 접지 않는다) */
 export const SHEET_DETAIL_HALF_RATIO = 0.5;
 export const SHEET_DETAIL_HALF_MIN_PX = 300;
-/** 상세 헤더 = 핸들만 */
-export const SHEET_DETAIL_HEADER_PX = 26;
+/** 상세 헤더 = 핸들 + 오른쪽 닫기 ✕ (44px 히트) */
+export const SHEET_DETAIL_HEADER_PX = 44;
 /** 상세: 요약 위치보다 이만큼 더 내린 채 놓으면 닫힘 */
 export const SHEET_DISMISS_PX = 100;
 
@@ -185,8 +185,10 @@ interface BottomSheetProps {
   /** 기본 list. detail은 핸들만 남기고 본문 드래그·아래로 스와이프 닫기를 켠다. */
   mode?: SheetMode;
   handleLabel?: string;
-  /** 상세 모드에서 아래로 스와이프해 닫을 때 */
+  /** 상세 모드에서 아래로 스와이프해 닫을 때. 헤더 오른쪽 ✕ 버튼도 이걸 부른다. */
   onDismiss?: (() => void) | undefined;
+  /** 헤더 ✕의 접근 가능한 이름 (상세 모드) */
+  dismissLabel?: string;
 }
 
 /**
@@ -194,6 +196,7 @@ interface BottomSheetProps {
  * 목록: 드래그는 핸들·헤더에서만 받아 리스트 스크롤과 충돌하지 않는다. 지도는 시트 위 영역에서 계속 조작 가능.
  * 상세: 요약(half)에선 본문 스크롤을 잠그고 어디를 끌어도 시트가 움직인다. 전체(full)에선 본문이 스크롤되고
  *       맨 위에서 아래로 끄는 것만 시트 드래그로 가로챈다(non-passive touchmove로 브라우저 스크롤 선점 차단).
+ *       닫기 ✕는 본문이 아니라 헤더(시트 크롬)에 있다 — 사진 유무·스크롤 위치와 무관하게 늘 같은 자리.
  */
 export function BottomSheet({
   snap,
@@ -206,6 +209,7 @@ export function BottomSheet({
   mode = "list",
   handleLabel = "목록 크기 조절",
   onDismiss,
+  dismissLabel = "닫기",
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -403,7 +407,7 @@ export function BottomSheet({
       )}
       <div
         className={cx(
-          "saeu-sheet__header flex shrink-0 flex-col touch-none select-none",
+          "saeu-sheet__header relative flex shrink-0 flex-col touch-none select-none",
           !detail && "border-b border-line-hairline",
         )}
         onPointerDown={onHeaderPointerDown}
@@ -416,13 +420,30 @@ export function BottomSheet({
           data-sheet-handle
           aria-label={handleLabel}
           onClick={onHandleClick}
-          className="flex h-6.5 w-full shrink-0 items-center justify-center"
+          className={cx(
+            "flex w-full shrink-0 items-center justify-center",
+            detail ? "h-11" : "h-6.5",
+          )}
         >
           <span
             aria-hidden="true"
             className="block h-1.5 w-12.5 rounded-max bg-line-hairline"
           />
         </button>
+        {detail && onDismiss && (
+          /* 헤더는 pointerdown에서 즉시 캡처하므로, 막지 않으면 이 버튼의 click이 헤더로 리타겟된다 */
+          <button
+            type="button"
+            aria-label={dismissLabel}
+            onClick={onDismiss}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            className="absolute top-0 right-2 flex size-11 items-center justify-center text-fg-tertiary"
+          >
+            <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
+          </button>
+        )}
         {!detail && (
           <div className="flex min-h-0 flex-1 items-center px-5 pb-4">{header}</div>
         )}

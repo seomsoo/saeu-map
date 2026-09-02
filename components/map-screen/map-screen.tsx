@@ -154,7 +154,6 @@ export default function MapScreen({
               initialReviews={
                 initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
               }
-              onClose={s.closeDetail}
               onPatchPlace={s.patchPlace}
               onChecked={s.markChecked}
               onToggleBookmark={() => {

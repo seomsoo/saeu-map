@@ -179,6 +179,7 @@ describe("BottomSheet 상세 모드", () => {
         onDismiss={onDismiss}
         header={<span>헤더</span>}
         handleLabel="상세 크기 조절"
+        dismissLabel="상세 닫기"
         label="가게 상세"
       >
         <p>본문</p>
@@ -197,6 +198,18 @@ describe("BottomSheet 상세 모드", () => {
     expect(screen.queryByText("헤더")).toBeNull();
     expect(screen.getByRole("button", { name: "상세 크기 조절" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "가게 상세" })).toHaveAttribute("data-mode", "detail");
+  });
+
+  it("헤더 오른쪽 ✕가 닫는다 — 드래그가 시작되지 않게 pointerdown은 헤더로 올라가지 않는다", () => {
+    const { onSnapChange, onDismiss } = renderDetail("half");
+    const close = screen.getByRole("button", { name: "상세 닫기" });
+    // 헤더가 pointerdown에서 즉시 캡처하면 click이 헤더로 리타겟된다(2026-09-02 실측).
+    // 전파 차단은 여기서 확인하고, 리타겟 자체는 jsdom이 못 잡아 Playwright로 본다.
+    fireEvent.pointerDown(close, { pointerId: 1, button: 0, clientY: 100 });
+    fireEvent.pointerUp(close, { pointerId: 1, clientY: 100 });
+    fireEvent.click(close);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onSnapChange).not.toHaveBeenCalled();
   });
 
   it("요약에서 본문을 아래로 튕기면 닫힘(onDismiss 1회, onSnapChange 없음)", () => {
