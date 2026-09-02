@@ -18,6 +18,8 @@ export const chipVariants = cva(
         muted: "rounded-max border-line bg-bg text-fg-tertiary",
         /* 단위·사이드 미니칩: 보더 없이 가라앉은 배경 */
         subtle: "rounded-6 border-transparent bg-bg-sunken text-fg-secondary",
+        /* 상세 사이드 "없음": pill, 가라앉은 배경, 회색 글자 (버틸까 Disabled 칩) */
+        disabled: "rounded-max border-transparent bg-bg-sunken text-fg-placeholder",
       },
     },
     defaultVariants: { size: "md", tone: "outline" },
