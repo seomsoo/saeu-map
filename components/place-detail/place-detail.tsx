@@ -57,7 +57,7 @@ export function PlaceDetail({
   });
   // 외부 링크는 화이트리스트 호스트만 (규칙 3의 링크판)
   const naverUrl = isAllowedNaverPlaceUrl(place.naverPlaceUrl) ? place.naverPlaceUrl : null;
-  const hasPhoto = place.thumbnailUrl !== null;
+  const hasPhoto = place.photoUrls.length > 0;
 
   return (
     <article aria-label={`${place.name} 상세`}>

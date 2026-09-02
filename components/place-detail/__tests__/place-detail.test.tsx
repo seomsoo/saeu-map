@@ -135,8 +135,10 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
   });
 
   it("사진이 있으면 상단에 사진, 네이버 링크는 리뷰 섹션 끝으로", async () => {
-    renderDetail(nara({ thumbnailUrl: "/mock/thumb-1.svg" }));
-    expect(screen.getByRole("img", { name: "나라수산 사진" })).toBeInTheDocument();
+    renderDetail(nara({ photoUrls: ["/mock/thumb-1.svg", "/mock/thumb-2.svg"] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("img")).toHaveLength(2);
+    expect(within(strip).getByRole("button", { name: "사진 추가" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "첫 사진을 올려주세요" })).toBeNull();
     await waitFor(() => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
