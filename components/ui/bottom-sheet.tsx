@@ -233,7 +233,9 @@ export function BottomSheet({
     const el = sheetRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    e.currentTarget.setPointerCapture(e.pointerId);
+    // 헤더는 바로 캡처(핸들 탭 순환을 finishDrag가 처리). 본문은 움직인 뒤에만 캡처 — pointerdown에서 잡으면
+    // 탭의 click이 버튼이 아니라 본문으로 리타겟돼 상세의 모든 버튼이 죽는다 (Playwright에서 확인, 2026-09-02).
+    if (source === "header") e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       pointerId: e.pointerId,
       startY: e.clientY,
@@ -283,10 +285,10 @@ export function BottomSheet({
       // 전체 상태의 본문에서 위로 끄는 건 본문 스크롤 — 브라우저에 양보하고 이 제스처는 끝까지 무시
       if (drag.source === "body" && snap === "full" && dy < 0) {
         dragRef.current = null;
-        releaseCapture(e);
         return;
       }
       drag.moved = true;
+      if (drag.source === "body") e.currentTarget.setPointerCapture(e.pointerId);
     }
     const dt = e.timeStamp - drag.lastT;
     if (dt > 0) drag.velocity = (e.clientY - drag.lastY) / dt;

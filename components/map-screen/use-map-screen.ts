@@ -32,7 +32,8 @@ const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
 const NOTICE_MS = 2000;
 /** 프로그램적 이동(카드 탭·위치 이동) 뒤 이 시간 안에 온 idle은 정렬 기준점을 갱신하지 않는다 */
 const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
-const PLACE_PATH = /^\/place\/([^/]+)\/?$/;
+/** id 문자 화이트리스트 — 디코딩이 필요 없고, 이상한 %시퀀스로 popstate가 터지지 않는다 (security-reviewer 2026-09-02) */
+const PLACE_PATH = /^\/place\/([A-Za-z0-9_-]+)\/?$/;
 
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
@@ -51,7 +52,7 @@ function isDetailHistoryState(state: unknown): state is DetailHistoryState {
 
 export function placeIdFromPath(pathname: string): string | null {
   const match = PLACE_PATH.exec(pathname);
-  return match?.[1] ? decodeURIComponent(match[1]) : null;
+  return match?.[1] ?? null;
 }
 
 interface UseMapScreenInput {
@@ -306,11 +307,6 @@ export function useMapScreen({
     setCheckedIds((prev) => new Set(prev).add(id));
   }, []);
 
-  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
-  const toggleBookmark = useCallback((id: string) => {
-    void requestToggleBookmark(id).then(setBookmarkedIds);
-  }, []);
-
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
@@ -372,6 +368,16 @@ export function useMapScreen({
       if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
     },
     [],
+  );
+
+  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
+  const toggleBookmark = useCallback(
+    (id: string) => {
+      requestToggleBookmark(id).then(setBookmarkedIds, () => {
+        showNotice("찜을 저장하지 못했어요");
+      });
+    },
+    [showNotice],
   );
 
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */

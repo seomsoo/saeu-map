@@ -38,7 +38,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function sharePath(placeId: string): string {
-  return `/place/${placeId}`;
+  return `/place/${encodeURIComponent(placeId)}`;
 }
 
 /**
@@ -137,19 +137,29 @@ export function usePlaceDetail({
     void fallback();
   }, [place.id, place.name, onNotice]);
 
+  // 앱 스킴 폴백 타이머 — 상세를 닫거나 가게를 바꾸면(언마운트) 취소한다 (security-reviewer 2026-09-02)
+  const routeFallback = useRef<(() => void) | null>(null);
+  useEffect(() => () => routeFallback.current?.(), []);
+
   const openRoute = useCallback(() => {
     const webUrl = naverPlaceWebUrl(place);
     if (!isMobileUserAgent(navigator.userAgent)) {
       window.open(webUrl, "_blank", "noopener");
       return;
     }
+    routeFallback.current?.();
     // 앱 스킴 시도 → 앱이 열리면 화면이 가려진다(visibilitychange). 안 가려지면 웹 지도로.
+    const onHidden = () => {
+      routeFallback.current?.();
+    };
     const timer = window.setTimeout(() => {
+      routeFallback.current?.();
       if (document.visibilityState === "visible") window.location.href = webUrl;
     }, APP_OPEN_TIMEOUT_MS);
-    const onHidden = () => {
+    routeFallback.current = () => {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onHidden);
+      routeFallback.current = null;
     };
     document.addEventListener("visibilitychange", onHidden);
     window.location.href = naverRouteAppUrl(place);

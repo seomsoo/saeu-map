@@ -1,9 +1,10 @@
+import { StarIcon } from "@/components/ui/icons/star-icon";
 import { clampRating } from "@/lib/reviews";
 import { cx } from "@/lib/cx";
 
 const STARS = [1, 2, 3, 4, 5] as const;
 
-/** 별 5개 — 채운 별 잉크, 빈 별 헤어라인 색. coolicons엔 라인 별만 있어 색 대비로 채움을 표현한다(decisions 2026-09-02). */
+/** 별 5개 — 채운 별 잉크, 빈 별 헤어라인 색(gray-200). 채운 별은 인라인 SVG(에셋 목록). */
 export function RatingStars({
   rating,
   size = "sm",
@@ -21,14 +22,9 @@ export function RatingStars({
       className={cx("inline-flex items-center gap-0.5", className)}
     >
       {STARS.map((n) => (
-        <span
+        <StarIcon
           key={n}
-          aria-hidden="true"
-          className={cx(
-            "icon-[ci--star]",
-            size === "sm" ? "size-3" : "size-4",
-            n <= filled ? "text-fg" : "text-line",
-          )}
+          className={cx(size === "sm" ? "size-3" : "size-4", n <= filled ? "text-fg" : "text-line")}
         />
       ))}
     </span>

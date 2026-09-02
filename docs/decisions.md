@@ -110,8 +110,8 @@
 - **빈 사진 = 입력 행**(2차 자기 검토): 목 50곳 중 48곳이 사진이 없어 160px 빈 타일은 AI티 + 요약 공간 낭비 → 5번 영업시간 빈 상태와 같은 입력 행 문법(카메라 타일 + "첫 사진을 올려주세요" / "네이버에서 사진 보기 ↗" + ›). 닫기 ×는 상호 행 오른쪽(사진 위 오버레이는 사진 없을 때 자리가 없음). 확인 줄의 절대 날짜는 상대 표기와 중복이라 삭제. 확인 후 pill은 비활성 아웃라인 대신 틴트 "확인했어요".
 - **데이터 호출 방식(목)**: 컴포넌트가 `lib/data.ts`를 클라이언트에서 직접 호출. 목 JSON 약 8.5KB gzip이 클라이언트 번들에 들어감(Phase 6 Supabase 교체 시 소멸 — anon 키가 NEXT_PUBLIC_ 허용 목록에 있어 원래 브라우저에서 도는 모양). Server Action은 isolate 전역 캐시를 사용자 간 공유 상태로 만들고 테스트에서 실패 주입이 불가해 미채택. `checkIn`·`getPlaceDetail`은 `now` 필수 인자(클라이언트에서 `Date.now()` 기본값 금지). 실패 시뮬레이션 delay 400ms·10%(`Math.random`). 찜은 클라이언트 메모리 Set(탭 단위, Phase 4에서 사용자 단위).
 - **미구현 플로우 입구 8곳**(첫 사진·영업시간·수정 제안·메뉴 알려주기·리뷰 남기기·정보 수정 제안·신고·사장님이신가요?): 자리만 두고 토스트 "준비 중이에요"(FAB [제보]와 같은 톤). 전부 캡션 급이거나 빈 행 전용.
-- **사이드 표기**: 있음 = 아웃라인 + 체크, 없음 = 가라앉은 배경 회색(버틸까 Disabled 칩 문법). 필터가 아니라 사실이라 틴트 안 씀. 별 색 = 잉크(coolicons `star`는 라인 별뿐 — 채움은 색 대비로).
-- **길찾기 딥링크**: `nmap://route/public?dlat&dlng&dname&appname`(NCP "지도 앱 연동 URL Scheme") + 앱이 안 열리면 웹 길찾기 폴백. "네이버에서 사진 보기"는 `naverPlaceUrl` 호스트 화이트리스트(`m.place.naver.com`·`map.naver.com`) 통과 시만 렌더.
+- **사이드 표기**: 있음 = 아웃라인 + 체크, 없음 = 가라앉은 배경 회색(버틸까 Disabled 칩 문법). 필터가 아니라 사실이라 틴트 안 씀. 별 색 = 잉크. coolicons `star`는 라인 별뿐이라 채움/빔이 색으로 구분되지 않아 인라인 SVG 채운 별(`components/ui/icons/star-icon.tsx`)로 대체(에셋 목록).
+- **길찾기 딥링크**: `nmap://route/public?dlat&dlng&dname&appname`(NCP "지도 앱 연동 URL Scheme") + 모바일에서 1.5초 안에 앱이 안 열리면(visibilitychange 없음) 웹 폴백. 웹 길찾기 URL은 공식 문서가 없어 네이버 지도팀이 포럼에서 안내한 좌표 표시 링크 `https://map.naver.com/?lng&lat&title`을 쓴다(데스크탑은 처음부터 이 링크, 새 탭). "네이버에서 사진 보기"는 `naverPlaceUrl` 호스트 화이트리스트(`m.place.naver.com`·`map.naver.com`) 통과 시만 렌더.
 - **완료 조건의 목업 기준**: 별도 목업 없이 재작성 블록 항목을 gap-sweeper가 전수 대조 + 버틸까 Figma 문법 비교(roadmap Phase 2 문구 정정).
 - **재검토 조건**: 요약 높이 50%는 사용감 피드백 시. 수정 입구는 각 Phase 연결 시 재배치. 진짜 404·OG는 Phase 5. 리뷰 사진(`Review.photoUrl`)은 Phase 4 폼에서.
 
@@ -120,4 +120,4 @@
 - 현위치 표적(크로스헤어) 아이콘 — coolicons에 없어 `components/ui/icons/crosshair-icon.tsx` 인라인 SVG로 임시 대체
 - 새우 로고 (화면에선 워드마크를 뺐으므로 급하지 않음 — OG·파비콘용)
 - 파비콘 (그 전까지 `app/icon.svg` 코랄 색점)
-- 채운 별 아이콘 — coolicons `star`는 라인 별뿐. 상세 평점·리뷰 별은 잉크/gray-200 색 대비로 임시 표현
+- 채운 별 아이콘 — coolicons `star`는 라인 별뿐이라 채움/빔이 구분되지 않아(Playwright 확인) `components/ui/icons/star-icon.tsx` 인라인 SVG로 임시 대체

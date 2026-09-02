@@ -28,6 +28,7 @@ import {
 } from "./time";
 import { matchesQuery, normalizeQuery } from "./places";
 import { sortReviewsNewest } from "./reviews";
+import { safeAssetPath } from "./assets";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -88,7 +89,8 @@ function dataset(now: DateInput): Dataset {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
       return {
         ...raw,
-        thumbnailUrl: thumbnail ?? null,
+        // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 플레이스홀더로)
+        thumbnailUrl: safeAssetPath(thumbnail),
         hoursNote: hoursNote ?? null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),
@@ -100,7 +102,10 @@ function dataset(now: DateInput): Dataset {
   const built: Dataset = {
     places,
     checkins: rawCheckins.map((c) => ({ ...c, at: addDaysIso(c.at, shift) })),
-    reviews: rawReviews.map((r) => ({ ...r, at: addDaysIso(r.at, shift) })),
+    reviews: rawReviews.map(({ photoUrl, ...r }) => {
+      const safePhoto = safeAssetPath(photoUrl);
+      return { ...r, at: addDaysIso(r.at, shift), ...(safePhoto !== null && { photoUrl: safePhoto }) };
+    }),
   };
   datasetCache.set(today, built);
   return built;
@@ -270,6 +275,7 @@ export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
   const data = dataset(now);
   const current = data.places.find((p) => p.id === id);
   if (!current) throw new Error("place not found");
+  // `now`는 목 데이터셋 조회·낙관 표시용이다. Phase 6(Supabase)에서는 확인 시각 `at`을 서버가 정한다 — 클라이언트 값을 저장하지 말 것.
   const at = new Date(toMs(now)).toISOString();
   const updated: Place = {
     ...current,

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { StarIcon } from "@/components/ui/icons/star-icon";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRating, ratingSummary } from "@/lib/reviews";
@@ -40,7 +41,7 @@ export function ReviewSection({ status, reviews, naverUrl, onRetry, onWriteRevie
             className="flex items-center gap-1 text-body-m-semibold text-fg tabular-nums"
             aria-label={`평균 별점 ${formatRating(summary.average)}점`}
           >
-            <span className="icon-[ci--star] size-4" aria-hidden="true" />
+            <StarIcon className="size-4" />
             {formatRating(summary.average)}
           </p>
         )}
