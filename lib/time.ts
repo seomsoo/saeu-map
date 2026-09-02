@@ -78,15 +78,20 @@ export function formatKstShortDate(input: DateInput): string {
   return `${String(m)}.${String(d)}`;
 }
 
-/** "○일 전 확인" 라벨. KST 달력일 기준. */
-export function relativeCheckLabel(checkedAt: DateInput, now: DateInput): string {
+/** "3일 전" — 확인 시점만. KST 달력일 기준. 라벨과 문장("3일 전 확인됐어요")이 같이 쓴다. */
+export function relativeCheckAgo(checkedAt: DateInput, now: DateInput): string {
   const days = Math.max(0, daysBetweenKst(checkedAt, now));
-  if (days === 0) return "오늘 확인";
-  if (days === 1) return "어제 확인";
-  if (days < 7) return `${days}일 전 확인`;
-  if (days < 30) return `${Math.floor(days / 7)}주 전 확인`;
-  if (days < 365) return `${Math.floor(days / 30)}개월 전 확인`;
-  return `${Math.floor(days / 365)}년 전 확인`;
+  if (days === 0) return "오늘";
+  if (days === 1) return "어제";
+  if (days < 7) return `${days}일 전`;
+  if (days < 30) return `${Math.floor(days / 7)}주 전`;
+  if (days < 365) return `${Math.floor(days / 30)}개월 전`;
+  return `${Math.floor(days / 365)}년 전`;
+}
+
+/** "○일 전 확인" 라벨. */
+export function relativeCheckLabel(checkedAt: DateInput, now: DateInput): string {
+  return `${relativeCheckAgo(checkedAt, now)} 확인`;
 }
 
 /** 6개월(183일) 이상 확인 없음 → 마커 투명도 낮춤 대상. */

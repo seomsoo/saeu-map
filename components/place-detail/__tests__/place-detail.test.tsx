@@ -91,10 +91,9 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     expect(within(article).getByText("소금구이 · 생새우회 · 마포구")).toBeInTheDocument();
     expect(upload.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // 3. 확인 줄
+    // 신선도는 상호 아래 캡션 (확인 줄 해체)
     expect(within(article).getByText("어제 확인")).toBeInTheDocument();
     expect(within(article).getByText("확인 4회")).toBeInTheDocument();
-    const checkButton = within(article).getByRole("button", { name: "다녀왔다면" });
 
     // 4·5
     expect(within(article).getByText("서울 마포구 마포대로12길 34")).toBeInTheDocument();
@@ -105,15 +104,18 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     const route = within(article).getByRole("button", { name: "길찾기" });
     within(article).getByRole("button", { name: "공유" });
     expect(within(article).getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "false");
-    expect(checkButton.compareDocumentPosition(route) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(route) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // 7~10 제목 순서
+    // 7~10 제목 순서 — 확인 액션은 사이드와 리뷰 사이 기여 블록으로 내려갔다
     const headings = within(article)
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent.trim());
     expect(headings[0]).toBe("대표 메뉴");
     expect(headings[1]).toBe("사이드");
-    expect(headings[2]).toMatch(/^리뷰/);
+    expect(headings[2]).toBe("여기 다녀오셨나요?");
+    expect(headings[3]).toMatch(/^리뷰/);
+    const checkButton = within(article).getByRole("button", { name: "다녀왔어요" });
+    expect(route.compareDocumentPosition(checkButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(article).getByText("생새우소금구이")).toBeInTheDocument();
     expect(within(article).getByText("1kg")).toBeInTheDocument();
     expect(within(article).getByText("60,000원")).toBeInTheDocument();
@@ -163,7 +165,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
   });
 });
 
-describe("다녀왔다면 — 낙관적 업데이트 + 실패 롤백", () => {
+describe("다녀왔어요 — 낙관적 업데이트 + 실패 롤백", () => {
   it("성공: 즉시 +1·오늘 확인·확인했어요, 완료 후 부모에 반영", async () => {
     let resolve!: (p: Place) => void;
     data.checkIn.mockReturnValue(
@@ -172,12 +174,12 @@ describe("다녀왔다면 — 낙관적 업데이트 + 실패 롤백", () => {
       }),
     );
     const { props } = renderDetail(nara());
-    fireEvent.click(screen.getByRole("button", { name: "다녀왔다면" }));
+    fireEvent.click(screen.getByRole("button", { name: "다녀왔어요" }));
 
     expect(screen.getByText("오늘 확인")).toBeInTheDocument();
     expect(screen.getByText("확인 5회")).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent("확인했어요");
-    expect(screen.queryByRole("button", { name: "다녀왔다면" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "다녀왔어요" })).toBeNull();
     expect(data.checkIn).toHaveBeenCalledWith("nara", NOW);
 
     const updated = nara({ checkCount: 5, lastCheckedAt: NOW });
@@ -195,7 +197,7 @@ describe("다녀왔다면 — 낙관적 업데이트 + 실패 롤백", () => {
   it("실패: 원래 값으로 돌아가고 토스트", async () => {
     data.checkIn.mockRejectedValue(new Error("mock write failed"));
     const { props } = renderDetail(nara());
-    fireEvent.click(screen.getByRole("button", { name: "다녀왔다면" }));
+    fireEvent.click(screen.getByRole("button", { name: "다녀왔어요" }));
     expect(screen.getByText("확인 5회")).toBeInTheDocument();
 
     await waitFor(() => {
@@ -203,13 +205,13 @@ describe("다녀왔다면 — 낙관적 업데이트 + 실패 롤백", () => {
     });
     expect(screen.getByText("어제 확인")).toBeInTheDocument();
     expect(screen.getByText("확인 4회")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "다녀왔다면" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다녀왔어요" })).toBeInTheDocument();
     expect(props.onPatchPlace).not.toHaveBeenCalled();
   });
 
   it("이미 확인한 가게(checked)는 처음부터 확인했어요", () => {
     renderDetail(nara(), { checked: true });
-    expect(screen.queryByRole("button", { name: "다녀왔다면" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "다녀왔어요" })).toBeNull();
     expect(screen.getByText("확인했어요")).toBeInTheDocument();
   });
 });

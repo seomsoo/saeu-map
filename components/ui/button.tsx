@@ -5,7 +5,7 @@ import { cx } from "@/lib/cx";
 /**
  * 버튼 (docs/design.md 공통 블록·화면 2).
  * variant — ink: 잉크 채움 주 버튼(길찾기) / brand: 채운 레드(화면당 한 곳) / outline: 헤어라인 아웃라인 / tint: 레드 틴트(완료·활성)
- * size — sm 28(라운드 8, [복사]) / md 40(라운드 8) / lg 44(라운드 12, [리뷰 남기기]) / xl 48(라운드 12, 버튼 줄) / pill 36(pill, [다녀왔다면])
+ * size — sm 28(라운드 8, [복사]) / md 40(라운드 8) / lg 44(라운드 12, [리뷰 남기기]) / xl 48(라운드 12, 버튼 줄) / pill 36(pill)
  */
 export const buttonVariants = cva(
   "press inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap border transition-colors disabled:pointer-events-none disabled:opacity-40",

@@ -4,7 +4,7 @@ import { SectionBand } from "@/components/ui/section-band";
 import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
-import { CheckLine } from "./check-line";
+import { ContributionBand } from "./contribution-band";
 import { FooterLinks } from "./footer-links";
 import { AddressRow, HoursRow } from "./info-rows";
 import { MenuList } from "./menu-list";
@@ -20,7 +20,7 @@ export interface PlaceDetailProps {
   /** 서버 렌더 시각(ISO) — 상대 시간·낙관적 확인일의 기준 */
   now: string;
   bookmarked: boolean;
-  /** 이 세션에서 이미 "다녀왔다면"을 누른 가게 */
+  /** 이 세션에서 이미 "다녀왔어요"를 누른 가게 */
   checked: boolean;
   initialReviews?: Review[] | undefined;
   onPatchPlace: (place: Place) => void;
@@ -31,7 +31,7 @@ export interface PlaceDetailProps {
 
 /**
  * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~10 엄수). 바텀시트 detail 모드 안에 들어간다.
- * 채운 레드는 3번 [다녀왔다면] 한 곳. 섹션 사이는 8px 띠, 안쪽 행은 헤어라인.
+ * 확인 줄(3번)은 해체됐다 — 신선도는 상호 아래 캡션, 액션은 사이드와 리뷰 사이 기여 블록.
  * 닫기 ✕는 본문이 아니라 시트 헤더에 있다(bottom-sheet의 onDismiss).
  */
 export function PlaceDetail({
@@ -63,10 +63,8 @@ export function PlaceDetail({
       {/* 1 */}
       <PhotoArea place={d.place} naverUrl={hasPhoto ? null : naverUrl} onUploadPhoto={d.comingSoon} />
       {/* 2 */}
-      <PlaceHeader place={d.place} />
+      <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
-      {/* 3 */}
-      <CheckLine place={d.place} now={now} done={d.done} onCheckIn={d.checkIn} />
       {/* 4 */}
       <AddressRow place={d.place} onCopy={d.copyAddress} />
       {/* 5 */}
@@ -84,13 +82,21 @@ export function PlaceDetail({
       {/* 8 */}
       <SidesRow sides={d.place.sides} />
       <SectionBand />
+      {/* 3의 액션 자리 — 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
+      <ContributionBand
+        place={d.place}
+        now={now}
+        done={d.done}
+        onCheckIn={d.checkIn}
+        onWriteReview={d.comingSoon}
+      />
+      <SectionBand />
       {/* 9 */}
       <ReviewSection
         status={d.status}
         reviews={d.reviews}
         naverUrl={hasPhoto ? naverUrl : null}
         onRetry={d.retryReviews}
-        onWriteReview={d.comingSoon}
       />
       <SectionBand />
       {/* 10 */}

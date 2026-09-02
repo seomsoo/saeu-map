@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { StarIcon } from "@/components/ui/icons/star-icon";
@@ -18,14 +17,13 @@ interface ReviewSectionProps {
   /** 사진이 있는 가게는 네이버 링크가 여기(섹션 끝)로 온다 */
   naverUrl: string | null;
   onRetry: () => void;
-  onWriteReview: () => void;
 }
 
 /**
  * 9. 리뷰 — 제목 + 개수, 리뷰 3개 이상일 때만 "★ 4.7"(spec 4.2-9). 행: 닉네임·날짜 / 별 5개 / 후기 / 사진.
- * 빈 상태 "아직 리뷰가 없어요 / 첫 방문자가 되어보세요" + [리뷰 남기기](Phase 4까지 준비 중 토스트).
+ * 빈 상태는 한 줄뿐 — [리뷰 남기기]는 바로 위 기여 블록이 갖고 있다(같은 화면에 두 번 두지 않는다).
  */
-export function ReviewSection({ status, reviews, naverUrl, onRetry, onWriteReview }: ReviewSectionProps) {
+export function ReviewSection({ status, reviews, naverUrl, onRetry }: ReviewSectionProps) {
   const summary = ratingSummary(reviews);
   return (
     <section aria-labelledby="place-reviews-heading" className="px-5 pt-4 pb-4">
@@ -60,48 +58,34 @@ export function ReviewSection({ status, reviews, naverUrl, onRetry, onWriteRevie
       )}
 
       {status === "ready" && reviews.length === 0 && (
-        <EmptyState
-          className="py-6"
-          title="아직 리뷰가 없어요"
-          description="첫 방문자가 되어보세요"
-          action={
-            <Button variant="outline" size="lg" onClick={onWriteReview}>
-              리뷰 남기기
-            </Button>
-          }
-        />
+        <EmptyState className="py-6" title="아직 리뷰가 없어요" />
       )}
 
       {status === "ready" && reviews.length > 0 && (
-        <>
-          <ul className="mt-1 divide-y divide-line-hairline">
-            {reviews.map((review) => (
-              <li key={`${review.nickname}-${review.at}`} className="py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-body-m-semibold text-fg">{review.nickname}</span>
-                  <span className="shrink-0 text-caption-l-regular text-fg-tertiary tabular-nums">
-                    {formatKstShortDate(review.at)}
-                  </span>
-                </div>
-                <RatingStars rating={review.rating} className="mt-1" />
-                <p className="mt-1.5 text-body-m-regular text-fg">{review.text}</p>
-                {review.photoUrl && (
-                  <Image
-                    src={review.photoUrl}
-                    alt={`${review.nickname}의 리뷰 사진`}
-                    width={64}
-                    height={64}
-                    draggable={false}
-                    className="mt-2 size-16 rounded-12 bg-bg-sunken object-cover"
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-          <Button variant="outline" size="lg" className="mt-2 w-full" onClick={onWriteReview}>
-            리뷰 남기기
-          </Button>
-        </>
+        <ul className="mt-1 divide-y divide-line-hairline">
+          {reviews.map((review) => (
+            <li key={`${review.nickname}-${review.at}`} className="py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 truncate text-body-m-semibold text-fg">{review.nickname}</span>
+                <span className="shrink-0 text-caption-l-regular text-fg-tertiary tabular-nums">
+                  {formatKstShortDate(review.at)}
+                </span>
+              </div>
+              <RatingStars rating={review.rating} className="mt-1" />
+              <p className="mt-1.5 text-body-m-regular text-fg">{review.text}</p>
+              {review.photoUrl && (
+                <Image
+                  src={review.photoUrl}
+                  alt={`${review.nickname}의 리뷰 사진`}
+                  width={64}
+                  height={64}
+                  draggable={false}
+                  className="mt-2 size-16 rounded-12 bg-bg-sunken object-cover"
+                />
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       {naverUrl && (

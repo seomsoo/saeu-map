@@ -535,7 +535,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
         }),
     );
     await openNara();
-    fireEvent.click(screen.getByRole("button", { name: "다녀왔다면" }));
+    fireEvent.click(screen.getByRole("button", { name: "다녀왔어요" }));
     expect(screen.getByText("확인 4회")).toBeInTheDocument(); // 3 + 1 낙관
     expect(screen.getByText("확인했어요")).toBeInTheDocument();
     // 목 쓰기 지연(400ms)이 끝나야 부모 places에 확정된다

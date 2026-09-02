@@ -21,7 +21,7 @@ interface UsePlaceDetailInput {
   now: string;
   /** 서버가 함께 내려준 리뷰(/place/[id] 직접 진입). 있으면 클라이언트 재요청 없음. */
   initialReviews?: Review[] | undefined;
-  /** 이 세션에서 이미 "다녀왔다면"을 누른 가게(핀당 하루 1회) */
+  /** 이 세션에서 이미 "다녀왔어요"을 누른 가게(핀당 하루 1회) */
   checked: boolean;
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
@@ -42,7 +42,7 @@ export function sharePath(placeId: string): string {
 }
 
 /**
- * 상세 화면 상태 — 리뷰 로드(3상태), "다녀왔다면" 낙관적 업데이트 + 실패 롤백, 복사·공유·길찾기·준비 중 입구.
+ * 상세 화면 상태 — 리뷰 로드(3상태), "다녀왔어요" 낙관적 업데이트 + 실패 롤백, 복사·공유·길찾기·준비 중 입구.
  * 가게 데이터의 진실은 부모(`places` state)이고, 여기선 낙관 패치만 겹쳐 보여준다.
  */
 export function usePlaceDetail({
@@ -89,7 +89,7 @@ export function usePlaceDetail({
     setAttempt((n) => n + 1);
   }, []);
 
-  /* ── 다녀왔다면: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 ── */
+  /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 ── */
   const done = checked || optimistic !== null;
 
   const checkIn = useCallback(() => {
