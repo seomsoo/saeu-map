@@ -101,8 +101,23 @@
 - **문서 처리**: 규칙·스펙(CLAUDE.md 스타일, spec 4.1·7장, design 공통 블록·화면 1, roadmap)은 즉시 v2로 정정. design.md 화면 2~9 프롬프트는 v1 초안으로 남기고 배너로 표시 — 각 화면 착수 시 v2 언어로 재작성 후 구현(지금 고쳐도 착수 때 또 바뀌므로).
 - **재검토 조건**: 정렬 세그먼트는 써보고 어색하면 드롭다운으로 회귀. 임의값 금지는 위반 2회 시 ESLint 승격. 새우 마커 아이콘 에셋이 오면 플레이스홀더 교체. 지역 라벨 규칙(60%·8구)은 실사용 피드백 시.
 
+## 2026-09-02 — Phase 2 상세: 화면 2 v2 재작성과 스펙에 없던 결정
+- **맥락**: roadmap 절차대로 design 화면 2를 v2 언어로 재작성(Figma 버틸까 구 상세 `176:1140`·Components `156:1204` 문법: 핸들 → 제목 20/부제 16 → 섹션 제목 16 semibold → 8px 가라앉은 띠 → 작은 아웃라인 [수정] 28px → 잉크 채움 주 버튼 → 알림 행 = 아이콘 타일 + 두 줄)한 뒤 구현. 플랜 docs/plans/phase2-detail.md.
+- **미리 정한 것(사용자)**: 채운 레드 = [다녀왔다면] 레드 pill 한 곳(상세가 열린 동안 FAB 줄을 숨겨 화면당 1을 유지). 길찾기 잉크 채움, 공유·찜 아웃라인. 상단 사진 = 카드·마커와 같은 `thumbnailUrl`. 평점은 리뷰 3개 이상일 때만 별점. 용어 사이드·소금구이·생새우회, UI 문장에 em dash·가운데 점 연결 금지.
+- **`/place/[id]` 얕은 라우트 선행(roadmap Phase 5 → Phase 2)**: [공유] 버튼이 실제 링크를 가지려면 라우트가 필요. `app/place/[id]/page.tsx`가 같은 지도 화면을 해당 가게 열린 상태로 렌더(서버에서 상세까지 불러 `initialDetail`로), 열기/닫기는 **이벤트 핸들러 안에서** `history.pushState`/`back`/`replaceState`(Next 16 네이티브 History 통합 — 서버 왕복 없음. 마운트 effect에서 호출하면 AppRouter 패치 전이라 popstate가 리로드함). id 출처는 `detailId` 상태 + `location.pathname`(`useParams`는 `/` 트리를 보고). SSR 메타·OG·진짜 404는 Phase 5. **없는 id는 200 + not-found UI + noindex** — 루트 `app/loading.tsx`(Suspense) 때문에 스트리밍되어 상태 코드를 바꿀 수 없다(Next 문서 loading.md "Status Codes"). 새로고침 후 닫기는 replace라 `/` 엔트리가 하나 남을 수 있음(무해).
+- **영업시간 = 메모 문자열** `Place.hoursNote: string | null`: 제보 플로우(spec 4.3-4)가 자유 메모 입력이고 크롤 데이터에 구조화 영업시간이 없다. "영업 중" 초록 판정은 없음(spec 4.2-5 정정). 목 5곳 샘플.
+- **요약 상태 정의**: 같은 본문을 50dvh(최소 300px)로 열어 위에서 잘림(스펙 순서 그대로). 시트는 `mode`(list/detail)로 내용만 전환하고 `SheetSnap` 3종은 유지, 닫기는 4번째 스냅이 아니라 `resolveRelease` 콜백(half에서 아래 플링 또는 halfPx − 100px 아래에 놓음). 본문 드래그: half는 스크롤 잠금 + `touch-action: none`(body에), full은 `pan-y` + non-passive `touchmove`로 맨 위에서 아래로 끌 때만 선점(`setPointerCapture`만으로는 터치 스크롤 선점을 못 막음). 목록 본문은 `hidden`으로 유지해 스크롤·스냅 복원.
+- **빈 사진 = 입력 행**(2차 자기 검토): 목 50곳 중 48곳이 사진이 없어 160px 빈 타일은 AI티 + 요약 공간 낭비 → 5번 영업시간 빈 상태와 같은 입력 행 문법(카메라 타일 + "첫 사진을 올려주세요" / "네이버에서 사진 보기 ↗" + ›). 닫기 ×는 상호 행 오른쪽(사진 위 오버레이는 사진 없을 때 자리가 없음). 확인 줄의 절대 날짜는 상대 표기와 중복이라 삭제. 확인 후 pill은 비활성 아웃라인 대신 틴트 "확인했어요".
+- **데이터 호출 방식(목)**: 컴포넌트가 `lib/data.ts`를 클라이언트에서 직접 호출. 목 JSON 약 8.5KB gzip이 클라이언트 번들에 들어감(Phase 6 Supabase 교체 시 소멸 — anon 키가 NEXT_PUBLIC_ 허용 목록에 있어 원래 브라우저에서 도는 모양). Server Action은 isolate 전역 캐시를 사용자 간 공유 상태로 만들고 테스트에서 실패 주입이 불가해 미채택. `checkIn`·`getPlaceDetail`은 `now` 필수 인자(클라이언트에서 `Date.now()` 기본값 금지). 실패 시뮬레이션 delay 400ms·10%(`Math.random`). 찜은 클라이언트 메모리 Set(탭 단위, Phase 4에서 사용자 단위).
+- **미구현 플로우 입구 8곳**(첫 사진·영업시간·수정 제안·메뉴 알려주기·리뷰 남기기·정보 수정 제안·신고·사장님이신가요?): 자리만 두고 토스트 "준비 중이에요"(FAB [제보]와 같은 톤). 전부 캡션 급이거나 빈 행 전용.
+- **사이드 표기**: 있음 = 아웃라인 + 체크, 없음 = 가라앉은 배경 회색(버틸까 Disabled 칩 문법). 필터가 아니라 사실이라 틴트 안 씀. 별 색 = 잉크(coolicons `star`는 라인 별뿐 — 채움은 색 대비로).
+- **길찾기 딥링크**: `nmap://route/public?dlat&dlng&dname&appname`(NCP "지도 앱 연동 URL Scheme") + 앱이 안 열리면 웹 길찾기 폴백. "네이버에서 사진 보기"는 `naverPlaceUrl` 호스트 화이트리스트(`m.place.naver.com`·`map.naver.com`) 통과 시만 렌더.
+- **완료 조건의 목업 기준**: 별도 목업 없이 재작성 블록 항목을 gap-sweeper가 전수 대조 + 버틸까 Figma 문법 비교(roadmap Phase 2 문구 정정).
+- **재검토 조건**: 요약 높이 50%는 사용감 피드백 시. 수정 입구는 각 Phase 연결 시 재배치. 진짜 404·OG는 Phase 5. 리뷰 사진(`Review.photoUrl`)은 Phase 4 폼에서.
+
 ## 커스텀 에셋 필요 목록
 - 새우 마커·카드 썸네일 플레이스홀더 아이콘 — 36px 원·64px 타일 안, 사진 없는 가게용 (그 전까지 카테고리 색점)
 - 현위치 표적(크로스헤어) 아이콘 — coolicons에 없어 `components/ui/icons/crosshair-icon.tsx` 인라인 SVG로 임시 대체
 - 새우 로고 (화면에선 워드마크를 뺐으므로 급하지 않음 — OG·파비콘용)
 - 파비콘 (그 전까지 `app/icon.svg` 코랄 색점)
+- 채운 별 아이콘 — coolicons `star`는 라인 별뿐. 상세 평점·리뷰 별은 잉크/gray-200 색 대비로 임시 표현
