@@ -4,6 +4,7 @@ import {
   BottomSheet,
   neighborSnap,
   nextSnapOnTap,
+  resolveRelease,
   sheetVisiblePx,
 } from "../bottom-sheet";
 
@@ -116,5 +117,158 @@ describe("BottomSheet", () => {
     fireEvent.pointerMove(sortButton, { pointerId: 3, clientY: 300 });
     fireEvent.pointerUp(sortButton, { pointerId: 3, clientY: 300 });
     expect(onSnapChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("상세 모드 스냅 계산 (design 화면 2: 요약 50% 최소 300, 전체 92%)", () => {
+  it("sheetVisiblePx: 요약은 50%, 낮은 뷰포트에서도 300px 하한 (collapse 없음)", () => {
+    expect(sheetVisiblePx("half", 844, "detail")).toBe(422);
+    expect(sheetVisiblePx("half", 568, "detail")).toBe(300);
+    expect(sheetVisiblePx("full", 844, "detail")).toBe(776);
+  });
+
+  it("탭·플링은 half ↔ full 두 단계", () => {
+    expect(nextSnapOnTap("half", 844, "detail")).toBe("full");
+    expect(nextSnapOnTap("full", 844, "detail")).toBe("half");
+    expect(neighborSnap("half", "up", 844, "detail")).toBe("full");
+    expect(neighborSnap("full", "down", 844, "detail")).toBe("half");
+  });
+
+  it("resolveRelease 목록 분기는 기존 규칙 그대로", () => {
+    expect(
+      resolveRelease({ mode: "list", snap: "half", visible: 300, velocity: 1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "collapsed" });
+    expect(
+      resolveRelease({ mode: "list", snap: "half", visible: 700, velocity: 0, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "full" });
+  });
+
+  it("resolveRelease 상세: half에서 아래 플링 → 닫힘, 요약보다 100px 아래 놓아도 닫힘, 살짝은 요약 유지", () => {
+    const halfPx = sheetVisiblePx("half", 844, "detail");
+    expect(
+      resolveRelease({ mode: "detail", snap: "half", visible: halfPx - 30, velocity: 1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "dismiss" });
+    expect(
+      resolveRelease({ mode: "detail", snap: "full", visible: halfPx - 120, velocity: 0, viewportHeight: 844 }),
+    ).toEqual({ kind: "dismiss" });
+    expect(
+      resolveRelease({ mode: "detail", snap: "full", visible: halfPx - 40, velocity: 0, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "half" });
+    expect(
+      resolveRelease({ mode: "detail", snap: "full", visible: halfPx - 30, velocity: 1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "half" });
+  });
+});
+
+describe("BottomSheet 상세 모드", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderDetail(snap: "half" | "full", scrollTop = 0) {
+    const onSnapChange = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <BottomSheet
+        mode="detail"
+        snap={snap}
+        onSnapChange={onSnapChange}
+        onDismiss={onDismiss}
+        header={<span>헤더</span>}
+        handleLabel="상세 크기 조절"
+        label="가게 상세"
+      >
+        <p>본문</p>
+        <button type="button">길찾기</button>
+      </BottomSheet>,
+    );
+    const body = screen.getByText("본문").parentElement;
+    if (!body) throw new Error("body expected");
+    Object.defineProperty(body, "scrollTop", { value: scrollTop, writable: true, configurable: true });
+    vi.advanceTimersByTime(1000);
+    return { onSnapChange, onDismiss, body };
+  }
+
+  it("헤더는 렌더하지 않고 핸들 라벨·data-mode만", () => {
+    renderDetail("half");
+    expect(screen.queryByText("헤더")).toBeNull();
+    expect(screen.getByRole("button", { name: "상세 크기 조절" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "가게 상세" })).toHaveAttribute("data-mode", "detail");
+  });
+
+  it("요약에서 본문을 아래로 튕기면 닫힘(onDismiss 1회, onSnapChange 없음)", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("half");
+    fireEvent.pointerDown(body, { pointerId: 1, button: 0, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(body, { pointerId: 1, clientY: 560 });
+    vi.advanceTimersByTime(1);
+    fireEvent.pointerUp(body, { pointerId: 1, clientY: 560 });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onSnapChange).not.toHaveBeenCalled();
+  });
+
+  it("요약에서 본문을 위로 끌면 전체로", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("half");
+    fireEvent.pointerDown(body, { pointerId: 2, button: 0, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(body, { pointerId: 2, clientY: 440 });
+    vi.advanceTimersByTime(1);
+    fireEvent.pointerUp(body, { pointerId: 2, clientY: 440 });
+    expect(onSnapChange).toHaveBeenLastCalledWith("full");
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("전체에서 맨 위(scrollTop 0)를 천천히 아래로 끌면 요약으로", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("full", 0);
+    fireEvent.pointerDown(body, { pointerId: 3, button: 0, clientY: 100 });
+    vi.advanceTimersByTime(400);
+    fireEvent.pointerMove(body, { pointerId: 3, clientY: 400 });
+    vi.advanceTimersByTime(400);
+    fireEvent.pointerUp(body, { pointerId: 3, clientY: 400 });
+    expect(onSnapChange).toHaveBeenLastCalledWith("half");
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("전체에서 본문이 스크롤된 상태(scrollTop 50)면 드래그가 시작되지 않는다", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("full", 50);
+    fireEvent.pointerDown(body, { pointerId: 4, button: 0, clientY: 100 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(body, { pointerId: 4, clientY: 400 });
+    fireEvent.pointerUp(body, { pointerId: 4, clientY: 400 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("전체에서 맨 위를 위로 끄는 건 본문 스크롤 — 시트는 반응하지 않는다", () => {
+    const { onSnapChange, body } = renderDetail("full", 0);
+    fireEvent.pointerDown(body, { pointerId: 5, button: 0, clientY: 400 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(body, { pointerId: 5, clientY: 300 });
+    fireEvent.pointerUp(body, { pointerId: 5, clientY: 300 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+  });
+
+  it("본문을 끌다가 버튼 위에서 놓으면 그 버튼의 click은 삼킨다 (탭은 통과)", () => {
+    const { body } = renderDetail("half");
+    const onClick = vi.fn();
+    screen.getByRole("button", { name: "길찾기" }).addEventListener("click", onClick);
+    const button = screen.getByRole("button", { name: "길찾기" });
+    fireEvent.pointerDown(body, { pointerId: 6, button: 0, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(body, { pointerId: 6, clientY: 470 });
+    vi.advanceTimersByTime(1);
+    fireEvent.pointerUp(body, { pointerId: 6, clientY: 470 });
+    vi.advanceTimersByTime(5);
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    fireEvent.pointerDown(button, { pointerId: 7, button: 0, clientY: 500 });
+    fireEvent.pointerUp(button, { pointerId: 7, clientY: 500 });
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

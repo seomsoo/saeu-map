@@ -60,6 +60,7 @@
     ],
     "specialist": true,
     "naverPlaceUrl": "https://m.place.naver.com/restaurant/1018200585/home",
+    "hoursNote": "17:00 오픈, 새벽 1시까지",
     "menus": [
       {
         "raw": "새우구이 29900",
@@ -123,6 +124,7 @@
     ],
     "specialist": true,
     "naverPlaceUrl": "https://m.place.naver.com/restaurant/1879202437/home",
+    "hoursNote": "16:00 오픈, 월 휴무",
     "menus": [
       {
         "raw": "생새우회 29900",
@@ -416,6 +418,7 @@
     ],
     "specialist": true,
     "naverPlaceUrl": "https://m.place.naver.com/restaurant/1824807602/home",
+    "hoursNote": "18:00부터 새벽 2시까지",
     "menus": [
       {
         "raw": "생 깐새우회&버터머리구이/15마리 42000",
@@ -991,6 +994,7 @@
     ],
     "specialist": true,
     "naverPlaceUrl": "https://m.place.naver.com/restaurant/1515256924/home",
+    "hoursNote": "11:00부터 22:00, 라스트오더 21:00",
     "menus": [
       {
         "raw": "생새우회한판 35000",
@@ -1219,6 +1223,7 @@
     ],
     "specialist": true,
     "naverPlaceUrl": "https://m.place.naver.com/restaurant/2072605083/home",
+    "hoursNote": "점심 11:30, 저녁 23:00 라스트오더, 일 휴무",
     "menus": [
       {
         "raw": "왕새우 세트 ( 가성비 최고!) 75000",

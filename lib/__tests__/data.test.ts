@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MOCK_WRITE_DELAY_MS,
+  checkIn,
   getBookmarkedPlaceIds,
   getCheckins,
   getEventCard,
   getPlaceById,
+  getPlaceDetail,
   getPlaces,
   getReviews,
   getSeasonStats,
+  toggleBookmark,
 } from "../data";
 import { isInactive, kstDayIndex } from "../time";
 
@@ -102,5 +106,85 @@ describe("getEventCard", () => {
 describe("getBookmarkedPlaceIds", () => {
   it("목 초기값은 빈 배열", async () => {
     expect(await getBookmarkedPlaceIds()).toEqual([]);
+  });
+});
+
+describe("getPlaceDetail", () => {
+  it("가게 + 리뷰(최신순), hoursNote 정규화", async () => {
+    const now = NOWS[0] as string;
+    const detail = await getPlaceDetail("p018", now);
+    expect(detail?.place.hoursNote).toBe("17:00 오픈, 새벽 1시까지");
+    expect(detail?.reviews.length).toBeGreaterThanOrEqual(3);
+    const times = detail?.reviews.map((r) => Date.parse(r.at)) ?? [];
+    expect([...times].sort((a, b) => b - a)).toEqual(times);
+    expect(detail?.reviews.some((r) => r.photoUrl?.startsWith("/mock/"))).toBe(true);
+
+    const noNote = await getPlaceDetail("p004", now);
+    expect(noNote?.place.hoursNote).toBeNull();
+    expect(await getPlaceDetail("nonexistent", now)).toBeUndefined();
+  });
+});
+
+describe("checkIn — 목 쓰기 (400ms 지연, 10% 실패)", () => {
+  // 다른 테스트의 데이터셋(NOWS)을 건드리지 않도록 별도 날짜의 데이터셋을 쓴다
+  const NOW = "2028-01-10T12:00:00+09:00";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("성공: 확인 +1, 확인일 = now, 새 객체, checkins에 visited 추가", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const before = await getPlaceById("p018", NOW);
+    if (!before) throw new Error("no place");
+    const pending = checkIn("p018", NOW);
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    const updated = await pending;
+    expect(updated.checkCount).toBe(before.checkCount + 1);
+    expect(updated.lastCheckedAt).toBe(new Date(Date.parse(NOW)).toISOString());
+    expect(updated).not.toBe(before);
+    expect(await getPlaceById("p018", NOW)).toBe(updated);
+    const visited = (await getCheckins("p018", NOW)).filter((c) => c.type === "visited");
+    expect(visited.at(-1)?.at).toBe(updated.lastCheckedAt);
+  });
+
+  it("실패(10%): reject하고 데이터는 그대로", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.05);
+    const before = await getPlaceById("p019", NOW);
+    const pending = checkIn("p019", NOW);
+    const assertion = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    await assertion;
+    expect(await getPlaceById("p019", NOW)).toBe(before);
+  });
+
+  it("지연 전에는 resolve되지 않는다", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    let settled = false;
+    const pending = checkIn("p018", NOW).then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(settled).toBe(true);
+  });
+
+  it("빈 placeId는 zod가 거부", async () => {
+    await expect(checkIn("", NOW)).rejects.toThrow();
+  });
+});
+
+describe("toggleBookmark", () => {
+  it("켜고 끄기, 목록 반환", async () => {
+    expect(await toggleBookmark("p018")).toEqual(["p018"]);
+    expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
+    expect(await toggleBookmark("p018")).toEqual([]);
+    await expect(toggleBookmark("")).rejects.toThrow();
   });
 });

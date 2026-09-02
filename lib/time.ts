@@ -61,6 +61,23 @@ export function addDaysIso(iso: string, days: number): string {
   return new Date(toMs(iso) + days * DAY_MS).toISOString();
 }
 
+function kstParts(input: DateInput): { y: number; m: number; d: number } {
+  const shifted = new Date(toMs(input) + KST_OFFSET_MS);
+  return { y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1, d: shifted.getUTCDate() };
+}
+
+/** "2026.08.27" — KST 달력일. */
+export function formatKstDate(input: DateInput): string {
+  const { y, m, d } = kstParts(input);
+  return `${String(y)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+}
+
+/** "8.27" — 리뷰 날짜처럼 연도 없이 짧게. */
+export function formatKstShortDate(input: DateInput): string {
+  const { m, d } = kstParts(input);
+  return `${String(m)}.${String(d)}`;
+}
+
 /** "○일 전 확인" 라벨. KST 달력일 기준. */
 export function relativeCheckLabel(checkedAt: DateInput, now: DateInput): string {
   const days = Math.max(0, daysBetweenKst(checkedAt, now));

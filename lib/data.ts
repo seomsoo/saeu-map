@@ -2,11 +2,16 @@
  * 데이터 접근 계층 — 컴포넌트는 이 파일의 함수만 호출한다 (절대 규칙 1).
  * 지금은 lib/mock/*.json을 읽고, Phase 6에서 이 파일만 Supabase로 교체한다.
  * 그래서 모든 함수는 이미 Promise를 돌려준다.
+ *
+ * 목 단계에서는 컴포넌트가 이 모듈을 클라이언트에서도 직접 부른다(decisions 2026-09-02 "데이터 호출 방식").
+ * 그래서 `now`가 필요한 함수는 서버가 내려준 now(ISO)를 인자로 받아야 한다 — 클라이언트에서 Date.now() 금지.
  */
+import { z } from "zod";
 import type {
   Checkin,
   EventCard,
   Place,
+  PlaceDetail,
   PlaceTag,
   Review,
   SeasonStats,
@@ -22,6 +27,8 @@ import {
   toMs,
 } from "./time";
 import { matchesQuery, normalizeQuery } from "./places";
+import { sortReviewsNewest } from "./reviews";
+import { safeAssetPath } from "./assets";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -39,12 +46,13 @@ import eventCardJson from "./mock/event-card.json";
 
 type RawPlace = Omit<
   Place,
-  "isNew" | "lastCheckedAt" | "createdAt" | "thumbnailUrl"
+  "isNew" | "lastCheckedAt" | "createdAt" | "thumbnailUrl" | "hoursNote"
 > & {
   isNew: boolean;
   lastCheckedAt: string; // "YYYY-MM-DD"
   createdAt?: string; // "YYYY-MM-DD"
-  thumbnail?: string; // /public 경로. 사진 업로드(Phase 2+) 전까지 목 샘플만
+  thumbnail?: string; // /public 경로. 사진 업로드 전까지 목 샘플만
+  hoursNote?: string; // 영업시간 메모 샘플
 };
 
 const rawPlaces = placesJson as RawPlace[];
@@ -53,6 +61,10 @@ const rawReviews = reviewsJson as Review[];
 const rawEventCard = eventCardJson as EventCard;
 
 const MOCK_LATEST_DAY = Math.max(...rawCheckins.map((c) => kstDayIndex(c.at)));
+
+/** 쓰기 시뮬레이션 — roadmap Phase 2 "목: delay 400ms, 10% 실패". */
+export const MOCK_WRITE_DELAY_MS = 400;
+export const MOCK_FAILURE_RATE = 0.1;
 
 interface Dataset {
   places: Place[];
@@ -73,11 +85,13 @@ function dataset(now: DateInput): Dataset {
 
   const places: Place[] = rawPlaces
     .filter((p) => !p.needsReview) // 검수 대기(새우 메뉴 파싱 실패)는 숨김 — 플랜 결정 4
-    .map(({ thumbnail, ...raw }) => {
+    .map(({ thumbnail, hoursNote, ...raw }) => {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
       return {
         ...raw,
-        thumbnailUrl: thumbnail ?? null,
+        // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 플레이스홀더로)
+        thumbnailUrl: safeAssetPath(thumbnail),
+        hoursNote: hoursNote ?? null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),
         // 신규 라벨은 JSON의 정적 플래그가 아니라 등록 7일 이내로 파생 (spec 5)
@@ -88,17 +102,34 @@ function dataset(now: DateInput): Dataset {
   const built: Dataset = {
     places,
     checkins: rawCheckins.map((c) => ({ ...c, at: addDaysIso(c.at, shift) })),
-    reviews: rawReviews.map((r) => ({ ...r, at: addDaysIso(r.at, shift) })),
+    reviews: rawReviews.map(({ photoUrl, ...r }) => {
+      const safePhoto = safeAssetPath(photoUrl);
+      return { ...r, at: addDaysIso(r.at, shift), ...(safePhoto !== null && { photoUrl: safePhoto }) };
+    }),
   };
   datasetCache.set(today, built);
   return built;
 }
 
-/** 찜 자리 — 지금은 항상 빈 목록. 모듈 전역이라 서버(Workers isolate)에서 공유되므로 Phase 4 토글은 여기가 아니라 사용자 단위 상태로 만들 것. */
+/** 찜 자리 — 모듈 메모리 Set. 클라이언트에선 탭 단위(새로고침 시 소멸), 서버에선 항상 빈 값. Phase 4에서 사용자 단위로 교체. */
 const bookmarkedIds = new Set<string>();
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/** 목 쓰기: 지연 뒤 확률 실패. 실패 메시지에 내부 정보 없음. */
+async function simulateWrite(): Promise<void> {
+  await delay(MOCK_WRITE_DELAY_MS);
+  if (Math.random() < MOCK_FAILURE_RATE) throw new Error("mock write failed");
+}
+
+const placeIdSchema = z.string().trim().min(1).max(64);
+
 /* ══════════════════════════════════════════════════════════════════════════
- * 공개 API
+ * 공개 API — 읽기
  * ════════════════════════════════════════════════════════════════════════ */
 
 export interface PlaceFilter {
@@ -129,6 +160,20 @@ export function getPlaceById(
   now: DateInput = Date.now(),
 ): Promise<Place | undefined> {
   return Promise.resolve(dataset(now).places.find((p) => p.id === id));
+}
+
+/** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id는 undefined. `now`는 서버가 내려준 값. */
+export function getPlaceDetail(
+  id: string,
+  now: DateInput,
+): Promise<PlaceDetail | undefined> {
+  const { places, reviews } = dataset(now);
+  const place = places.find((p) => p.id === id);
+  if (!place) return Promise.resolve(undefined);
+  return Promise.resolve({
+    place,
+    reviews: sortReviewsNewest(reviews.filter((r) => r.placeId === id)),
+  });
 }
 
 export function getCheckins(
@@ -213,4 +258,42 @@ export function getEventCard(
 
 export function getBookmarkedPlaceIds(): Promise<string[]> {
   return Promise.resolve([...bookmarkedIds]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 공개 API — 쓰기 (목: 400ms 지연 + 10% 실패. 컴포넌트는 낙관적 업데이트 + 실패 롤백)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * "다녀왔다면" 확인 +1 (spec 4.2-3). 성공하면 갱신된 Place를 돌려준다.
+ * 캐시된 데이터셋의 Place는 새 객체로 교체한다(React state와 참조 동일성 계약).
+ * 취소는 없다(spec 5). 핀당 하루 1회 제한은 컴포넌트 상태로(속도 제한 자리, Phase 6 Upstash).
+ */
+export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
+  const id = placeIdSchema.parse(placeId);
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === id);
+  if (!current) throw new Error("place not found");
+  // `now`는 목 데이터셋 조회·낙관 표시용이다. Phase 6(Supabase)에서는 확인 시각 `at`을 서버가 정한다 — 클라이언트 값을 저장하지 말 것.
+  const at = new Date(toMs(now)).toISOString();
+  const updated: Place = {
+    ...current,
+    checkCount: current.checkCount + 1,
+    lastCheckedAt: at,
+  };
+  data.places = data.places.map((p) => (p.id === id ? updated : p));
+  data.checkins = [...data.checkins, { placeId: id, type: "visited", at, actor: "anon-local" }];
+  return updated;
+}
+
+/** 찜 토글 (spec 5 "찜"). 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
+export function toggleBookmark(placeId: string): Promise<string[]> {
+  // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
+  return Promise.resolve(placeId).then((raw) => {
+    const id = placeIdSchema.parse(raw);
+    if (bookmarkedIds.has(id)) bookmarkedIds.delete(id);
+    else bookmarkedIds.add(id);
+    return [...bookmarkedIds];
+  });
 }

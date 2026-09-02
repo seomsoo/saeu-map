@@ -1,4 +1,5 @@
 import type { PlaceTag } from "@/lib/types";
+import { safeAssetPath } from "@/lib/assets";
 
 /**
  * 마커 HtmlIcon 생성 + 캐시.
@@ -25,15 +26,9 @@ export interface PlaceMarkerStyle {
 export const PLACE_MARKER_SIZE = 36;
 export const CLUSTER_MARKER_SIZE = 44;
 
-/**
- * innerHTML에 넣어도 되는 이미지 경로: 루트 상대(/)로 시작, `//`(프로토콜 상대)·`..`·따옴표·공백 불가.
- * 규칙 3(외부 이미지 도메인 금지)의 마지막 방어선이기도 하다.
- */
-const SAFE_ASSET_PATH = /^\/(?!\/)[\w\-./]+$/;
-
+/** innerHTML에 넣어도 되는 이미지 경로 — lib/assets.ts의 공용 가드(상세 사진과 같은 규칙). */
 export function safeThumbnailUrl(url: string | null): string | null {
-  if (!url || !SAFE_ASSET_PATH.test(url) || url.includes("..")) return null;
-  return url;
+  return safeAssetPath(url);
 }
 
 const placeIconCache = new Map<string, naver.maps.HtmlIcon>();

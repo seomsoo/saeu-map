@@ -1,11 +1,6 @@
 import { connection } from "next/server";
 import MapScreen from "@/components/map-screen/map-screen";
-import {
-  getBookmarkedPlaceIds,
-  getEventCard,
-  getPlaces,
-  getSeasonStats,
-} from "@/lib/data";
+import { loadMapScreenData } from "@/lib/map-screen-data";
 
 interface HomePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -22,20 +17,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     throw new Error("mock error (dev only)");
   }
 
-  const [places, stats, eventCard, bookmarkedIds] = await Promise.all([
-    getPlaces({}, now),
-    getSeasonStats(now),
-    getEventCard(now),
-    getBookmarkedPlaceIds(),
-  ]);
-
-  return (
-    <MapScreen
-      now={now}
-      places={places}
-      stats={stats}
-      eventCard={eventCard}
-      bookmarkedIds={bookmarkedIds}
-    />
-  );
+  const data = await loadMapScreenData(now);
+  return <MapScreen now={now} {...data} />;
 }
