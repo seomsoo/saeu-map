@@ -29,13 +29,14 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="flex h-12 w-full items-center gap-2.5 rounded-8 bg-bg-sunken px-4"
+      className="flex h-12 w-full items-center gap-0.5 rounded-8 bg-bg-sunken px-4"
     >
+      {/* 히트 영역 40px, 시각은 24px 아이콘 — 음수 마진으로 아이콘 위치는 그대로 (Codex #3 P2) */}
       <button
         type="submit"
         aria-label="검색"
         className={cx(
-          "flex size-6 shrink-0 items-center justify-center hit-44",
+          "-ml-2 flex size-10 shrink-0 items-center justify-center",
           value ? "text-fg-secondary" : "text-fg-placeholder",
         )}
       >
@@ -65,9 +66,14 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
           type="button"
           onClick={onClear}
           aria-label="검색어 지우기"
-          className="flex size-5 shrink-0 items-center justify-center rounded-max bg-fg-placeholder text-fg-on-brand hit-44"
+          className="-mr-2.5 flex size-10 shrink-0 items-center justify-center"
         >
-          <span className="icon-[ci--close-sm] size-3.5" aria-hidden="true" />
+          <span
+            className="flex size-5 items-center justify-center rounded-max bg-fg-placeholder text-fg-on-brand"
+            aria-hidden="true"
+          >
+            <span className="icon-[ci--close-sm] size-3.5" />
+          </span>
         </button>
       )}
     </form>
