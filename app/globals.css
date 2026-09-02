@@ -2,51 +2,148 @@
 /* coolicons (Iconify ci) — 빌드 타임 CSS mask. 사용법: <span class="icon-[ci--search-magnifying-glass]" /> */
 @plugin "@iconify/tailwind4";
 
-/* 디자인 토큰 (docs/design.md 공통 블록이 원본). 라이트 한 벌 — 다크는 같은 이름으로 두 번째 벌을 덮어쓴다. */
-@theme {
+/* ---------------------------------------------------------------------------
+ * 디자인 토큰 — docs/design.md "토큰" 표가 원본. Figma 변수 이름과 1:1로 맞춘다.
+ *   Primitive: 램프·스케일(값은 hex 그대로)  /  Semantic: 역할(라이트 값 = Primitive 참조)
+ * 다크는 Semantic만 같은 이름으로 두 번째 벌을 덮어쓴다 (아직 미작성).
+ * `static`: 안 쓰는 토큰도 :root에 emit — 마커 CSS(innerHTML)·다음 화면에서 var()로 바로 쓴다.
+ * 기본 팔레트·라운드·그림자·텍스트 스케일은 지운다(initial) — 토큰 밖 값은 클래스로 존재하지 않게.
+ * ------------------------------------------------------------------------- */
+@theme static {
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --text-*: initial;
+
   --font-sans: "Pretendard Variable", Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI",
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 
-  /* 액센트: 화면당 한 곳 */
-  --color-accent: #f04a28;
-  --color-on-accent: #ffffff;
+  /* ===== Primitive / Color ===== */
+  /* 브랜드: 새우 레드 */
+  --color-red-10: #feefeb;
+  --color-red-50: #fdd9d0;
+  --color-red-100: #fbb5a4;
+  --color-red-300: #f5866c;
+  --color-red-500: #f04a28;
+  --color-red-600: #d63d1e;
+  --color-red-700: #b5321a;
+  /* 카테고리: 구이 코랄 / 회 틸 */
+  --color-coral-10: #fdf1ec;
+  --color-coral-500: #f0885c;
+  --color-teal-10: #e8f5f2;
+  --color-teal-500: #14957b;
+  /* 그레이: 잉크 #191F28 계열 쿨 뉴트럴 */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f2f4f6;
+  --color-gray-200: #e5e8eb;
+  --color-gray-300: #d1d6db;
+  --color-gray-400: #b0b8c1;
+  --color-gray-500: #8b95a1;
+  --color-gray-600: #6b7684;
+  --color-gray-700: #4e5968;
+  --color-gray-800: #333d4b;
+  --color-gray-900: #191f28;
+  /* 상태·공통 */
+  --color-green-500: #1fb56c;
+  --color-common-0: #ffffff;
+  --color-common-100: #000000;
 
-  /* 카테고리: 마커·카드 색점에만 */
-  --color-grill: #f0885c;
-  --color-raw: #14957b;
+  /* ===== Semantic / Color (라이트) ===== */
+  --color-bg: var(--color-common-0);
+  --color-bg-dim: var(--color-gray-50);
+  --color-bg-sunken: var(--color-gray-100);
+  --color-fg: var(--color-gray-900);
+  --color-fg-secondary: var(--color-gray-600);
+  --color-fg-tertiary: var(--color-gray-500);
+  --color-fg-placeholder: var(--color-gray-400);
+  --color-fg-on-brand: var(--color-common-0);
+  --color-line: var(--color-gray-200);
+  --color-line-hairline: var(--color-gray-100);
+  --color-line-strong: var(--color-gray-300);
+  --color-brand: var(--color-red-500);
+  --color-brand-tint: var(--color-red-10);
+  --color-brand-fg: var(--color-red-600);
+  --color-toast: var(--color-gray-800);
 
-  /* 잉크 */
-  --color-ink: #191f28;
-  --color-ink-secondary: #6b7280;
-  --color-ink-tertiary: #9ca3af;
-  --color-on-ink: #ffffff;
+  /* ===== Primitive / Typography — Figma 텍스트 스타일 1개 = 유틸 1개 ===== */
+  --text-title-m-bold: 24px;
+  --text-title-m-bold--line-height: 1.4;
+  --text-title-m-bold--letter-spacing: -0.02em;
+  --text-title-m-bold--font-weight: 700;
+  --text-title-s-semibold: 20px;
+  --text-title-s-semibold--line-height: 1.4;
+  --text-title-s-semibold--letter-spacing: -0.02em;
+  --text-title-s-semibold--font-weight: 600;
+  --text-body-l-semibold: 16px;
+  --text-body-l-semibold--line-height: 1.4;
+  --text-body-l-semibold--letter-spacing: -0.02em;
+  --text-body-l-semibold--font-weight: 600;
+  --text-body-l-medium: 16px;
+  --text-body-l-medium--line-height: 1.4;
+  --text-body-l-medium--letter-spacing: -0.02em;
+  --text-body-l-medium--font-weight: 500;
+  --text-body-l-regular: 16px;
+  --text-body-l-regular--line-height: 1.4;
+  --text-body-l-regular--letter-spacing: -0.02em;
+  --text-body-l-regular--font-weight: 400;
+  --text-body-m-semibold: 14px;
+  --text-body-m-semibold--line-height: 1.4;
+  --text-body-m-semibold--letter-spacing: -0.02em;
+  --text-body-m-semibold--font-weight: 600;
+  --text-body-m-medium: 14px;
+  --text-body-m-medium--line-height: 1.4;
+  --text-body-m-medium--letter-spacing: -0.02em;
+  --text-body-m-medium--font-weight: 500;
+  --text-body-m-regular: 14px;
+  --text-body-m-regular--line-height: 1.4;
+  --text-body-m-regular--letter-spacing: -0.02em;
+  --text-body-m-regular--font-weight: 400;
+  --text-caption-l-semibold: 12px;
+  --text-caption-l-semibold--line-height: 1.4;
+  --text-caption-l-semibold--letter-spacing: -0.02em;
+  --text-caption-l-semibold--font-weight: 600;
+  --text-caption-l-medium: 12px;
+  --text-caption-l-medium--line-height: 1.4;
+  --text-caption-l-medium--letter-spacing: -0.02em;
+  --text-caption-l-medium--font-weight: 500;
+  --text-caption-l-regular: 12px;
+  --text-caption-l-regular--line-height: 1.4;
+  --text-caption-l-regular--letter-spacing: -0.02em;
+  --text-caption-l-regular--font-weight: 400;
+  --text-caption-m-regular: 10px;
+  --text-caption-m-regular--line-height: 1.4;
+  --text-caption-m-regular--letter-spacing: -0.02em;
+  --text-caption-m-regular--font-weight: 400;
 
-  /* 서피스·보더 */
-  --color-surface: #ffffff;
-  --color-surface-dim: #f9fafb;
-  --color-surface-sunken: #f3f4f6;
-  --color-surface-translucent: rgb(255 255 255 / 0.88);
-  --color-border: #e5e7eb;
-  --color-border-strong: #d1d5db;
+  /* ===== Primitive / Radius ===== */
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-20: 20px;
+  --radius-max: 9999px;
 
-  /* 상태 */
-  --color-chip-active: #191f28;
-  --color-on-chip-active: #ffffff;
-  --color-selected-bg: #f3f4f6;
-  --color-marker-ring: #ffffff;
-  --color-shadow: rgb(25 31 40 / 0.12);
+  /* ===== Primitive / Shadow ===== */
+  --shadow-float: 0 2px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-upper: 0 -4px 12px 0 rgb(0 0 0 / 0.06);
+  --shadow-marker: 0 0 16px 0 rgb(0 0 0 / 0.06);
+  --shadow-fab: 0 0 5px 0 rgb(0 0 0 / 0.29);
 
-  /* 형태: 라운드 12px 내외 통일, 전면 라운드 없음 */
-  --radius-card: 12px;
-  --radius-control: 10px;
-  --radius-chip: 8px;
+  /* ===== Primitive / Spacing (safe-area) ===== */
+  --spacing-safe-top: env(safe-area-inset-top);
+  --spacing-safe-bottom: env(safe-area-inset-bottom);
+  /* 항상 보이는 UI용: 노치 없으면 최소 12px */
+  --spacing-safe-top-or-3: max(env(safe-area-inset-top), calc(var(--spacing) * 3));
+  --spacing-safe-bottom-or-3: max(env(safe-area-inset-bottom), calc(var(--spacing) * 3));
 }
 
 body {
-  color: var(--color-ink);
-  background-color: var(--color-surface);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+  letter-spacing: -0.02em;
+  line-height: 1.4;
 }
 
 /* 지도 위 오버스크롤 방지 (풀스크린 지도 화면) */
@@ -59,62 +156,83 @@ body {
  * 지도 마커 (HtmlIcon content). Tailwind 스캔에 의존하지 않도록 일반 CSS로 둔다.
  * 크기는 components/map/marker-icons.ts의 size/anchor와 맞춰야 한다.
  * ------------------------------------------------------------------------- */
+/* 개별 핀 36px: 카테고리색 링 + 썸네일(없으면 플레이스홀더 색점) */
 .saeu-marker {
-  --marker-color: var(--color-grill);
+  --marker-color: var(--color-coral-500);
   box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: var(--marker-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: var(--radius-max);
+  border: 2px solid var(--marker-color);
+  background: var(--color-bg-sunken);
   box-shadow:
-    0 0 0 2px var(--color-marker-ring),
-    0 1px 3px var(--color-shadow);
+    0 0 0 1.5px var(--color-common-0),
+    var(--shadow-marker);
   transition:
     transform 150ms ease,
     box-shadow 150ms ease;
 }
 .saeu-marker--grill {
-  --marker-color: var(--color-grill);
+  --marker-color: var(--color-coral-500);
 }
 .saeu-marker--raw {
-  --marker-color: var(--color-raw);
+  --marker-color: var(--color-teal-500);
 }
-/* 신규(7일 이내): 점선 테두리 */
+.saeu-marker__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 썸네일 없음 — 새우 아이콘 에셋 전까지 카테고리 색점 */
+.saeu-marker__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-max);
+  background: var(--marker-color);
+}
+/* 신규(7일 이내): 점선 링 */
 .saeu-marker--new {
-  background: color-mix(in srgb, var(--marker-color) 30%, var(--color-surface));
-  border: 2px dashed var(--marker-color);
+  border-style: dashed;
 }
 /* 6개월 무활동: 투명도만 낮춤 */
 .saeu-marker--inactive {
-  opacity: 0.4;
+  opacity: 0.45;
 }
-/* 선택: 크게 + 링 */
+/* 선택: 크게 + 바깥 잉크 링 */
 .saeu-marker--selected {
-  transform: scale(1.5);
+  transform: scale(1.2);
   box-shadow:
-    0 0 0 2px var(--color-marker-ring),
-    0 0 0 4px var(--marker-color),
-    0 2px 6px var(--color-shadow);
+    0 0 0 1.5px var(--color-common-0),
+    0 0 0 3.5px var(--color-fg),
+    var(--shadow-marker);
 }
 
-/* 클러스터: 뉴트럴 원 + 카운트 */
+/* 클러스터 44px: 브랜드 레드 원 + 가게 수 */
 .saeu-cluster {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-ink);
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-max);
+  background: var(--color-brand);
+  color: var(--color-fg-on-brand);
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-body-m-semibold);
+  font-weight: var(--text-body-m-semibold--font-weight);
+  line-height: 1;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 1px 3px var(--color-shadow);
+  box-shadow:
+    0 0 0 2px var(--color-common-0),
+    var(--shadow-marker);
 }
 
 /* ---------------------------------------------------------------------------
@@ -135,16 +253,50 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+/* 누름 피드백 */
+.press {
+  transition: transform 120ms ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+/* 스켈레톤 shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 25%,
+    var(--color-gray-50) 50%,
+    var(--color-gray-100) 75%
+  );
+  background-size: 400% 100%;
+  animation: saeu-shimmer 1.4s ease infinite;
+}
+@keyframes saeu-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .press:active {
+    transform: none;
+  }
+  .skeleton {
+    animation: none;
+  }
+}
 
 /* ---------------------------------------------------------------------------
  * 바텀시트 — 스냅 위치는 CSS가 담당 (SSR 첫 렌더부터 정확).
  * 상수는 components/ui/bottom-sheet.tsx의 SHEET_* 와 반드시 같아야 한다.
  * ------------------------------------------------------------------------- */
 .saeu-sheet {
-  --sheet-collapsed: 88px;
+  --sheet-collapsed: 98px;
   --sheet-half: 40dvh;
   --sheet-full: 92dvh;
-  --sheet-header-h: 64px;
+  --sheet-header-h: 98px;
   --sheet-visible: var(--sheet-half);
   --sheet-drag: 0px;
   position: fixed;
@@ -174,6 +326,9 @@ body {
   .saeu-sheet {
     --sheet-half: var(--sheet-collapsed);
   }
+}
+.saeu-sheet__header {
+  height: var(--sheet-header-h);
 }
 .saeu-sheet__body {
   height: calc(var(--sheet-visible) - var(--sheet-header-h));

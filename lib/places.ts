@@ -180,3 +180,35 @@ export function sideChips(sides: Sides): SideChip[] {
 export function formatPrice(price: number): string {
   return price.toLocaleString("ko-KR");
 }
+
+/* ────────────────────────── 시트 헤더: 보고 있는 지역 ────────────────────────── */
+
+/** 뷰포트 안 가게가 이 비율 이상이면 "서울 전체"로 본다 */
+const WHOLE_CITY_RATIO = 0.6;
+/** 구가 이만큼 섞이면 "서울 전체" */
+const WHOLE_CITY_GU_COUNT = 8;
+
+/**
+ * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트 안 가게의 구 분포로만 정한다(규칙 2).
+ * 0곳 → "이 지역" / 전체의 60%↑ 또는 구 8개↑ → "서울 전체" / 구 1개 → 그 구 / 그 외 → 최다 구 + " 일대"
+ */
+export function areaLabel(visible: readonly Place[], total: number): string {
+  if (visible.length === 0) return "이 지역";
+  const counts = new Map<string, number>();
+  for (const p of visible) counts.set(p.gu, (counts.get(p.gu) ?? 0) + 1);
+  if (
+    counts.size >= WHOLE_CITY_GU_COUNT ||
+    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
+  ) {
+    return "서울 전체";
+  }
+  let top = "";
+  let topCount = -1;
+  for (const [gu, count] of counts) {
+    if (count > topCount || (count === topCount && collator.compare(gu, top) < 0)) {
+      top = gu;
+      topCount = count;
+    }
+  }
+  return counts.size === 1 ? top : `${top} 일대`;
+}

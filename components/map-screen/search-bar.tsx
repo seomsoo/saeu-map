@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent } from "react";
+import { cx } from "@/lib/cx";
 
 interface SearchBarProps {
   value: string;
@@ -10,7 +11,7 @@ interface SearchBarProps {
   onSubmit: () => void;
 }
 
-/** 2. 검색바 — 우리 데이터 내 가게명·동네. 입력 즉시 필터, 확정 시 지도 이동. */
+/** 1. 검색바 — 우리 데이터 내 가게명·동네. 입력 즉시 필터, 확정 시 지도 이동. (버틸까 Search Bar) */
 export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps) {
   const composing = useRef(false);
 
@@ -28,14 +29,17 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="flex h-10 items-center gap-1 rounded-control border border-border bg-surface pl-1 pr-0.5 shadow-[0_1px_2px_var(--color-shadow)]"
+      className="flex h-12 w-full items-center gap-2.5 rounded-8 bg-bg-sunken px-4"
     >
       <button
         type="submit"
         aria-label="검색"
-        className="flex size-10 shrink-0 items-center justify-center text-ink-secondary hit-44"
+        className={cx(
+          "flex size-6 shrink-0 items-center justify-center hit-44",
+          value ? "text-fg-secondary" : "text-fg-placeholder",
+        )}
       >
-        <span className="icon-[ci--search-magnifying-glass] size-5" aria-hidden="true" />
+        <span className="icon-[ci--search-magnifying-glass] size-6" aria-hidden="true" />
       </button>
       <input
         type="search"
@@ -54,16 +58,16 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
         aria-label="가게·동네 검색"
         autoComplete="off"
         enterKeyHint="search"
-        className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-tertiary [&::-webkit-search-cancel-button]:appearance-none"
+        className="h-full min-w-0 flex-1 bg-transparent text-body-l-medium text-fg outline-none placeholder:font-normal placeholder:text-fg-placeholder [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
         <button
           type="button"
           onClick={onClear}
           aria-label="검색어 지우기"
-          className="flex size-10 shrink-0 items-center justify-center text-ink-tertiary hit-44"
+          className="flex size-5 shrink-0 items-center justify-center rounded-max bg-fg-placeholder text-fg-on-brand hit-44"
         >
-          <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
+          <span className="icon-[ci--close-sm] size-3.5" aria-hidden="true" />
         </button>
       )}
     </form>

@@ -7,7 +7,7 @@ const CHIPS: readonly { key: ChipKey; label: string }[] = [
   { key: "bookmarked", label: "찜한 곳" },
 ];
 
-/** 6. 칩 — 아웃라인 기본, 켜면 채움. 가로 스크롤. */
+/** 2b. 필터 칩 — 토글 pill, 켜면 틴트. 카테고리와 같은 줄에서 가로 스크롤. */
 export function FilterChips({
   chips,
   onToggle,
@@ -16,20 +16,15 @@ export function FilterChips({
   onToggle: (chip: ChipKey) => void;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="필터"
-      className="no-scrollbar -mx-3 flex gap-1.5 overflow-x-auto px-3"
-    >
+    <div role="group" aria-label="필터" className="flex shrink-0 gap-1.5">
       {CHIPS.map(({ key, label }) => (
         <ChipButton
           key={key}
-          size="sm"
           pressed={chips.includes(key)}
           onClick={() => {
             onToggle(key);
           }}
-          className="h-8 shadow-[0_1px_2px_var(--color-shadow)]"
+          className="shadow-float"
         >
           {label}
         </ChipButton>

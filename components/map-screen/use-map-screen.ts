@@ -13,7 +13,7 @@ import type { MapHandle } from "@/components/map/map-view";
 import { sheetVisiblePx, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { filterPlaces, sortPlaces } from "@/lib/places";
+import { areaLabel as computeAreaLabel, filterPlaces, sortPlaces } from "@/lib/places";
 import type {
   ChipKey,
   LatLng,
@@ -130,6 +130,11 @@ export function useMapScreen({
   const inView = useMemo(
     () => (viewport ? filtered.filter((p) => inBounds(p, viewport.bounds)) : []),
     [filtered, viewport],
+  );
+
+  const areaLabel = useMemo(
+    () => computeAreaLabel(inView, places.length),
+    [inView, places.length],
   );
 
   const origin = userLocation ?? sortOrigin ?? viewport?.center ?? null;
@@ -260,6 +265,20 @@ export function useMapScreen({
     [],
   );
 
+  /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
+  const locateMe = useCallback(() => {
+    void requestPosition().then((pos) => {
+      if (!pos) {
+        showNotice("위치를 가져올 수 없어요");
+        return;
+      }
+      setUserLocation(pos);
+      if (!mapRef.current) return;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.morph(pos, USER_ZOOM);
+    });
+  }, [mapRef, showNotice]);
+
   return {
     // 상태
     tab,
@@ -278,6 +297,7 @@ export function useMapScreen({
     items,
     sorted,
     inViewCount: inView.length,
+    areaLabel,
     // 위치가 SDK보다 먼저 왔을 때: 서울 근교일 때만 그 위치·줌 14로 시작 (밖이면 서울 중심 — 결정 "위치 폴백")
     initialCenter: userInSeoul ? userLocation : SEOUL_CENTER,
     initialZoom: userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
@@ -297,6 +317,7 @@ export function useMapScreen({
     handleMissingConfig,
     dismissEvent,
     showNotice,
+    locateMe,
   };
 }
 

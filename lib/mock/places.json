@@ -106,7 +106,8 @@
     "needsReview": false,
     "lastCheckedAt": "2026-08-25",
     "checkCount": 0,
-    "isNew": false
+    "isNew": false,
+    "thumbnail": "/mock/thumb-1.svg"
   },
   {
     "id": "p019",
@@ -155,7 +156,8 @@
     "lastCheckedAt": "2026-08-25",
     "checkCount": 0,
     "isNew": true,
-    "createdAt": "2026-08-27"
+    "createdAt": "2026-08-27",
+    "thumbnail": "/mock/thumb-2.svg"
   },
   {
     "id": "p025",

@@ -6,13 +6,11 @@ import NaverMapProvider from "@/components/map/naver-map-provider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorState } from "@/components/ui/error-state";
 import type { EventCard as EventCardData, Place, SeasonStats } from "@/lib/types";
-import { EventCard } from "./event-card";
+import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
 import { FilterTabs } from "./filter-tabs";
 import { PlaceSheet } from "./place-sheet";
 import { SearchBar } from "./search-bar";
-import { SeasonCounter } from "./season-counter";
-import { TopBar } from "./top-bar";
 import { useMapScreen } from "./use-map-screen";
 
 export interface MapScreenProps {
@@ -30,7 +28,10 @@ function reloadPage() {
   window.location.reload();
 }
 
-/** 화면 1 — 풀스크린 지도 + 위에 얹힌 UI + 바텀시트 (design 화면 1의 1~9). */
+/**
+ * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트.
+ * 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
+ */
 export default function MapScreen({
   now,
   places,
@@ -47,8 +48,11 @@ export default function MapScreen({
   };
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-surface-dim">
-      {/* 7. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
+    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
+      {/* 워드마크는 화면에서 뺐다 — 문서 제목·접근성용으로만 */}
+      <h1 className="sr-only">새우맵</h1>
+
+      {/* 8. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
           에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
           라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현). */}
       <div className="absolute inset-0">
@@ -69,7 +73,7 @@ export default function MapScreen({
           </NaverMapProvider>
         </ErrorBoundary>
         {s.status === "error" && (
-          <div className="absolute inset-0 z-[1] bg-surface">
+          <div className="absolute inset-0 z-1 bg-bg">
             {s.mapErrorReason === "config" ? (
               <ErrorState
                 className="h-full"
@@ -88,48 +92,52 @@ export default function MapScreen({
         )}
       </div>
 
-      {/* 1~6. 지도 위 상단 스택 — 빈 곳은 지도 터치가 통과한다 */}
+      {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다 */}
       <div
         ref={topStackRef}
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-1.5 px-3 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))] [&>*]:pointer-events-auto"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto"
       >
-        <TopBar onReport={handleReport} />
+        <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
+          <SearchBar
+            value={s.query}
+            onChange={s.setQuery}
+            onClear={s.clearQuery}
+            onSubmit={s.submitSearch}
+          />
+        </div>
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
+          <FilterTabs tab={s.tab} onChange={s.setTab} />
+          <FilterChips chips={s.chips} onToggle={s.toggleChip} />
+        </div>
         {s.notice && (
           <p
             role="status"
-            className="self-end rounded-control bg-ink px-3 py-1.5 text-xs font-medium text-on-ink shadow-[0_2px_8px_var(--color-shadow)]"
+            className="mx-auto rounded-12 bg-toast px-4 py-3 text-body-m-regular text-fg-on-brand"
           >
             {s.notice}
           </p>
         )}
-        <SearchBar
-          value={s.query}
-          onChange={s.setQuery}
-          onClear={s.clearQuery}
-          onSubmit={s.submitSearch}
-        />
-        <SeasonCounter stats={stats} />
-        {eventCard && !s.eventDismissed && (
-          <EventCard card={eventCard} onDismiss={s.dismissEvent} />
-        )}
-        <FilterTabs tab={s.tab} onChange={s.setTab} />
-        <FilterChips chips={s.chips} onToggle={s.toggleChip} />
       </div>
 
-      {/* 8~9. 바텀시트 + 카드 */}
+      {/* 3~7. 바텀시트 (+ FAB 줄) */}
       <PlaceSheet
         status={s.status}
         places={s.sorted}
         count={s.inViewCount}
+        areaLabel={s.areaLabel}
+        stats={stats}
+        eventCard={eventCard && !s.eventDismissed ? eventCard : null}
         now={now}
         userLocation={s.userLocation}
         selectedId={s.selectedId}
         sort={s.sort}
         snap={s.snap}
         emptyKind={s.emptyKind}
+        aside={<FabRow onLocate={s.locateMe} onReport={handleReport} />}
         onSortChange={s.setSort}
         onSnapChange={s.setSnap}
         onSelect={s.selectFromCard}
+        onDismissEvent={s.dismissEvent}
         onReport={handleReport}
         onRetry={reloadPage}
       />

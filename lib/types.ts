@@ -25,6 +25,8 @@ export interface Place {
   tags: PlaceTag[];
   specialist: boolean;
   naverPlaceUrl: string | null;
+  /** 대표 썸네일. 우리 스토리지 경로만(규칙 3). 없으면 null → 마커는 플레이스홀더. */
+  thumbnailUrl: string | null;
   menus: Menu[];
   sides: Sides;
   source: "seed" | "report";

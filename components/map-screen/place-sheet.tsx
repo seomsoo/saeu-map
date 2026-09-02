@@ -1,65 +1,102 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { OutlineButton } from "@/components/ui/outline-button";
+import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LatLng, Place, SortKey } from "@/lib/types";
+import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
+import type {
+  EventCard as EventCardData,
+  LatLng,
+  Place,
+  SeasonStats,
+  SortKey,
+} from "@/lib/types";
+import { EventCard } from "./event-card";
 import { PlaceCard, PlaceCardSkeleton } from "./place-card";
-import { SortMenu } from "./sort-menu";
+import { SeasonCounter } from "./season-counter";
 import type { EmptyKind, MapStatus } from "./use-map-screen";
+
+const SORT_OPTIONS = SORT_KEYS.map((key) => ({ key, label: SORT_LABELS[key] }));
 
 interface PlaceSheetProps {
   status: MapStatus;
   places: Place[];
   count: number;
+  /** 보고 있는 지역 — "마포구 일대" / "서울 전체" */
+  areaLabel: string;
+  stats: SeasonStats;
+  eventCard: EventCardData | null;
   now: string;
   userLocation: LatLng | null;
   selectedId: string | null;
   sort: SortKey;
   snap: SheetSnap;
   emptyKind: EmptyKind;
+  /** 시트 가장자리 위에 얹히는 FAB 줄 */
+  aside: ReactNode;
   onSortChange: (sort: SortKey) => void;
   onSnapChange: (snap: SheetSnap) => void;
   onSelect: (id: string) => void;
+  onDismissEvent: () => void;
   onReport: () => void;
   onRetry: () => void;
 }
 
-/** 8. 바텀시트 — 핸들 / "지도 내 N곳" / 정렬 / 카드 리스트(4상태). */
+/** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 부제 시즌 카운터 / 이벤트 카드 / 정렬 세그먼트 / 카드 리스트(4상태). */
 export function PlaceSheet({
   status,
   places,
   count,
+  areaLabel,
+  stats,
+  eventCard,
   now,
   userLocation,
   selectedId,
   sort,
   snap,
   emptyKind,
+  aside,
   onSortChange,
   onSnapChange,
   onSelect,
+  onDismissEvent,
   onReport,
   onRetry,
 }: PlaceSheetProps) {
   const header = (
-    <div className="flex w-full items-center justify-between">
+    <div className="flex w-full min-w-0 flex-col gap-0.5">
       {status === "ready" ? (
-        <h2 className="text-[15px] font-semibold text-ink tabular-nums">
-          지도 내 {count}곳
+        <h2 className="truncate text-title-s-semibold text-fg tabular-nums">
+          {areaLabel} {count}곳
         </h2>
       ) : (
-        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-7 w-32" />
       )}
-      <SortMenu value={sort} onChange={onSortChange} />
+      <SeasonCounter stats={stats} />
     </div>
   );
 
   return (
-    <BottomSheet snap={snap} onSnapChange={onSnapChange} header={header} label="가게 목록">
+    <BottomSheet
+      snap={snap}
+      onSnapChange={onSnapChange}
+      header={header}
+      aside={aside}
+      label="가게 목록"
+    >
+      {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
+
+      <div className="px-5 pt-3 pb-1">
+        <Segmented label="정렬" value={sort} options={SORT_OPTIONS} onChange={onSortChange} />
+      </div>
+
       {status === "loading" && (
-        <ul aria-busy="true" aria-label="가게 목록 불러오는 중">
+        <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">
           <PlaceCardSkeleton />
           <PlaceCardSkeleton />
           <PlaceCardSkeleton />
@@ -86,20 +123,16 @@ export function PlaceSheet({
           title="이 동네엔 아직 없어요"
           description="아는 새우집이 있다면 제보해주세요"
           action={
-            <button
-              type="button"
-              onClick={onReport}
-              className="inline-flex h-10 items-center gap-0.5 rounded-control border border-border-strong bg-surface pl-3 pr-4 text-sm font-medium text-ink"
-            >
+            <OutlineButton onClick={onReport} className="pl-3">
               <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
               제보
-            </button>
+            </OutlineButton>
           }
         />
       )}
 
       {status === "ready" && places.length > 0 && (
-        <ul aria-label="가게 목록">
+        <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
           {places.map((place) => (
             <PlaceCard
               key={place.id}

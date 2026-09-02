@@ -174,11 +174,13 @@ beforeEach(() => {
   fake.map.fitBounds.mockClear();
 });
 
-describe("MapScreen — design 화면 1의 1~9", () => {
-  it("상단 바·검색·시즌 카운터·이벤트 카드·탭·칩·시트가 모두 있다", async () => {
+describe("MapScreen — design 화면 1의 1~8", () => {
+  it("검색·칩 행·FAB(제보·내 위치)·시트 헤더(지역 N곳 + 시즌 카운터)·이벤트 카드·정렬이 모두 있다", async () => {
     renderScreen();
+    // 워드마크는 화면에서 뺐지만 문서 제목(h1)은 남긴다
     expect(screen.getByRole("heading", { level: 1, name: "새우맵" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "내 위치" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "가게·동네 검색" })).toBeInTheDocument();
     expect(screen.getByLabelText("시즌 카운터")).toHaveTextContent(
       "이번 주 확인 47곳 · 오늘 12건 · 이번 주 최다 확인 나라수산",
@@ -190,15 +192,17 @@ describe("MapScreen — design 화면 1의 1~9", () => {
     const chips = within(screen.getByRole("group", { name: "필터" })).getAllByRole("button");
     expect(chips.map((c) => c.textContent)).toEqual(["새로 들어온 집", "찜한 곳"]);
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
-    // 뷰포트 보고 후 "지도 내 N곳" — 밖의 1곳은 제외
-    expect(await screen.findByRole("heading", { name: "지도 내 4곳" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /가까운순/ })).toBeInTheDocument();
+    // 뷰포트 보고 후 "{지역} N곳" — 밖의 1곳은 제외. 시드 5곳 중 4곳(80%)이 보이므로 "서울 전체"
+    expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
+    const sort = within(screen.getByRole("group", { name: "정렬" })).getAllByRole("button");
+    expect(sort.map((b) => b.textContent)).toEqual(["가까운순", "최근 확인순", "확인 많은 순"]);
+    expect(sort[0]).toHaveAttribute("aria-pressed", "true");
     expect(listCards()).toHaveLength(4);
   });
 
   it("마커: 지도 안 가게가 마커로 그려지고, 마커 탭 → 카드 선택", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const markers = screen.getAllByTestId("marker");
     expect(markers.length).toBeGreaterThan(0);
     const nara = markers.find((m) => m.textContent === "나라수산");
@@ -212,28 +216,29 @@ describe("MapScreen — design 화면 1의 1~9", () => {
 
   it("카드 탭 → 선택 + 지도 이동(panTo)", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
   });
 
   it("탭 '회' → 회 태그 가게만, 구이+회 가게는 양쪽에", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     fireEvent.click(screen.getByRole("button", { name: "회" }));
-    expect(await screen.findByRole("heading", { name: "지도 내 2곳" })).toBeInTheDocument();
+    // 회: 나라수산(마포구)·하나수산(동작구) — 동률이라 가나다순 첫 구
+    expect(await screen.findByRole("heading", { name: "동작구 일대 2곳" })).toBeInTheDocument();
     expect(listCards().map((h) => h.textContent).sort()).toEqual(
       ["나라수산", "노량진수산시장 하나수산"].sort(),
     );
     fireEvent.click(screen.getByRole("button", { name: "구이" }));
-    expect(await screen.findByRole("heading", { name: "지도 내 3곳" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 
   it("칩 '새로 들어온 집' → 신규만, '찜한 곳' → 빈 상태", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(await screen.findByRole("heading", { name: "지도 내 1곳" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "관악구 1곳" })).toBeInTheDocument();
     expect(listCards()[0]).toHaveTextContent("수성2호왕새우소금구이");
     expect(screen.getByText("새로 제보됨")).toBeInTheDocument();
 
@@ -244,11 +249,11 @@ describe("MapScreen — design 화면 1의 1~9", () => {
 
   it("검색: 동네·상호 필터, 없는 동네는 빈 상태 + 제보, Enter로 지도 fitBounds", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const input = screen.getByRole("searchbox", { name: "가게·동네 검색" });
 
     fireEvent.change(input, { target: { value: "노량진" } });
-    expect(await screen.findByRole("heading", { name: "지도 내 1곳" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "동작구 1곳" })).toBeInTheDocument();
     expect(listCards()[0]).toHaveTextContent("노량진수산시장 하나수산");
 
     fireEvent.submit(screen.getByRole("search"));
@@ -259,25 +264,30 @@ describe("MapScreen — design 화면 1의 1~9", () => {
     expect(within(screen.getByRole("status")).getByRole("button", { name: "제보" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "검색어 지우기" }));
-    expect(await screen.findByRole("heading", { name: "지도 내 4곳" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
   });
 
-  it("정렬 3종: 기본 가까운순, 최근 확인순·확인 많은 순으로 바뀐다", async () => {
+  it("정렬 3종(세그먼트): 기본 가까운순, 최근 확인순·확인 많은 순으로 바뀐다", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const sortGroup = () => within(screen.getByRole("group", { name: "정렬" }));
 
-    fireEvent.click(screen.getByRole("button", { name: /가까운순/ }));
-    const options = within(screen.getByRole("listbox", { name: "정렬" })).getAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual(["가까운순", "최근 확인순", "확인 많은 순"]);
-
-    fireEvent.click(screen.getByRole("option", { name: "최근 확인순" }));
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    fireEvent.click(sortGroup().getByRole("button", { name: "최근 확인순" }));
+    expect(sortGroup().getByRole("button", { name: "최근 확인순" })).toHaveAttribute("aria-pressed", "true");
+    expect(sortGroup().getByRole("button", { name: "가까운순" })).toHaveAttribute("aria-pressed", "false");
     expect(listCards()[0]).toHaveTextContent("나라수산"); // 1일 전이 가장 최근
 
-    fireEvent.click(screen.getByRole("button", { name: /최근 확인순/ }));
-    fireEvent.click(screen.getByRole("option", { name: "확인 많은 순" }));
+    fireEvent.click(sortGroup().getByRole("button", { name: "확인 많은 순" }));
     const names = listCards().map((h) => h.textContent);
     expect(names.slice(0, 2)).toEqual(["나라수산", "노량진수산시장 하나수산"]); // 3회, 1회
+  });
+
+  it("내 위치: geolocation 없음(jsdom) → 안내, 지도는 안 움직임", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("위치를 가져올 수 없어요");
+    expect(fake.map.morph).not.toHaveBeenCalled();
   });
 
   it("이벤트 카드 닫기 → 사라짐 (메모리 상태)", () => {
@@ -299,7 +309,7 @@ describe("MapScreen — design 화면 1의 1~9", () => {
 
   it("NCP 인증 실패(navermap_authFailure) → 지도 자리와 시트 모두 에러 상태", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const w = window as Window & { navermap_authFailure?: () => void };
     expect(typeof w.navermap_authFailure).toBe("function");
     act(() => {
@@ -323,7 +333,7 @@ describe("MapScreen — design 화면 1의 1~9", () => {
 
   it("위치 권한 없음(jsdom 기본) → 카드에 거리 없음", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "지도 내 4곳" });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     expect(screen.queryByText(/km|\dm\b/)).not.toBeInTheDocument();
   });
 });

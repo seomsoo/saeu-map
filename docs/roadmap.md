@@ -6,7 +6,7 @@
 ## Phase 0 — 스캐폴드 · 하네스
 - [x] Next.js(App Router, TS) + Tailwind + Pretendard self-host + coolicons(Iconify ci)
 - [x] 프리셋: @tsconfig/strictest, typescript-eslint strict-type-checked, eslint-plugin-jsx-a11y, eslint-plugin-boundaries, t3-env, react-hook-form+zod, cva, PR 템플릿
-- [x] CLAUDE.md + docs/ 배치 (spec, design-prompts, roadmap, decisions, plans/)
+- [x] CLAUDE.md + docs/ 배치 (spec, design, roadmap, decisions, plans/)
 - [x] lib/mock/ 에 places·checkins·reviews JSON + lib/data.ts 읽기 함수
 - [x] 훅: 편집 후 lint / Stop 시 typecheck·lint·test / 시크릿 쓰기 차단 + gitleaks
 - [x] ci.yml (typecheck→lint→test→gitleaks→build→스모크)

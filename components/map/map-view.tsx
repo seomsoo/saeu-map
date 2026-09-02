@@ -274,6 +274,7 @@ const PlaceMarker = memo(function PlaceMarker({
     isNew: place.isNew,
     inactive,
     selected,
+    thumbnailUrl: place.thumbnailUrl,
   });
   const handleClick = useCallback(() => {
     onSelect(place.id);

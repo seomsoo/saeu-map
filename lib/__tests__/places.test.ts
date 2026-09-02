@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu as menu, makePlace } from "./fixtures";
 import {
+  areaLabel,
   filterPlaces,
   markerCategory,
   primaryMenu,
@@ -160,5 +161,29 @@ describe("카드 표시용", () => {
       ["라면", false],
       ["볶음밥", true],
     ]);
+  });
+});
+
+describe("areaLabel — 시트 제목의 지역", () => {
+  const gu = (name: string, n: number) =>
+    Array.from({ length: n }, () => makePlace({ gu: name }));
+
+  it("0곳이면 '이 지역'", () => {
+    expect(areaLabel([], 50)).toBe("이 지역");
+  });
+  it("구 하나면 그 구", () => {
+    expect(areaLabel(gu("마포구", 3), 50)).toBe("마포구");
+  });
+  it("여러 구면 최다 구 + 일대 (동률은 가나다순)", () => {
+    expect(areaLabel([...gu("마포구", 3), ...gu("서대문구", 1)], 50)).toBe("마포구 일대");
+    expect(areaLabel([...gu("마포구", 1), ...gu("동작구", 1)], 50)).toBe("동작구 일대");
+  });
+  it("전체의 60% 이상 보이면 '서울 전체'", () => {
+    expect(areaLabel([...gu("마포구", 2), ...gu("동작구", 1)], 5)).toBe("서울 전체");
+    expect(areaLabel([...gu("마포구", 2), ...gu("동작구", 1)], 6)).toBe("마포구 일대");
+  });
+  it("구가 8개 이상 섞여도 '서울 전체'", () => {
+    const many = ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구"].flatMap((g) => gu(g, 1));
+    expect(areaLabel(many, 500)).toBe("서울 전체");
   });
 });
