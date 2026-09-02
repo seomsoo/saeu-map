@@ -1,28 +1,37 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** 라우트 로딩 — 지도 자리 + 시트 자리 스켈레톤. */
+/** 라우트 로딩 — 검색 블록·칩 행·시트 자리 스켈레톤 (화면 1과 같은 배치). */
 export default function Loading() {
   return (
     <div
-      className="relative h-dvh w-full overflow-hidden bg-surface-dim"
+      className="relative h-dvh w-full overflow-hidden bg-bg-dim"
       aria-busy="true"
       aria-label="불러오는 중"
     >
-      {/* 지도 자리: 스켈레톤 조각(surface-sunken)이 보이도록 한 단계 밝은 바탕 */}
-      <div className="absolute inset-0 animate-pulse bg-surface-dim" aria-hidden="true" />
-      <div className="absolute inset-x-0 top-0 flex flex-col gap-1.5 px-3 pt-2">
-        <div className="flex h-9 items-center justify-between">
-          <Skeleton className="h-6 w-16" />
-          <Skeleton className="h-9 w-16 rounded-control" />
+      <div className="absolute inset-x-0 top-0 flex flex-col gap-2.5">
+        <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
+          <Skeleton className="h-12" />
         </div>
-        <Skeleton className="h-10 rounded-control" />
+        <div className="flex gap-1.5 px-5" aria-hidden="true">
+          <Skeleton className="h-9 w-14 rounded-max" />
+          <Skeleton className="h-9 w-14 rounded-max" />
+          <Skeleton className="h-9 w-12 rounded-max" />
+          <Skeleton className="h-9 w-28 rounded-max" />
+        </div>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-[40dvh] rounded-t-card border-t border-border bg-surface">
-        <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-border-strong" />
-        <div className="space-y-3 px-4 pt-5">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
+      <div className="absolute inset-x-0 bottom-0 h-2/5 rounded-t-20 bg-bg shadow-upper">
+        <div className="mx-auto mt-2.5 h-1.5 w-12.5 rounded-max bg-line-hairline" />
+        <div className="space-y-2 border-b border-line-hairline px-5 pt-4 pb-4">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-5 w-52" />
+        </div>
+        <div className="px-5 pt-3">
+          <Skeleton className="h-10 rounded-12" />
+        </div>
+        <div className="space-y-1.5 px-5 pt-4">
+          <Skeleton className="h-5 w-2/5" />
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-5 w-3/5" />
         </div>
       </div>
     </div>

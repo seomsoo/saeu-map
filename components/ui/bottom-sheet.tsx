@@ -100,8 +100,10 @@ interface DragState {
 interface BottomSheetProps {
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
-  /** 핸들 아래 헤더. 이 영역이 드래그 영역이다. 높이는 --sheet-header-h(64px)로 고정. */
+  /** 핸들 아래 헤더. 이 영역이 드래그 영역이다. 높이는 --sheet-header-h(88px)로 고정. */
   header: ReactNode;
+  /** 시트 가장자리 위에 얹히는 요소(FAB 줄). 시트와 함께 움직이고 full에서는 숨긴다. */
+  aside?: ReactNode;
   /** 스크롤 영역 */
   children: ReactNode;
   label: string;
@@ -116,6 +118,7 @@ export function BottomSheet({
   snap,
   onSnapChange,
   header,
+  aside,
   children,
   label,
   className,
@@ -216,12 +219,22 @@ export function BottomSheet({
       data-snap={snap}
       data-dragging="false"
       className={cx(
-        "saeu-sheet z-20 flex flex-col rounded-t-card border-t border-border bg-surface shadow-[0_-2px_12px_var(--color-shadow)]",
+        "saeu-sheet z-20 flex flex-col rounded-t-20 bg-bg shadow-upper",
         className,
       )}
     >
+      {aside && (
+        <div
+          className={cx(
+            "absolute inset-x-5 -top-13 flex items-center justify-between",
+            snap === "full" && "hidden",
+          )}
+        >
+          {aside}
+        </div>
+      )}
       <div
-        className="flex h-16 shrink-0 flex-col touch-none select-none"
+        className="saeu-sheet__header flex shrink-0 flex-col border-b border-line-hairline touch-none select-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
@@ -232,14 +245,14 @@ export function BottomSheet({
           data-sheet-handle
           aria-label="목록 크기 조절"
           onClick={onHandleClick}
-          className="flex h-5 w-full items-center justify-center"
+          className="flex h-6.5 w-full shrink-0 items-center justify-center"
         >
           <span
             aria-hidden="true"
-            className="block h-1 w-9 rounded-full bg-border-strong"
+            className="block h-1.5 w-12.5 rounded-max bg-line-hairline"
           />
         </button>
-        <div className="flex min-h-0 flex-1 items-center px-4">{header}</div>
+        <div className="flex min-h-0 flex-1 items-center px-5 pb-4">{header}</div>
       </div>
       {/* 높이는 CSS(.saeu-sheet__body)가 스냅별로 정한다 — flex-1을 주면 92dvh 전체로 늘어나 스크롤 영역이 화면 밖까지 이어진다 */}
       <div className="saeu-sheet__body min-h-0 shrink-0">{children}</div>

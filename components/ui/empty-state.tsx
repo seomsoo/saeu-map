@@ -19,13 +19,15 @@ export function EmptyState({
     <div
       role="status"
       className={cx(
-        "flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-1 px-6 py-10 text-center",
         className,
       )}
     >
-      <p className="text-[15px] font-semibold text-ink">{title}</p>
-      {description && <p className="text-sm text-ink-secondary">{description}</p>}
-      {action && <div className="mt-2">{action}</div>}
+      <p className="text-body-l-semibold text-fg">{title}</p>
+      {description && (
+        <p className="text-body-m-regular text-fg-secondary">{description}</p>
+      )}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

@@ -2,21 +2,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentPropsWithoutRef } from "react";
 import { cx } from "@/lib/cx";
 
-/** 칩: 아웃라인 기본, 활성만 채움 (design 공통 블록). */
+/** 칩: pill 아웃라인 기본, 활성은 브랜드 틴트 (docs/design.md 공통 블록). */
 export const chipVariants = cva(
-  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-chip border font-medium leading-none transition-colors",
+  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap border transition-colors",
   {
     variants: {
       size: {
-        md: "h-9 px-3.5 text-[13px]",
-        sm: "h-7 px-2.5 text-xs",
-        xs: "h-5 px-1.5 text-[11px]",
+        md: "h-9 px-3.5 text-body-m-medium",
+        sm: "h-8 px-3 text-body-m-medium",
+        xs: "h-5 px-2 text-caption-l-medium",
       },
       tone: {
-        outline: "border-border bg-surface text-ink",
-        active: "border-chip-active bg-chip-active text-on-chip-active",
-        muted: "border-border bg-surface text-ink-tertiary",
-        subtle: "border-transparent bg-surface-sunken text-ink-secondary",
+        outline: "rounded-max border-line bg-bg text-fg",
+        active: "rounded-max border-brand bg-brand-tint text-brand-fg",
+        muted: "rounded-max border-line bg-bg text-fg-tertiary",
+        /* 단위·사이드 미니칩: 보더 없이 가라앉은 배경 */
+        subtle: "rounded-6 border-transparent bg-bg-sunken text-fg-secondary",
       },
     },
     defaultVariants: { size: "md", tone: "outline" },
@@ -36,7 +37,7 @@ export function Chip({
   );
 }
 
-/** 토글 칩. pressed면 채움. 터치 타겟 44px은 .hit-44로 확보. */
+/** 토글 칩. pressed면 틴트. 터치 타겟 44px은 .hit-44로 확보. */
 export function ChipButton({
   className,
   size,
@@ -50,7 +51,7 @@ export function ChipButton({
       aria-pressed={pressed}
       className={cx(
         chipVariants({ size, tone: pressed ? "active" : "outline" }),
-        "hit-44",
+        "press hit-44",
         className,
       )}
       {...props}

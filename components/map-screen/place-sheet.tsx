@@ -1,65 +1,148 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { DropdownChip } from "@/components/ui/dropdown-chip";
+import { OutlineButton } from "@/components/ui/outline-button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LatLng, Place, SortKey } from "@/lib/types";
+import { assertNever } from "@/lib/assert-never";
+import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
+import type {
+  EventCard as EventCardData,
+  LatLng,
+  Place,
+  SeasonStats,
+  SortKey,
+} from "@/lib/types";
+import { EventCard } from "./event-card";
 import { PlaceCard, PlaceCardSkeleton } from "./place-card";
-import { SortMenu } from "./sort-menu";
+import { SeasonCounter } from "./season-counter";
 import type { EmptyKind, MapStatus } from "./use-map-screen";
+
+const SORT_OPTIONS = SORT_KEYS.map((key) => ({ key, label: SORT_LABELS[key] }));
 
 interface PlaceSheetProps {
   status: MapStatus;
   places: Place[];
   count: number;
+  /** 보고 있는 지역 — "마포구 일대" / "서울 전체" */
+  areaLabel: string;
+  stats: SeasonStats;
+  eventCard: EventCardData | null;
   now: string;
-  userLocation: LatLng | null;
+  /** 거리 기준점 — 내 위치 또는 지도 중심. null이면 거리 숨김 */
+  origin: LatLng | null;
   selectedId: string | null;
   sort: SortKey;
   snap: SheetSnap;
   emptyKind: EmptyKind;
+  /** 시트 가장자리 위에 얹히는 FAB 줄 */
+  aside: ReactNode;
   onSortChange: (sort: SortKey) => void;
   onSnapChange: (snap: SheetSnap) => void;
   onSelect: (id: string) => void;
+  onDismissEvent: () => void;
+  onClearChips: () => void;
   onReport: () => void;
   onRetry: () => void;
 }
 
-/** 8. 바텀시트 — 핸들 / "지도 내 N곳" / 정렬 / 카드 리스트(4상태). */
+/** 빈 상태 3종 — EmptyKind에 케이스가 늘면 여기서 컴파일 에러로 잡힌다. */
+function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => void) {
+  switch (kind) {
+    case "bookmarks":
+      return (
+        <EmptyState
+          title="아직 찜한 곳이 없어요"
+          description="가게 상세의 하트로 찜할 수 있어요"
+        />
+      );
+    case "filter":
+      return (
+        <EmptyState
+          title="조건에 맞는 집이 없어요"
+          description="칩을 풀거나 지도를 옮겨보세요"
+          action={<OutlineButton onClick={onClearChips}>필터 해제</OutlineButton>}
+        />
+      );
+    case "area":
+      return (
+        <EmptyState
+          title="이 동네엔 아직 없어요"
+          description="아는 새우집이 있다면 제보해주세요"
+          action={
+            <OutlineButton onClick={onReport} className="pl-3">
+              <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
+              제보
+            </OutlineButton>
+          }
+        />
+      );
+    default:
+      return assertNever(kind);
+  }
+}
+
+/** 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 정렬 트리거 / 캡션 시즌 카운터 / 이벤트 배너 / 카드 리스트(4상태). */
 export function PlaceSheet({
   status,
   places,
   count,
+  areaLabel,
+  stats,
+  eventCard,
   now,
-  userLocation,
+  origin,
   selectedId,
   sort,
   snap,
   emptyKind,
+  aside,
   onSortChange,
   onSnapChange,
   onSelect,
+  onDismissEvent,
+  onClearChips,
   onReport,
   onRetry,
 }: PlaceSheetProps) {
   const header = (
-    <div className="flex w-full items-center justify-between">
-      {status === "ready" ? (
-        <h2 className="text-[15px] font-semibold text-ink tabular-nums">
-          지도 내 {count}곳
-        </h2>
-      ) : (
-        <Skeleton className="h-4 w-20" />
-      )}
-      <SortMenu value={sort} onChange={onSortChange} />
+    <div className="flex w-full min-w-0 flex-col gap-0.5">
+      <div className="flex items-center justify-between gap-3">
+        {status === "ready" ? (
+          <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums">
+            {areaLabel} {count}곳
+          </h2>
+        ) : (
+          <Skeleton className="h-7 w-32" />
+        )}
+        <DropdownChip
+          label="정렬"
+          value={sort}
+          options={SORT_OPTIONS}
+          onChange={onSortChange}
+          appearance="text"
+          align="end"
+        />
+      </div>
+      <SeasonCounter stats={stats} />
     </div>
   );
 
   return (
-    <BottomSheet snap={snap} onSnapChange={onSnapChange} header={header} label="가게 목록">
+    <BottomSheet
+      snap={snap}
+      onSnapChange={onSnapChange}
+      header={header}
+      aside={aside}
+      label="가게 목록"
+    >
+      {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
+
       {status === "loading" && (
-        <ul aria-busy="true" aria-label="가게 목록 불러오는 중">
+        <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">
           <PlaceCardSkeleton />
           <PlaceCardSkeleton />
           <PlaceCardSkeleton />
@@ -74,38 +157,16 @@ export function PlaceSheet({
         />
       )}
 
-      {status === "ready" && places.length === 0 && emptyKind === "bookmarks" && (
-        <EmptyState
-          title="아직 찜한 곳이 없어요"
-          description="가게 상세의 하트로 찜할 수 있어요"
-        />
-      )}
-
-      {status === "ready" && places.length === 0 && emptyKind === "area" && (
-        <EmptyState
-          title="이 동네엔 아직 없어요"
-          description="아는 새우집이 있다면 제보해주세요"
-          action={
-            <button
-              type="button"
-              onClick={onReport}
-              className="inline-flex h-10 items-center gap-0.5 rounded-control border border-border-strong bg-surface pl-3 pr-4 text-sm font-medium text-ink"
-            >
-              <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
-              제보
-            </button>
-          }
-        />
-      )}
+      {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearChips)}
 
       {status === "ready" && places.length > 0 && (
-        <ul aria-label="가게 목록">
+        <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
           {places.map((place) => (
             <PlaceCard
               key={place.id}
               place={place}
               now={now}
-              userLocation={userLocation}
+              origin={origin}
               selected={place.id === selectedId}
               onSelect={onSelect}
             />

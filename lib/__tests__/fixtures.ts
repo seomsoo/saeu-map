@@ -16,6 +16,7 @@ export function makePlace(overrides: Partial<Place> = {}): Place {
     tags: ["grill"],
     specialist: true,
     naverPlaceUrl: null,
+    thumbnailUrl: null,
     menus: [],
     sides: { headButter: false, ramen: false, friedRice: false },
     source: "seed",

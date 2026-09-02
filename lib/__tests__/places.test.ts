@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu as menu, makePlace } from "./fixtures";
 import {
+  SIDE_LABELS,
+  areaLabel,
   filterPlaces,
   markerCategory,
   primaryMenu,
@@ -59,6 +61,40 @@ describe("filterPlaces — 칩", () => {
         bookmarkedIds: new Set([old.id]),
       }),
     ).toEqual([]);
+  });
+});
+
+describe("filterPlaces — 사이드 칩", () => {
+  const both = makePlace({ sides: { headButter: true, ramen: true, friedRice: true } });
+  const ramenOnly = makePlace({ sides: { headButter: false, ramen: true, friedRice: false } });
+  const none = makePlace();
+
+  it("라면 → 라면 되는 집만", () => {
+    expect(
+      filterPlaces([both, ramenOnly, none], { tab: "all", ...noChips, chips: ["ramen"] }),
+    ).toEqual([both, ramenOnly]);
+  });
+  it("라면 + 볶음밥은 AND", () => {
+    expect(
+      filterPlaces([both, ramenOnly, none], {
+        tab: "all",
+        ...noChips,
+        chips: ["ramen", "friedRice"],
+      }),
+    ).toEqual([both]);
+  });
+  it("사이드 칩과 새로 들어온 집도 AND", () => {
+    const freshRamen = makePlace({ isNew: true, sides: { headButter: false, ramen: true, friedRice: false } });
+    expect(
+      filterPlaces([freshRamen, ramenOnly], { tab: "all", ...noChips, chips: ["ramen", "new"] }),
+    ).toEqual([freshRamen]);
+  });
+  it("카드 미니칩 라벨과 필터 라벨은 같은 출처", () => {
+    expect(sideChips({ headButter: true, ramen: true, friedRice: true }).map((c) => c.label)).toEqual([
+      SIDE_LABELS.headButter,
+      SIDE_LABELS.ramen,
+      SIDE_LABELS.friedRice,
+    ]);
   });
 });
 
@@ -149,7 +185,7 @@ describe("카드 표시용", () => {
     expect(markerCategory(["raw"])).toBe("raw");
   });
 
-  it("곁들임 3종 순서 고정", () => {
+  it("사이드 3종 순서 고정", () => {
     expect(
       sideChips({ headButter: true, ramen: false, friedRice: true }).map((c) => [
         c.label,
@@ -160,5 +196,29 @@ describe("카드 표시용", () => {
       ["라면", false],
       ["볶음밥", true],
     ]);
+  });
+});
+
+describe("areaLabel — 시트 제목의 지역", () => {
+  const gu = (name: string, n: number) =>
+    Array.from({ length: n }, () => makePlace({ gu: name }));
+
+  it("0곳이면 '이 지역'", () => {
+    expect(areaLabel([], 50)).toBe("이 지역");
+  });
+  it("구 하나면 그 구", () => {
+    expect(areaLabel(gu("마포구", 3), 50)).toBe("마포구");
+  });
+  it("여러 구면 최다 구 + 일대 (동률은 가나다순)", () => {
+    expect(areaLabel([...gu("마포구", 3), ...gu("서대문구", 1)], 50)).toBe("마포구 일대");
+    expect(areaLabel([...gu("마포구", 1), ...gu("동작구", 1)], 50)).toBe("동작구 일대");
+  });
+  it("전체의 60% 이상 보이면 '서울 전체'", () => {
+    expect(areaLabel([...gu("마포구", 2), ...gu("동작구", 1)], 5)).toBe("서울 전체");
+    expect(areaLabel([...gu("마포구", 2), ...gu("동작구", 1)], 6)).toBe("마포구 일대");
+  });
+  it("구가 8개 이상 섞여도 '서울 전체'", () => {
+    const many = ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구"].flatMap((g) => gu(g, 1));
+    expect(areaLabel(many, 500)).toBe("서울 전체");
   });
 });

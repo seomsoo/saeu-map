@@ -25,6 +25,8 @@ export interface Place {
   tags: PlaceTag[];
   specialist: boolean;
   naverPlaceUrl: string | null;
+  /** 대표 썸네일. 우리 스토리지 경로만(규칙 3). 없으면 null → 마커는 플레이스홀더. */
+  thumbnailUrl: string | null;
   menus: Menu[];
   sides: Sides;
   source: "seed" | "report";
@@ -64,8 +66,8 @@ export interface Viewport {
 /** 지도 메인 탭: 다중 태그 매칭 */
 export type TabKey = "all" | "grill" | "raw";
 
-/** 지도 메인 칩 (최대 5개 자리) */
-export type ChipKey = "new" | "bookmarked";
+/** 지도 메인 토글 칩 — 사이드 3종 + 새로 들어온 집 + 찜한 곳 = 5개 (spec 4.1 상한) */
+export type ChipKey = keyof Sides | "new" | "bookmarked";
 
 /** 정렬: 가까운순(기본) / 최근 확인순 / 확인 많은 순 */
 export type SortKey = "distance" | "recent" | "checks";
@@ -74,6 +76,8 @@ export type SortKey = "distance" | "recent" | "checks";
 export interface EventCard {
   id: string;
   title: string;
+  /** 제목 아래 한 줄(설정값). 없으면 제목만 */
+  description: string | null;
   href: string | null;
   startsAt: string;
   endsAt: string;

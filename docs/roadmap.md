@@ -1,12 +1,12 @@
 # 새우맵 로드맵
 
 규칙: 순서는 바꿔도 되지만 완료 조건은 낮추지 않는다. 항목이 끝나면 [x]. 새 세션은 이 파일에서 다음 미완료 항목을 집는다.
-상세 계획은 각 Phase 시작 시 플랜 모드로 docs/plans/phaseN-*.md 에 작성.
+상세 계획은 각 Phase 시작 시 플랜 모드로 docs/plans/phaseN-*.md 에 작성. **화면이 있는 Phase는 먼저 docs/design.md의 해당 화면 블록을 v2 디자인 언어로 다시 쓴 뒤(v1 초안 그대로 구현 금지) 플랜 → 구현.**
 
 ## Phase 0 — 스캐폴드 · 하네스
 - [x] Next.js(App Router, TS) + Tailwind + Pretendard self-host + coolicons(Iconify ci)
 - [x] 프리셋: @tsconfig/strictest, typescript-eslint strict-type-checked, eslint-plugin-jsx-a11y, eslint-plugin-boundaries, t3-env, react-hook-form+zod, cva, PR 템플릿
-- [x] CLAUDE.md + docs/ 배치 (spec, design-prompts, roadmap, decisions, plans/)
+- [x] CLAUDE.md + docs/ 배치 (spec, design, roadmap, decisions, plans/)
 - [x] lib/mock/ 에 places·checkins·reviews JSON + lib/data.ts 읽기 함수
 - [x] 훅: 편집 후 lint / Stop 시 typecheck·lint·test / 시크릿 쓰기 차단 + gitleaks
 - [x] ci.yml (typecheck→lint→test→gitleaks→build→스모크)
@@ -23,6 +23,7 @@
 - [x] 시즌 카운터 · 이벤트 카드 슬롯(설정값, 닫기)
 - 완료: design 화면 1의 1~9 전부 존재, 320/390/430 확인, 스모크 통과, 갭 스윕 미구현 0건
 - 결과: ✅ 2026-09-01 — 갭 스윕 78항목 중 미구현 0(부분 1건은 같은 날 수정), 320/390/430 스크린샷, 테스트 98개, CI 스모크(workerd 기동) 추가. PR→프리뷰 잡 발화 확인(PR #2 코멘트), main→deploy는 머지 시 첫 발화 (docs/plans/phase1-map.md 결과 참조)
+- [x] 리디자인 ✅ 2026-09-02 — 버틸까 디자인 언어·토큰 v2(Primitive+Semantic, 임의값 0), 지도 위 두 층, 드롭다운 카테고리·사이드 칩 5개, 시트 헤더 정렬 트리거·라이브 캡션, 썸네일 카드, 썸네일/레드 클러스터 마커, FAB. 테스트 117개 (docs/plans/phase1-redesign.md, decisions.md 2026-09-02)
 
 ## Phase 2 — 상세 (spec 4.2 · design 화면 2)
 - [ ] 화면 2의 1~10 순서 그대로 (요약/전체 확장 인터랙션 포함)

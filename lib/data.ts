@@ -37,10 +37,14 @@ import eventCardJson from "./mock/event-card.json";
  * UTC ISO로 내보낸다(컨벤션: 저장은 UTC ISO).
  * ════════════════════════════════════════════════════════════════════════ */
 
-type RawPlace = Omit<Place, "isNew" | "lastCheckedAt" | "createdAt"> & {
+type RawPlace = Omit<
+  Place,
+  "isNew" | "lastCheckedAt" | "createdAt" | "thumbnailUrl"
+> & {
   isNew: boolean;
   lastCheckedAt: string; // "YYYY-MM-DD"
   createdAt?: string; // "YYYY-MM-DD"
+  thumbnail?: string; // /public 경로. 사진 업로드(Phase 2+) 전까지 목 샘플만
 };
 
 const rawPlaces = placesJson as RawPlace[];
@@ -69,10 +73,11 @@ function dataset(now: DateInput): Dataset {
 
   const places: Place[] = rawPlaces
     .filter((p) => !p.needsReview) // 검수 대기(새우 메뉴 파싱 실패)는 숨김 — 플랜 결정 4
-    .map((raw) => {
+    .map(({ thumbnail, ...raw }) => {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
       return {
         ...raw,
+        thumbnailUrl: thumbnail ?? null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),
         // 신규 라벨은 JSON의 정적 플래그가 아니라 등록 7일 이내로 파생 (spec 5)

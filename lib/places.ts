@@ -9,6 +9,7 @@ import type {
   TabKey,
 } from "./types";
 import { haversineKm } from "./geo";
+import { assertNever } from "./assert-never";
 
 /* ────────────────────────── 필터 ────────────────────────── */
 
@@ -45,14 +46,42 @@ export function matchesTab(place: Place, tab: TabKey): boolean {
   return place.tags.includes(tab);
 }
 
+/** 사이드 3종 — 순서 고정 (칩 행·카드 미니칩·상세가 같은 순서) */
+export const SIDE_KEYS: readonly (keyof Sides)[] = ["headButter", "ramen", "friedRice"];
+
+/** 사이드 라벨 단일 출처 — 필터 칩과 카드 미니칩이 같은 문자열을 쓴다 */
+export const SIDE_LABELS: Record<keyof Sides, string> = {
+  headButter: "머리버터구이",
+  ramen: "라면",
+  friedRice: "볶음밥",
+};
+
+export function isSideChip(chip: ChipKey): chip is keyof Sides {
+  return chip === "headButter" || chip === "ramen" || chip === "friedRice";
+}
+
+/** 칩은 AND — 켜진 칩 조건을 전부 만족해야 남는다. */
 export function matchesChips(
   place: Place,
   chips: readonly ChipKey[],
   bookmarkedIds: ReadonlySet<string>,
 ): boolean {
   for (const chip of chips) {
-    if (chip === "new" && !place.isNew) return false;
-    if (chip === "bookmarked" && !bookmarkedIds.has(place.id)) return false;
+    switch (chip) {
+      case "new":
+        if (!place.isNew) return false;
+        break;
+      case "bookmarked":
+        if (!bookmarkedIds.has(place.id)) return false;
+        break;
+      case "headButter":
+      case "ramen":
+      case "friedRice":
+        if (!place.sides[chip]) return false;
+        break;
+      default:
+        return assertNever(chip);
+    }
   }
   return true;
 }
@@ -157,9 +186,10 @@ export function markerCategory(tags: readonly PlaceTag[]): PlaceTag {
   return tags.includes("grill") ? "grill" : "raw";
 }
 
+/** 화면 라벨 (2026-09-02: 구이→소금구이, 회→생새우회). 데이터 태그 이름은 grill/raw 그대로. */
 export const TAG_LABELS: Record<PlaceTag, string> = {
-  grill: "구이",
-  raw: "회",
+  grill: "소금구이",
+  raw: "생새우회",
 };
 
 export interface SideChip {
@@ -168,15 +198,43 @@ export interface SideChip {
   active: boolean;
 }
 
-/** 곁들임 3종 — 있으면 강조, 없으면 회색. */
+/** 사이드 3종 — 있으면 강조, 없으면 회색. */
 export function sideChips(sides: Sides): SideChip[] {
-  return [
-    { key: "headButter", label: "머리버터구이", active: sides.headButter },
-    { key: "ramen", label: "라면", active: sides.ramen },
-    { key: "friedRice", label: "볶음밥", active: sides.friedRice },
-  ];
+  return SIDE_KEYS.map((key) => ({ key, label: SIDE_LABELS[key], active: sides[key] }));
 }
 
 export function formatPrice(price: number): string {
   return price.toLocaleString("ko-KR");
+}
+
+/* ────────────────────────── 시트 헤더: 보고 있는 지역 ────────────────────────── */
+
+/** 뷰포트 안 가게가 이 비율 이상이면 "서울 전체"로 본다 */
+const WHOLE_CITY_RATIO = 0.6;
+/** 구가 이만큼 섞이면 "서울 전체" */
+const WHOLE_CITY_GU_COUNT = 8;
+
+/**
+ * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트 안 가게의 구 분포로만 정한다(규칙 2).
+ * 0곳 → "이 지역" / 전체의 60%↑ 또는 구 8개↑ → "서울 전체" / 구 1개 → 그 구 / 그 외 → 최다 구 + " 일대"
+ */
+export function areaLabel(visible: readonly Place[], total: number): string {
+  if (visible.length === 0) return "이 지역";
+  const counts = new Map<string, number>();
+  for (const p of visible) counts.set(p.gu, (counts.get(p.gu) ?? 0) + 1);
+  if (
+    counts.size >= WHOLE_CITY_GU_COUNT ||
+    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
+  ) {
+    return "서울 전체";
+  }
+  let top = "";
+  let topCount = -1;
+  for (const [gu, count] of counts) {
+    if (count > topCount || (count === topCount && collator.compare(gu, top) < 0)) {
+      top = gu;
+      topCount = count;
+    }
+  }
+  return counts.size === 1 ? top : `${top} 일대`;
 }

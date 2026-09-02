@@ -1,4 +1,5 @@
 import { cx } from "@/lib/cx";
+import { OutlineButton } from "./outline-button";
 
 interface ErrorStateProps {
   title?: string | undefined;
@@ -20,24 +21,20 @@ export function ErrorState({
     <div
       role="alert"
       className={cx(
-        "flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-1 px-6 py-10 text-center",
         className,
       )}
     >
       <span
-        className="icon-[ci--triangle-warning] size-6 text-ink-tertiary"
+        className="icon-[ci--triangle-warning] mb-1 size-6 text-fg-tertiary"
         aria-hidden="true"
       />
-      <p className="text-[15px] font-semibold text-ink">{title}</p>
-      <p className="text-sm text-ink-secondary">{description}</p>
+      <p className="text-body-l-semibold text-fg">{title}</p>
+      <p className="text-body-m-regular text-fg-secondary">{description}</p>
       {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-2 h-10 rounded-control border border-border-strong bg-surface px-4 text-sm font-medium text-ink"
-        >
+        <OutlineButton className="mt-3" onClick={onRetry}>
           {retryLabel}
-        </button>
+        </OutlineButton>
       )}
     </div>
   );

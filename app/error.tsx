@@ -10,7 +10,7 @@ export default function ErrorPage({
   retry: () => void;
 }) {
   return (
-    <main className="flex h-dvh items-center justify-center bg-surface">
+    <main className="flex h-dvh items-center justify-center bg-bg">
       <ErrorState
         title="화면을 불러오지 못했어요"
         description="잠시 후 다시 시도해주세요."

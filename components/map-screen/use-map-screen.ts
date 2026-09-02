@@ -13,7 +13,7 @@ import type { MapHandle } from "@/components/map/map-view";
 import { sheetVisiblePx, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { filterPlaces, sortPlaces } from "@/lib/places";
+import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
 import type {
   ChipKey,
   LatLng,
@@ -35,7 +35,8 @@ const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
 export type MapErrorReason = "runtime" | "config";
-export type EmptyKind = "area" | "bookmarks";
+/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) */
+export type EmptyKind = "area" | "bookmarks" | "filter";
 
 interface UseMapScreenInput {
   places: Place[];
@@ -132,6 +133,11 @@ export function useMapScreen({
     [filtered, viewport],
   );
 
+  const areaLabel = useMemo(
+    () => computeAreaLabel(inView, places.length),
+    [inView, places.length],
+  );
+
   const origin = userLocation ?? sortOrigin ?? viewport?.center ?? null;
   const sorted = useMemo(
     () => sortPlaces(inView, sort, origin),
@@ -141,7 +147,11 @@ export function useMapScreen({
   const status: MapStatus = mapError ? "error" : viewport ? "ready" : "loading";
   const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
-    chips.includes("bookmarked") && bookmarked.size === 0 ? "bookmarks" : "area";
+    chips.includes("bookmarked") && bookmarked.size === 0
+      ? "bookmarks"
+      : chips.some(isSideChip)
+        ? "filter"
+        : "area";
 
   /* ── 지도 이벤트 ── */
   const handleViewportChange = useCallback((next: Viewport) => {
@@ -220,6 +230,11 @@ export function useMapScreen({
     setQuery("");
   }, []);
 
+  /** 필터 빈 상태의 [필터 해제] — 칩 전부 해제 */
+  const clearChips = useCallback(() => {
+    setChips([]);
+  }, []);
+
   /** 검색 확정(Enter/돋보기): 결과가 다 보이게 지도 이동 */
   const submitSearch = useCallback(() => {
     const matches = filterPlaces(places, {
@@ -260,6 +275,20 @@ export function useMapScreen({
     [],
   );
 
+  /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
+  const locateMe = useCallback(() => {
+    void requestPosition().then((pos) => {
+      if (!pos) {
+        showNotice("위치를 가져올 수 없어요");
+        return;
+      }
+      setUserLocation(pos);
+      if (!mapRef.current) return;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.morph(pos, USER_ZOOM);
+    });
+  }, [mapRef, showNotice]);
+
   return {
     // 상태
     tab,
@@ -270,6 +299,8 @@ export function useMapScreen({
     snap,
     notice,
     userLocation,
+    /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
+    origin,
     eventDismissed,
     status,
     mapErrorReason: mapError,
@@ -278,12 +309,14 @@ export function useMapScreen({
     items,
     sorted,
     inViewCount: inView.length,
+    areaLabel,
     // 위치가 SDK보다 먼저 왔을 때: 서울 근교일 때만 그 위치·줌 14로 시작 (밖이면 서울 중심 — 결정 "위치 폴백")
     initialCenter: userInSeoul ? userLocation : SEOUL_CENTER,
     initialZoom: userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,
+    clearChips,
     setQuery,
     clearQuery,
     submitSearch,
@@ -297,6 +330,7 @@ export function useMapScreen({
     handleMissingConfig,
     dismissEvent,
     showNotice,
+    locateMe,
   };
 }
 
