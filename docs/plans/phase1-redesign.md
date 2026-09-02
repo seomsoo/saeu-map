@@ -45,5 +45,9 @@ Phase 1(지도 메인)은 기능·테스트·갭 스윕까지 끝났지만 시�
 - 임의값(`text-[`, `rounded-[`, `#hex`, `shadow-[`) grep 0건, 옛 토큰명 잔재 0건
 - design 화면 1의 1~9 항목이 새 배치에서도 전부 존재
 
-## 결과
-(작업 완료 후 기록)
+## 결과 (2026-09-02 완료)
+- `pnpm typecheck && pnpm lint && pnpm test` 통과 — 테스트 112개(기존 98 + areaLabel 5 + marker-icons 8 + 내 위치 1). 컴포넌트·app에 임의값(`text-[`·`rounded-[`·`#hex`·`shadow-[`) 0건, 옛 토큰명 잔재 0건, `bg-brand`는 [제보] 1곳.
+- 생성 CSS에 토큰 유틸 전부 존재 확인(`text-body-m-medium`, `pt-safe-top-or-3`, `rounded-max`, `shadow-upper`, `h-6.5`, `z-1` …). `@theme static` + `--color-*: initial` 조합이 Tailwind 4.3에서 의도대로 동작.
+- Playwright 스크린샷 `.playwright-mcp/redesign-*.png`: 390 초기·줌인 썸네일 마커·마커 선택·시트 full/collapsed·칩 활성·에러, 320·430 초기. 상단 스택 실측 122px(예산 220), 320에서 칩 행 가로 스크롤 동작, 320×568에선 half=collapsed(98px)로 제목·부제·FAB까지 보임. 썸네일 마커는 성동구 줌인(p018·p019)에서 img로 렌더, 신규는 점선 링, 선택은 확대+잉크 링.
+- 계획과 달라진 것: 지도 래퍼에 `z-0`(스태킹 컨텍스트) 추가 — SDK 컨트롤이 시트 위로 새지 않게 하는 방어. 스크린샷 하단의 "N" 배지는 Next.js 개발 도구(NEXTJS-PORTAL)라 프로덕션엔 없음. `OutlineButton` 프리미티브를 추가해 빈/에러 상태 버튼을 통일.
+- 남은 것: 새우 마커 플레이스홀더 아이콘 에셋(decisions 목록). 정렬 세그먼트 사용감 재검토. Figma Desktop MCP 등록(`claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp`)은 다음 화면 작업 전에.

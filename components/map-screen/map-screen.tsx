@@ -54,8 +54,9 @@ export default function MapScreen({
 
       {/* 8. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
           에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
-          라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현). */}
-      <div className="absolute inset-0">
+          라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현).
+          z-0: 스태킹 컨텍스트를 만들어 SDK의 로고·컨트롤(높은 z-index)이 시트 위로 새지 않게 한다. */}
+      <div className="absolute inset-0 z-0">
         <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
           <NaverMapProvider onMissingConfig={s.handleMissingConfig}>
             <MapView
