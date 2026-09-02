@@ -133,11 +133,11 @@ export function useMapScreen({
     [places, tab, chips, deferredQuery, bookmarked],
   );
 
-  // 필터에서 빠진 가게는 선택 해제된 것으로 본다
-  const selectedPlace = useMemo(
-    () => filtered.find((p) => p.id === selectedId) ?? null,
-    [filtered, selectedId],
-  );
+  // 필터에서 빠진 가게는 선택 해제된 것으로 본다. 단 상세가 열려 있으면 그 핀은 필터와 무관하게 유지 (Codex #4)
+  const selectedPlace = useMemo(() => {
+    const pool = detailId ? places : filtered;
+    return pool.find((p) => p.id === selectedId) ?? null;
+  }, [places, filtered, selectedId, detailId]);
 
   // 상세는 필터와 무관 (칩을 바꿔도 열린 상세는 유지)
   const detailPlace = useMemo(
@@ -257,22 +257,27 @@ export function useMapScreen({
       const place = places.find((p) => p.id === id);
       if (!place) return;
       setSelectedId(id);
-      setDetailId((prev) => {
-        if (prev === null) listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억
-        return id;
-      });
+      const switching = detailId !== null; // 상세가 열린 채 다른 마커를 탭
+      if (!switching) listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억
+      setDetailId(id);
       setSnap("half");
       if (source !== "history") {
         // 이벤트 핸들러 안에서만 호출 — Next의 History 패치가 상태(__NA·tree)를 덧붙여 popstate가 클라이언트에서 처리된다
         const state: DetailHistoryState = { saeuDetail: true };
-        window.history.pushState(state, "", `/place/${encodeURIComponent(id)}`);
+        const url = `/place/${encodeURIComponent(id)}`;
+        if (switching) {
+          // 상세 → 다른 상세는 엔트리를 교체해 닫기 한 번에 목록으로 간다 (Codex #4). 직접 진입이면 표식 없이 교체해 닫기 = replace "/" 유지
+          window.history.replaceState(isDetailHistoryState(window.history.state) ? state : null, "", url);
+        } else {
+          window.history.pushState(state, "", url);
+        }
       }
       if (mapRef.current) {
         programmaticMoveAt.current = performance.now();
         mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
       }
     },
-    [places, snap, mapRef, visibleStripCenterY],
+    [places, snap, detailId, mapRef, visibleStripCenterY],
   );
 
   const closeDetail = useCallback((source: "ui" | "history" = "ui") => {

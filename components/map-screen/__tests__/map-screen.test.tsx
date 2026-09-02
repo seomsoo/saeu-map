@@ -466,6 +466,26 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     expect(fake.map.morph).not.toHaveBeenCalled();
   });
 
+  it("상세 A가 열린 채 마커 B 탭 → 엔트리 교체(replaceState), 닫기는 back 1회로 목록 (Codex #4)", async () => {
+    await openNara();
+    const hana = screen.getAllByTestId("marker").find((m) => m.textContent === "노량진수산시장 하나수산");
+    if (!hana) throw new Error("marker expected");
+    fireEvent.click(hana);
+    expect(screen.getByRole("article", { name: "노량진수산시장 하나수산 상세" })).toBeInTheDocument();
+    expect(history.pushState).toHaveBeenCalledTimes(1);
+    expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/hana");
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(history.back).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("상세가 열린 채 칩으로 그 가게를 걸러내도 핀은 남는다 (Codex #4)", async () => {
+    await openNara();
+    fireEvent.click(screen.getByRole("button", { name: /새로 들어온 집/ }));
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("marker").some((m) => m.textContent === "나라수산")).toBe(true);
+  });
+
   it("popstate: 경로가 /place/[id]면 열고, /면 닫는다", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
