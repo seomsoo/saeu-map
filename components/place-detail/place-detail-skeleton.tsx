@@ -7,17 +7,17 @@ export function PlaceDetailSkeleton() {
       <Skeleton className="h-7 w-2/5" />
       <Skeleton className="mt-1.5 h-4 w-1/2" />
       <Skeleton className="mt-1.5 h-3 w-2/5" />
-      {/* 역 줄 자리 — 배지 높이 그대로 20 (역이 없는 곳도 있지만 로딩 중엔 알 수 없다) */}
-      <Skeleton className="mt-5 h-5 w-2/5" />
-      <div className="mt-0.5 flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-        </div>
-        <Skeleton className="h-7 w-12 rounded-8" />
+      {/* 정보 블록 — 아이콘 열(16 원) + 값 한 줄씩 두 그룹. **주소 자리는 두지 않는다**:
+          기본이 접힘이라 실제 화면도 역 줄 + 영업시간 두 줄이다 */}
+      <div className="mt-5 flex items-center gap-1.5">
+        <Skeleton className="size-4 rounded-max" />
+        <Skeleton className="h-4 w-2/5" />
       </div>
-      {/* 영업시간 자리 — 실제 정보 블록과 같은 12(주소와는 다른 필드) */}
-      <Skeleton className="mt-3 h-4 w-3/5" />
+      {/* 영업시간 자리 — 실제 정보 블록과 같은 12(위치와는 다른 필드) */}
+      <div className="mt-3 flex items-center gap-1.5">
+        <Skeleton className="size-4 rounded-max" />
+        <Skeleton className="h-4 w-3/5" />
+      </div>
       <div className="mt-4 grid grid-cols-4 gap-2">
         <Skeleton className="col-span-2 h-12 rounded-12" />
         <Skeleton className="h-12 rounded-12" />
