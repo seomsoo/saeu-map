@@ -183,6 +183,7 @@ describe("BottomSheet 상세 모드", () => {
         label="가게 상세"
       >
         <p>본문</p>
+        <div data-pan-x>사진 스트립</div>
         <button type="button">길찾기</button>
       </BottomSheet>,
     );
@@ -221,6 +222,20 @@ describe("BottomSheet 상세 모드", () => {
     fireEvent.pointerUp(body, { pointerId: 1, clientY: 560 });
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onSnapChange).not.toHaveBeenCalled();
+  });
+
+  it("가로 스크롤 영역에서 가로로 끌면 시트 드래그가 취소된다 — 사진 스트립이 넘어가야 한다", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("half");
+    const strip = screen.getByText("사진 스트립");
+    fireEvent.pointerDown(strip, { pointerId: 7, button: 0, clientX: 200, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    // 가로가 우세한 첫 터치 이동에서 후보를 버린다(막지 않으면 아래 pointerMove가 닫기로 읽힌다)
+    fireEvent.touchMove(body, { touches: [{ clientX: 120, clientY: 502 }] });
+    fireEvent.pointerMove(body, { pointerId: 7, clientX: 120, clientY: 560 });
+    vi.advanceTimersByTime(1);
+    fireEvent.pointerUp(body, { pointerId: 7, clientX: 120, clientY: 560 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
   it("요약에서 본문을 위로 끌면 전체로", () => {

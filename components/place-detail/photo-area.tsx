@@ -54,10 +54,11 @@ export function PhotoArea({ place, naverUrl, onUploadPhoto }: PhotoAreaProps) {
   return (
     <ul
       aria-label={`${place.name} 사진`}
+      data-pan-x
       className="no-scrollbar flex touch-pan-x gap-2 overflow-x-auto px-5 pt-1 pb-3"
     >
       {place.photoUrls.map((url, i) => (
-        <li key={url}>
+        <li key={url} className="shrink-0">
           {/* images.unoptimized — 업로드 시 리사이즈본을 쓴다 */}
           <Image
             src={url}
@@ -69,7 +70,7 @@ export function PhotoArea({ place, naverUrl, onUploadPhoto }: PhotoAreaProps) {
           />
         </li>
       ))}
-      <li>
+      <li className="shrink-0">
         <button type="button" onClick={onUploadPhoto} className="press block" aria-label="사진 추가">
           <AddTile />
         </button>

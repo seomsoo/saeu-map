@@ -159,6 +159,7 @@ export function resolveRelease({
 
 interface DragState {
   pointerId: number;
+  startX: number;
   startY: number;
   startVisible: number;
   lastY: number;
@@ -169,6 +170,8 @@ interface DragState {
   fromHandle: boolean;
   /** body = 상세 본문에서 시작한 드래그 (full에서 맨 위일 때만 시작된다) */
   source: "header" | "body";
+  /** 가로 스크롤 영역(사진 스트립)에서 시작 — 가로가 우세하면 그쪽에 양보한다 */
+  panX: boolean;
 }
 
 interface BottomSheetProps {
@@ -244,6 +247,7 @@ export function BottomSheet({
     if (source === "header") e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       pointerId: e.pointerId,
+      startX: e.clientX,
       startY: e.clientY,
       startVisible: window.innerHeight - rect.top,
       lastY: e.clientY,
@@ -252,6 +256,7 @@ export function BottomSheet({
       moved: false,
       fromHandle,
       source,
+      panX: (e.target as Element).closest("[data-pan-x]") !== null,
     };
   };
 
@@ -365,7 +370,14 @@ export function BottomSheet({
       if (!drag || drag.source !== "body" || !e.cancelable) return;
       const touch = e.touches[0];
       if (!touch) return;
-      if (snap === "half" || drag.moved || touch.clientY - drag.startY >= 0) {
+      const dy = touch.clientY - drag.startY;
+      // 사진 스트립처럼 가로로 스크롤되는 영역에서 시작했고 가로가 우세하면 이 제스처는 시트 것이 아니다.
+      // 양보하지 않으면 요약에선 항상, 전체에선 dy가 0이라 아래로 끄는 것으로 읽혀 스트립이 영영 안 넘어간다.
+      if (drag.panX && !drag.moved && Math.abs(touch.clientX - drag.startX) > Math.abs(dy)) {
+        dragRef.current = null;
+        return;
+      }
+      if (snap === "half" || drag.moved || dy >= 0) {
         e.preventDefault();
       }
     };
