@@ -14,7 +14,8 @@ export function PlaceDetailSkeleton() {
         </div>
         <Skeleton className="h-7 w-12 rounded-8" />
       </div>
-      <Skeleton className="mt-1.5 h-4 w-3/5" />
+      {/* 영업시간 자리 — 실제 정보 블록과 같은 12(주소와는 다른 필드) */}
+      <Skeleton className="mt-3 h-4 w-3/5" />
       <div className="mt-4 grid grid-cols-4 gap-2">
         <Skeleton className="col-span-2 h-12 rounded-12" />
         <Skeleton className="h-12 rounded-12" />
