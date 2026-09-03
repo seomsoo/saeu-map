@@ -1,18 +1,24 @@
 "use client";
 
 import type { AddressHit } from "@/components/map/map-view";
-import { Button } from "@/components/ui/button";
+import { COMING_SOON_NOTICE } from "@/components/place-detail/use-place-detail";
+import { sharePlace } from "@/lib/share";
 import type { LatLng, Place } from "@/lib/types";
-import { StepFrame } from "./step-frame";
+import { StepDone } from "./step-done";
+import { StepExtras } from "./step-extras";
 import { StepLocation } from "./step-location";
 import { StepMenu } from "./step-menu";
 import { StepName } from "./step-name";
 import type { ReportStep } from "./types";
 import { useReportFlow } from "./use-report-flow";
 
+export const SUBMIT_FAILED_NOTICE = "등록하지 못했어요. 다시 시도해주세요";
+
 export interface ReportPanelProps {
   step: ReportStep;
   places: readonly Place[];
+  /** 서버 렌더 시각(ISO) — 등록 시각의 목 기준. 클라이언트 Date.now() 금지 */
+  now: string;
   /** 2단계 핀 (지도 훅 소유) */
   pin: LatLng | null;
   geocode: (query: string) => Promise<AddressHit[]>;
@@ -25,6 +31,9 @@ export interface ReportPanelProps {
   onShowCandidate: (candidate: Place) => void;
   /** 이미 있는 가게로 넘어가기 — 플로우를 닫고 그 가게 상세를 연다 */
   onOpenExisting: (id: string) => void;
+  /** 등록 성공 — 목록·마커에 추가 */
+  onCreated: (place: Place) => void;
+  onNotice: (message: string) => void;
 }
 
 /**
@@ -34,6 +43,7 @@ export interface ReportPanelProps {
 export function ReportPanel({
   step,
   places,
+  now,
   pin,
   geocode,
   onBack,
@@ -41,8 +51,37 @@ export function ReportPanel({
   onPinChange,
   onShowCandidate,
   onOpenExisting,
+  onCreated,
+  onNotice,
 }: ReportPanelProps) {
-  const { draft, patch, patchMenu, isDuplicateDismissed, dismissDuplicate } = useReportFlow();
+  const {
+    draft,
+    patch,
+    patchMenu,
+    isDuplicateDismissed,
+    dismissDuplicate,
+    submitting,
+    created,
+    submit,
+  } = useReportFlow();
+
+  const handleSubmit = async () => {
+    if (!pin) {
+      onStepChange(2);
+      return;
+    }
+    const result = await submit(pin, now);
+    if (result === "invalid") {
+      onStepChange(3);
+      return;
+    }
+    if (result === null) {
+      onNotice(SUBMIT_FAILED_NOTICE);
+      return;
+    }
+    onCreated(result);
+    onStepChange("done");
+  };
 
   switch (step) {
     case 1:
@@ -102,36 +141,40 @@ export function ReportPanel({
       );
     case 4:
       return (
-        <StepFrame
-          step={4}
-          title="더 알려주실 게 있나요?"
-          caption="모두 선택 사항이에요"
+        <StepExtras
+          photos={draft.photos}
+          sides={draft.sides}
+          hoursNote={draft.hoursNote}
+          submitting={submitting}
+          onPhotosChange={(photos) => {
+            patch({ photos });
+          }}
+          onSidesChange={(sides) => {
+            patch({ sides });
+          }}
+          onHoursNoteChange={(hoursNote) => {
+            patch({ hoursNote });
+          }}
           onBack={onBack}
-          footer={
-            <Button
-              variant="brand"
-              size="xl"
-              className="w-full"
-              onClick={() => {
-                onStepChange("done");
-              }}
-            >
-              건너뛰고 등록
-            </Button>
-          }
+          onSubmit={() => {
+            void handleSubmit();
+          }}
         />
       );
     case "done":
+      if (!created) return null;
       return (
-        <StepFrame
-          step="done"
-          title="등록됐어요!"
-          caption="지도에 바로 보여요. 7일간 '새로 제보됨' 표시가 붙어요"
-          footer={
-            <Button variant="brand" size="xl" className="w-full">
-              내 핀 보러가기
-            </Button>
-          }
+        <StepDone
+          place={created}
+          onOpen={() => {
+            onOpenExisting(created.id);
+          }}
+          onShare={() => {
+            sharePlace(created, onNotice);
+          }}
+          onReview={() => {
+            onNotice(COMING_SOON_NOTICE);
+          }}
         />
       );
   }

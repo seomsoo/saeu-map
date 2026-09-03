@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { Place } from "@/lib/types";
+import type { ReportInput } from "@/lib/data";
 import MapScreen from "../map-screen";
 
 /* ── react-naver-maps 전체를 가짜로. 지도 SDK 없이 화면 동작만 검증한다. ── */
@@ -72,10 +73,12 @@ const fake = vi.hoisted(() => {
 // lib/data는 진짜(찜 토글은 클라이언트 메모리)지만, 쓰기 checkIn만 가짜 — 시드 가게는 목 JSON에 없다
 const dataMocks = vi.hoisted(() => ({
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
+  submitReport: vi.fn<(input: unknown, now: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   checkIn: dataMocks.checkIn,
+  submitReport: dataMocks.submitReport,
 }));
 
 vi.mock("react-naver-maps", () => ({
@@ -711,6 +714,59 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "도로명 주소" }), { target: { value: "없는 주소" } });
     fireEvent.submit(screen.getByRole("search", { name: "도로명 주소 검색" }));
     expect(await screen.findByRole("status")).toHaveTextContent("주소를 찾지 못했어요");
+  });
+
+  it("끝까지: 이름 → 핀 확정 → 메뉴 → 건너뛰고 등록 → 완료 → [내 핀 보러가기] = 새 가게 상세(신규 배너) + 목록·마커에 추가", async () => {
+    dataMocks.submitReport.mockImplementation((input) =>
+      Promise.resolve(
+        makePlace({
+          id: "r001",
+          name: (input as ReportInput).name,
+          menus: (input as ReportInput).menus.map((m) =>
+            makeMenu({ raw: m.name, name: m.name, price: m.price, unit: m.unit, unit_raw: m.unitRaw }),
+          ),
+          gu: "성동구",
+          lat: 37.55,
+          lng: 127.0,
+          addressRoad: null,
+          source: "report",
+          isNew: true,
+          createdAt: NOW,
+          lastCheckedAt: NOW,
+        }),
+      ),
+    );
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "완전 새로운 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    // 2단계: 핀은 보던 지도 중심(37.55, 127.0 — 서울 안), 중복 없음 → 3단계
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    await screen.findByRole("heading", { name: "메뉴와 가격을 알려주세요" });
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "왕새우 소금구이" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    fireEvent.click(screen.getByRole("button", { name: "한판" }));
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getByRole("heading", { name: "더 알려주실 게 있나요?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    await screen.findByRole("heading", { name: "등록됐어요!" });
+    expect(dataMocks.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "완전 새로운 새우집", lat: 37.55, lng: 127.0, duplicateOf: null }),
+      NOW,
+    );
+    expect(screen.getByLabelText("등록한 가게")).toHaveTextContent("왕새우 소금구이 한판 35,000원");
+    expect(screen.getByRole("region", { name: "가게 제보" })).toHaveAttribute("data-snap", "full");
+
+    fireEvent.click(screen.getByRole("button", { name: "내 핀 보러가기" }));
+    expect(screen.getByRole("article", { name: "완전 새로운 새우집 상세" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("새로 제보된 곳이에요");
+    expect(screen.getByRole("button", { name: "주소를 알려주세요" })).toBeInTheDocument();
+    expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/r001");
+    expect(screen.getAllByRole("button", { name: "완전 새로운 새우집" })).not.toHaveLength(0); // 마커
+    // 상세 닫기(back은 가짜라 URL은 그대로 — popstate까지 흉내 내면 경로 /place/r001로 다시 열린다) → 목록에 새 가게
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(
+      within(screen.getByRole("list", { name: "가게 목록" })).getByRole("heading", { name: "완전 새로운 새우집" }),
+    ).toBeInTheDocument();
   });
 
   it("패널의 ‹ 는 history.back과 같은 길", async () => {

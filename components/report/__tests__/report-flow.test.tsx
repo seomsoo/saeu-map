@@ -1,8 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AddressHit } from "@/components/map/map-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
+import type { ReportInput } from "@/lib/data";
+import type { Place } from "@/lib/types";
 import { ReportPanel, type ReportPanelProps } from "../report-panel";
+
+// 등록만 가짜 — 나머지(getGuOfPoint 등)는 진짜
+const dataMocks = vi.hoisted(() => ({
+  submitReport: vi.fn<(input: ReportInput, now: string) => Promise<Place>>(),
+}));
+vi.mock("@/lib/data", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data")>()),
+  submitReport: dataMocks.submitReport,
+}));
+
+const NOW = "2026-09-04T12:00:00+09:00";
 
 const places = [
   makePlace({ id: "nara", name: "나라수산", gu: "마포구", tags: ["grill", "raw"] }),
@@ -15,6 +28,7 @@ function renderPanel(overrides: Partial<ReportPanelProps> = {}) {
   const props: ReportPanelProps = {
     step: 1,
     places,
+    now: NOW,
     pin: null,
     geocode: vi.fn(() => Promise.resolve([])),
     onBack: vi.fn(),
@@ -22,6 +36,8 @@ function renderPanel(overrides: Partial<ReportPanelProps> = {}) {
     onPinChange: vi.fn(),
     onShowCandidate: vi.fn(),
     onOpenExisting: vi.fn(),
+    onCreated: vi.fn(),
+    onNotice: vi.fn(),
     ...overrides,
   };
   const view = render(<ReportPanel {...props} />);
@@ -100,26 +116,6 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(props.onStepChange).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { key: "Enter" });
     expect(props.onStepChange).toHaveBeenCalledWith(2);
-  });
-});
-
-describe("ReportPanel 단계 뼈대", () => {
-  it.each([
-    [4, "더 알려주실 게 있나요?", "건너뛰고 등록", "done"],
-  ] as const)("%s단계: 제목·진행바·CTA → 다음 단계", (step, title, cta, next) => {
-    const { props } = renderPanel({ step });
-    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", String(step));
-    fireEvent.click(screen.getByRole("button", { name: cta }));
-    expect(props.onStepChange).toHaveBeenCalledWith(next);
-  });
-
-  it("완료: 진행바·‹ 없이 제목과 [내 핀 보러가기]", () => {
-    renderPanel({ step: "done" });
-    expect(screen.getByRole("heading", { name: "등록됐어요!" })).toBeInTheDocument();
-    expect(screen.queryByRole("progressbar")).toBeNull();
-    expect(screen.queryByRole("button", { name: "이전" })).toBeNull();
-    expect(screen.getByRole("button", { name: "내 핀 보러가기" })).toBeInTheDocument();
   });
 });
 
@@ -303,5 +299,154 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     // 끄면 회 줄은 사라지고 검증에서도 빠진다
     fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
     expect(screen.queryByRole("textbox", { name: "새우회 메뉴명" })).toBeNull();
+  });
+});
+
+/** 1~3단계 값을 채우고 4단계로 — 등록 입력은 패널 상태에서 나온다 */
+function renderStep4(overrides: Partial<ReportPanelProps> = {}) {
+  const view = renderStep2("테스트 새우집", MAPO, overrides);
+  view.goto(3);
+  fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "왕새우 소금구이" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+  fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+  view.goto(4);
+  return view;
+}
+
+const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
+
+describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
+  // jsdom에는 createObjectURL이 없다 — 미리보기 URL 생성·해제를 셀 수 있게 가짜로
+  const createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
+  const revokeObjectURL = vi.fn();
+
+  beforeEach(() => {
+    dataMocks.submitReport.mockReset();
+    createObjectURL.mockClear();
+    revokeObjectURL.mockClear();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("CTA는 하나: 비어 있으면 [건너뛰고 등록], 하나라도 넣으면 [등록하기]", () => {
+    renderStep4();
+    expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "4");
+    expect(screen.getByRole("button", { name: "건너뛰고 등록" })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("group", { name: "사이드" })).getByRole("button", { name: "라면" }));
+    expect(screen.getByRole("button", { name: "등록하기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "라면" }));
+    expect(screen.getByRole("button", { name: "건너뛰고 등록" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "영업시간" }), { target: { value: "월 휴무" } });
+    expect(screen.getByRole("button", { name: "등록하기" })).toBeInTheDocument();
+  });
+
+  it("사진: 파일 선택 → 미리보기 타일 + 카운터, 이미지가 아닌 파일은 거르고, 제거 ✕, 10장이 차면 ＋ 타일이 사라진다", () => {
+    renderStep4();
+    const input = screen.getByLabelText("사진 파일");
+    fireEvent.change(input, {
+      target: { files: [image("a.jpg"), new File(["x"], "note.txt", { type: "text/plain" }), image("b.jpg")] },
+    });
+    expect(screen.getByText("2/10")).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: /고른 사진/ })).toHaveLength(2);
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "등록하기" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "사진 1 제거" }));
+    expect(screen.getByText("1/10")).toBeInTheDocument();
+    expect(revokeObjectURL).toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { files: Array.from({ length: 12 }, (_, i) => image(`${String(i)}.jpg`)) } });
+    expect(screen.getByText("10/10")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "사진 추가" })).toBeNull();
+  });
+
+  it("등록 성공: 스키마 입력(이름·핀·메뉴·사이드·영업시간·사진·중복 후보)으로 submitReport → onCreated + 완료", async () => {
+    const created = makePlace({ id: "r001", name: "테스트 새우집", source: "report", isNew: true });
+    let resolve: (place: Place) => void = () => {};
+    dataMocks.submitReport.mockImplementation(
+      () =>
+        new Promise<Place>((res) => {
+          resolve = res;
+        }),
+    );
+    const { props, goto } = renderStep4();
+    fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("a.jpg")] } });
+    fireEvent.click(screen.getByRole("button", { name: "머리버터구이" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "영업시간" }), { target: { value: " 새벽 2시까지 " } });
+    fireEvent.click(screen.getByRole("button", { name: "등록하기" }));
+
+    const pending = screen.getByRole("button", { name: "등록 중…" });
+    expect(pending).toBeDisabled();
+    expect(pending).toHaveAttribute("aria-busy", "true");
+    expect(dataMocks.submitReport).toHaveBeenCalledWith(
+      {
+        name: "테스트 새우집",
+        lat: MAPO.lat,
+        lng: MAPO.lng,
+        menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+        sides: { headButter: true, ramen: false, friedRice: false },
+        hoursNote: " 새벽 2시까지 ",
+        photos: [expect.objectContaining({ name: "a.jpg" })],
+        duplicateOf: null,
+      },
+      NOW,
+    );
+    resolve(created);
+    await waitFor(() => {
+      expect(props.onStepChange).toHaveBeenCalledWith("done");
+    });
+    expect(props.onCreated).toHaveBeenCalledWith(created);
+
+    goto("done");
+    expect(screen.getByRole("heading", { name: "등록됐어요!" })).toBeInTheDocument();
+    const card = screen.getByLabelText("등록한 가게");
+    expect(card).toHaveTextContent("테스트 새우집");
+    expect(card).toHaveTextContent("마포구 · 새우구이");
+    fireEvent.click(screen.getByRole("button", { name: "내 핀 보러가기" }));
+    expect(props.onOpenExisting).toHaveBeenCalledWith("r001");
+    fireEvent.click(screen.getByRole("button", { name: "리뷰도 남겨볼래요?" }));
+    expect(props.onNotice).toHaveBeenCalledWith("준비 중이에요");
+  });
+
+  it("완료 카드의 [공유]는 상세와 같은 길 (기기 공유 시트 → 링크 복사)", async () => {
+    const created = makePlace({ id: "r002", name: "공유 새우집", source: "report", isNew: true });
+    dataMocks.submitReport.mockResolvedValue(created);
+    const share = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    const { goto } = renderStep4();
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    await waitFor(() => {
+      expect(dataMocks.submitReport).toHaveBeenCalled();
+    });
+    goto("done");
+    fireEvent.click(screen.getByRole("button", { name: "공유" }));
+    expect(share).toHaveBeenCalledWith({ title: "공유 새우집", url: `${window.location.origin}/place/r002` });
+  });
+
+  it("등록 실패: 토스트 + 4단계 유지, 버튼은 다시 눌린다(같은 버튼이 재시도)", async () => {
+    dataMocks.submitReport.mockRejectedValueOnce(new Error("mock write failed"));
+    const { props } = renderStep4();
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("등록하지 못했어요. 다시 시도해주세요");
+    });
+    expect(props.onStepChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "건너뛰고 등록" })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "더 알려주실 게 있나요?" })).toBeInTheDocument();
+  });
+
+  it("3단계 값이 사라졌으면(뒤로 가서 지움) 등록 대신 3단계로 돌려보낸다", async () => {
+    const { props, goto } = renderStep4();
+    goto(3);
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "" } });
+    goto(4);
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    await waitFor(() => {
+      expect(props.onStepChange).toHaveBeenCalledWith(3);
+    });
+    expect(dataMocks.submitReport).not.toHaveBeenCalled();
   });
 });

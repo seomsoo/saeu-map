@@ -178,6 +178,7 @@ export default function MapScreen({
             <ReportPanel
               step={s.reportStep}
               places={s.places}
+              now={now}
               pin={s.reportPin}
               geocode={geocode}
               onBack={s.backReportStep}
@@ -187,6 +188,8 @@ export default function MapScreen({
               }}
               onShowCandidate={s.showReportPair}
               onOpenExisting={s.openDetailFromReport}
+              onCreated={s.addPlace}
+              onNotice={s.showNotice}
             />
           )
         }
