@@ -5,7 +5,7 @@ import { StarIcon } from "@/components/ui/icons/star-icon";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRating, ratingSummary } from "@/lib/reviews";
-import { formatKstShortDate } from "@/lib/time";
+import { formatKstDate } from "@/lib/time";
 import type { Review } from "@/lib/types";
 import { NaverPhotoLink } from "./naver-photo-link";
 
@@ -68,7 +68,7 @@ export function ReviewSection({ status, reviews, naverUrl, onRetry }: ReviewSect
               <div className="flex items-center justify-between gap-3">
                 <span className="min-w-0 truncate text-body-m-semibold text-fg">{review.nickname}</span>
                 <span className="shrink-0 text-caption-l-regular text-fg-tertiary tabular-nums">
-                  {formatKstShortDate(review.at)}
+                  {formatKstDate(review.at)}
                 </span>
               </div>
               <RatingStars rating={review.rating} className="mt-1" />

@@ -306,6 +306,11 @@ describe("리뷰 — 3개 이상일 때만 평균 별점, 로딩·에러·재시
     expect(data.getPlaceDetail).not.toHaveBeenCalled();
   });
 
+  it("리뷰 날짜는 연도까지 쓴다", () => {
+    renderDetail(nara(), { initialReviews: [review(5)] });
+    expect(screen.getByText("2026.08.30")).toBeInTheDocument();
+  });
+
   it("클라이언트 로드: 로딩 → 실패 → 다시 시도 → 성공", async () => {
     data.getPlaceDetail.mockRejectedValueOnce(new Error("network"));
     renderDetail(nara());

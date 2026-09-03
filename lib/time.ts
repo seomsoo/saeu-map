@@ -66,16 +66,10 @@ function kstParts(input: DateInput): { y: number; m: number; d: number } {
   return { y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1, d: shifted.getUTCDate() };
 }
 
-/** "2026.08.27" — KST 달력일. */
+/** "2026.08.27" — KST 달력일. 절대 날짜는 전부 이 형식(연도 포함) — 짧은 "8.27"은 폐기했다. */
 export function formatKstDate(input: DateInput): string {
   const { y, m, d } = kstParts(input);
   return `${String(y)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
-}
-
-/** "8.27" — 리뷰 날짜처럼 연도 없이 짧게. */
-export function formatKstShortDate(input: DateInput): string {
-  const { m, d } = kstParts(input);
-  return `${String(m)}.${String(d)}`;
 }
 
 /** "3일 전" — 확인 시점만. KST 달력일 기준. 라벨과 문장("3일 전 확인됐어요")이 같이 쓴다. */
