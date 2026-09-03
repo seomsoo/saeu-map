@@ -105,7 +105,6 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
 
 describe("ReportPanel 단계 뼈대", () => {
   it.each([
-    [3, "메뉴와 가격을 알려주세요", "다음", 4],
     [4, "더 알려주실 게 있나요?", "건너뛰고 등록", "done"],
   ] as const)("%s단계: 제목·진행바·CTA → 다음 단계", (step, title, cta, next) => {
     const { props } = renderPanel({ step });
@@ -235,5 +234,74 @@ describe("ReportPanel 2단계 — 위치", () => {
       expect(props.onStepChange).toHaveBeenCalledTimes(2);
     });
     expect(screen.queryByRole("heading", { name: "150m 안에 비슷한 가게가 있어요" })).toBeNull();
+  });
+});
+
+describe("ReportPanel 3단계 — 메뉴와 가격", () => {
+  const fill = (line: "" | "새우회 ", name: string, price: string) => {
+    fireEvent.change(screen.getByRole("textbox", { name: `${line}메뉴명` }), { target: { value: name } });
+    const priceInputs = screen.getAllByRole("textbox", { name: "가격" });
+    fireEvent.change(priceInputs[line ? 1 : 0] as HTMLElement, { target: { value: price } });
+  };
+
+  it("빈 채로 [다음] → 이름·가격·단위 오류 세 줄, 고치면 그 오류만 사라진다", () => {
+    const { props } = renderPanel({ step: 3 });
+    expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "3");
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    const alerts = screen.getAllByRole("alert").map((a) => a.textContent);
+    expect(alerts).toEqual(["메뉴 이름을 알려주세요", "가격을 숫자로 알려주세요", "단위를 골라주세요"]);
+    expect(props.onStepChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "왕새우 소금구이" } });
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+  });
+
+  it("가격은 숫자만 받아 천 단위로 보여주고, 채우면 4단계로. 값은 단계를 오가도 남는다", () => {
+    const { props, rerender } = renderPanel({ step: 3 });
+    fill("", "왕새우 소금구이", "3만5천원");
+    expect(screen.getByRole("textbox", { name: "가격" })).toHaveValue("35");
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    expect(screen.getByRole("textbox", { name: "가격" })).toHaveValue("35,000");
+    fireEvent.click(within(screen.getByRole("group", { name: "단위" })).getByRole("button", { name: "1kg" }));
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(props.onStepChange).toHaveBeenCalledWith(4);
+
+    rerender(<ReportPanel {...props} step={4} />);
+    rerender(<ReportPanel {...props} step={3} />);
+    expect(screen.getByRole("textbox", { name: "메뉴명" })).toHaveValue("왕새우 소금구이");
+    expect(screen.getByRole("textbox", { name: "가격" })).toHaveValue("35,000");
+    expect(screen.getByRole("button", { name: "1kg" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("[마리]를 고르면 몇 마리 입력이 나오고, 비어 있으면 오류", () => {
+    const { props } = renderPanel({ step: 3 });
+    fill("", "대하", "20000");
+    fireEvent.click(screen.getByRole("button", { name: "마리" }));
+    const count = screen.getByRole("textbox", { name: "몇 마리" });
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("몇 마리인지 알려주세요");
+    fireEvent.change(count, { target: { value: "10" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(props.onStepChange).toHaveBeenCalledWith(4);
+  });
+
+  it("'새우회도 팔아요'를 켜면 회 줄이 펼쳐지고 그 줄도 검증된다", () => {
+    const { props } = renderPanel({ step: 3 });
+    fill("", "왕새우 소금구이", "35000");
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+    expect(screen.queryByRole("textbox", { name: "새우회 메뉴명" })).toBeNull();
+    fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
+    expect(screen.getByRole("switch", { name: "새우회도 팔아요" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("textbox", { name: "새우회 메뉴명" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getAllByRole("alert")).toHaveLength(3); // 회 줄의 세 오류
+    expect(props.onStepChange).not.toHaveBeenCalled();
+    fill("새우회 ", "생새우회", "40000");
+    fireEvent.click(within(screen.getByRole("group", { name: "새우회 단위" })).getByRole("button", { name: "500g" }));
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(props.onStepChange).toHaveBeenCalledWith(4);
+    // 끄면 회 줄은 사라지고 검증에서도 빠진다
+    fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
+    expect(screen.queryByRole("textbox", { name: "새우회 메뉴명" })).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { LatLng, Place } from "@/lib/types";
 import { StepFrame } from "./step-frame";
 import { StepLocation } from "./step-location";
+import { StepMenu } from "./step-menu";
 import { StepName } from "./step-name";
 import type { ReportStep } from "./types";
 import { useReportFlow } from "./use-report-flow";
@@ -41,7 +42,7 @@ export function ReportPanel({
   onShowCandidate,
   onOpenExisting,
 }: ReportPanelProps) {
-  const { draft, patch, isDuplicateDismissed, dismissDuplicate } = useReportFlow();
+  const { draft, patch, patchMenu, isDuplicateDismissed, dismissDuplicate } = useReportFlow();
 
   switch (step) {
     case 1:
@@ -80,23 +81,23 @@ export function ReportPanel({
       );
     case 3:
       return (
-        <StepFrame
-          step={3}
-          title="메뉴와 가격을 알려주세요"
-          caption="대표 메뉴 한 줄이면 돼요"
+        <StepMenu
+          grill={draft.grill}
+          rawToo={draft.rawToo}
+          raw={draft.raw}
+          onChangeGrill={(changes) => {
+            patchMenu("grill", changes);
+          }}
+          onChangeRaw={(changes) => {
+            patchMenu("raw", changes);
+          }}
+          onRawTooChange={(rawToo) => {
+            patch({ rawToo });
+          }}
           onBack={onBack}
-          footer={
-            <Button
-              variant="brand"
-              size="xl"
-              className="w-full"
-              onClick={() => {
-                onStepChange(4);
-              }}
-            >
-              다음
-            </Button>
-          }
+          onNext={() => {
+            onStepChange(4);
+          }}
         />
       );
     case 4:
