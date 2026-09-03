@@ -165,6 +165,17 @@ export function usePlaceDetail({
     window.location.href = naverRouteAppUrl(place);
   }, [place]);
 
+  /* ── 사진 뷰어 — 열린 사진의 인덱스(닫히면 null). 뷰어 자체는 place-detail이 렌더한다. ── */
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null);
+
+  const openPhoto = useCallback((index: number) => {
+    setPhotoIndex(index);
+  }, []);
+
+  const closePhoto = useCallback(() => {
+    setPhotoIndex(null);
+  }, []);
+
   const comingSoon = useCallback(() => {
     onNotice(COMING_SOON_NOTICE);
   }, [onNotice]);
@@ -180,5 +191,8 @@ export function usePlaceDetail({
     share,
     openRoute,
     comingSoon,
+    photoIndex,
+    openPhoto,
+    closePhoto,
   };
 }

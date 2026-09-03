@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
+import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Photo, Place, PlaceDetail as PlaceDetailData, Review } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
 
@@ -9,7 +10,9 @@ const data = vi.hoisted(() => ({
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
 }));
 
-vi.mock("@/lib/data", () => ({
+// 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
+vi.mock("@/lib/data", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data")>()),
   getPlaceDetail: data.getPlaceDetail,
   checkIn: data.checkIn,
 }));
@@ -144,7 +147,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
   it("사진이 있으면 상단에 사진, 네이버 링크는 리뷰 섹션 끝으로", async () => {
     renderDetail(nara({ photos: [photo(1), photo(2)] }));
     const strip = screen.getByRole("list", { name: "나라수산 사진" });
-    expect(within(strip).getAllByRole("img")).toHaveLength(2);
+    expect(within(strip).getAllByRole("button", { name: /크게 보기$/ })).toHaveLength(2);
     expect(within(strip).getByRole("button", { name: "사진 추가" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "첫 사진을 올려주세요" })).toBeNull();
     await waitFor(() => {
@@ -153,6 +156,18 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     const link = screen.getByRole("link", { name: /네이버에서 사진 보기/ });
     const reviewsHeading = screen.getByRole("heading", { level: 3, name: /리뷰/ });
     expect(reviewsHeading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it(`사진이 ${String(MAX_PLACE_PHOTOS)}장이면 ＋ 대신 안내 타일`, async () => {
+    const photos = Array.from({ length: MAX_PLACE_PHOTOS }, (_, i) => photo(i + 1));
+    renderDetail(nara({ photos }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기$/ })).toHaveLength(MAX_PLACE_PHOTOS);
+    expect(within(strip).queryByRole("button", { name: "사진 추가" })).toBeNull();
+    expect(within(strip).getByText(`${String(MAX_PLACE_PHOTOS)}장까지 올릴 수 있어요`)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
+    });
   });
 
   it("naverPlaceUrl이 화이트리스트 밖이면 링크를 렌더하지 않는다", async () => {
