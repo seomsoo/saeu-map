@@ -7,7 +7,7 @@ interface ActionRowProps {
   onToggleBookmark: () => void;
 }
 
-/** 6. 버튼 줄 — [길찾기](레드 채움, 폭 2) [공유] [♡ 찜](아웃라인, 켜면 틴트 + 하트 채움). 48px, 라운드 12.
+/** 4. 버튼 줄 — [길찾기](레드 채움, 폭 2) [공유] [♡ 찜](아웃라인, 켜면 틴트 + 하트 채움). 48px, 라운드 12.
  * 확인 버튼이 기여 블록으로 내려가면서 길찾기가 이 화면의 유일한 채운 레드가 됐다. */
 export function ActionRow({ bookmarked, onRoute, onShare, onToggleBookmark }: ActionRowProps) {
   return (

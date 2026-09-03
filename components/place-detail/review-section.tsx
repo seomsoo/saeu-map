@@ -20,7 +20,7 @@ interface ReviewSectionProps {
 }
 
 /**
- * 9. 리뷰 — 제목 + 개수, 리뷰 3개 이상일 때만 "★ 4.7"(spec 4.2-9). 행: 닉네임·날짜 / 별 5개 / 후기 / 사진.
+ * 8. 리뷰 — 제목 + 개수, 리뷰 3개 이상일 때만 "★ 4.7"(spec 4.2-8). 행: 닉네임·날짜 / 별 5개 / 후기 / 사진.
  * 빈 상태는 한 줄뿐 — [리뷰 남기기]는 바로 위 기여 블록이 갖고 있다(같은 화면에 두 번 두지 않는다).
  */
 export function ReviewSection({ status, reviews, naverUrl, onRetry }: ReviewSectionProps) {

@@ -30,7 +30,7 @@ export interface PlaceDetailProps {
 }
 
 /**
- * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~10 엄수). 바텀시트 detail 모드 안에 들어간다.
+ * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~9 엄수). 바텀시트 detail 모드 안에 들어간다.
  * 확인 줄(3번)은 해체됐다 — 신선도는 상호 아래 캡션, 액션은 사이드와 리뷰 사이 기여 블록.
  * 닫기 ✕는 본문이 아니라 시트 헤더에 있다(bottom-sheet의 onDismiss).
  */
@@ -65,9 +65,9 @@ export function PlaceDetail({
       {/* 2 */}
       <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
-      {/* 4·5 — 주소·지번·영업시간 한 블록 */}
+      {/* 3 — 주소·지번·영업시간 한 블록 */}
       <PlaceInfo place={d.place} onCopy={d.copyAddress} onSuggestHours={d.comingSoon} />
-      {/* 6 */}
+      {/* 4 */}
       <ActionRow
         bookmarked={bookmarked}
         onRoute={d.openRoute}
@@ -75,12 +75,12 @@ export function PlaceDetail({
         onToggleBookmark={onToggleBookmark}
       />
       <SectionBand />
-      {/* 7 */}
+      {/* 5 */}
       <MenuList menus={d.place.menus} onSuggest={d.comingSoon} />
-      {/* 8 */}
+      {/* 6 */}
       <SidesRow sides={d.place.sides} onSuggest={d.comingSoon} />
       <SectionBand />
-      {/* 3의 액션 자리 — 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
+      {/* 7 — 구 3(확인 줄)의 액션 자리. 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
       <ContributionBand
         place={d.place}
         now={now}
@@ -89,7 +89,7 @@ export function PlaceDetail({
         onWriteReview={d.comingSoon}
       />
       <SectionBand />
-      {/* 9 */}
+      {/* 8 */}
       <ReviewSection
         status={d.status}
         reviews={d.reviews}
@@ -97,7 +97,7 @@ export function PlaceDetail({
         onRetry={d.retryReviews}
       />
       <SectionBand />
-      {/* 10 */}
+      {/* 9 */}
       <FooterLinks onSelect={d.comingSoon} />
     </article>
   );

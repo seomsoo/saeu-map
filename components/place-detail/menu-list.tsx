@@ -3,7 +3,7 @@ import { formatPrice, unitChipLabel } from "@/lib/places";
 import type { Menu } from "@/lib/types";
 import { EditButton } from "./edit-button";
 
-/** 7. 대표 메뉴 — 메뉴명 + 단위(회색 텍스트) / 가격 오른쪽(tabular). 수정 입구는 제목 오른쪽 하나뿐. 없으면 "메뉴 알려주기". */
+/** 5. 대표 메뉴 — 메뉴명 + 단위(회색 텍스트) / 가격 오른쪽(tabular). 수정 입구는 제목 오른쪽 하나뿐. 없으면 "메뉴 알려주기". */
 export function MenuList({ menus, onSuggest }: { menus: Menu[]; onSuggest: () => void }) {
   return (
     <section aria-labelledby="place-menu-heading" className="px-5 pt-4 pb-3">
