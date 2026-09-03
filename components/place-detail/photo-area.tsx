@@ -5,24 +5,22 @@ import { NaverPhotoLink } from "./naver-photo-link";
 
 interface PhotoAreaProps {
   place: Place;
-  /** 사진이 없을 때 타일 오른쪽에 넣을 네이버 링크(화이트리스트 통과분만). 사진이 있으면 리뷰 섹션 끝으로 간다. */
+  /** 사진이 없을 때 올리기 행 **아래**에 붙는 네이버 링크(화이트리스트 통과분만). 사진이 있으면 리뷰 섹션 끝으로 간다. */
   naverUrl: string | null;
   onUploadPhoto: () => void;
   /** 사진 탭 → 전체 화면 뷰어 (design 화면 2 변형 (e)) */
   onOpenPhoto: (index: number) => void;
 }
 
-/** 행 높이의 근거는 높이 128 하나다 — 폭은 자리마다 다르다. */
-const TILE = "h-32 shrink-0 rounded-12 bg-bg-sunken";
 /** 176×128 — 4:3에 가장 가까운 토큰 폭. 정사각 112로는 접시가 잘려 음식이 안 보였다(decisions 2026-09-03). */
-const PHOTO_TILE = `${TILE} w-44`;
+const PHOTO_TILE = "h-32 w-44 shrink-0 rounded-12 bg-bg-sunken";
 
 /** 가라앉은 타일 안 ＋ — 접근 가능한 이름은 감싸는 버튼이 갖는다. */
-function AddTile({ width }: { width: string }) {
+function AddTile() {
   return (
     <span
       aria-hidden="true"
-      className={`${TILE} ${width} flex flex-col items-center justify-center gap-1 text-fg-tertiary`}
+      className={`${PHOTO_TILE} flex flex-col items-center justify-center gap-1 text-fg-tertiary`}
     >
       <span className="icon-[ci--add-plus] size-6" />
       <span className="text-caption-l-medium">사진</span>
@@ -44,28 +42,30 @@ function FullTile() {
 /**
  * 1. 사진 — 가로 스크롤 스트립(176×128). 사진을 탭하면 전체 화면 뷰어가 열린다.
  * 마지막 칸은 ＋ 타일이라 사진이 있어도 옆에 더 올리고, 10장이 차면 그 자리가 안내 타일로 바뀐다.
- * 사진이 하나도 없으면 ＋ 타일 하나 + 오른쪽 안내("첫 사진을 올려주세요" / 네이버 링크)로,
- * 있을 때와 행 높이가 같아 사진 유무로 아래 내용이 밀리지 않는다(높이만 같으면 된다 — 빈 상태 타일은
- * 320에서 안내 문구가 접히지 않게 112로 좁힌다: 280 − 112 − 12 − 12 − 16 = 128 ≥ 안내 문구 113).
  * touch-pan-x: 시트 본문이 pan-y라 가로 스와이프가 시트 드래그로 새지 않게 스트립에서 명시한다.
+ *
+ * **사진이 없으면 스트립 자리를 비우지 않고 56px 한 줄로 줄인다**(decisions 2026-09-03). 목 50곳 중 47곳이
+ * 무사진이라 이 상태가 기본값이다 — 기본값에 128px 회색 타일을 두면 시트 맨 위가 늘 빈 상자다.
+ * 올리기(행 전체)와 네이버 보기(아래 캡션 링크)를 겹치지 않는 두 표적으로 떼어 놓는다: 한 행 안에
+ * 두 액션이 겹쳐 있으면 오른쪽 chevron이 어느 쪽을 가리키는지 알 수 없다.
  */
 export function PhotoArea({ place, naverUrl, onUploadPhoto, onOpenPhoto }: PhotoAreaProps) {
   if (place.photos.length === 0) {
     return (
-      <div className="relative flex items-center gap-3 px-5 pt-1 pb-3">
-        <AddTile width="w-28" />
-        <span className="min-w-0 flex-1">
-          {/* 행 전체가 탭 대상 (after로 늘림). 네이버 링크만 위(z-1)로 빼서 따로 눌린다. */}
-          <button
-            type="button"
-            onClick={onUploadPhoto}
-            className="block w-full text-left text-body-m-medium text-fg after:absolute after:inset-0 after:content-['']"
-          >
-            첫 사진을 올려주세요
-          </button>
-          {naverUrl && <NaverPhotoLink href={naverUrl} className="relative z-1 mt-1.5" />}
-        </span>
-        <span className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder" aria-hidden="true" />
+      <div className="px-5 pt-1 pb-3">
+        <button
+          type="button"
+          onClick={onUploadPhoto}
+          className="press flex h-14 w-full items-center gap-2.5 rounded-12 bg-bg-sunken px-4 text-left"
+        >
+          <span className="icon-[ci--camera] size-5 shrink-0 text-fg-tertiary" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-body-m-medium text-fg">첫 사진을 올려주세요</span>
+          <span
+            className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder"
+            aria-hidden="true"
+          />
+        </button>
+        {naverUrl && <NaverPhotoLink href={naverUrl} className="mt-2" />}
       </div>
     );
   }
@@ -103,7 +103,7 @@ export function PhotoArea({ place, naverUrl, onUploadPhoto, onOpenPhoto }: Photo
           <FullTile />
         ) : (
           <button type="button" onClick={onUploadPhoto} className="press block" aria-label="사진 추가">
-            <AddTile width="w-44" />
+            <AddTile />
           </button>
         )}
       </li>

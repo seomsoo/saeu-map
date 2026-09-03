@@ -95,11 +95,13 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     renderDetail(nara());
     const article = screen.getByRole("article", { name: "나라수산 상세" });
 
-    // 1. 사진 없음 → 입력 행 + 네이버 링크가 위에
+    // 1. 사진 없음 → 올리기 행 + 그 아래 네이버 링크
     const upload = within(article).getByRole("button", { name: "첫 사진을 올려주세요" });
     const naverLink = within(article).getByRole("link", { name: /네이버에서 사진 보기/ });
     expect(naverLink).toHaveAttribute("target", "_blank");
     expect(naverLink).toHaveAttribute("rel", "noopener noreferrer");
+    // 두 표적은 겹치지 않는다 — 링크가 올리기 행 안에 있으면 어느 쪽이 눌린 건지 알 수 없다
+    expect(upload).not.toContainElement(naverLink);
 
     // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
     const title = within(article).getByRole("heading", { level: 2, name: "나라수산" });
