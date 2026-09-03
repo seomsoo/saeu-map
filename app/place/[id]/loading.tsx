@@ -1,7 +1,7 @@
 import { PlaceDetailSkeleton } from "@/components/place-detail/place-detail-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** /place/[id] 직접 진입 로딩 — 검색 블록·칩 행 자리 + 요약 높이(50%) 시트 안 상세 스켈레톤. */
+/** /place/[id] 직접 진입 로딩 — 검색 블록·칩 행 자리 + 요약 높이(30%, 최소 270px) 시트 안 상세 스켈레톤. */
 export default function PlaceLoading() {
   return (
     <div
@@ -20,7 +20,7 @@ export default function PlaceLoading() {
           <Skeleton className="h-9 w-28 rounded-max" />
         </div>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-1/2 rounded-t-20 bg-bg shadow-upper">
+      <div className="saeu-detail-summary-h absolute inset-x-0 bottom-0 rounded-t-20 bg-bg shadow-upper">
         <div className="mx-auto mt-2.5 h-1.5 w-12.5 rounded-max bg-line-hairline" />
         <PlaceDetailSkeleton />
       </div>

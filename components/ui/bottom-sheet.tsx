@@ -24,9 +24,13 @@ export const SHEET_HALF_RATIO = 0.4;
 export const SHEET_FULL_RATIO = 0.92;
 /** 이 높이 이하(예: 320×568)에서는 목록 half = collapsed (상단 스택이 지도를 다 가리는 것 방지) */
 export const SHEET_SHORT_VIEWPORT_MAX = 639;
-/** 상세 요약 = 50%, 최소 300px (낮은 뷰포트에서도 접지 않는다) */
-export const SHEET_DETAIL_HALF_RATIO = 0.5;
-export const SHEET_DETAIL_HALF_MIN_PX = 300;
+/**
+ * 상세 요약 = 30%, 최소 270px. 하한은 임의값이 아니라 내용에서 나온 값이다 —
+ * 헤더 44 + 사진 144 + 상호 블록(상호·카테고리·확인 캡션) = 257px에 바닥 여백 13.
+ * 뷰포트가 어떻든 "○일 전 확인"까지는 보이고, 그 아래(정보·버튼 줄)는 스크롤이나 펼침으로 본다.
+ */
+export const SHEET_DETAIL_HALF_RATIO = 0.3;
+export const SHEET_DETAIL_HALF_MIN_PX = 270;
 /** 상세 헤더 = 핸들 + 오른쪽 닫기 ✕ (44px 히트) */
 export const SHEET_DETAIL_HEADER_PX = 44;
 /** 상세: 요약 위치보다 이만큼 더 내린 채 놓으면 닫힘 */

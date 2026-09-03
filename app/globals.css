@@ -299,6 +299,14 @@ body {
  * 바텀시트 — 스냅 위치는 CSS가 담당 (SSR 첫 렌더부터 정확).
  * 상수는 components/ui/bottom-sheet.tsx의 SHEET_* 와 반드시 같아야 한다.
  * ------------------------------------------------------------------------- */
+/* 상세 요약 높이는 여기 한 곳에서 — 로딩 스켈레톤(app/place/[id]/loading.tsx)도 같은 값을
+   써야 스켈레톤 → 실제 시트에서 높이가 튀지 않는다. */
+:root {
+  --sheet-detail-half: max(30dvh, 270px);
+}
+.saeu-detail-summary-h {
+  height: var(--sheet-detail-half);
+}
 .saeu-sheet {
   --sheet-collapsed: 88px;
   --sheet-half: 40dvh;
@@ -343,10 +351,10 @@ body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-/* 상세 모드 (design 화면 2): 헤더 = 핸들 + 닫기 ✕(44px), 요약 = 50%(최소 300px, 낮은 뷰포트에서도 접지 않음).
-   특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
+/* 상세 모드 (design 화면 2): 헤더 = 핸들 + 닫기 ✕(44px), 요약 = 30%(최소 270px = 확인 캡션까지,
+   낮은 뷰포트에서도 접지 않음). 특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
 .saeu-sheet[data-mode="detail"] {
-  --sheet-half: max(50dvh, 300px);
+  --sheet-half: var(--sheet-detail-half);
   --sheet-header-h: 44px;
 }
 /* 상세 본문은 스냅과 무관하게 스크롤 컨테이너로 둔다 — 요약에서 잠가 버리면 휠·키보드 사용자가

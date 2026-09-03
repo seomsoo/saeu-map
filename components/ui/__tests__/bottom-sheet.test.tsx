@@ -120,10 +120,12 @@ describe("BottomSheet", () => {
   });
 });
 
-describe("상세 모드 스냅 계산 (design 화면 2: 요약 50% 최소 300, 전체 92%)", () => {
-  it("sheetVisiblePx: 요약은 50%, 낮은 뷰포트에서도 300px 하한 (collapse 없음)", () => {
-    expect(sheetVisiblePx("half", 844, "detail")).toBe(422);
-    expect(sheetVisiblePx("half", 568, "detail")).toBe(300);
+describe("상세 모드 스냅 계산 (design 화면 2: 요약 30% 최소 270, 전체 92%)", () => {
+  it("sheetVisiblePx: 요약은 30%, 확인 캡션이 잘리지 않게 270px 하한 (collapse 없음)", () => {
+    // 844에서도 30%(253)는 하한에 못 미친다 — 확인 캡션 바닥이 257px이라 270이 이긴다
+    expect(sheetVisiblePx("half", 844, "detail")).toBe(270);
+    expect(sheetVisiblePx("half", 1000, "detail")).toBe(300);
+    expect(sheetVisiblePx("half", 568, "detail")).toBe(270);
     expect(sheetVisiblePx("full", 844, "detail")).toBe(776);
   });
 
