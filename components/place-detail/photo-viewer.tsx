@@ -106,7 +106,7 @@ export function PhotoViewer({
       ref={dialogRef}
       aria-label={`${placeName} 사진 크게 보기`}
       onClose={onClose}
-      className="fixed inset-0 m-0 size-full max-h-none max-w-none bg-immersive p-0 text-fg-on-immersive backdrop:bg-immersive"
+      className="fixed inset-0 m-0 size-full max-h-none max-w-none bg-bg-immersive p-0 text-fg-on-immersive backdrop:bg-bg-immersive"
     >
       <div className="flex h-full flex-col">
         <div className="flex shrink-0 items-center justify-between pt-safe-top-or-3 pr-5 pl-2">
