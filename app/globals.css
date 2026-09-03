@@ -66,6 +66,9 @@
   --color-brand-tint: var(--color-red-10);
   --color-brand-fg: var(--color-red-600);
   --color-toast: var(--color-gray-800);
+  /* 사진 뷰어처럼 화면을 통째로 덮는 몰입 표면 */
+  --color-bg-immersive: var(--color-common-100);
+  --color-fg-on-immersive: var(--color-common-0);
 
   /* ===== Primitive / Typography — Figma 텍스트 스타일 1개 = 유틸 1개 ===== */
   --text-title-m-bold: 24px;

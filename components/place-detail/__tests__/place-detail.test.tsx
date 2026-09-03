@@ -170,6 +170,33 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     });
   });
 
+  it("사진을 누르면 뷰어가 열리고 그 장의 카운터·업로드 날짜가 보인다", () => {
+    renderDetail(nara({ photos: [photo(1), photo(2)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    fireEvent.click(within(strip).getByRole("button", { name: "나라수산 사진 2 크게 보기" }));
+
+    const viewer = screen.getByRole("dialog", { name: "나라수산 사진 크게 보기" });
+    // 누른 장에서 시작한다 — 2번째
+    expect(within(viewer).getByText("2 / 2")).toBeInTheDocument();
+    // 절대 날짜는 연도까지 (2026-08-30 = NOW - 2일)
+    expect(within(viewer).getByText("2026.08.30")).toBeInTheDocument();
+    expect(within(viewer).getAllByRole("img")).toHaveLength(2);
+
+    fireEvent.click(within(viewer).getByRole("button", { name: "사진 닫기" }));
+    expect(screen.queryByRole("dialog", { name: "나라수산 사진 크게 보기" })).toBeNull();
+  });
+
+  it("뷰어 사진이 깨지면 그 장만 문구로 대체된다", () => {
+    renderDetail(nara({ photos: [photo(1)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    fireEvent.click(within(strip).getByRole("button", { name: "나라수산 사진 1 크게 보기" }));
+
+    const viewer = screen.getByRole("dialog", { name: "나라수산 사진 크게 보기" });
+    fireEvent.error(within(viewer).getByRole("img"));
+    expect(within(viewer).getByText("사진을 불러오지 못했어요")).toBeInTheDocument();
+    expect(within(viewer).queryByRole("img")).toBeNull();
+  });
+
   it("naverPlaceUrl이 화이트리스트 밖이면 링크를 렌더하지 않는다", async () => {
     renderDetail(nara({ naverPlaceUrl: "https://evil.example/x" }));
     await waitFor(() => {

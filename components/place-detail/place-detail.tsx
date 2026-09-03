@@ -10,6 +10,7 @@ import { PlaceInfo } from "./info-rows";
 import { MenuList } from "./menu-list";
 import { NewPlaceBanner } from "./new-place-banner";
 import { PhotoArea } from "./photo-area";
+import { PhotoViewer } from "./photo-viewer";
 import { PlaceHeader } from "./place-header";
 import { ReviewSection } from "./review-section";
 import { SidesRow } from "./sides-row";
@@ -104,6 +105,15 @@ export function PlaceDetail({
       <SectionBand />
       {/* 9 */}
       <FooterLinks onSelect={d.comingSoon} />
+      {/* 변형 (e) — 전체 화면 사진 뷰어. body 포털이라 시트 밖(top layer)에 뜬다. */}
+      {d.photoIndex !== null && (
+        <PhotoViewer
+          photos={d.place.photos}
+          initialIndex={d.photoIndex}
+          placeName={d.place.name}
+          onClose={d.closePhoto}
+        />
+      )}
     </article>
   );
 }

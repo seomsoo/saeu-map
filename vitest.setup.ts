@@ -23,6 +23,16 @@ stub(Element.prototype, "setPointerCapture", () => {});
 stub(Element.prototype, "releasePointerCapture", () => {});
 stub(Element.prototype, "hasPointerCapture", () => false);
 
+// jsdom 30에는 <dialog>의 showModal/close가 없다 — top layer는 못 만들지만 open 상태와 close 이벤트는 흉내 낸다
+stub(HTMLDialogElement.prototype, "showModal", function (this: HTMLDialogElement) {
+  this.open = true;
+});
+stub(HTMLDialogElement.prototype, "close", function (this: HTMLDialogElement) {
+  if (!this.open) return;
+  this.open = false;
+  this.dispatchEvent(new Event("close"));
+});
+
 stub(
   globalThis,
   "ResizeObserver",
