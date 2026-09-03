@@ -57,14 +57,12 @@ export function PlaceDetail({
   });
   // 외부 링크는 화이트리스트 호스트만 (규칙 3의 링크판)
   const naverUrl = isAllowedNaverPlaceUrl(place.naverPlaceUrl) ? place.naverPlaceUrl : null;
-  const hasPhoto = place.photos.length > 0;
 
   return (
     <article aria-label={`${place.name} 상세`}>
       {/* 1 */}
       <PhotoArea
         place={d.place}
-        naverUrl={hasPhoto ? null : naverUrl}
         onUploadPhoto={d.comingSoon}
         onOpenPhoto={d.openPhoto}
       />
@@ -99,7 +97,7 @@ export function PlaceDetail({
       <ReviewSection
         status={d.status}
         reviews={d.reviews}
-        naverUrl={hasPhoto ? naverUrl : null}
+        naverUrl={naverUrl}
         onRetry={d.retryReviews}
       />
       <SectionBand />

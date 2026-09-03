@@ -95,13 +95,18 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     renderDetail(nara());
     const article = screen.getByRole("article", { name: "나라수산 상세" });
 
-    // 1. 사진 없음 → ＋ 타일 하나 + 그 옆 네이버 링크(사진이 있을 때와 같은 타일이다)
-    const upload = within(article).getByRole("button", { name: "사진 추가" });
+    // 1. 사진 없음 → 전폭 빈 상태 블록. 상태 한 줄 + 요청 한 줄이 그대로 접근 이름이다
+    const upload = within(article).getByRole("button", { name: /첫 새우를 올려주세요/ });
+    expect(upload).toHaveTextContent("아직 사진이 없어요");
+    // 네이버 링크는 사진 유무와 무관하게 리뷰 끝 한 자리 — 사진 블록 안에 겹쳐 두지 않는다
     const naverLink = within(article).getByRole("link", { name: /네이버에서 사진 보기/ });
     expect(naverLink).toHaveAttribute("target", "_blank");
     expect(naverLink).toHaveAttribute("rel", "noopener noreferrer");
-    // 두 표적은 겹치지 않는다 — 링크가 타일 안에 있으면 어느 쪽이 눌린 건지 알 수 없다
     expect(upload).not.toContainElement(naverLink);
+    const reviewsHeading = within(article).getByRole("heading", { level: 3, name: /리뷰/ });
+    expect(
+      reviewsHeading.compareDocumentPosition(naverLink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
     const title = within(article).getByRole("heading", { level: 2, name: "나라수산" });
@@ -152,7 +157,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     }
   });
 
-  it("사진이 있으면 상단에 사진, 네이버 링크는 리뷰 섹션 끝으로", async () => {
+  it("사진이 있으면 상단 스트립 + ＋ 타일, 빈 상태 블록은 없다", async () => {
     renderDetail(nara({ photos: [photo(1), photo(2)] }));
     const strip = screen.getByRole("list", { name: "나라수산 사진" });
     expect(within(strip).getAllByRole("button", { name: /크게 보기$/ })).toHaveLength(2);
@@ -160,6 +165,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     await waitFor(() => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
     });
+    expect(screen.queryByText("아직 사진이 없어요")).toBeNull();
     const link = screen.getByRole("link", { name: /네이버에서 사진 보기/ });
     const reviewsHeading = screen.getByRole("heading", { level: 3, name: /리뷰/ });
     expect(reviewsHeading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -365,8 +371,8 @@ describe("찜·복사·공유·준비 중 입구", () => {
     await waitFor(() => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
     });
-    const entries = [
-      "사진 추가",
+    const entries: (string | RegExp)[] = [
+      /첫 새우를 올려주세요/,
       "영업시간을 알려주세요",
       "대표 메뉴 수정",
       "사이드 수정",

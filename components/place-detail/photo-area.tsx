@@ -1,12 +1,9 @@
 import Image from "next/image";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Place } from "@/lib/types";
-import { NaverPhotoLink } from "./naver-photo-link";
 
 interface PhotoAreaProps {
   place: Place;
-  /** 사진이 없을 때 ＋ 타일 오른쪽에 놓을 네이버 링크(화이트리스트 통과분만). 사진이 있으면 리뷰 섹션 끝으로 간다. */
-  naverUrl: string | null;
   onUploadPhoto: () => void;
   /** 사진 탭 → 전체 화면 뷰어 (design 화면 2 변형 (e)) */
   onOpenPhoto: (index: number) => void;
@@ -44,19 +41,26 @@ function FullTile() {
  * 마지막 칸은 ＋ 타일이라 사진이 있어도 옆에 더 올리고, 10장이 차면 그 자리가 안내 타일로 바뀐다.
  * touch-pan-x: 시트 본문이 pan-y라 가로 스와이프가 시트 드래그로 새지 않게 스트립에서 명시한다.
  *
- * **사진이 없으면 그 ＋ 타일 하나만 남는다**(decisions 2026-09-03 재정정). 빈 상태를 위한 별도 문법을
- * 만들지 않는다 — 사진 추가는 사진이 있든 없든 같은 타일이고, 표적은 타일 하나뿐이라 겹치지 않는다.
- * 네이버 링크는 타일 옆에 형제로 둔다(타일 안에 넣으면 어느 쪽이 눌린 건지 알 수 없다).
+ * **사진이 없으면 전폭 빈 상태 블록**(같은 높이 128, decisions 2026-09-03 3차). 176 타일 하나만 두면
+ * 오른쪽에 담기지 않은 흰 공간이 남아 미완성으로 읽힌다 — 표적이 하나뿐이니 폭을 다 쓴다.
+ * 카피가 두 줄인 이유: 여기는 버튼 라벨이 아니라 빈 상태다. 상태 한 줄 + 요청 한 줄이 그 문법이고,
+ * 스트립 안 ＋ 타일은 그대로 액션 라벨("사진 추가")을 쓴다. 네이버 링크는 사진 유무와 무관하게 리뷰 끝.
  */
-export function PhotoArea({ place, naverUrl, onUploadPhoto, onOpenPhoto }: PhotoAreaProps) {
+export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps) {
   if (place.photos.length === 0) {
     return (
-      <div className="flex items-center gap-3 px-5 pt-1 pb-3">
-        <button type="button" onClick={onUploadPhoto} className="press block" aria-label="사진 추가">
-          <AddTile />
+      <div className="px-5 pt-1 pb-3">
+        {/* 접근 이름은 보이는 두 줄 그대로 — aria-label로 덮으면 읽는 말과 보이는 말이 달라진다 */}
+        <button
+          type="button"
+          onClick={onUploadPhoto}
+          className="press flex h-32 w-full flex-col items-center justify-center rounded-12 bg-bg-sunken"
+        >
+          {/* 아이콘은 떼고(8) 두 줄은 붙인다(2) — 상태와 요청은 한 덩어리다 */}
+          <span className="icon-[ci--add-plus] mb-2 size-6 text-fg-tertiary" aria-hidden="true" />
+          <span className="text-body-m-medium text-fg">아직 사진이 없어요</span>
+          <span className="mt-0.5 text-caption-l-regular text-fg-tertiary">첫 새우를 올려주세요</span>
         </button>
-        {/* 320에선 두 줄이 된다 — keep-all이 없으면 "네이버에서 사/진 보기"로 단어 중간이 끊긴다 */}
-        {naverUrl && <NaverPhotoLink href={naverUrl} className="break-keep" />}
       </div>
     );
   }
