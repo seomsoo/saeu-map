@@ -176,8 +176,10 @@ describe("reportPhoto — 목 쓰기", () => {
   it("실패: 10% 확률에 걸리면 reject (컴포넌트가 토스트로 되돌린다)", async () => {
     vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
     const promise = reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "spam" });
+    // 핸들러를 타이머 진행 전에 붙인다 — 안 그러면 reject 시점에 unhandled rejection으로 잡힌다
+    const assertion = expect(promise).rejects.toThrow();
     await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
-    await expect(promise).rejects.toThrow();
+    await assertion;
   });
 
   it("검증: 빈 id·모르는 사유는 거부하고 지연도 타지 않는다", async () => {
