@@ -95,12 +95,12 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     renderDetail(nara());
     const article = screen.getByRole("article", { name: "나라수산 상세" });
 
-    // 1. 사진 없음 → 올리기 행 + 그 아래 네이버 링크
-    const upload = within(article).getByRole("button", { name: "첫 사진을 올려주세요" });
+    // 1. 사진 없음 → ＋ 타일 하나 + 그 옆 네이버 링크(사진이 있을 때와 같은 타일이다)
+    const upload = within(article).getByRole("button", { name: "사진 추가" });
     const naverLink = within(article).getByRole("link", { name: /네이버에서 사진 보기/ });
     expect(naverLink).toHaveAttribute("target", "_blank");
     expect(naverLink).toHaveAttribute("rel", "noopener noreferrer");
-    // 두 표적은 겹치지 않는다 — 링크가 올리기 행 안에 있으면 어느 쪽이 눌린 건지 알 수 없다
+    // 두 표적은 겹치지 않는다 — 링크가 타일 안에 있으면 어느 쪽이 눌린 건지 알 수 없다
     expect(upload).not.toContainElement(naverLink);
 
     // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
@@ -157,7 +157,6 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     const strip = screen.getByRole("list", { name: "나라수산 사진" });
     expect(within(strip).getAllByRole("button", { name: /크게 보기$/ })).toHaveLength(2);
     expect(within(strip).getByRole("button", { name: "사진 추가" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "첫 사진을 올려주세요" })).toBeNull();
     await waitFor(() => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
     });
@@ -367,7 +366,7 @@ describe("찜·복사·공유·준비 중 입구", () => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
     });
     const entries = [
-      "첫 사진을 올려주세요",
+      "사진 추가",
       "영업시간을 알려주세요",
       "대표 메뉴 수정",
       "사이드 수정",

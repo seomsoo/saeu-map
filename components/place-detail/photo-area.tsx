@@ -5,7 +5,7 @@ import { NaverPhotoLink } from "./naver-photo-link";
 
 interface PhotoAreaProps {
   place: Place;
-  /** 사진이 없을 때 올리기 행 **아래**에 붙는 네이버 링크(화이트리스트 통과분만). 사진이 있으면 리뷰 섹션 끝으로 간다. */
+  /** 사진이 없을 때 ＋ 타일 오른쪽에 놓을 네이버 링크(화이트리스트 통과분만). 사진이 있으면 리뷰 섹션 끝으로 간다. */
   naverUrl: string | null;
   onUploadPhoto: () => void;
   /** 사진 탭 → 전체 화면 뷰어 (design 화면 2 변형 (e)) */
@@ -23,7 +23,7 @@ function AddTile() {
       className={`${PHOTO_TILE} flex flex-col items-center justify-center gap-1 text-fg-tertiary`}
     >
       <span className="icon-[ci--add-plus] size-6" />
-      <span className="text-caption-l-medium">사진</span>
+      <span className="text-caption-l-medium">사진 추가</span>
     </span>
   );
 }
@@ -44,28 +44,19 @@ function FullTile() {
  * 마지막 칸은 ＋ 타일이라 사진이 있어도 옆에 더 올리고, 10장이 차면 그 자리가 안내 타일로 바뀐다.
  * touch-pan-x: 시트 본문이 pan-y라 가로 스와이프가 시트 드래그로 새지 않게 스트립에서 명시한다.
  *
- * **사진이 없으면 스트립 자리를 비우지 않고 56px 한 줄로 줄인다**(decisions 2026-09-03). 목 50곳 중 47곳이
- * 무사진이라 이 상태가 기본값이다 — 기본값에 128px 회색 타일을 두면 시트 맨 위가 늘 빈 상자다.
- * 올리기(행 전체)와 네이버 보기(아래 캡션 링크)를 겹치지 않는 두 표적으로 떼어 놓는다: 한 행 안에
- * 두 액션이 겹쳐 있으면 오른쪽 chevron이 어느 쪽을 가리키는지 알 수 없다.
+ * **사진이 없으면 그 ＋ 타일 하나만 남는다**(decisions 2026-09-03 재정정). 빈 상태를 위한 별도 문법을
+ * 만들지 않는다 — 사진 추가는 사진이 있든 없든 같은 타일이고, 표적은 타일 하나뿐이라 겹치지 않는다.
+ * 네이버 링크는 타일 옆에 형제로 둔다(타일 안에 넣으면 어느 쪽이 눌린 건지 알 수 없다).
  */
 export function PhotoArea({ place, naverUrl, onUploadPhoto, onOpenPhoto }: PhotoAreaProps) {
   if (place.photos.length === 0) {
     return (
-      <div className="px-5 pt-1 pb-3">
-        <button
-          type="button"
-          onClick={onUploadPhoto}
-          className="press flex h-14 w-full items-center gap-2.5 rounded-12 bg-bg-sunken px-4 text-left"
-        >
-          <span className="icon-[ci--camera] size-5 shrink-0 text-fg-tertiary" aria-hidden="true" />
-          <span className="min-w-0 flex-1 text-body-m-medium text-fg">첫 사진을 올려주세요</span>
-          <span
-            className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder"
-            aria-hidden="true"
-          />
+      <div className="flex items-center gap-3 px-5 pt-1 pb-3">
+        <button type="button" onClick={onUploadPhoto} className="press block" aria-label="사진 추가">
+          <AddTile />
         </button>
-        {naverUrl && <NaverPhotoLink href={naverUrl} className="mt-2" />}
+        {/* 320에선 두 줄이 된다 — keep-all이 없으면 "네이버에서 사/진 보기"로 단어 중간이 끊긴다 */}
+        {naverUrl && <NaverPhotoLink href={naverUrl} className="break-keep" />}
       </div>
     );
   }
