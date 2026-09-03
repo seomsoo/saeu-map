@@ -69,6 +69,9 @@
   /* 사진 뷰어처럼 화면을 통째로 덮는 몰입 표면 */
   --color-bg-immersive: var(--color-common-100);
   --color-fg-on-immersive: var(--color-common-0);
+  /* 몰입 표면 위의 컨트롤·보조 글자 — 사진이 밝아도 검은 배경에 묻히지 않는다 */
+  --color-bg-immersive-raised: var(--color-gray-800);
+  --color-fg-on-immersive-secondary: var(--color-gray-400);
 
   /* ===== Primitive / Typography — Figma 텍스트 스타일 1개 = 유틸 1개 ===== */
   --text-title-m-bold: 24px;

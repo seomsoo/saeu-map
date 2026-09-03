@@ -109,16 +109,20 @@ export function PhotoViewer({
       className="fixed inset-0 m-0 size-full max-h-none max-w-none bg-bg-immersive p-0 text-fg-on-immersive backdrop:bg-bg-immersive"
     >
       <div className="flex h-full flex-col">
-        <div className="flex shrink-0 items-center justify-between pt-safe-top-or-3 pr-5 pl-2">
+        {/* 컨트롤은 전부 raised 알약 위에 올린다 — 흰 사진이 뒤에 오면 맨 흰 아이콘은 사라진다 */}
+        <div className="flex shrink-0 items-center justify-between gap-3 px-3 pt-safe-top-or-3">
           <button
             type="button"
             onClick={requestClose}
             aria-label="사진 닫기"
-            className="press flex size-11 items-center justify-center"
+            className="press flex size-11 items-center justify-center rounded-max bg-bg-immersive-raised"
           >
-            <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
+            <span className="icon-[ci--close-md] size-6" aria-hidden="true" />
           </button>
-          <p aria-live="polite" className="text-caption-l-regular tabular-nums">
+          <p
+            aria-live="polite"
+            className="inline-flex h-8 items-center rounded-max bg-bg-immersive-raised px-3 text-caption-l-medium tabular-nums"
+          >
             {index + 1} / {photos.length}
           </p>
         </div>
@@ -155,15 +159,19 @@ export function PhotoViewer({
         </ul>
 
         {/* 좋아요·공유는 두지 않는다 — 크게 보기와 잘못된 사진 걸러내기 둘뿐인 화면 */}
-        <div className="flex shrink-0 items-center justify-between px-5 pt-3 pb-safe-bottom-or-3">
-          <p className="text-caption-l-regular tabular-nums">{formatKstDate(current.uploadedAt)}</p>
+        <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-3 pb-safe-bottom-or-3">
+          <p className="text-body-m-medium tabular-nums">
+            {formatKstDate(current.uploadedAt)}
+            <span className="text-body-m-regular text-fg-on-immersive-secondary"> 등록</span>
+          </p>
           <button
             type="button"
             onClick={() => {
               setReportOpen(true);
             }}
-            className="press text-caption-l-regular"
+            className="press flex h-11 shrink-0 items-center gap-1.5 rounded-max bg-bg-immersive-raised px-4 text-body-m-medium"
           >
+            <span className="icon-[ci--flag] size-4" aria-hidden="true" />
             신고
           </button>
         </div>

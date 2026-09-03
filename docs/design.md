@@ -50,6 +50,7 @@
 | | fg · fg-secondary · fg-tertiary · fg-placeholder · fg-on-brand | gray-900 · gray-600 · gray-500 · gray-400 · common-0 | 글자 |
 | | line · line-hairline · line-strong | gray-200 · gray-100 · gray-300 | 칩 보더 · 구분선/핸들 · 강조 보더 |
 | | bg-immersive · fg-on-immersive | common-100 · common-0 | 사진 뷰어 몰입 표면 · 그 위 글자 |
+| | bg-immersive-raised · fg-on-immersive-secondary | gray-800 · gray-400 | 몰입 표면 위 컨트롤(닫기·카운터·신고) · 그 위 보조 글자 |
 | | brand · brand-tint · brand-fg · toast | red-500 · red-10 · red-600 · gray-800 | 주 버튼/클러스터 · 활성 칩 배경 · 틴트 위 글자 · 토스트 |
 | Typography | title-m-bold · title-s-semibold | 24/700 · 20/600 | 행간 1.4 · 자간 -2% 공통 |
 | | body-l-{semibold,medium,regular} · body-m-{semibold,medium,regular} | 16 · 14 | |
@@ -125,9 +126,9 @@
 - (c) 리뷰 3개 이상 — 8번 제목 행 오른쪽 "★ 4.7", 리뷰 3개.
 - (d) 상태 — 로딩: 상호·카테고리·확인 캡션 / 정보 블록 / 버튼 줄 자리 스켈레톤(사진은 있을지 알 수 없으니 자리 없음). 에러: 가게 자체는 목록에서 이미 있으므로 추가 로드(리뷰)만 실패할 수 있다 → 8번 자리에 "리뷰를 불러오지 못했어요" + [다시 시도](공용 ErrorState). 없음(잘못된 링크): "가게를 찾을 수 없어요" + [지도로 돌아가기]. 빈 상태는 섹션별(1·3·5·8)로 위에 정의.
 - (e) **사진 뷰어(전체 화면)** — 스트립 사진을 탭하면 열린다. 시트·드롭다운·토스트 위에 얹히는 별도 표면이라 브라우저 top layer(네이티브 `<dialog>` + `showModal()`)를 쓴다. 배경 bg-immersive, 글자 fg-on-immersive.
-  - 상단(safe-area + 12): 왼쪽 닫기 ✕(44px 탭 영역), 오른쪽 카운터 "2 / 7"(12, tabular).
+  - 상단(safe-area, 좌우 12): 왼쪽 닫기 ✕(44px 원), 오른쪽 카운터 "2 / 7"(32px 알약, 12 medium tabular). **컨트롤은 전부 bg-immersive-raised 위에 얹는다** — 흰 접시 사진이 뒤에 오면 맨 흰 아이콘·글자는 그대로 사라진다.
   - 가운데: 한 장이 화면에 꽉 차게 `object-contain` — 스트립은 crop(cover), 뷰어는 원본 비율이다. 좌우 스와이프로 넘긴다(CSS scroll-snap, 한 장 = 한 화면). 로딩 중에는 빈 어두운 자리, 실패하면 그 장에 "사진을 불러오지 못했어요"(14).
-  - 하단(safe-area + 12): 왼쪽 업로드 날짜 "2026.09.03"(12, tabular), 오른쪽 [신고](12 텍스트 버튼). 좋아요·공유 같은 다른 액션은 두지 않는다 — 이 화면의 목적은 크게 보는 것과 잘못된 사진을 걸러내는 것 둘뿐이다.
+  - 하단(safe-area + 12, 좌우 20): 왼쪽 "2026.09.03"(14 medium tabular) + " 등록"(14 regular, fg-on-immersive-secondary) — 날짜만 떠 있으면 무슨 날짜인지 알 수 없다. 오른쪽 [⚑ 신고](44px 알약, bg-immersive-raised, 아이콘 16 + 14 medium). 좋아요·공유 같은 다른 액션은 두지 않는다 — 이 화면의 목적은 크게 보는 것과 잘못된 사진을 걸러내는 것 둘뿐이다.
   - 안드로이드 뒤로가기 1회 = 뷰어만 닫히고 시트는 있던 자리·스크롤 그대로. Escape·닫기 ✕도 같다.
   - **신고 시트** — [신고]를 누르면 뷰어 하단에서 사유 패널이 올라온다: 전체 폭 44px 행 4개 [부적절한 사진] [다른 가게 사진] [광고·도배] [기타], 행 사이 헤어라인. **탭이 곧 제출**이라 확인 버튼이 없다(고르고도 안 낸 상태를 만들지 않는다). 접수 중에는 누른 행이 "접수 중…"으로 비활성. 성공하면 뷰어가 닫히며 토스트 "신고를 접수했어요", 실패하면 **뷰어 안에** 토스트 "신고를 접수하지 못했어요"가 뜨고 패널은 그대로다(다시 탭이 재시도 — 뷰어를 닫아 버리면 무엇이 실패했는지 사라진다).
 

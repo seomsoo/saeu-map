@@ -185,7 +185,8 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     // 누른 장에서 시작한다 — 2번째
     expect(within(viewer).getByText("2 / 2")).toBeInTheDocument();
     // 절대 날짜는 연도까지 (2026-08-30 = NOW - 2일)
-    expect(within(viewer).getByText("2026.08.30")).toBeInTheDocument();
+    // getByText는 직계 텍스트 노드만 본다 — 회색 " 등록"은 자식 span이라 toHaveTextContent로 함께 본다
+    expect(within(viewer).getByText("2026.08.30")).toHaveTextContent("2026.08.30 등록");
     expect(within(viewer).getAllByRole("img")).toHaveLength(2);
 
     fireEvent.click(within(viewer).getByRole("button", { name: "사진 닫기" }));
