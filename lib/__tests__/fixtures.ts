@@ -13,6 +13,7 @@ export function makePlace(overrides: Partial<Place> = {}): Place {
     addressJibun: "서울 마포구 도화동 1-1",
     lat: 37.54,
     lng: 126.95,
+    nearestStation: null,
     tags: ["grill"],
     specialist: true,
     naverPlaceUrl: null,

@@ -3,6 +3,7 @@ import {
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
   MOCK_WRITE_DELAY_MS,
+  STATION_NEARBY_MAX_M,
   checkIn,
   getBookmarkedPlaceIds,
   getCheckins,
@@ -61,6 +62,20 @@ describe("getPlaces", () => {
 
   it("getPlaceById: 없는 id는 undefined", async () => {
     expect(await getPlaceById("nonexistent")).toBeUndefined();
+  });
+
+  // 특정 id에 묶지 않는다 — 역 데이터를 재생성해도 성질은 그대로여야 한다.
+  it("최근접역은 STATION_NEARBY_MAX_M 안이거나 null", async () => {
+    const places = await getPlaces({}, NOWS[0]);
+    for (const p of places) {
+      if (p.nearestStation === null) continue;
+      expect(p.nearestStation.distanceM).toBeLessThanOrEqual(STATION_NEARBY_MAX_M);
+      expect(p.nearestStation.name).toMatch(/역$/);
+      expect(p.nearestStation.lines.length).toBeGreaterThan(0);
+    }
+    // 두 분기가 목에 다 있어야 상세의 폴백이 실제로 검증된다
+    expect(places.some((p) => p.nearestStation !== null)).toBe(true);
+    expect(places.some((p) => p.nearestStation === null)).toBe(true);
   });
 });
 

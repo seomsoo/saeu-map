@@ -23,6 +23,21 @@ export interface Photo {
   uploadedAt: string;
 }
 
+/**
+ * 가장 가까운 지하철역 (OSM에서 시드 시점에 구움 — scripts/add_nearest_station.py).
+ * 거리는 역 중심이 아니라 **가장 가까운 출구까지의 직선거리**다(중앙값 53m 짧다).
+ * 도보 경로가 아니므로 실제로 걷는 거리는 이보다 길다 — 표시는 10m 반올림.
+ */
+export interface NearestStation {
+  /** "가락시장역" — 접미사 "역"까지 포함한 표시 이름. */
+  name: string;
+  /** "2" · "2-1". 출구 데이터가 없으면 null이고 이때 distanceM은 역 중심까지다. */
+  exit: string | null;
+  distanceM: number;
+  /** 배지로 그릴 수 있는 건 숫자 호선뿐. 숫자가 없으면 ["수인·분당"]처럼 이름이 들어온다. */
+  lines: string[];
+}
+
 export interface Place {
   id: string;
   name: string;
@@ -31,6 +46,8 @@ export interface Place {
   addressJibun: string | null;
   lat: number;
   lng: number;
+  /** STATION_NEARBY_MAX_M 밖이면 null — 상세는 그 줄을 안 그리고 주소만 보여준다. */
+  nearestStation: NearestStation | null;
   tags: PlaceTag[];
   specialist: boolean;
   naverPlaceUrl: string | null;

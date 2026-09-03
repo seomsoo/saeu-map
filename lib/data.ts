@@ -10,6 +10,7 @@ import { z } from "zod";
 import type {
   Checkin,
   EventCard,
+  NearestStation,
   Photo,
   Place,
   PlaceDetail,
@@ -42,6 +43,14 @@ import eventCardJson from "./mock/event-card.json";
  */
 export const MAX_PLACE_PHOTOS = 10;
 
+/**
+ * 이 거리(출구에서 직선 m) 밖이면 "역 근처"로 치지 않고 상세에서 역 줄을 지운다.
+ * 800m ≈ 실제 도보 1km 남짓 — "역에서 걸어간다"의 실질 상한이다(목 47/50).
+ * 임계값은 데이터가 아니라 코드가 갖는다: JSON에는 사실(역·미터·노선)만 굽혀 있어
+ * 값을 바꿔도 재생성이 필요 없다.
+ */
+export const STATION_NEARBY_MAX_M = 800;
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 목 전용 — Supabase 교체 시 이 블록 전체 삭제
  *
@@ -53,8 +62,15 @@ export const MAX_PLACE_PHOTOS = 10;
 
 type RawPlace = Omit<
   Place,
-  "isNew" | "lastCheckedAt" | "createdAt" | "photos" | "thumbnailUrl" | "hoursNote"
+  | "isNew"
+  | "lastCheckedAt"
+  | "createdAt"
+  | "photos"
+  | "thumbnailUrl"
+  | "hoursNote"
+  | "nearestStation"
 > & {
+  nearestStation: NearestStation; // 컷 전이라 항상 있다 — 파생에서 800m로 자른다
   isNew: boolean;
   lastCheckedAt: string; // "YYYY-MM-DD"
   createdAt?: string; // "YYYY-MM-DD"
@@ -92,7 +108,7 @@ function dataset(now: DateInput): Dataset {
 
   const places: Place[] = rawPlaces
     .filter((p) => !p.needsReview) // 검수 대기(새우 메뉴 파싱 실패)는 숨김 — 플랜 결정 4
-    .map(({ photos: rawPhotos, hoursNote, ...raw }) => {
+    .map(({ photos: rawPhotos, hoursNote, nearestStation, ...raw }) => {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
       // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 그 장만 버린다)
       const photos: Photo[] = (rawPhotos ?? [])
@@ -108,6 +124,9 @@ function dataset(now: DateInput): Dataset {
         photos,
         thumbnailUrl: photos[0]?.url ?? null,
         hoursNote: hoursNote ?? null,
+        // 먼 역은 도움이 안 된다 — 그 줄을 지워 상세가 주소만 보여주게 한다
+        nearestStation:
+          nearestStation.distanceM <= STATION_NEARBY_MAX_M ? nearestStation : null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),
         // 신규 라벨은 JSON의 정적 플래그가 아니라 등록 7일 이내로 파생 (spec 5)
