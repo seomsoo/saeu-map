@@ -5,6 +5,7 @@ import {
   neighborSnap,
   nextSnapOnTap,
   resolveRelease,
+  sheetSnaps,
   sheetVisiblePx,
 } from "../bottom-sheet";
 
@@ -300,5 +301,76 @@ describe("BottomSheet 상세 모드", () => {
     fireEvent.pointerUp(button, { pointerId: 7, clientY: 500 });
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("제보 모드 스냅 계산 (design 화면 3: 요약 40% 최소 330, 전체 92%, 닫힘 없음)", () => {
+  it("sheetSnaps·sheetVisiblePx: half/full 두 단계, 요약은 40%지만 330 아래로는 안 내려간다", () => {
+    expect(sheetSnaps("report")).toEqual(["half", "full"]);
+    expect(sheetVisiblePx("half", 844, "report")).toBe(338);
+    expect(sheetVisiblePx("half", 568, "report")).toBe(330);
+    expect(sheetVisiblePx("full", 844, "report")).toBe(776);
+  });
+
+  it("탭·플링은 half ↔ full 두 단계", () => {
+    expect(nextSnapOnTap("half", 844, "report")).toBe("full");
+    expect(nextSnapOnTap("full", 844, "report")).toBe("half");
+    expect(neighborSnap("half", "up", 844, "report")).toBe("full");
+    expect(neighborSnap("full", "down", 844, "report")).toBe("half");
+  });
+
+  it("resolveRelease: 아래로 튕기거나 요약보다 한참 아래 놓아도 닫히지 않고 요약에 머문다", () => {
+    const halfPx = sheetVisiblePx("half", 844, "report");
+    expect(
+      resolveRelease({ mode: "report", snap: "half", visible: halfPx - 30, velocity: 1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "half" });
+    expect(
+      resolveRelease({ mode: "report", snap: "full", visible: halfPx - 200, velocity: 0, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "half" });
+    expect(
+      resolveRelease({ mode: "report", snap: "half", visible: halfPx + 200, velocity: -1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "full" });
+  });
+});
+
+describe("BottomSheet 제보 모드", () => {
+  function renderReport(snap: "half" | "full") {
+    const onSnapChange = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <BottomSheet
+        mode="report"
+        snap={snap}
+        onSnapChange={onSnapChange}
+        onDismiss={onDismiss}
+        header={<span>헤더</span>}
+        handleLabel="제보 크기 조절"
+        dismissLabel="제보 그만두기"
+        label="가게 제보"
+      >
+        <p>패널</p>
+      </BottomSheet>,
+    );
+    const body = screen.getByText("패널").parentElement;
+    if (!body) throw new Error("body expected");
+    return { onSnapChange, onDismiss, body };
+  }
+
+  it("목록 헤더 없이 핸들 + ✕, data-mode=report, ✕가 onDismiss를 부른다", () => {
+    const { onDismiss } = renderReport("full");
+    expect(screen.queryByText("헤더")).toBeNull();
+    expect(screen.getByRole("region", { name: "가게 제보" })).toHaveAttribute("data-mode", "report");
+    expect(screen.getByRole("button", { name: "제보 크기 조절" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "제보 그만두기" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("본문 드래그는 없다 — 입력 폼이라 본문에서 끌어도 스냅이 안 바뀌고 닫히지도 않는다", () => {
+    const { onSnapChange, onDismiss, body } = renderReport("half");
+    fireEvent.pointerDown(body, { pointerId: 1, button: 0, clientY: 400 });
+    fireEvent.pointerMove(body, { pointerId: 1, clientY: 700 });
+    fireEvent.pointerUp(body, { pointerId: 1, clientY: 700 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 });

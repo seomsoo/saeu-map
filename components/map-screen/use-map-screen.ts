@@ -136,7 +136,8 @@ export function useMapScreen({
     () => (detailId ? (places.find((p) => p.id === detailId) ?? null) : null),
     [places, detailId],
   );
-  const mode: SheetMode = detailPlace ? "detail" : "list";
+  // 선언 타입이 SheetMode여도 대입 시 "list" | "detail"로 좁혀져 호출부가 "report"와 비교하지 못한다 — 넓혀 둔다
+  const mode = (detailPlace ? "detail" : "list") as SheetMode;
 
   // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
   const index = useMemo(

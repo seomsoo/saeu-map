@@ -108,24 +108,29 @@ export default function MapScreen({
         )}
       </div>
 
-      {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다 */}
+      {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
+          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3) */}
       <div
         ref={topStackRef}
         className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto"
       >
-        <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
-          <SearchBar
-            value={s.query}
-            onChange={s.setQuery}
-            onClear={s.clearQuery}
-            onSubmit={s.submitSearch}
-          />
-        </div>
-        {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
-          <CategoryDropdown tab={s.tab} onChange={s.setTab} />
-          <FilterChips chips={s.chips} onToggle={s.toggleChip} />
-        </div>
+        {s.mode !== "report" && (
+          <>
+            <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
+              <SearchBar
+                value={s.query}
+                onChange={s.setQuery}
+                onClear={s.clearQuery}
+                onSubmit={s.submitSearch}
+              />
+            </div>
+            {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
+              <CategoryDropdown tab={s.tab} onChange={s.setTab} />
+              <FilterChips chips={s.chips} onToggle={s.toggleChip} />
+            </div>
+          </>
+        )}
         <Toast message={s.notice} />
       </div>
 

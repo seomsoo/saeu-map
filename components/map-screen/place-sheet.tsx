@@ -37,16 +37,20 @@ interface PlaceSheetProps {
   selectedId: string | null;
   sort: SortKey;
   snap: SheetSnap;
-  /** list = 목록 / detail = 상세(화면 2). 목록 본문은 상세 동안 hidden으로 유지된다(스크롤·스냅 복원). */
+  /** list = 목록 / detail = 상세(화면 2) / report = 제보(화면 3). 목록 본문은 그동안 hidden으로 유지된다(스크롤·스냅 복원). */
   mode: SheetMode;
   /** 상세 본문 (mode === "detail"일 때) */
   detail: ReactNode;
+  /** 제보 패널 (mode === "report"일 때) */
+  report?: ReactNode;
   emptyKind: EmptyKind;
   /** 시트 가장자리 위에 얹히는 FAB 줄 (상세 동안은 없음) */
   aside: ReactNode;
   onSortChange: (sort: SortKey) => void;
   onSnapChange: (snap: SheetSnap) => void;
   onDismissDetail: () => void;
+  /** 제보 헤더 ✕ (제보 그만두기, 확인 없음) */
+  onDismissReport?: (() => void) | undefined;
   onSelect: (id: string) => void;
   onDismissEvent: () => void;
   onClearChips: () => void;
@@ -92,7 +96,7 @@ function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => 
 
 /**
  * 4~7. 바텀시트 — 핸들 / 제목 "지역 N곳" + 정렬 트리거 / 캡션 시즌 카운터 / 이벤트 배너 / 카드 리스트(4상태).
- * 상세 모드에선 같은 시트의 내용만 화면 2로 바뀐다 (헤더는 핸들만).
+ * 상세·제보 모드에선 같은 시트의 내용만 화면 2·3으로 바뀐다 (헤더는 핸들 + ✕).
  */
 export function PlaceSheet({
   status,
@@ -108,11 +112,13 @@ export function PlaceSheet({
   snap,
   mode,
   detail,
+  report,
   emptyKind,
   aside,
   onSortChange,
   onSnapChange,
   onDismissDetail,
+  onDismissReport,
   onSelect,
   onDismissEvent,
   onClearChips,
@@ -120,6 +126,8 @@ export function PlaceSheet({
   onRetry,
 }: PlaceSheetProps) {
   const isDetail = mode === "detail";
+  const isReport = mode === "report";
+  const panel = isDetail || isReport;
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
@@ -148,16 +156,17 @@ export function PlaceSheet({
       mode={mode}
       snap={snap}
       onSnapChange={onSnapChange}
-      onDismiss={onDismissDetail}
+      onDismiss={isReport ? onDismissReport : onDismissDetail}
       header={header}
       aside={aside}
-      label={isDetail ? "가게 상세" : "가게 목록"}
-      handleLabel={isDetail ? "상세 크기 조절" : "목록 크기 조절"}
-      dismissLabel="상세 닫기"
+      label={isReport ? "가게 제보" : isDetail ? "가게 상세" : "가게 목록"}
+      handleLabel={isReport ? "제보 크기 조절" : isDetail ? "상세 크기 조절" : "목록 크기 조절"}
+      dismissLabel={isReport ? "제보 그만두기" : "상세 닫기"}
     >
       {isDetail && detail}
+      {isReport && report}
 
-      <div hidden={isDetail}>
+      <div hidden={panel}>
         {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
 
         {status === "loading" && (

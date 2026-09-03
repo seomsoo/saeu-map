@@ -316,6 +316,8 @@ body {
    써야 스켈레톤 → 실제 시트에서 높이가 튀지 않는다. */
 :root {
   --sheet-detail-half: max(30dvh, 270px);
+  /* 제보 2단계 요약(핀 맞추는 동안). 상세보다 높다 — ‹ 줄·제목·캡션·주소 입력·CTA가 스크롤 없이 들어가야 한다 */
+  --sheet-report-half: max(40dvh, 330px);
 }
 .saeu-detail-summary-h {
   height: var(--sheet-detail-half);
@@ -368,6 +370,11 @@ body {
    낮은 뷰포트에서도 접지 않음). 특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
 .saeu-sheet[data-mode="detail"] {
   --sheet-half: var(--sheet-detail-half);
+  --sheet-header-h: 44px;
+}
+/* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다 */
+.saeu-sheet[data-mode="report"] {
+  --sheet-half: var(--sheet-report-half);
   --sheet-header-h: 44px;
 }
 /* 상세 본문은 스냅과 무관하게 스크롤 컨테이너로 둔다 — 요약에서 잠가 버리면 휠·키보드 사용자가
