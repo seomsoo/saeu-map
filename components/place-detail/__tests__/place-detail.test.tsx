@@ -424,3 +424,46 @@ describe("리뷰 — 3개 이상일 때만 평균 별점, 로딩·에러·재시
     expect(data.getPlaceDetail).toHaveBeenLastCalledWith("nara", NOW);
   });
 });
+
+describe("사진 뷰어 — 뒤로가기 1회 = 뷰어만 닫기", () => {
+  const spies = { pushState: vi.fn(), back: vi.fn() };
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/place/nara");
+    spies.pushState = vi.spyOn(window.history, "pushState");
+    spies.back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  const openViewer = () => {
+    renderDetail(nara({ photos: [photo(1)] }));
+    fireEvent.click(screen.getByRole("button", { name: "나라수산 사진 1 크게 보기" }));
+    return screen.getByRole("dialog", { name: "나라수산 사진 크게 보기" });
+  };
+
+  it("열면 URL은 그대로 두고 엔트리만 쌓는다", () => {
+    openViewer();
+    expect(spies.pushState).toHaveBeenCalledWith(
+      { saeuDetail: true, saeuPhoto: true },
+      "",
+      "/place/nara",
+    );
+  });
+
+  it("✕로 닫으면 쌓은 엔트리를 되돌린다", () => {
+    const viewer = openViewer();
+    fireEvent.click(within(viewer).getByRole("button", { name: "사진 닫기" }));
+    expect(spies.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("뒤로가기로 닫히면 back을 다시 부르지 않는다 (상세까지 닫히면 안 된다)", () => {
+    openViewer();
+    // 브라우저가 우리 엔트리를 빼고 popstate를 낸 상태 — 경로는 그대로
+    window.history.replaceState({ saeuDetail: true }, "", "/place/nara");
+    fireEvent.popState(window, { state: { saeuDetail: true } });
+    expect(screen.queryByRole("dialog", { name: "나라수산 사진 크게 보기" })).toBeNull();
+    expect(spies.back).not.toHaveBeenCalled();
+  });
+});

@@ -13,6 +13,7 @@ import type { MapHandle } from "@/components/map/map-view";
 import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { toggleBookmark as requestToggleBookmark } from "@/lib/data";
+import { isDetailHistoryState, type SaeuHistoryState } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
 import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
 import type {
@@ -40,15 +41,6 @@ export type MapStatus = "loading" | "ready" | "error";
 export type MapErrorReason = "runtime" | "config";
 /** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) */
 export type EmptyKind = "area" | "bookmarks" | "filter";
-
-/** 우리가 pushState로 만든 히스토리 엔트리 표식 — Next가 자기 상태(__NA·tree)를 이 객체에 덧붙여 보존한다 */
-interface DetailHistoryState {
-  saeuDetail: true;
-}
-
-function isDetailHistoryState(state: unknown): state is DetailHistoryState {
-  return typeof state === "object" && state !== null && "saeuDetail" in state;
-}
 
 export function placeIdFromPath(pathname: string): string | null {
   const match = PLACE_PATH.exec(pathname);
@@ -256,6 +248,9 @@ export function useMapScreen({
     (id: string, source: "card" | "marker" | "history") => {
       const place = places.find((p) => p.id === id);
       if (!place) return;
+      // 이미 열려 있는 그 가게면 아무것도 하지 않는다. 사진 뷰어가 URL 그대로 엔트리를 쌓으므로
+      // 뷰어를 닫는 popstate가 여기까지 오는데, 그때 setSnap("half")가 돌면 펼쳐 둔 시트가 요약으로 튄다.
+      if (detailId === id) return;
       setSelectedId(id);
       const switching = detailId !== null; // 상세가 열린 채 다른 마커를 탭
       if (!switching) listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억
@@ -263,7 +258,7 @@ export function useMapScreen({
       setSnap("half");
       if (source !== "history") {
         // 이벤트 핸들러 안에서만 호출 — Next의 History 패치가 상태(__NA·tree)를 덧붙여 popstate가 클라이언트에서 처리된다
-        const state: DetailHistoryState = { saeuDetail: true };
+        const state: SaeuHistoryState = { saeuDetail: true };
         const url = `/place/${encodeURIComponent(id)}`;
         if (switching) {
           // 상세 → 다른 상세는 엔트리를 교체해 닫기 한 번에 목록으로 간다 (Codex #4). 직접 진입이면 표식 없이 교체해 닫기 = replace "/" 유지

@@ -7,6 +7,7 @@ import {
   type PhotoReportReason,
   reportPhoto as requestReportPhoto,
 } from "@/lib/data";
+import { isPhotoHistoryState, type SaeuHistoryState } from "@/lib/history-state";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import type { ReviewsStatus } from "./review-section";
@@ -178,20 +179,36 @@ export function usePlaceDetail({
 
   const openPhoto = useCallback((index: number) => {
     setPhotoIndex(index);
+    // 안드로이드 뒤로가기 1회 = 뷰어만 닫기. URL은 그대로 두고 엔트리만 쌓는다(lib/history-state)
+    const state: SaeuHistoryState = { saeuDetail: true, saeuPhoto: true };
+    window.history.pushState(state, "", window.location.pathname);
   }, []);
 
   const closePhoto = useCallback(() => {
     setPhotoIndex(null);
+    // 뒤로가기로 닫힌 거면 우리 엔트리는 이미 빠졌다 — 그때 back()을 또 부르면 상세까지 닫힌다
+    if (isPhotoHistoryState(window.history.state)) window.history.back();
   }, []);
+
+  // 뷰어가 떠 있는 동안만 듣는다. use-map-screen의 popstate도 함께 울리지만 경로가 그대로라
+  // openDetail이 멱등 가드로 no-op이 된다(그 가드가 이 설계의 전제다).
+  useEffect(() => {
+    if (photoIndex === null) return;
+    // 닫는 경로는 하나(closePhoto) — 엔트리를 되돌릴지는 그 안에서 히스토리 상태를 보고 정한다
+    window.addEventListener("popstate", closePhoto);
+    return () => {
+      window.removeEventListener("popstate", closePhoto);
+    };
+  }, [photoIndex, closePhoto]);
 
   /** 접수되면 뷰어를 닫고 알린다. 실패는 그대로 reject — 뷰어가 자기 안에서 토스트를 낸다. */
   const reportPhoto = useCallback(
     async (photoId: string, reason: PhotoReportReason) => {
       await requestReportPhoto({ placeId: place.id, photoId, reason });
-      setPhotoIndex(null);
+      closePhoto();
       onNotice(PHOTO_REPORTED_NOTICE);
     },
-    [place.id, onNotice],
+    [place.id, closePhoto, onNotice],
   );
 
   const comingSoon = useCallback(() => {
