@@ -9,7 +9,7 @@ import type { Place } from "@/lib/types";
 export function PlaceHeader({ place, now }: { place: Place; now: string }) {
   const categories = place.tags.map((tag) => TAG_LABELS[tag]).join(" · ");
   return (
-    <div className="px-5 pt-1 pb-5">
+    <div className="px-5 pb-5">
       <h2 className="text-title-s-semibold text-fg">{place.name}</h2>
       <p className="mt-0.5 text-body-m-regular text-fg-secondary">
         {categories} · {place.gu}

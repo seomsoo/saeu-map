@@ -11,7 +11,7 @@ interface ActionRowProps {
  * 확인 버튼이 기여 블록으로 내려가면서 길찾기가 이 화면의 유일한 채운 레드가 됐다. */
 export function ActionRow({ bookmarked, onRoute, onShare, onToggleBookmark }: ActionRowProps) {
   return (
-    <div className="grid grid-cols-4 gap-2 px-5 pt-1 pb-4">
+    <div className="grid grid-cols-4 gap-2 px-5 pb-4">
       <Button variant="brand" size="xl" className="col-span-2" onClick={onRoute}>
         <span className="icon-[ci--navigation] size-4" aria-hidden="true" />
         길찾기

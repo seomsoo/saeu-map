@@ -15,7 +15,7 @@ export const buttonVariants = cva(
         ink: "border-transparent bg-fg text-fg-on-brand",
         brand: "border-transparent bg-brand text-fg-on-brand",
         outline: "border-line bg-bg text-fg active:bg-bg-sunken",
-        tint: "border-brand bg-brand-tint text-brand-fg",
+        tint: "border-brand-fg bg-brand-tint text-brand-fg",
       },
       size: {
         sm: "h-7 rounded-8 px-3 text-body-m-semibold text-fg-secondary",
