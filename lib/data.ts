@@ -10,6 +10,7 @@ import { z } from "zod";
 import type {
   Checkin,
   EventCard,
+  LatLng,
   NearestStation,
   Photo,
   Place,
@@ -31,6 +32,7 @@ import {
 import { matchesQuery, normalizeQuery } from "./places";
 import { sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
+import { guOfPoint } from "./gu";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -296,6 +298,11 @@ export function getBookmarkedPlaceIds(): Promise<string[]> {
   return Promise.resolve([...bookmarkedIds]);
 }
 
+/** 좌표가 속한 서울 자치구("마포구"). 25구 밖이면 null — 제보 2단계가 핀 확정 때 검사한다(decisions 2026-09-04). */
+export function getGuOfPoint(point: LatLng): Promise<string | null> {
+  return guOfPoint(point);
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 공개 API — 쓰기 (목: 400ms 지연 + 10% 실패. 컴포넌트는 낙관적 업데이트 + 실패 롤백)
  * ════════════════════════════════════════════════════════════════════════ */
@@ -344,6 +351,91 @@ export async function reportPhoto(input: {
 }): Promise<void> {
   photoReportSchema.parse(input);
   await simulateWrite();
+}
+
+/**
+ * 제보 메뉴 한 줄(spec 4.3-3). `unitRaw`는 `unitChipLabel`이 읽는 형태 그대로 —
+ * kg·g는 숫자만("1", "500"), 한판·반판·N마리는 표기 자체("한판", "10마리"), 단위 없음은 null.
+ * 大中小(size)·인분(serving)은 크롤 표기로만 두고 제보로 늘리지 않는다(decisions 2026-09-04).
+ */
+export const reportMenuSchema = z.object({
+  name: z.string().trim().min(1).max(30),
+  price: z.number().int().min(100),
+  unit: z.enum(["kg", "g", "pan", "count", "none"]),
+  unitRaw: z.string().trim().max(10).nullable(),
+  /** true = 새우회 줄("새우회도 팔아요"), false = 구이 줄 */
+  raw: z.boolean(),
+});
+
+/** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 주소는 받지 않는다 — 구는 좌표로 판정. */
+export const reportInputSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  lat: z.number().min(33).max(39),
+  lng: z.number().min(124).max(132),
+  menus: z.array(reportMenuSchema).min(1).max(2),
+  sides: z.object({ headButter: z.boolean(), ramen: z.boolean(), friedRice: z.boolean() }),
+  hoursNote: z.string().trim().max(80),
+  /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */
+  photos: z
+    .array(z.instanceof(File).refine((f) => f.type.startsWith("image/"), "이미지 파일만"))
+    .max(MAX_PLACE_PHOTOS),
+  /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
+  duplicateOf: idSchema.nullable(),
+});
+
+export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
+export type ReportInput = z.infer<typeof reportInputSchema>;
+
+let reportSeq = 0;
+
+/**
+ * 제보 등록 (spec 4.3, 5 "모든 제보 즉시 노출"). 성공하면 만들어진 Place를 돌려주고 데이터셋 끝에 붙인다.
+ * 구는 좌표로 판정하고 서울 밖이면 지연 전에 거부한다. 주소·최근접역은 비워 둔다(Phase 6 서버 파생).
+ * `now`는 목 데이터셋 조회·등록 시각용이다 — Phase 6에서는 서버가 정한다(checkIn과 같은 계약).
+ */
+export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
+  const report = reportInputSchema.parse(input);
+  const gu = await guOfPoint(report);
+  if (gu === null) throw new Error("outside seoul");
+  await simulateWrite();
+  const data = dataset(now);
+  const createdAt = new Date(toMs(now)).toISOString();
+  reportSeq += 1;
+  const tags: PlaceTag[] = ["grill"];
+  if (report.menus.some((m) => m.raw)) tags.push("raw");
+  const place: Place = {
+    id: `r${String(reportSeq).padStart(3, "0")}`,
+    name: report.name,
+    gu,
+    addressRoad: null,
+    addressJibun: null,
+    lat: report.lat,
+    lng: report.lng,
+    nearestStation: null,
+    tags,
+    specialist: false, // 제보 핀은 전문점 판정 없음 (spec 2 가공 규칙)
+    naverPlaceUrl: null,
+    photos: [],
+    thumbnailUrl: null,
+    hoursNote: report.hoursNote || null,
+    menus: report.menus.map((m) => ({
+      raw: m.name,
+      name: m.name,
+      price: m.price,
+      unit: m.unit,
+      unit_raw: m.unitRaw,
+    })),
+    sides: report.sides,
+    source: "report",
+    needsReview: false,
+    lastCheckedAt: createdAt,
+    checkCount: 0,
+    isNew: true,
+    createdAt,
+    ...(report.duplicateOf !== null && { duplicateSuspectOf: report.duplicateOf }),
+  };
+  data.places = [...data.places, place];
+  return place;
 }
 
 /** 찜 토글 (spec 5 "찜"). 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */

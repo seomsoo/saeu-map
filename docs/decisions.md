@@ -249,7 +249,7 @@
 
 Phase 3 착수. design 화면 3을 v1 초안에서 v2(화면 2와 같은 언어)로 재작성하며 정한 것. 계획은 `docs/plans/phase3-report.md`.
 
-- **구(gu)는 핀 좌표를 서울 25구 경계로 판정한다.** 저장은 사용자가 확정한 핀 좌표뿐이고 도로명·지번은 `null`로 둔다(`Place.addressRoad`가 nullable이 된다). 상세 정보 블록에는 "주소를 알려주세요" 입구가 서고(영업시간 빈 상태와 같은 문법) Phase 6 정보 수정 제안에서 채운다. 경계 데이터는 `southkorea/seoul-maps`(통계청 2013 시군구 GeoJSON)를 `scripts/fetch_gu_boundaries.py`로 받아 단순화해 `lib/gu-boundaries.json`에 굽는다 — 출처·라이선스는 스크립트와 JSON 머리에. 라이선스가 불명확하면 최근접역 스크립트와 같은 OSM Overpass(ODbL)로 바꾼다.
+- **구(gu)는 핀 좌표를 서울 25구 경계로 판정한다.** 저장은 사용자가 확정한 핀 좌표뿐이고 도로명·지번은 `null`로 둔다(`Place.addressRoad`가 nullable이 된다). 상세 정보 블록에는 "주소를 알려주세요" 입구가 서고(영업시간 빈 상태와 같은 문법) Phase 6 정보 수정 제안에서 채운다. 경계 데이터는 `southkorea/seoul-maps`(Apache-2.0, 통계청 2013 시군구 GeoJSON 원본 해상도)를 `scripts/fetch_gu_boundaries.py`로 받아 Douglas-Peucker 20m로 줄여(2,820점, 60KB, 동적 import) `lib/gu-boundaries.json`에 굽는다 — 출처·라이선스는 스크립트와 JSON 머리에. 같은 저장소의 simple 버전(1,374점)은 시청 앞이 종로구로 나올 만큼(≈300m) 거칠어 쓰지 않는다. 라이선스가 불명확하면 최근접역 스크립트와 같은 OSM Overpass(ODbL)로 바꾼다.
 - **주소 검색(네이버 지오코더, `submodules=geocoder`)은 핀을 옮기는 보조다.** 결과는 제안 목록이 열린 동안만 컴포넌트 상태에 있고 선택·닫기·언마운트에 버린다. Place·파일·DB에 쓰지 않는다(CLAUDE.md 규칙 2). 지오코더 결과에서 옮겨간 핀 좌표는 사용자 입력이다.
 - **서울 밖 핀은 막는다.** 경계 판정이 null이면 "서울 안의 위치만 제보할 수 있어요". 시드의 김포 1곳은 그대로 둔다.
 - **채운 레드는 단계마다 하단 CTA 하나.** 단계가 곧 화면이다. 제보 중엔 FAB 줄과 지도 위 두 층(검색 블록·칩 행)을 숨긴다. 중복 의심의 [이 가게예요][다른 가게예요]는 둘 다 아웃라인.

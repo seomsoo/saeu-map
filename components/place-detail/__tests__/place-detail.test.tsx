@@ -567,3 +567,11 @@ describe("사진 뷰어 — 뒤로가기 1회 = 뷰어만 닫기", () => {
     expect(spies.back).not.toHaveBeenCalled();
   });
 });
+
+describe("주소가 없는 제보 핀", () => {
+  it("위치 그룹 전체가 '주소를 알려주세요' 입구가 되고 복사 버튼은 없다", () => {
+    renderDetail(nara({ addressRoad: null, addressJibun: null, nearestStation: null }));
+    expect(screen.getByRole("button", { name: "주소를 알려주세요" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "주소 복사" })).toBeNull();
+  });
+});

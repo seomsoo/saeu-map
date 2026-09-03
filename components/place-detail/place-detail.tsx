@@ -70,7 +70,12 @@ export function PlaceDetail({
       <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
       {/* 3 — 주소·지번·영업시간 한 블록 */}
-      <PlaceInfo place={d.place} onCopy={d.copyAddress} onSuggestHours={d.comingSoon} />
+      <PlaceInfo
+        place={d.place}
+        onCopy={d.copyAddress}
+        onSuggestHours={d.comingSoon}
+        onSuggestAddress={d.comingSoon}
+      />
       {/* 4 */}
       <ActionRow
         bookmarked={bookmarked}

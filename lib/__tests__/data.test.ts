@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
@@ -8,13 +8,16 @@ import {
   getBookmarkedPlaceIds,
   getCheckins,
   getEventCard,
+  getGuOfPoint,
   getPlaceById,
   getPlaceDetail,
   getPlaces,
   getReviews,
   getSeasonStats,
   reportPhoto,
+  submitReport,
   toggleBookmark,
+  type ReportInput,
 } from "../data";
 import { isInactive, kstDayIndex } from "../time";
 
@@ -266,5 +269,128 @@ describe("toggleBookmark", () => {
     expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
     expect(await toggleBookmark("p018")).toEqual([]);
     await expect(toggleBookmark("")).rejects.toThrow();
+  });
+});
+
+describe("getGuOfPoint", () => {
+  it("서울 안이면 구, 밖이면 null", async () => {
+    expect(await getGuOfPoint({ lat: 37.5571, lng: 126.9245 })).toBe("마포구");
+    expect(await getGuOfPoint({ lat: 37.6, lng: 126.77 })).toBeNull();
+  });
+});
+
+describe("submitReport — 제보 등록 (목 쓰기)", () => {
+  // 다른 테스트의 데이터셋을 건드리지 않도록 별도 날짜
+  const NOW = "2029-05-05T12:00:00+09:00";
+  const input = (): ReportInput => ({
+    name: "테스트 새우집",
+    lat: 37.5571, // 홍대입구 → 마포구
+    lng: 126.9245,
+    menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+    sides: { headButter: true, ramen: false, friedRice: false },
+    hoursNote: "",
+    photos: [],
+    duplicateOf: null,
+  });
+  const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
+
+  beforeAll(async () => {
+    // 경계 JSON 동적 import를 가짜 타이머 밖에서 미리 끝낸다 (gu.ts가 캐시한다)
+    await getGuOfPoint({ lat: 37.5571, lng: 126.9245 });
+  });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("성공: 구는 경계로 판정, 주소·역은 비고, 데이터셋 끝에 붙어 조회된다", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const before = await getPlaces({}, NOW);
+    const pending = submitReport(
+      {
+        ...input(),
+        menus: [...input().menus, { name: "생새우회", price: 40000, unit: "g", unitRaw: "500", raw: true }],
+        hoursNote: " 새벽 2시까지 ",
+        photos: [image("a.jpg"), image("b.jpg")],
+        duplicateOf: "p018",
+      },
+      NOW,
+    );
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    const place = await pending;
+    const at = new Date(Date.parse(NOW)).toISOString();
+    expect(place).toMatchObject({
+      name: "테스트 새우집",
+      gu: "마포구",
+      addressRoad: null,
+      addressJibun: null,
+      nearestStation: null,
+      tags: ["grill", "raw"],
+      specialist: false,
+      naverPlaceUrl: null,
+      photos: [], // 목은 파일을 버린다 (Phase 6 저장소)
+      thumbnailUrl: null,
+      hoursNote: "새벽 2시까지",
+      source: "report",
+      needsReview: false,
+      lastCheckedAt: at,
+      createdAt: at,
+      checkCount: 0,
+      isNew: true,
+      duplicateSuspectOf: "p018",
+    });
+    expect(place.menus).toEqual([
+      { raw: "왕새우 소금구이", name: "왕새우 소금구이", price: 35000, unit: "kg", unit_raw: "1" },
+      { raw: "생새우회", name: "생새우회", price: 40000, unit: "g", unit_raw: "500" },
+    ]);
+    const after = await getPlaces({}, NOW);
+    expect(after).toHaveLength(before.length + 1);
+    expect(after.at(-1)).toBe(place);
+    expect(await getPlaceById(place.id, NOW)).toBe(place);
+    expect(await getPlaces({ isNew: true }, NOW)).toContain(place);
+  });
+
+  it("구이 줄만이면 tags는 grill, 빈 영업시간은 null, 중복 후보 없으면 duplicateSuspectOf 없음", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const pending = submitReport(input(), NOW);
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    const place = await pending;
+    expect(place.tags).toEqual(["grill"]);
+    expect(place.hoursNote).toBeNull();
+    expect("duplicateSuspectOf" in place).toBe(false);
+    expect(place.id).toMatch(/^r\d{3}$/);
+  });
+
+  it("실패(10%): reject하고 데이터는 그대로", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.05);
+    const before = await getPlaces({}, NOW);
+    const pending = submitReport(input(), NOW);
+    const assertion = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    await assertion;
+    expect(await getPlaces({}, NOW)).toHaveLength(before.length);
+  });
+
+  it("검증: 빈 이름·메뉴 0줄·낮은 가격·이미지 아닌 파일·11장·좌표 범위 밖은 지연 없이 거부", async () => {
+    const cases: Array<Partial<ReportInput>> = [
+      { name: "  " },
+      { menus: [] },
+      { menus: [{ name: "왕새우 소금구이", price: 50, unit: "kg", unitRaw: "1", raw: false }] },
+      { photos: [new File(["x"], "a.txt", { type: "text/plain" })] },
+      { photos: Array.from({ length: MAX_PLACE_PHOTOS + 1 }, (_, i) => image(`${i}.jpg`)) },
+      { lat: 50 },
+    ];
+    for (const c of cases) {
+      await expect(submitReport({ ...input(), ...c }, NOW)).rejects.toThrow();
+    }
+  });
+
+  it("서울 밖 좌표(김포)는 거부", async () => {
+    await expect(submitReport({ ...input(), lat: 37.6, lng: 126.77 }, NOW)).rejects.toThrow(
+      "outside seoul",
+    );
   });
 });

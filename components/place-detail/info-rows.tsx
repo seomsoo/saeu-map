@@ -23,11 +23,42 @@ import { SubwayBadge } from "./subway-badge";
  * 숫자 없는 노선은 배지 없이 역명만.
  * 라벨의 truncate는 마지막 안전망 — 정상 데이터는 formatStationLine이 예산 안에서 한 줄로 만든다.
  */
-function LocationGroup({ place, onCopy }: { place: Place; onCopy: () => void }) {
+function LocationGroup({
+  place,
+  onCopy,
+  onSuggestAddress,
+}: {
+  place: Place;
+  onCopy: () => void;
+  onSuggestAddress: () => void;
+}) {
   const station = place.nearestStation;
   const [open, setOpen] = useState(false);
   const lines = station === null ? [] : numericLines(station.lines);
   const label = station === null ? "" : formatStationLine(station);
+
+  // 주소가 없는 제보 핀: 위치 그룹 전체가 입구 — 영업시간 빈 상태와 같은 문법(아이콘까지 한 표적)
+  if (station === null && place.addressRoad === null) {
+    return (
+      <button
+        type="button"
+        onClick={onSuggestAddress}
+        className="press flex w-full gap-1.5 text-left"
+      >
+        <span
+          className="icon-[ci--location] mt-0.5 size-4 shrink-0 text-fg-tertiary"
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1 text-body-m-regular text-fg-secondary">
+          주소를 알려주세요
+        </span>
+        <span
+          className="icon-[ci--chevron-right] mt-0.5 size-4 shrink-0 text-fg-placeholder"
+          aria-hidden="true"
+        />
+      </button>
+    );
+  }
 
   return (
     <div className="flex gap-1.5">
@@ -60,7 +91,22 @@ function LocationGroup({ place, onCopy }: { place: Place; onCopy: () => void }) 
             />
           </button>
         )}
-        {(station === null || open) && (
+        {(station === null || open) && place.addressRoad === null && (
+          <button
+            type="button"
+            onClick={onSuggestAddress}
+            className="press mt-0.5 flex w-full items-center gap-1.5 text-left"
+          >
+            <span className="min-w-0 flex-1 text-body-m-regular text-fg-secondary">
+              주소를 알려주세요
+            </span>
+            <span
+              className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder"
+              aria-hidden="true"
+            />
+          </button>
+        )}
+        {(station === null || open) && place.addressRoad !== null && (
           <div className={cx("flex items-start gap-3", station !== null && "mt-0.5")}>
             <div className="min-w-0 flex-1">
               <p className="text-body-m-regular text-fg-secondary">{place.addressRoad}</p>
@@ -84,6 +130,8 @@ interface PlaceInfoProps {
   place: Place;
   onCopy: () => void;
   onSuggestHours: () => void;
+  /** 도로명이 null(제보 핀)일 때 "주소를 알려주세요" 입구 */
+  onSuggestAddress: () => void;
 }
 
 /**
@@ -96,10 +144,10 @@ interface PlaceInfoProps {
  * 위치↔영업시간 12, 블록 아래 16. 6이면 지번과의 2와 구분이 안 돼 영업시간이 주소 셋째 줄로 읽힌다.
  * 영업시간이 없을 때만 눈에 띄는 인라인 입구가 된다("영업 중" 판정은 하지 않는다).
  */
-export function PlaceInfo({ place, onCopy, onSuggestHours }: PlaceInfoProps) {
+export function PlaceInfo({ place, onCopy, onSuggestHours, onSuggestAddress }: PlaceInfoProps) {
   return (
     <div className="px-5 pb-4">
-      <LocationGroup place={place} onCopy={onCopy} />
+      <LocationGroup place={place} onCopy={onCopy} onSuggestAddress={onSuggestAddress} />
 
       {place.hoursNote ? (
         <div className="mt-3 flex gap-1.5">

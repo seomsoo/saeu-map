@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundsOf, formatDistance, haversineKm, inBounds, SEOUL_CENTER } from "../geo";
+import { boundsOf, formatDistance, haversineKm, inBounds, pointInRing, SEOUL_CENTER } from "../geo";
 
 const GANGNAM_STATION = { lat: 37.4979, lng: 127.0276 };
 
@@ -45,5 +45,27 @@ describe("bounds", () => {
       east: GANGNAM_STATION.lng,
       west: SEOUL_CENTER.lng,
     });
+  });
+});
+
+describe("pointInRing", () => {
+  // [lng, lat] 정사각형. 닫힌 링(첫 점 반복)과 열린 링 둘 다 같은 답이어야 한다.
+  const open = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  const closed = [...open, [0, 0]];
+
+  it.each([
+    ["안", { lat: 0.5, lng: 0.5 }, true],
+    ["밖(오른쪽)", { lat: 0.5, lng: 1.5 }, false],
+    ["밖(위)", { lat: 1.5, lng: 0.5 }, false],
+    ["밖(왼쪽, 같은 위도)", { lat: 0.5, lng: -0.5 }, false],
+  ])("%s", (_, point, expected) => {
+    expect(pointInRing(point, open)).toBe(expected);
+    expect(pointInRing(point, closed)).toBe(expected);
+  });
+
+  it("오목한 링의 파인 부분은 밖", () => {
+    const concave = [[0, 0], [3, 0], [3, 3], [2, 3], [2, 1], [1, 1], [1, 3], [0, 3]];
+    expect(pointInRing({ lat: 2, lng: 1.5 }, concave)).toBe(false);
+    expect(pointInRing({ lat: 0.5, lng: 1.5 }, concave)).toBe(true);
   });
 });

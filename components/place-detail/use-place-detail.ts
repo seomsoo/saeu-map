@@ -124,6 +124,7 @@ export function usePlaceDetail({
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
+    if (place.addressRoad === null) return; // 주소 없는 제보 핀은 [복사] 자체가 없다
     void copyText(place.addressRoad).then((ok) => {
       onNotice(ok ? ADDRESS_COPIED_NOTICE : ADDRESS_COPY_FAILED_NOTICE);
     });
