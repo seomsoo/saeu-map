@@ -255,7 +255,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "카테고리: 전체" }));
     const options = within(screen.getByRole("listbox", { name: "카테고리" })).getAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual(["전체", "소금구이", "생새우회"]);
+    expect(options.map((o) => o.textContent)).toEqual(["전체", "새우구이", "생새우회"]);
     fireEvent.click(screen.getByRole("option", { name: "생새우회" }));
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "카테고리: 생새우회" })).toBeInTheDocument();
@@ -266,7 +266,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "카테고리: 생새우회" }));
-    fireEvent.click(screen.getByRole("option", { name: "소금구이" }));
+    fireEvent.click(screen.getByRole("option", { name: "새우구이" }));
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 

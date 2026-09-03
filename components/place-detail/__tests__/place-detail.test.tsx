@@ -103,7 +103,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
 
     // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
     const title = within(article).getByRole("heading", { level: 2, name: "나라수산" });
-    expect(within(article).getByText("소금구이 · 생새우회 · 마포구")).toBeInTheDocument();
+    expect(within(article).getByText("새우구이 · 생새우회 · 마포구")).toBeInTheDocument();
     expect(upload.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // 신선도는 상호 아래 캡션 (확인 줄 해체)
