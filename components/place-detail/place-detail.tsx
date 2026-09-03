@@ -112,6 +112,7 @@ export function PlaceDetail({
           initialIndex={d.photoIndex}
           placeName={d.place.name}
           onClose={d.closePhoto}
+          onReport={d.reportPhoto}
         />
       )}
     </article>

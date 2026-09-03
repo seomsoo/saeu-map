@@ -3,8 +3,15 @@
 import Image from "next/image";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Toast } from "@/components/ui/toast";
+import type { PhotoReportReason } from "@/lib/data";
 import { formatKstDate } from "@/lib/time";
 import type { Photo } from "@/lib/types";
+import { PhotoReportSheet } from "./photo-report-sheet";
+import { PHOTO_REPORT_FAILED_NOTICE } from "./use-place-detail";
+
+/** 실패 토스트가 떠 있는 시간 — 지도 화면 토스트와 같다 */
+const NOTICE_MS = 2000;
 
 interface PhotoViewerProps {
   photos: Photo[];
@@ -12,6 +19,8 @@ interface PhotoViewerProps {
   initialIndex: number;
   placeName: string;
   onClose: () => void;
+  /** 성공하면 부모가 뷰어를 닫고 토스트까지 낸다 — 여기서는 실패만 처리한다. */
+  onReport: (photoId: string, reason: PhotoReportReason) => Promise<void>;
 }
 
 /**
@@ -24,11 +33,21 @@ interface PhotoViewerProps {
  * 좌우 넘김은 CSS scroll-snap이다. 바텀시트가 겪은 pointer-capture 리타겟·non-passive touchmove 함정은
  * 전부 "세로 시트 vs 가로 스트립" 경합에서 나온 것인데, 포털된 단독 표면에는 그 경합이 없다.
  */
-export function PhotoViewer({ photos, initialIndex, placeName, onClose }: PhotoViewerProps) {
+export function PhotoViewer({
+  photos,
+  initialIndex,
+  placeName,
+  onClose,
+  onReport,
+}: PhotoViewerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(initialIndex);
   const [failedIds, setFailedIds] = useState<readonly string[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [pending, setPending] = useState<PhotoReportReason | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<number | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -52,7 +71,34 @@ export function PhotoViewer({ photos, initialIndex, placeName, onClose }: PhotoV
     dialogRef.current?.close();
   }, []);
 
+  useEffect(
+    () => () => {
+      if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
+
   const current = photos[Math.min(index, photos.length - 1)];
+
+  const submitReport = useCallback(
+    (reason: PhotoReportReason) => {
+      if (pending !== null || !current) return;
+      setPending(reason);
+      onReport(current.id, reason)
+        // 성공 처리(뷰어 닫기 + 토스트)는 부모 몫이다. 실패는 여기서 — 뷰어를 닫아 버리면
+        // 무엇이 실패했는지 사라지고, 지도 화면 토스트는 top layer에 가려 안 보인다.
+        .catch(() => {
+          setPending(null);
+          setNotice(PHOTO_REPORT_FAILED_NOTICE);
+          if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+          noticeTimer.current = window.setTimeout(() => {
+            setNotice(null);
+          }, NOTICE_MS);
+        });
+    },
+    [pending, current, onReport],
+  );
+
   if (!current) return null;
 
   return createPortal(
@@ -108,9 +154,34 @@ export function PhotoViewer({ photos, initialIndex, placeName, onClose }: PhotoV
           ))}
         </ul>
 
+        {/* 좋아요·공유는 두지 않는다 — 크게 보기와 잘못된 사진 걸러내기 둘뿐인 화면 */}
         <div className="flex shrink-0 items-center justify-between px-5 pt-3 pb-safe-bottom-or-3">
           <p className="text-caption-l-regular tabular-nums">{formatKstDate(current.uploadedAt)}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setReportOpen(true);
+            }}
+            className="press text-caption-l-regular"
+          >
+            신고
+          </button>
         </div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0">
+        <div className="px-5 pb-3">
+          <Toast message={notice} />
+        </div>
+        {reportOpen && (
+          <PhotoReportSheet
+            pending={pending}
+            onSelect={submitReport}
+            onClose={() => {
+              setReportOpen(false);
+            }}
+          />
+        )}
       </div>
     </dialog>,
     document.body,

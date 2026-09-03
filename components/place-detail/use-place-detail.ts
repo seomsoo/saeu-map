@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { checkIn as requestCheckIn, getPlaceDetail } from "@/lib/data";
+import {
+  checkIn as requestCheckIn,
+  getPlaceDetail,
+  type PhotoReportReason,
+  reportPhoto as requestReportPhoto,
+} from "@/lib/data";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import type { ReviewsStatus } from "./review-section";
@@ -13,6 +18,9 @@ export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const LINK_COPIED_NOTICE = "링크를 복사했어요";
 export const LINK_COPY_FAILED_NOTICE = "링크를 복사하지 못했어요";
+export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
+/** 실패 토스트는 뷰어 안에서 뜬다(top layer가 지도 화면 토스트를 가린다) — 문구만 여기 모아 둔다 */
+export const PHOTO_REPORT_FAILED_NOTICE = "신고를 접수하지 못했어요";
 /** 앱 스킴을 열고 이 시간 안에 화면이 안 가려지면(앱 없음) 웹 지도로 */
 const APP_OPEN_TIMEOUT_MS = 1500;
 
@@ -176,6 +184,16 @@ export function usePlaceDetail({
     setPhotoIndex(null);
   }, []);
 
+  /** 접수되면 뷰어를 닫고 알린다. 실패는 그대로 reject — 뷰어가 자기 안에서 토스트를 낸다. */
+  const reportPhoto = useCallback(
+    async (photoId: string, reason: PhotoReportReason) => {
+      await requestReportPhoto({ placeId: place.id, photoId, reason });
+      setPhotoIndex(null);
+      onNotice(PHOTO_REPORTED_NOTICE);
+    },
+    [place.id, onNotice],
+  );
+
   const comingSoon = useCallback(() => {
     onNotice(COMING_SOON_NOTICE);
   }, [onNotice]);
@@ -194,5 +212,6 @@ export function usePlaceDetail({
     photoIndex,
     openPhoto,
     closePhoto,
+    reportPhoto,
   };
 }

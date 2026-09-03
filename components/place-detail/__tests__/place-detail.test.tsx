@@ -5,9 +5,12 @@ import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Photo, Place, PlaceDetail as PlaceDetailData, Review } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
 
+type PhotoReport = Parameters<typeof import("@/lib/data").reportPhoto>[0];
+
 const data = vi.hoisted(() => ({
   getPlaceDetail: vi.fn<(id: string, now: string) => Promise<PlaceDetailData | undefined>>(),
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
+  reportPhoto: vi.fn<(input: PhotoReport) => Promise<void>>(),
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
@@ -15,6 +18,7 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   getPlaceDetail: data.getPlaceDetail,
   checkIn: data.checkIn,
+  reportPhoto: data.reportPhoto,
 }));
 
 const NOW = "2026-09-01T12:00:00+09:00";
@@ -77,6 +81,8 @@ function renderDetail(place: Place, overrides: Partial<PlaceDetailProps> = {}) {
 beforeEach(() => {
   data.getPlaceDetail.mockReset();
   data.checkIn.mockReset();
+  data.reportPhoto.mockReset();
+  data.reportPhoto.mockResolvedValue(undefined);
   data.getPlaceDetail.mockResolvedValue({ place: nara(), reviews: [] });
 });
 
@@ -195,6 +201,49 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     fireEvent.error(within(viewer).getByRole("img"));
     expect(within(viewer).getByText("사진을 불러오지 못했어요")).toBeInTheDocument();
     expect(within(viewer).queryByRole("img")).toBeNull();
+  });
+
+  it("뷰어에서 신고 사유를 고르면 그 사진 id로 접수하고 뷰어가 닫힌다", async () => {
+    const { props } = renderDetail(nara({ photos: [photo(1), photo(2)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    fireEvent.click(within(strip).getByRole("button", { name: "나라수산 사진 2 크게 보기" }));
+
+    const viewer = screen.getByRole("dialog", { name: "나라수산 사진 크게 보기" });
+    fireEvent.click(within(viewer).getByRole("button", { name: "신고" }));
+    const sheet = within(viewer).getByRole("region", { name: "사진 신고" });
+    for (const label of ["부적절한 사진", "다른 가게 사진", "광고·도배", "기타"]) {
+      expect(within(sheet).getByRole("button", { name: label })).toBeInTheDocument();
+    }
+    // 확인 버튼은 없다 — 탭이 곧 제출
+    fireEvent.click(within(sheet).getByRole("button", { name: "광고·도배" }));
+
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("신고를 접수했어요");
+    });
+    expect(data.reportPhoto).toHaveBeenCalledWith({
+      placeId: "nara",
+      photoId: "nara-p2",
+      reason: "spam",
+    });
+    expect(screen.queryByRole("dialog", { name: "나라수산 사진 크게 보기" })).toBeNull();
+  });
+
+  it("신고 접수가 실패하면 뷰어 안 토스트로 알리고 사유 패널은 그대로 둔다", async () => {
+    data.reportPhoto.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderDetail(nara({ photos: [photo(1)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    fireEvent.click(within(strip).getByRole("button", { name: "나라수산 사진 1 크게 보기" }));
+
+    const viewer = screen.getByRole("dialog", { name: "나라수산 사진 크게 보기" });
+    fireEvent.click(within(viewer).getByRole("button", { name: "신고" }));
+    fireEvent.click(within(viewer).getByRole("button", { name: "부적절한 사진" }));
+
+    await waitFor(() => {
+      expect(within(viewer).getByRole("status")).toHaveTextContent("신고를 접수하지 못했어요");
+    });
+    // 다시 탭이 재시도 — 뷰어도 패널도 닫히지 않는다
+    expect(within(viewer).getByRole("button", { name: "부적절한 사진" })).toBeEnabled();
+    expect(props.onNotice).not.toHaveBeenCalled();
   });
 
   it("naverPlaceUrl이 화이트리스트 밖이면 링크를 렌더하지 않는다", async () => {
