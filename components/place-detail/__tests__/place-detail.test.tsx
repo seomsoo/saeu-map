@@ -48,6 +48,7 @@ function nara(overrides: Partial<Place> = {}): Place {
     gu: "마포구",
     addressRoad: "서울 마포구 마포대로12길 34",
     addressJibun: "서울 마포구 마포동 123-4",
+    nearestStation: { name: "마포역", exit: "3", distanceM: 240, lines: ["5"] },
     tags: ["grill", "raw"],
     naverPlaceUrl: "https://m.place.naver.com/restaurant/1/home",
     hoursNote: "23:00 라스트오더, 월 휴무",
@@ -117,8 +118,10 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     expect(within(article).getByText("어제 확인")).toBeInTheDocument();
     expect(within(article).getByText("확인 4회")).toBeInTheDocument();
 
-    // 4·5
-    expect(within(article).getByText("서울 마포구 마포대로12길 34")).toBeInTheDocument();
+    // 4·5 — 역 줄이 주소보다 먼저다("어느 역 근처냐"가 도로명보다 먼저 읽힌다)
+    const stationRow = within(article).getByText("마포역 3번출구에서 240m");
+    const road = within(article).getByText("서울 마포구 마포대로12길 34");
+    expect(stationRow.compareDocumentPosition(road) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(article).getByRole("button", { name: "주소 복사" })).toBeInTheDocument();
     expect(within(article).getByText("23:00 라스트오더, 월 휴무")).toBeInTheDocument();
 
@@ -319,6 +322,62 @@ describe("다녀왔어요 — 낙관적 업데이트 + 실패 롤백", () => {
     renderDetail(nara(), { checked: true });
     expect(screen.queryByRole("button", { name: "다녀왔어요" })).toBeNull();
     expect(screen.getByText("확인했어요")).toBeInTheDocument();
+  });
+});
+
+describe("정보 블록 — 최근접역 줄", () => {
+  /** 상세는 마운트 직후 리뷰를 비동기로 채운다 — 로딩이 다음 테스트로 새지 않게 정착까지 기다린다 */
+  const settled = () =>
+    waitFor(() => {
+      expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
+    });
+
+  function stationRow(article: HTMLElement, label: string): HTMLElement {
+    const row = within(article).getByText(label).closest("p");
+    if (row === null) throw new Error(`역 줄을 찾지 못했다: ${label}`);
+    return row;
+  }
+
+  /** 배지는 aria-hidden이라 낭독에 안 잡힌다 — 색 원의 개수는 그 속성으로 센다 */
+  const badgesOf = (row: HTMLElement) =>
+    Array.from(row.querySelectorAll('[aria-hidden="true"]')).map((b) => b.textContent);
+
+  it("단일 호선: 배지 1개 + 낭독은 '9호선'", async () => {
+    renderDetail(
+      nara({ nearestStation: { name: "송파나루역", exit: "2", distanceM: 370, lines: ["9"] } }),
+    );
+    const article = screen.getByRole("article", { name: "나라수산 상세" });
+    expect(badgesOf(stationRow(article, "송파나루역 2번출구에서 370m"))).toEqual(["9"]);
+    expect(within(article).getByText("9호선")).toBeInTheDocument();
+    await settled();
+  });
+
+  it("환승역: 숫자 호선 수만큼 배지", async () => {
+    renderDetail(
+      nara({ nearestStation: { name: "가락시장역", exit: "2-1", distanceM: 90, lines: ["3", "8"] } }),
+    );
+    const article = screen.getByRole("article", { name: "나라수산 상세" });
+    expect(badgesOf(stationRow(article, "가락시장역 2-1번출구에서 90m"))).toEqual(["3", "8"]);
+    expect(within(article).getByText("3호선 8호선")).toBeInTheDocument();
+    await settled();
+  });
+
+  it("숫자 없는 노선은 배지 없이 역명만 (원 안에 넣을 숫자가 없다)", async () => {
+    renderDetail(
+      nara({ nearestStation: { name: "한티역", exit: "1", distanceM: 230, lines: ["수인·분당"] } }),
+    );
+    const article = screen.getByRole("article", { name: "나라수산 상세" });
+    expect(badgesOf(stationRow(article, "한티역 1번출구에서 230m"))).toEqual([]);
+    expect(within(article).queryByText(/호선/)).toBeNull();
+    await settled();
+  });
+
+  it("역이 멀면(null) 그 줄이 아예 없고 주소만 남는다", async () => {
+    renderDetail(nara({ nearestStation: null }));
+    const article = screen.getByRole("article", { name: "나라수산 상세" });
+    await settled();
+    expect(within(article).queryByText(/에서 \d+m$/)).toBeNull();
+    expect(within(article).getByText("서울 마포구 마포대로12길 34")).toBeInTheDocument();
   });
 });
 

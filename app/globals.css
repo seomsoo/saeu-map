@@ -49,6 +49,17 @@
   --color-green-500: #1fb56c;
   --color-common-0: #ffffff;
   --color-common-100: #000000;
+  /* 지하철 노선색 — 우리 팔레트가 아니라 사실 표기다(OSM 릴레이션 colour = 공식 노선색).
+     20px 배지 안에서만 쓴다. 5호선 보라는 "보라색 금지"의 예외 — decisions 2026-09-03 */
+  --color-subway-1: #004a85;
+  --color-subway-2: #00a23f;
+  --color-subway-3: #ed6c00;
+  --color-subway-4: #009bce;
+  --color-subway-5: #794698;
+  --color-subway-6: #7c4932;
+  --color-subway-7: #6e7e31;
+  --color-subway-8: #d11d70;
+  --color-subway-9: #a49d87;
 
   /* ===== Semantic / Color (라이트) ===== */
   --color-bg: var(--color-common-0);

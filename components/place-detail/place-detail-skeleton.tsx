@@ -7,7 +7,9 @@ export function PlaceDetailSkeleton() {
       <Skeleton className="h-7 w-2/5" />
       <Skeleton className="mt-1.5 h-4 w-1/2" />
       <Skeleton className="mt-1.5 h-3 w-2/5" />
-      <div className="mt-5 flex items-start justify-between gap-3">
+      {/* 역 줄 자리 — 배지 높이 그대로 20 (역이 없는 곳도 있지만 로딩 중엔 알 수 없다) */}
+      <Skeleton className="mt-5 h-5 w-2/5" />
+      <div className="mt-0.5 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-3 w-1/2" />
