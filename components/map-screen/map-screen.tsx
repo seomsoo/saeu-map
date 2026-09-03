@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
 import { PlaceDetail } from "@/components/place-detail/place-detail";
@@ -56,6 +56,12 @@ export default function MapScreen({
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
+  /** 제보 2단계 주소 검색 — 지도 핸들 경유(표시용, 저장 안 함). 지도가 아직 없으면 실패 상태로 */
+  const geocode = useCallback(
+    (query: string) =>
+      mapRef.current?.geocode(query) ?? Promise.reject(new Error("map not ready")),
+    [],
+  );
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
@@ -172,8 +178,14 @@ export default function MapScreen({
             <ReportPanel
               step={s.reportStep}
               places={s.places}
+              pin={s.reportPin}
+              geocode={geocode}
               onBack={s.backReportStep}
               onStepChange={s.goToReportStep}
+              onPinChange={(point) => {
+                s.moveReportPin(point, "search");
+              }}
+              onShowCandidate={s.showReportPair}
               onOpenExisting={s.openDetailFromReport}
             />
           )

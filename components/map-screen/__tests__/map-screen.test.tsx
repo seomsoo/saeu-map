@@ -49,7 +49,9 @@ const fake = vi.hoisted(() => {
       public y: number,
     ) {}
   }
-  const navermaps = { LatLng, LatLngBounds, Size, Point };
+  /* 지오코더 서브모듈 — 테스트가 geocode.mockImplementation으로 응답을 정한다 */
+  const Service = { Status: { OK: 200, ERROR: 500 }, geocode: vi.fn() };
+  const navermaps = { LatLng, LatLngBounds, Size, Point, Service };
   const map = {
     getBounds: () => new LatLngBounds(new LatLng(37.4, 126.8), new LatLng(37.7, 127.2)),
     getZoom: () => 12,
@@ -186,6 +188,7 @@ beforeEach(() => {
   fake.map.morph.mockClear();
   fake.map.fitBounds.mockClear();
   fake.map.setZoom.mockClear();
+  fake.navermaps.Service.geocode.mockReset();
 });
 
 describe("MapScreen — design 화면 1의 1~8", () => {
@@ -657,6 +660,57 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     // 1단계에서 한 번 더 뒤로 → 닫힘
     popstate();
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("2단계: 주소 검색 → 행 탭이면 핀 이동(focus). 확정 → 시드 근처 같은 상호면 중복 패널 + fitBounds → [이 가게예요]는 상세로", async () => {
+    fake.navermaps.Service.geocode.mockImplementation(
+      (_opts: unknown, cb: (status: number, res: unknown) => void) => {
+        cb(200, {
+          v2: {
+            addresses: [
+              { roadAddress: "서울 마포구 마포대로 1", jibunAddress: "서울 마포구 도화동 1", x: "126.95", y: "37.54" },
+            ],
+          },
+        });
+      },
+    );
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "나라수산 본점" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    fake.map.setZoom.mockClear();
+    fake.map.panTo.mockClear();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "도로명 주소" }), { target: { value: "마포대로 1" } });
+    fireEvent.submit(screen.getByRole("search", { name: "도로명 주소 검색" }));
+    const row = await screen.findByRole("button", { name: /마포대로 1/ });
+    expect(fake.navermaps.Service.geocode).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "마포대로 1", count: 5 }),
+      expect.any(Function),
+    );
+    fireEvent.click(row);
+    expect(fake.map.setZoom).toHaveBeenCalledWith(17, false);
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    expect(await screen.findByRole("heading", { name: "150m 안에 비슷한 가게가 있어요" })).toBeInTheDocument();
+    expect(fake.map.fitBounds).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
+  });
+
+  it("2단계: 지오코더 응답이 OK가 아니면 '주소를 찾지 못했어요'", async () => {
+    fake.navermaps.Service.geocode.mockImplementation(
+      (_opts: unknown, cb: (status: number, res: unknown) => void) => {
+        cb(500, { v2: { addresses: [] } });
+      },
+    );
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "나라새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "도로명 주소" }), { target: { value: "없는 주소" } });
+    fireEvent.submit(screen.getByRole("search", { name: "도로명 주소 검색" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("주소를 찾지 못했어요");
   });
 
   it("패널의 ‹ 는 history.back과 같은 길", async () => {

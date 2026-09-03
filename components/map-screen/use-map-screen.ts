@@ -479,6 +479,24 @@ export function useMapScreen({
     [focusReportPin],
   );
 
+  /** 2단계 중복 의심: 핀과 후보가 둘 다 요약 시트 위에 보이게 (design 화면 3 변형 (a)) */
+  const showReportPair = useCallback(
+    (candidate: LatLng) => {
+      if (!reportPin || !mapRef.current) return;
+      const bounds = boundsOf([reportPin, candidate]);
+      if (!bounds) return;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.fitBounds(bounds, {
+        top: 72,
+        bottom: sheetVisiblePx("half", window.innerHeight, "report") + 24,
+        left: 40,
+        right: 40,
+        maxZoom: REPORT_ZOOM,
+      });
+    },
+    [reportPin, mapRef],
+  );
+
   /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기] — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
   const openDetailFromReport = useCallback(
     (id: string) => {
@@ -602,6 +620,7 @@ export function useMapScreen({
     backReportStep,
     goToReportStep,
     moveReportPin,
+    showReportPair,
     openDetailFromReport,
     addPlace,
   };
