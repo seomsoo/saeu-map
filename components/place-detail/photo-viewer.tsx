@@ -49,13 +49,18 @@ export function PhotoViewer({
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  // 첫 위치는 scrollLeft 대입으로 — scrollIntoView는 스냅 컨테이너 밖 조상까지 스크롤시킨다
+  /**
+   * 열기와 첫 위치를 **한 effect 안에서 이 순서로** 한다 — 닫힌 dialog는 `display:none`이라 레이아웃이 없다.
+   * `showModal()`을 뒤의 passive effect에 두면 layout effect가 먼저 흘러 `clientWidth`가 0이고,
+   * `scrollLeft`가 0에 머물러 스크롤 이벤트도 안 난다. 그래서 두 번째 이후 사진을 열면
+   * 화면은 1번 사진인데 카운터·날짜·신고 대상만 고른 사진을 가리켰다(Codex PR #5 P1).
+   * jsdom은 `clientWidth`가 늘 0이라 이 회귀는 Playwright로만 잡힌다.
+   */
   useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
     const track = trackRef.current;
+    // 첫 위치는 scrollLeft 대입으로 — scrollIntoView는 스냅 컨테이너 밖 조상까지 스크롤시킨다
     if (track) track.scrollLeft = track.clientWidth * initialIndex;
   }, [initialIndex]);
 
