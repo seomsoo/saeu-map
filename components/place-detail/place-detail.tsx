@@ -6,7 +6,7 @@ import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
 import { ContributionBand } from "./contribution-band";
 import { FooterLinks } from "./footer-links";
-import { AddressRow, HoursRow } from "./info-rows";
+import { PlaceInfo } from "./info-rows";
 import { MenuList } from "./menu-list";
 import { NewPlaceBanner } from "./new-place-banner";
 import { PhotoArea } from "./photo-area";
@@ -65,10 +65,8 @@ export function PlaceDetail({
       {/* 2 */}
       <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
-      {/* 4 */}
-      <AddressRow place={d.place} onCopy={d.copyAddress} />
-      {/* 5 */}
-      <HoursRow hoursNote={d.place.hoursNote} onSuggest={d.comingSoon} />
+      {/* 4·5 — 주소·지번·영업시간 한 블록 */}
+      <PlaceInfo place={d.place} onCopy={d.copyAddress} onSuggestHours={d.comingSoon} />
       {/* 6 */}
       <ActionRow
         bookmarked={bookmarked}

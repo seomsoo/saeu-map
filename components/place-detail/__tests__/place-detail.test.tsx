@@ -76,7 +76,7 @@ afterEach(() => {
 });
 
 describe("PlaceDetail — 화면 2 순서 1~10", () => {
-  it("상호·태그·확인 줄·주소·영업시간·버튼 3개·메뉴·사이드·리뷰·하단 링크가 순서대로 있다", async () => {
+  it("상호·확인 캡션·주소·영업시간·버튼 3개·메뉴·사이드·기여 블록·리뷰·하단 링크가 순서대로 있다", async () => {
     renderDetail(nara());
     const article = screen.getByRole("article", { name: "나라수산 상세" });
 
@@ -111,9 +111,10 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent.trim());
     expect(headings[0]).toBe("대표 메뉴");
-    expect(headings[1]).toBe("사이드");
-    expect(headings[2]).toBe("여기 다녀오셨나요?");
-    expect(headings[3]).toMatch(/^리뷰/);
+    expect(headings[1]).toBe("여기 다녀오셨나요?");
+    expect(headings[2]).toMatch(/^리뷰/);
+    // 사이드는 칩이 곧 내용이라 제목을 캡션 급으로 낮췄다 — 이름은 섹션이 갖는다
+    expect(within(article).getByRole("region", { name: "사이드" })).toBeInTheDocument();
     const checkButton = within(article).getByRole("button", { name: "다녀왔어요" });
     expect(route.compareDocumentPosition(checkButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(article).getByText("생새우소금구이")).toBeInTheDocument();
