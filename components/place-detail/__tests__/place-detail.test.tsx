@@ -121,7 +121,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
     expect(within(article).getByText("1kg")).toBeInTheDocument();
     expect(within(article).getByText("60,000원")).toBeInTheDocument();
     expect(within(article).getByText("가격 미확인")).toBeInTheDocument();
-    expect(within(article).getByRole("button", { name: "수정 제안" })).toBeInTheDocument();
+    expect(within(article).getByRole("button", { name: "대표 메뉴 수정" })).toBeInTheDocument();
     const sides = within(within(article).getByRole("list", { name: "사이드 목록" }))
       .getAllByRole("listitem")
       .map((li) => li.textContent);
@@ -269,7 +269,8 @@ describe("찜·복사·공유·준비 중 입구", () => {
     const entries = [
       "첫 사진을 올려주세요",
       "영업시간을 알려주세요",
-      "수정 제안",
+      "대표 메뉴 수정",
+      "사이드 수정",
       "리뷰 남기기",
       "정보 수정 제안",
       "신고",
@@ -278,6 +279,14 @@ describe("찜·복사·공유·준비 중 입구", () => {
     for (const name of entries) fireEvent.click(screen.getByRole("button", { name }));
     expect(onNotice).toHaveBeenCalledTimes(entries.length);
     for (const call of onNotice.mock.calls) expect(call[0]).toBe("준비 중이에요");
+  });
+
+  it("값이 있는 영업시간은 옅은 [수정]이 입구", () => {
+    const onNotice = vi.fn();
+    renderDetail(nara(), { onNotice });
+    expect(screen.queryByRole("button", { name: "영업시간을 알려주세요" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "영업시간 수정" }));
+    expect(onNotice).toHaveBeenCalledWith("준비 중이에요");
   });
 });
 

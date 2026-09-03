@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { Place } from "@/lib/types";
+import { EditButton } from "./edit-button";
 
 interface PlaceInfoProps {
   place: Place;
@@ -28,7 +29,10 @@ export function PlaceInfo({ place, onCopy, onSuggestHours }: PlaceInfoProps) {
       </div>
 
       {place.hoursNote ? (
-        <p className="mt-1.5 text-body-m-regular text-fg-secondary">{place.hoursNote}</p>
+        <div className="mt-1.5 flex items-center gap-3">
+          <p className="min-w-0 flex-1 text-body-m-regular text-fg-secondary">{place.hoursNote}</p>
+          <EditButton label="영업시간 수정" onClick={onSuggestHours} />
+        </div>
       ) : (
         <button
           type="button"

@@ -78,7 +78,7 @@ export function PlaceDetail({
       {/* 7 */}
       <MenuList menus={d.place.menus} onSuggest={d.comingSoon} />
       {/* 8 */}
-      <SidesRow sides={d.place.sides} />
+      <SidesRow sides={d.place.sides} onSuggest={d.comingSoon} />
       <SectionBand />
       {/* 3의 액션 자리 — 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
       <ContributionBand
