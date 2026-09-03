@@ -194,8 +194,10 @@ interface BottomSheetProps {
 /**
  * 하단 시트 — 항상 열려 있는 비모달. 목록 3단(collapsed/half/full), 상세 2단(half/full) + 닫힘.
  * 목록: 드래그는 핸들·헤더에서만 받아 리스트 스크롤과 충돌하지 않는다. 지도는 시트 위 영역에서 계속 조작 가능.
- * 상세: 요약(half)에선 본문 스크롤을 잠그고 어디를 끌어도 시트가 움직인다. 전체(full)에선 본문이 스크롤되고
+ * 상세: 요약(half)에서 본문을 끌면 시트가 움직이고, 위로 끌면 전체로 펼쳐진다(스크롤 체이닝 — Material 3
+ *       BottomSheetBehavior·iOS 시트의 기본이자 국내 지도 앱들의 동작). 전체(full)에선 본문이 스크롤되고
  *       맨 위에서 아래로 끄는 것만 시트 드래그로 가로챈다(non-passive touchmove로 브라우저 스크롤 선점 차단).
+ *       요약에서도 본문은 스크롤 컨테이너로 남는다 — 잠그면 휠·키보드로는 본문에 닿을 길이 없다.
  *       닫기 ✕는 본문이 아니라 헤더(시트 크롬)에 있다 — 사진 유무·스크롤 위치와 무관하게 늘 같은 자리.
  */
 export function BottomSheet({
@@ -350,7 +352,9 @@ export function BottomSheet({
     }
   };
 
-  // 전체 상태에서 맨 위를 아래로 끌 때 브라우저의 스크롤(오버스크롤) 선점을 막는다.
+  // 본문 터치를 시트 드래그로 쓸 때 브라우저의 스크롤(오버스크롤) 선점을 막는다.
+  // 요약에선 어느 방향이든 시트가 먼저 반응하고(체이닝: 위로 끌면 전체로 펼쳐진다),
+  // 전체에선 맨 위에서 아래로 끄는 것만 가로챈다 — 나머지는 본문 스크롤이다.
   // React의 onTouchMove는 passive라 preventDefault가 안 먹어 네이티브로 단다.
   useEffect(() => {
     if (!detail) return;
@@ -361,13 +365,15 @@ export function BottomSheet({
       if (!drag || drag.source !== "body" || !e.cancelable) return;
       const touch = e.touches[0];
       if (!touch) return;
-      if (drag.moved || touch.clientY - drag.startY >= 0) e.preventDefault();
+      if (snap === "half" || drag.moved || touch.clientY - drag.startY >= 0) {
+        e.preventDefault();
+      }
     };
     body.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
       body.removeEventListener("touchmove", onTouchMove);
     };
-  }, [detail]);
+  }, [detail, snap]);
 
   // 요약으로 돌아오면 본문을 맨 위로 (전체에서 스크롤한 채 요약이 되면 위가 잘린다)
   useEffect(() => {

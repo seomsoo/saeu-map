@@ -343,12 +343,10 @@ body {
   --sheet-half: max(50dvh, 300px);
   --sheet-header-h: 44px;
 }
-/* 요약: 본문 스크롤 잠금 — 어디를 끌어도 시트가 움직인다 (touch-action은 스크롤 컨테이너 자신에 줘야 먹는다) */
-.saeu-sheet[data-mode="detail"][data-snap="half"] .saeu-sheet__body {
-  overflow-y: hidden;
-  touch-action: none;
-}
-/* 전체: 본문 스크롤. 맨 위에서 아래로 끄는 것만 JS(non-passive touchmove)가 가로챈다 */
-.saeu-sheet[data-mode="detail"][data-snap="full"] .saeu-sheet__body {
+/* 상세 본문은 스냅과 무관하게 스크롤 컨테이너로 둔다 — 요약에서 잠가 버리면 휠·키보드 사용자가
+   본문에 닿을 길이 아예 없다. 터치 제스처만 JS(non-passive touchmove)가 스냅에 따라 가로챈다:
+   요약에선 어디로 끌든 시트가 먼저(체이닝), 전체에선 맨 위에서 아래로 끌 때만.
+   (touch-action은 스크롤 컨테이너 자신에 줘야 먹는다) */
+.saeu-sheet[data-mode="detail"] .saeu-sheet__body {
   touch-action: pan-y;
 }
