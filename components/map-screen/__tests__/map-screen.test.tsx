@@ -57,6 +57,7 @@ const fake = vi.hoisted(() => {
     panTo: vi.fn(),
     morph: vi.fn(),
     fitBounds: vi.fn(),
+    setZoom: vi.fn(),
     getSize: () => new Size(390, 844),
     getProjection: () => ({
       fromCoordToOffset: () => new Point(195, 400),
@@ -184,6 +185,7 @@ beforeEach(() => {
   fake.map.panTo.mockClear();
   fake.map.morph.mockClear();
   fake.map.fitBounds.mockClear();
+  fake.map.setZoom.mockClear();
 });
 
 describe("MapScreen — design 화면 1의 1~8", () => {
@@ -362,12 +364,6 @@ describe("MapScreen — design 화면 1의 1~8", () => {
   it("이벤트 카드가 null이면 슬롯이 비어 있다", () => {
     renderScreen({ eventCard: null });
     expect(screen.queryByLabelText("이벤트")).not.toBeInTheDocument();
-  });
-
-  it("[+ 제보] → 준비 중 안내 (Phase 3 전)", () => {
-    renderScreen();
-    fireEvent.click(screen.getByRole("button", { name: "제보" }));
-    expect(screen.getByRole("status")).toHaveTextContent("제보는 준비 중이에요");
   });
 
   it("NCP 인증 실패(navermap_authFailure) → 지도 자리와 시트 모두 에러 상태", async () => {
@@ -559,5 +555,133 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     await waitFor(() => {
       expect(card).toHaveTextContent("오늘 확인");
     });
+  });
+});
+
+describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
+  const history = { pushState: vi.fn(), replaceState: vi.fn(), back: vi.fn() };
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    history.pushState = vi.spyOn(window.history, "pushState");
+    history.replaceState = vi.spyOn(window.history, "replaceState");
+    history.back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const openReport = async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "제보" }));
+  };
+  const popstate = () => {
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  };
+
+  it("[+ 제보] → 같은 시트가 제보 모드(전체)로: 1단계 제목·입력 포커스, FAB·검색바는 숨고 엔트리 하나 push", async () => {
+    await openReport();
+    const sheet = screen.getByRole("region", { name: "가게 제보" });
+    expect(sheet).toHaveAttribute("data-mode", "report");
+    expect(sheet).toHaveAttribute("data-snap", "full");
+    expect(screen.getByRole("heading", { name: "가게 이름을 검색해주세요" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "가게 이름" })).toHaveFocus();
+    expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "1");
+    expect(screen.getByRole("button", { name: "새로 등록하기" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
+    expect(screen.queryByRole("searchbox", { name: "가게·동네 검색" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "가게 목록" })).toBeNull();
+    expect(history.pushState).toHaveBeenCalledTimes(1);
+    expect(history.pushState).toHaveBeenCalledWith({ saeuReport: true }, "");
+  });
+
+  it("헤더 ✕(제보 그만두기) → history.back, popstate가 닫아 목록·원래 스냅으로", async () => {
+    await openReport();
+    fireEvent.click(screen.getByRole("button", { name: "제보 그만두기" }));
+    expect(history.back).toHaveBeenCalledTimes(1);
+    popstate();
+    const sheet = screen.getByRole("region", { name: "가게 목록" });
+    expect(sheet).toHaveAttribute("data-mode", "list");
+    expect(sheet).toHaveAttribute("data-snap", "half");
+    expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
+  });
+
+  it("1단계: 두 글자부터 '이미 있어요' 매치, 탭하면 플로우가 닫히고 그 상세로 (제보 엔트리를 상세로 교체)", async () => {
+    await openReport();
+    const input = screen.getByRole("textbox", { name: "가게 이름" });
+    fireEvent.change(input, { target: { value: "나" } });
+    expect(screen.queryByRole("list", { name: "이미 있는 가게" })).toBeNull();
+    fireEvent.change(input, { target: { value: "나라" } });
+    const row = within(screen.getByRole("list", { name: "이미 있는 가게" })).getByRole("button", {
+      name: /나라수산/,
+    });
+    expect(row).toHaveTextContent("이미 있어요");
+    expect(row).toHaveTextContent("마포구 · 새우구이 · 생새우회");
+    fireEvent.click(row);
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "가게 상세" })).toHaveAttribute("data-mode", "detail");
+    expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
+    expect(history.pushState).toHaveBeenCalledTimes(1); // 제보 엔트리뿐
+    // 상세 닫기 → back 한 번에 목록
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(history.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("빈 이름으로 [새로 등록하기] → 오류 한 줄, 1단계 유지", async () => {
+    await openReport();
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("가게 이름을 입력해주세요");
+    expect(screen.getByRole("heading", { name: "가게 이름을 검색해주세요" })).toBeInTheDocument();
+  });
+
+  it("2단계 진입: 시트 요약 + 핀 마커 + 줌 17 focus. 뒤로가기(popstate) → 1단계로 돌아오고 엔트리 재장전, 입력값 유지", async () => {
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "나라새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    expect(screen.getByRole("heading", { name: "핀을 가게 위치로 옮겨주세요" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "가게 제보" })).toHaveAttribute("data-snap", "half");
+    expect(screen.getByRole("button", { name: "제보 위치" })).toBeInTheDocument(); // 끌 수 있는 핀
+    expect(fake.map.setZoom).toHaveBeenCalledWith(17, false);
+    expect(fake.map.panTo).toHaveBeenCalled();
+    expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "2");
+
+    popstate();
+    expect(screen.getByRole("heading", { name: "가게 이름을 검색해주세요" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "가게 이름" })).toHaveValue("나라새우집");
+    expect(screen.queryByRole("button", { name: "제보 위치" })).toBeNull();
+    expect(history.pushState).toHaveBeenCalledTimes(2);
+    expect(history.pushState).toHaveBeenLastCalledWith({ saeuReport: true }, "");
+    // 1단계에서 한 번 더 뒤로 → 닫힘
+    popstate();
+    expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("패널의 ‹ 는 history.back과 같은 길", async () => {
+    await openReport();
+    fireEvent.click(screen.getByRole("button", { name: "이전" }));
+    expect(history.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("제보 중 마커를 탭해도 상세가 열리지 않는다 (기존 마커는 보이기만)", async () => {
+    await openReport();
+    fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
+    expect(screen.queryByRole("article")).toBeNull();
+    expect(screen.getByRole("region", { name: "가게 제보" })).toBeInTheDocument();
+  });
+
+  it("지도를 못 불러온 상태에선 제보 입구가 토스트로 막힌다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const w = window as Window & { navermap_authFailure?: () => void };
+    act(() => {
+      w.navermap_authFailure?.();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "제보" }));
+    expect(screen.getByRole("status")).toHaveTextContent("지도를 불러오지 못해 제보할 수 없어요");
+    expect(screen.queryByRole("region", { name: "가게 제보" })).toBeNull();
+    expect(history.pushState).not.toHaveBeenCalled();
   });
 });

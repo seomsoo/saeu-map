@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
 import { PlaceDetail } from "@/components/place-detail/place-detail";
+import { ReportPanel } from "@/components/report/report-panel";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorState } from "@/components/ui/error-state";
 import { Toast } from "@/components/ui/toast";
@@ -33,15 +34,13 @@ export interface MapScreenProps {
   initialDetail?: PlaceDetailData | undefined;
 }
 
-const REPORT_NOTICE = "제보는 준비 중이에요";
-
 function reloadPage() {
   window.location.reload();
 }
 
 /**
- * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로 바뀐다.
- * 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
+ * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로,
+ * [＋ 제보]를 누르면 화면 3(제보)으로 바뀐다. 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
  */
 export default function MapScreen({
   now,
@@ -55,10 +54,6 @@ export default function MapScreen({
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
-
-  const handleReport = () => {
-    s.showNotice(REPORT_NOTICE);
-  };
 
   const detailPlace = s.detailPlace;
 
@@ -84,6 +79,10 @@ export default function MapScreen({
               onViewportChange={s.handleViewportChange}
               onPlaceClick={s.selectFromMarker}
               onClusterClick={s.handleClusterClick}
+              pin={s.reportStep === 2 ? s.reportPin : null} // 핀은 2단계에만 보인다 (좌표는 단계를 오가도 남는다)
+              onPinChange={(point) => {
+                s.moveReportPin(point, "drag");
+              }}
               onAuthFailure={s.handleMapError}
             />
           </NaverMapProvider>
@@ -134,7 +133,7 @@ export default function MapScreen({
         <Toast message={s.notice} />
       </div>
 
-      {/* 3~7. 바텀시트 (+ FAB 줄). 상세가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
+      {/* 3~7. 바텀시트 (+ FAB 줄). 상세·제보가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
       <PlaceSheet
         status={s.status}
         places={s.sorted}
@@ -168,15 +167,27 @@ export default function MapScreen({
             />
           )
         }
+        report={
+          s.reportStep !== null && (
+            <ReportPanel
+              step={s.reportStep}
+              places={s.places}
+              onBack={s.backReportStep}
+              onStepChange={s.goToReportStep}
+              onOpenExisting={s.openDetailFromReport}
+            />
+          )
+        }
         emptyKind={s.emptyKind}
-        aside={s.mode === "list" ? <FabRow onLocate={s.locateMe} onReport={handleReport} /> : undefined}
+        aside={s.mode === "list" ? <FabRow onLocate={s.locateMe} onReport={s.openReport} /> : undefined}
         onSortChange={s.setSort}
         onSnapChange={s.setSnap}
         onDismissDetail={s.closeDetail}
+        onDismissReport={s.cancelReport}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
         onClearChips={s.clearChips}
-        onReport={handleReport}
+        onReport={s.openReport}
         onRetry={reloadPage}
       />
     </div>

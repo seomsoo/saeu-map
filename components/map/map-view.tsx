@@ -20,7 +20,11 @@ import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
 import { isInactive } from "@/lib/time";
 import { markerCategory } from "@/lib/places";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getClusterIcon, getPlaceMarkerIcon, getReportPinIcon } from "./marker-icons";
+import {
+  getClusterIcon,
+  getPlaceMarkerIcon,
+  getReportPinIcon,
+} from "./marker-icons";
 
 type Navermaps = typeof naver.maps;
 
@@ -48,6 +52,12 @@ export interface MapHandle {
   /** target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙. */
   panTo(target: LatLng, options?: { screenY?: number | undefined }): void;
   morph(target: LatLng, zoom: number): void;
+  /** 줌을 바꾼 뒤(애니메이션 없이) panTo — 제보 2단계가 핀을 시트 위 가시 영역 가운데에 놓을 때 */
+  focus(
+    target: LatLng,
+    zoom: number,
+    options?: { screenY?: number | undefined },
+  ): void;
   fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
   getViewport(): Viewport | null;
   /**
@@ -80,7 +90,9 @@ export interface MapViewProps {
   onAuthFailure: () => void;
 }
 
-type WindowWithNaverAuth = Window & { navermap_authFailure?: (() => void) | undefined };
+type WindowWithNaverAuth = Window & {
+  navermap_authFailure?: (() => void) | undefined;
+};
 
 function useNaverAuthFailure(onAuthFailure: () => void): void {
   useEffect(() => {
@@ -133,7 +145,10 @@ export function MapView({
         scaleControl={false}
         mapDataControl={false}
       >
-        <MapController handleRef={handleRef} onViewportChange={onViewportChange} />
+        <MapController
+          handleRef={handleRef}
+          onViewportChange={onViewportChange}
+        />
         <PlaceMarkers
           items={items}
           selectedId={selectedId}
@@ -165,7 +180,12 @@ function readViewport(
   const ne = bounds.getNE();
   const sw = bounds.getSW();
   return {
-    bounds: { north: ne.lat(), east: ne.lng(), south: sw.lat(), west: sw.lng() },
+    bounds: {
+      north: ne.lat(),
+      east: ne.lng(),
+      south: sw.lat(),
+      west: sw.lng(),
+    },
     zoom: map.getZoom(),
     center: toLatLng(navermaps, map.getCenter()),
   };
@@ -192,28 +212,33 @@ function MapController({
     report();
   }, [report]);
 
-  useImperativeHandle(
-    handleRef,
-    () => ({
-      panTo(target, options) {
-        const latlng = new navermaps.LatLng(target.lat, target.lng);
-        const screenY = options?.screenY;
-        if (screenY === undefined) {
-          map.panTo(latlng);
-          return;
-        }
-        // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
-        const projection = map.getProjection();
-        const size = map.getSize();
-        const offset = projection.fromCoordToOffset(latlng);
-        const centerOffset = new navermaps.Point(
-          offset.x,
-          size.height / 2 + (offset.y - screenY),
-        );
-        map.panTo(projection.fromOffsetToCoord(centerOffset));
-      },
+  useImperativeHandle(handleRef, () => {
+    const panTo: MapHandle["panTo"] = (target, options) => {
+      const latlng = new navermaps.LatLng(target.lat, target.lng);
+      const screenY = options?.screenY;
+      if (screenY === undefined) {
+        map.panTo(latlng);
+        return;
+      }
+      // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
+      const projection = map.getProjection();
+      const size = map.getSize();
+      const offset = projection.fromCoordToOffset(latlng);
+      const centerOffset = new navermaps.Point(
+        offset.x,
+        size.height / 2 + (offset.y - screenY),
+      );
+      map.panTo(projection.fromOffsetToCoord(centerOffset));
+    };
+    return {
+      panTo,
       morph(target, zoom) {
         map.morph(new navermaps.LatLng(target.lat, target.lng), zoom);
+      },
+      focus(target, zoom, options) {
+        // 줌은 즉시(effect=false) — 애니메이션 중에는 투영이 옛 줌이라 screenY 계산이 어긋난다
+        if (map.getZoom() !== zoom) map.setZoom(zoom, false);
+        panTo(target, options);
       },
       fitBounds(bounds, margin) {
         const latLngBounds = new navermaps.LatLngBounds(
@@ -235,34 +260,48 @@ function MapController({
       geocode(query) {
         return new Promise<AddressHit[]>((resolve, reject) => {
           // 서브모듈이 안 실렸으면(차단·네트워크) Service 자체가 없다
-          const service = (navermaps as { Service?: typeof naver.maps.Service }).Service;
+          const service = (navermaps as { Service?: typeof naver.maps.Service })
+            .Service;
           if (!service) {
             reject(new Error("geocoder unavailable"));
             return;
           }
           const center = toLatLng(navermaps, map.getCenter());
           service.geocode(
-            { query, coordinate: `${center.lng},${center.lat}`, count: GEOCODE_MAX_HITS },
+            {
+              query,
+              coordinate: `${center.lng},${center.lat}`,
+              count: GEOCODE_MAX_HITS,
+            },
             (status, response) => {
               if (status !== service.Status.OK) {
                 reject(new Error("geocode failed"));
                 return;
               }
               resolve(
-                response.v2.addresses.slice(0, GEOCODE_MAX_HITS).flatMap((a) => {
-                  const lat = Number(a.y);
-                  const lng = Number(a.x);
-                  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
-                  return [{ roadAddress: a.roadAddress, jibunAddress: a.jibunAddress, lat, lng }];
-                }),
+                response.v2.addresses
+                  .slice(0, GEOCODE_MAX_HITS)
+                  .flatMap((a) => {
+                    const lat = Number(a.y);
+                    const lng = Number(a.x);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng))
+                      return [];
+                    return [
+                      {
+                        roadAddress: a.roadAddress,
+                        jibunAddress: a.jibunAddress,
+                        lat,
+                        lng,
+                      },
+                    ];
+                  }),
               );
             },
           );
         });
       },
-    }),
-    [map, navermaps],
-  );
+    };
+  }, [map, navermaps]);
 
   return null;
 }
