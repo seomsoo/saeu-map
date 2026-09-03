@@ -10,6 +10,7 @@ import { z } from "zod";
 import type {
   Checkin,
   EventCard,
+  Photo,
   Place,
   PlaceDetail,
   PlaceTag,
@@ -35,6 +36,12 @@ import checkinsJson from "./mock/checkins.json";
 import reviewsJson from "./mock/reviews.json";
 import eventCardJson from "./mock/event-card.json";
 
+/**
+ * 한 가게에 붙일 수 있는 사진 수 (decisions 2026-09-03). UI 상수가 아니라 도메인 규칙이라
+ * 데이터 계층이 갖고, 변환에서 잘라 막는다 — 익명 업로드에 상한이 없으면 도배가 가장 싼 공격이다.
+ */
+export const MAX_PLACE_PHOTOS = 10;
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 목 전용 — Supabase 교체 시 이 블록 전체 삭제
  *
@@ -46,12 +53,12 @@ import eventCardJson from "./mock/event-card.json";
 
 type RawPlace = Omit<
   Place,
-  "isNew" | "lastCheckedAt" | "createdAt" | "photoUrls" | "thumbnailUrl" | "hoursNote"
+  "isNew" | "lastCheckedAt" | "createdAt" | "photos" | "thumbnailUrl" | "hoursNote"
 > & {
   isNew: boolean;
   lastCheckedAt: string; // "YYYY-MM-DD"
   createdAt?: string; // "YYYY-MM-DD"
-  photos?: string[]; // /public 경로. 사진 업로드 전까지 목 샘플만
+  photos?: { url: string; at: string }[]; // url = /public 경로, at = "YYYY-MM-DD". 사진 업로드 전까지 목 샘플만
   hoursNote?: string; // 영업시간 메모 샘플
 };
 
@@ -85,16 +92,21 @@ function dataset(now: DateInput): Dataset {
 
   const places: Place[] = rawPlaces
     .filter((p) => !p.needsReview) // 검수 대기(새우 메뉴 파싱 실패)는 숨김 — 플랜 결정 4
-    .map(({ photos, hoursNote, ...raw }) => {
+    .map(({ photos: rawPhotos, hoursNote, ...raw }) => {
       const createdAt = raw.createdAt ? shiftDateOnly(raw.createdAt) : undefined;
       // 이미지 경로는 우리 스토리지(/…)만 — 규칙 3 (외부 도메인이 섞여 들어오면 그 장만 버린다)
-      const photoUrls = (photos ?? [])
-        .map(safeAssetPath)
-        .filter((url): url is string => url !== null);
+      const photos: Photo[] = (rawPhotos ?? [])
+        .flatMap((photo, i) => {
+          const url = safeAssetPath(photo.url);
+          // id는 걸러진 장이 있어도 번호가 밀리지 않게 원본 인덱스로 — Phase 6에서 DB uuid로 교체
+          if (url === null) return [];
+          return [{ id: `${raw.id}-p${String(i + 1)}`, url, uploadedAt: shiftDateOnly(photo.at) }];
+        })
+        .slice(0, MAX_PLACE_PHOTOS);
       return {
         ...raw,
-        photoUrls,
-        thumbnailUrl: photoUrls[0] ?? null,
+        photos,
+        thumbnailUrl: photos[0]?.url ?? null,
         hoursNote: hoursNote ?? null,
         lastCheckedAt: shiftDateOnly(raw.lastCheckedAt),
         ...(createdAt !== undefined && { createdAt }),
@@ -130,7 +142,8 @@ async function simulateWrite(): Promise<void> {
   if (Math.random() < MOCK_FAILURE_RATE) throw new Error("mock write failed");
 }
 
-const placeIdSchema = z.string().trim().min(1).max(64);
+/** 가게 id·사진 id 공통 형태. */
+const idSchema = z.string().trim().min(1).max(64);
 
 /* ══════════════════════════════════════════════════════════════════════════
  * 공개 API — 읽기
@@ -274,7 +287,7 @@ export function getBookmarkedPlaceIds(): Promise<string[]> {
  * 취소는 없다(spec 5). 핀당 하루 1회 제한은 컴포넌트 상태로(속도 제한 자리, Phase 6 Upstash).
  */
 export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
-  const id = placeIdSchema.parse(placeId);
+  const id = idSchema.parse(placeId);
   await simulateWrite();
   const data = dataset(now);
   const current = data.places.find((p) => p.id === id);
@@ -291,11 +304,34 @@ export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
   return updated;
 }
 
+/** 사진 신고 사유 — 뷰어 신고 시트의 4행과 1:1 (design 화면 2 변형 (e)). */
+export type PhotoReportReason = "inappropriate" | "wrong_place" | "spam" | "other";
+
+const photoReportSchema = z.object({
+  placeId: idSchema,
+  photoId: idSchema,
+  reason: z.enum(["inappropriate", "wrong_place", "spam", "other"]),
+});
+
+/**
+ * 사진 신고 접수 (spec 스팸 4겹 2 "신고 일 10"). 익명 업로드 이미지라, 다른 미구현 입구와 달리
+ * "준비 중이에요"로 미루지 않는다(decisions 2026-09-03).
+ * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·속도 제한은 Phase 6.
+ */
+export async function reportPhoto(input: {
+  placeId: string;
+  photoId: string;
+  reason: PhotoReportReason;
+}): Promise<void> {
+  photoReportSchema.parse(input);
+  await simulateWrite();
+}
+
 /** 찜 토글 (spec 5 "찜"). 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
 export function toggleBookmark(placeId: string): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
   return Promise.resolve(placeId).then((raw) => {
-    const id = placeIdSchema.parse(raw);
+    const id = idSchema.parse(raw);
     if (bookmarkedIds.has(id)) bookmarkedIds.delete(id);
     else bookmarkedIds.add(id);
     return [...bookmarkedIds];

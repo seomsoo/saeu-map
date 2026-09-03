@@ -14,6 +14,15 @@ export interface Sides {
 
 export type PlaceTag = "grill" | "raw";
 
+export interface Photo {
+  /** 목 단계에서는 `{placeId}-p{n}` 파생. Phase 6에서 DB uuid로 바뀐다 — 신고가 이 값을 보낸다. */
+  id: string;
+  /** 우리 스토리지 경로만(규칙 3). */
+  url: string;
+  /** 업로드 시각(UTC ISO). 뷰어 하단에 "2026.09.03"으로 찍힌다. */
+  uploadedAt: string;
+}
+
 export interface Place {
   id: string;
   name: string;
@@ -25,9 +34,9 @@ export interface Place {
   tags: PlaceTag[];
   specialist: boolean;
   naverPlaceUrl: string | null;
-  /** 가게 사진 전부(제보·업로드 순). 우리 스토리지 경로만(규칙 3). 상세가 이 순서로 가로 스트립을 그린다. */
-  photoUrls: string[];
-  /** 대표 = photoUrls[0]. 카드·마커가 쓴다. 없으면 null → 마커는 플레이스홀더. */
+  /** 가게 사진 전부(제보·업로드 순, 최대 MAX_PLACE_PHOTOS장). 상세가 이 순서로 가로 스트립을 그린다. */
+  photos: Photo[];
+  /** 대표 = photos[0].url. 카드·마커가 쓴다. 없으면 null → 마커는 플레이스홀더. */
   thumbnailUrl: string | null;
   /** 영업시간 메모(제보 자유 입력, spec 4.3-4). 없으면 null → 상세에 "영업시간을 알려주세요" 입구. "영업 중" 판정은 하지 않는다(2026-09-02). */
   hoursNote: string | null;

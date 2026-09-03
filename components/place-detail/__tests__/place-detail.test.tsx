@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
-import type { Place, PlaceDetail as PlaceDetailData, Review } from "@/lib/types";
+import type { Photo, Place, PlaceDetail as PlaceDetailData, Review } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
 
 const data = vi.hoisted(() => ({
@@ -16,6 +16,12 @@ vi.mock("@/lib/data", () => ({
 
 const NOW = "2026-09-01T12:00:00+09:00";
 const day = (d: number) => new Date(Date.parse(NOW) - d * 86_400_000).toISOString();
+
+const photo = (n: number): Photo => ({
+  id: `nara-p${String(n)}`,
+  url: `/mock/photo-${String(n)}.svg`,
+  uploadedAt: day(n),
+});
 
 function review(rating: number, overrides: Partial<Review> = {}): Review {
   return {
@@ -136,7 +142,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
   });
 
   it("사진이 있으면 상단에 사진, 네이버 링크는 리뷰 섹션 끝으로", async () => {
-    renderDetail(nara({ photoUrls: ["/mock/thumb-1.svg", "/mock/thumb-2.svg"] }));
+    renderDetail(nara({ photos: [photo(1), photo(2)] }));
     const strip = screen.getByRole("list", { name: "나라수산 사진" });
     expect(within(strip).getAllByRole("img")).toHaveLength(2);
     expect(within(strip).getByRole("button", { name: "사진 추가" })).toBeInTheDocument();

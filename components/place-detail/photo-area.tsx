@@ -31,7 +31,7 @@ function AddTile() {
  * touch-pan-x: 시트 본문이 pan-y라 가로 스와이프가 시트 드래그로 새지 않게 스트립에서 명시한다.
  */
 export function PhotoArea({ place, naverUrl, onUploadPhoto }: PhotoAreaProps) {
-  if (place.photoUrls.length === 0) {
+  if (place.photos.length === 0) {
     return (
       <div className="relative flex items-center gap-3 px-5 pt-1 pb-3">
         <AddTile />
@@ -57,11 +57,11 @@ export function PhotoArea({ place, naverUrl, onUploadPhoto }: PhotoAreaProps) {
       data-pan-x
       className="no-scrollbar flex touch-pan-x gap-2 overflow-x-auto px-5 pt-1 pb-3"
     >
-      {place.photoUrls.map((url, i) => (
-        <li key={url} className="shrink-0">
+      {place.photos.map((photo, i) => (
+        <li key={photo.id} className="shrink-0">
           {/* images.unoptimized — 업로드 시 리사이즈본을 쓴다 */}
           <Image
-            src={url}
+            src={photo.url}
             alt={`${place.name} 사진 ${String(i + 1)}`}
             width={112}
             height={112}

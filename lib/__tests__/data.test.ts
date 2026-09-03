@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MAX_PLACE_PHOTOS,
+  MOCK_FAILURE_RATE,
   MOCK_WRITE_DELAY_MS,
   checkIn,
   getBookmarkedPlaceIds,
@@ -10,6 +12,7 @@ import {
   getPlaces,
   getReviews,
   getSeasonStats,
+  reportPhoto,
   toggleBookmark,
 } from "../data";
 import { isInactive, kstDayIndex } from "../time";
@@ -124,15 +127,64 @@ describe("getPlaceDetail", () => {
     expect(await getPlaceDetail("nonexistent", now)).toBeUndefined();
   });
 
-  it("사진은 여러 장, 대표(thumbnailUrl)는 첫 장", async () => {
-    const now = NOWS[0] as string;
+  it.each(NOWS)("now=%s — 사진은 여러 장, 대표(thumbnailUrl)는 첫 장, 업로드일도 이동한다", async (now) => {
     const withPhotos = await getPlaceDetail("p018", now);
-    expect(withPhotos?.place.photoUrls.length).toBeGreaterThan(1);
-    expect(withPhotos?.place.thumbnailUrl).toBe(withPhotos?.place.photoUrls[0]);
+    const photos = withPhotos?.place.photos ?? [];
+    expect(photos.length).toBeGreaterThan(1);
+    expect(withPhotos?.place.thumbnailUrl).toBe(photos[0]?.url);
+    for (const photo of photos) {
+      expect(photo.id).toMatch(/^p018-p\d+$/);
+      expect(photo.url.startsWith("/")).toBe(true);
+      // 다른 목 날짜와 같은 shift를 타야 "오늘 올린 사진"이 미래가 되지 않는다
+      expect(photo.uploadedAt).toBe(new Date(photo.uploadedAt).toISOString());
+      expect(Date.parse(photo.uploadedAt)).toBeLessThanOrEqual(Date.parse(now));
+    }
+    // 업로드 순서 유지
+    const times = photos.map((p) => Date.parse(p.uploadedAt));
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
 
     const noPhoto = await getPlaceDetail("p004", now);
-    expect(noPhoto?.place.photoUrls).toEqual([]);
+    expect(noPhoto?.place.photos).toEqual([]);
     expect(noPhoto?.place.thumbnailUrl).toBeNull();
+  });
+
+  it(`한 가게 ${String(MAX_PLACE_PHOTOS)}장까지만 (목 데이터에 꽉 찬 케이스가 있다)`, async () => {
+    const places = await getPlaces({}, NOWS[0]);
+    for (const place of places) {
+      expect(place.photos.length).toBeLessThanOrEqual(MAX_PLACE_PHOTOS);
+    }
+    expect(places.some((p) => p.photos.length === MAX_PLACE_PHOTOS)).toBe(true);
+  });
+});
+
+describe("reportPhoto — 목 쓰기", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("성공: 400ms 뒤 resolve", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const promise = reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "inappropriate" });
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  it("실패: 10% 확률에 걸리면 reject (컴포넌트가 토스트로 되돌린다)", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
+    const promise = reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "spam" });
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    await expect(promise).rejects.toThrow();
+  });
+
+  it("검증: 빈 id·모르는 사유는 거부하고 지연도 타지 않는다", async () => {
+    await expect(reportPhoto({ placeId: "", photoId: "p018-p1", reason: "other" })).rejects.toThrow();
+    await expect(
+      reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "nope" as never }),
+    ).rejects.toThrow();
   });
 });
 
