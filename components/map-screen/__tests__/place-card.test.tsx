@@ -37,7 +37,7 @@ describe("PlaceCard", () => {
   it("상호 · 구·카테고리 메타 · 사이드 · 확인 라벨 (메뉴·가격은 카드에 없음)", () => {
     renderCard();
     expect(screen.getByRole("heading", { name: "나라수산" })).toBeInTheDocument();
-    expect(screen.getByText("마포구 · 소금구이 · 생새우회")).toBeInTheDocument();
+    expect(screen.getByText("마포구 · 새우구이 · 생새우회")).toBeInTheDocument();
     expect(screen.queryByText("생새우소금구이")).not.toBeInTheDocument();
     expect(screen.queryByText("60,000")).not.toBeInTheDocument();
     expect(screen.getByText("어제 확인")).toBeInTheDocument();
@@ -55,8 +55,8 @@ describe("PlaceCard", () => {
 
     renderCard({ origin: { lat: 37.54, lng: 126.95 } });
     // 거리는 별도 span이라 요소 전체 텍스트로 확인
-    expect(screen.getByText(/마포구 · 소금구이 · 생새우회/)).toHaveTextContent(
-      /^\d+m · 마포구 · 소금구이 · 생새우회$/,
+    expect(screen.getByText(/마포구 · 새우구이 · 생새우회/)).toHaveTextContent(
+      /^\d+m · 마포구 · 새우구이 · 생새우회$/,
     );
   });
 

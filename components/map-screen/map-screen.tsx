@@ -129,7 +129,7 @@ export default function MapScreen({
         <Toast message={s.notice} />
       </div>
 
-      {/* 3~7. 바텀시트 (+ FAB 줄). 상세가 열리면 FAB는 숨긴다 — 채운 레드는 [다녀왔다면] 한 곳 */}
+      {/* 3~7. 바텀시트 (+ FAB 줄). 상세가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
       <PlaceSheet
         status={s.status}
         places={s.sorted}
@@ -154,7 +154,6 @@ export default function MapScreen({
               initialReviews={
                 initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
               }
-              onClose={s.closeDetail}
               onPatchPlace={s.patchPlace}
               onChecked={s.markChecked}
               onToggleBookmark={() => {

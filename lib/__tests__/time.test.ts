@@ -3,7 +3,6 @@ import {
   addDaysIso,
   daysBetweenKst,
   formatKstDate,
-  formatKstShortDate,
   isInactive,
   isWithinNewWindow,
   kstDateOnlyToIso,
@@ -104,14 +103,12 @@ describe("isInactive / isWithinNewWindow", () => {
   });
 });
 
-describe("formatKstDate / formatKstShortDate", () => {
+describe("formatKstDate", () => {
   it("KST 달력일로 표기 (UTC 자정 직전은 KST 다음 날)", () => {
     // 2026-08-26 23:30 UTC == 2026-08-27 08:30 KST
     expect(formatKstDate("2026-08-26T23:30:00Z")).toBe("2026.08.27");
-    expect(formatKstShortDate("2026-08-26T23:30:00Z")).toBe("8.27");
   });
-  it("월·일 두 자리는 긴 형식만 0 채움", () => {
+  it("월·일은 두 자리로 0 채움", () => {
     expect(formatKstDate("2026-11-05T12:00:00+09:00")).toBe("2026.11.05");
-    expect(formatKstShortDate("2026-11-05T12:00:00+09:00")).toBe("11.5");
   });
 });

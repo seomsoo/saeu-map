@@ -153,6 +153,7 @@ export function PlaceSheet({
       aside={aside}
       label={isDetail ? "가게 상세" : "가게 목록"}
       handleLabel={isDetail ? "상세 크기 조절" : "목록 크기 조절"}
+      dismissLabel="상세 닫기"
     >
       {isDetail && detail}
 

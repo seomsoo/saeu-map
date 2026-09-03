@@ -120,10 +120,12 @@ describe("BottomSheet", () => {
   });
 });
 
-describe("상세 모드 스냅 계산 (design 화면 2: 요약 50% 최소 300, 전체 92%)", () => {
-  it("sheetVisiblePx: 요약은 50%, 낮은 뷰포트에서도 300px 하한 (collapse 없음)", () => {
-    expect(sheetVisiblePx("half", 844, "detail")).toBe(422);
-    expect(sheetVisiblePx("half", 568, "detail")).toBe(300);
+describe("상세 모드 스냅 계산 (design 화면 2: 요약 30% 최소 270, 전체 92%)", () => {
+  it("sheetVisiblePx: 요약은 30%, 확인 캡션이 잘리지 않게 270px 하한 (collapse 없음)", () => {
+    // 844에서도 30%(253)는 하한에 못 미친다 — 확인 캡션 바닥이 257px이라 270이 이긴다
+    expect(sheetVisiblePx("half", 844, "detail")).toBe(270);
+    expect(sheetVisiblePx("half", 1000, "detail")).toBe(300);
+    expect(sheetVisiblePx("half", 568, "detail")).toBe(270);
     expect(sheetVisiblePx("full", 844, "detail")).toBe(776);
   });
 
@@ -179,9 +181,11 @@ describe("BottomSheet 상세 모드", () => {
         onDismiss={onDismiss}
         header={<span>헤더</span>}
         handleLabel="상세 크기 조절"
+        dismissLabel="상세 닫기"
         label="가게 상세"
       >
         <p>본문</p>
+        <div data-pan-x>사진 스트립</div>
         <button type="button">길찾기</button>
       </BottomSheet>,
     );
@@ -199,6 +203,18 @@ describe("BottomSheet 상세 모드", () => {
     expect(screen.getByRole("region", { name: "가게 상세" })).toHaveAttribute("data-mode", "detail");
   });
 
+  it("헤더 오른쪽 ✕가 닫는다 — 드래그가 시작되지 않게 pointerdown은 헤더로 올라가지 않는다", () => {
+    const { onSnapChange, onDismiss } = renderDetail("half");
+    const close = screen.getByRole("button", { name: "상세 닫기" });
+    // 헤더가 pointerdown에서 즉시 캡처하면 click이 헤더로 리타겟된다(2026-09-02 실측).
+    // 전파 차단은 여기서 확인하고, 리타겟 자체는 jsdom이 못 잡아 Playwright로 본다.
+    fireEvent.pointerDown(close, { pointerId: 1, button: 0, clientY: 100 });
+    fireEvent.pointerUp(close, { pointerId: 1, clientY: 100 });
+    fireEvent.click(close);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onSnapChange).not.toHaveBeenCalled();
+  });
+
   it("요약에서 본문을 아래로 튕기면 닫힘(onDismiss 1회, onSnapChange 없음)", () => {
     const { onSnapChange, onDismiss, body } = renderDetail("half");
     fireEvent.pointerDown(body, { pointerId: 1, button: 0, clientY: 500 });
@@ -208,6 +224,20 @@ describe("BottomSheet 상세 모드", () => {
     fireEvent.pointerUp(body, { pointerId: 1, clientY: 560 });
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onSnapChange).not.toHaveBeenCalled();
+  });
+
+  it("가로 스크롤 영역에서 가로로 끌면 시트 드래그가 취소된다 — 사진 스트립이 넘어가야 한다", () => {
+    const { onSnapChange, onDismiss, body } = renderDetail("half");
+    const strip = screen.getByText("사진 스트립");
+    fireEvent.pointerDown(strip, { pointerId: 7, button: 0, clientX: 200, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    // 가로가 우세한 첫 터치 이동에서 후보를 버린다(막지 않으면 아래 pointerMove가 닫기로 읽힌다)
+    fireEvent.touchMove(body, { touches: [{ clientX: 120, clientY: 502 }] });
+    fireEvent.pointerMove(body, { pointerId: 7, clientX: 120, clientY: 560 });
+    vi.advanceTimersByTime(1);
+    fireEvent.pointerUp(body, { pointerId: 7, clientX: 120, clientY: 560 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
   it("요약에서 본문을 위로 끌면 전체로", () => {

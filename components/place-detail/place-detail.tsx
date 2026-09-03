@@ -4,12 +4,13 @@ import { SectionBand } from "@/components/ui/section-band";
 import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
-import { CheckLine } from "./check-line";
+import { ContributionBand } from "./contribution-band";
 import { FooterLinks } from "./footer-links";
-import { AddressRow, HoursRow } from "./info-rows";
+import { PlaceInfo } from "./info-rows";
 import { MenuList } from "./menu-list";
 import { NewPlaceBanner } from "./new-place-banner";
 import { PhotoArea } from "./photo-area";
+import { PhotoViewer } from "./photo-viewer";
 import { PlaceHeader } from "./place-header";
 import { ReviewSection } from "./review-section";
 import { SidesRow } from "./sides-row";
@@ -20,10 +21,9 @@ export interface PlaceDetailProps {
   /** 서버 렌더 시각(ISO) — 상대 시간·낙관적 확인일의 기준 */
   now: string;
   bookmarked: boolean;
-  /** 이 세션에서 이미 "다녀왔다면"을 누른 가게 */
+  /** 이 세션에서 이미 "다녀왔어요"를 누른 가게 */
   checked: boolean;
   initialReviews?: Review[] | undefined;
-  onClose: () => void;
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
   onToggleBookmark: () => void;
@@ -31,8 +31,9 @@ export interface PlaceDetailProps {
 }
 
 /**
- * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~10 엄수). 바텀시트 detail 모드 안에 들어간다.
- * 채운 레드는 3번 [다녀왔다면] 한 곳. 섹션 사이는 8px 띠, 안쪽 행은 헤어라인.
+ * 화면 2 — 가게 상세 본문 (spec 4.2 순서 1~9 엄수). 바텀시트 detail 모드 안에 들어간다.
+ * 확인 줄(3번)은 해체됐다 — 신선도는 상호 아래 캡션, 액션은 사이드와 리뷰 사이 기여 블록.
+ * 닫기 ✕는 본문이 아니라 시트 헤더에 있다(bottom-sheet의 onDismiss).
  */
 export function PlaceDetail({
   place,
@@ -40,7 +41,6 @@ export function PlaceDetail({
   bookmarked,
   checked,
   initialReviews,
-  onClose,
   onPatchPlace,
   onChecked,
   onToggleBookmark,
@@ -57,22 +57,21 @@ export function PlaceDetail({
   });
   // 외부 링크는 화이트리스트 호스트만 (규칙 3의 링크판)
   const naverUrl = isAllowedNaverPlaceUrl(place.naverPlaceUrl) ? place.naverPlaceUrl : null;
-  const hasPhoto = place.thumbnailUrl !== null;
 
   return (
     <article aria-label={`${place.name} 상세`}>
       {/* 1 */}
-      <PhotoArea place={d.place} naverUrl={hasPhoto ? null : naverUrl} onUploadPhoto={d.comingSoon} />
+      <PhotoArea
+        place={d.place}
+        onUploadPhoto={d.comingSoon}
+        onOpenPhoto={d.openPhoto}
+      />
       {/* 2 */}
-      <PlaceHeader place={d.place} onClose={onClose} />
+      <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
-      {/* 3 */}
-      <CheckLine place={d.place} now={now} done={d.done} onCheckIn={d.checkIn} />
+      {/* 3 — 주소·지번·영업시간 한 블록 */}
+      <PlaceInfo place={d.place} onCopy={d.copyAddress} onSuggestHours={d.comingSoon} />
       {/* 4 */}
-      <AddressRow place={d.place} onCopy={d.copyAddress} />
-      {/* 5 */}
-      <HoursRow hoursNote={d.place.hoursNote} onSuggest={d.comingSoon} />
-      {/* 6 */}
       <ActionRow
         bookmarked={bookmarked}
         onRoute={d.openRoute}
@@ -80,22 +79,40 @@ export function PlaceDetail({
         onToggleBookmark={onToggleBookmark}
       />
       <SectionBand />
-      {/* 7 */}
+      {/* 5 */}
       <MenuList menus={d.place.menus} onSuggest={d.comingSoon} />
-      {/* 8 */}
-      <SidesRow sides={d.place.sides} />
+      {/* 6 */}
+      <SidesRow sides={d.place.sides} onSuggest={d.comingSoon} />
       <SectionBand />
-      {/* 9 */}
-      <ReviewSection
-        status={d.status}
-        reviews={d.reviews}
-        naverUrl={hasPhoto ? naverUrl : null}
-        onRetry={d.retryReviews}
+      {/* 7 — 구 3(확인 줄)의 액션 자리. 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
+      <ContributionBand
+        place={d.place}
+        now={now}
+        done={d.done}
+        onCheckIn={d.checkIn}
         onWriteReview={d.comingSoon}
       />
       <SectionBand />
-      {/* 10 */}
+      {/* 8 */}
+      <ReviewSection
+        status={d.status}
+        reviews={d.reviews}
+        naverUrl={naverUrl}
+        onRetry={d.retryReviews}
+      />
+      <SectionBand />
+      {/* 9 */}
       <FooterLinks onSelect={d.comingSoon} />
+      {/* 변형 (e) — 전체 화면 사진 뷰어. body 포털이라 시트 밖(top layer)에 뜬다. */}
+      {d.photoIndex !== null && (
+        <PhotoViewer
+          photos={d.place.photos}
+          initialIndex={d.photoIndex}
+          placeName={d.place.name}
+          onClose={d.closePhoto}
+          onReport={d.reportPhoto}
+        />
+      )}
     </article>
   );
 }

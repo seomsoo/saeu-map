@@ -10,6 +10,7 @@ docs/spec.md 2장 가공 규칙 구현:
 
 사용: python3 convert_seed.py <csv> <out_dir> [--sample N]
 전체 변환(--sample 없이)이 Phase 6 임포트의 입력이 된다.
+재변환 후에는 add_nearest_station.py를 다시 돌려야 nearestStation이 채워진다.
 """
 import sys, re, json, random
 import pandas as pd

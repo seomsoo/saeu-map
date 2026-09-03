@@ -2,7 +2,7 @@ import { Fragment } from "react";
 
 const LINKS = ["정보 수정 제안", "신고", "사장님이신가요?"] as const;
 
-/** 10. 맨 아래 한 줄 — 회색 텍스트 버튼 3개, 세로 헤어라인으로 구분. 각 플로우는 Phase 3·6에서 연결(지금은 준비 중 토스트). */
+/** 9. 맨 아래 한 줄 — 회색 텍스트 버튼 3개, 세로 헤어라인으로 구분. 각 플로우는 Phase 3·6에서 연결(지금은 준비 중 토스트). */
 export function FooterLinks({ onSelect }: { onSelect: (label: string) => void }) {
   return (
     <nav

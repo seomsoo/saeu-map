@@ -7,6 +7,14 @@
     "addressJibun": "서울 강남구 대치동 922-14",
     "lat": 37.4984999,
     "lng": 127.0526285,
+    "nearestStation": {
+      "name": "한티역",
+      "exit": "1",
+      "distanceM": 231,
+      "lines": [
+        "수인·분당"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -54,6 +62,14 @@
     "addressJibun": "서울 성동구 성수동1가 656-988",
     "lat": 37.5461394,
     "lng": 127.0469067,
+    "nearestStation": {
+      "name": "뚝섬역",
+      "exit": "7",
+      "distanceM": 127,
+      "lines": [
+        "2"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -108,7 +124,11 @@
     "lastCheckedAt": "2026-08-25",
     "checkCount": 0,
     "isNew": false,
-    "thumbnail": "/mock/thumb-1.svg"
+    "photos": [
+      { "url": "/mock/photo-1.svg", "at": "2026-08-22" },
+      { "url": "/mock/photo-3.svg", "at": "2026-08-25" },
+      { "url": "/mock/photo-4.svg", "at": "2026-08-27" }
+    ]
   },
   {
     "id": "p019",
@@ -118,6 +138,14 @@
     "addressJibun": "서울 성동구 성수동2가 316-22",
     "lat": 37.5434226,
     "lng": 127.0542854,
+    "nearestStation": {
+      "name": "성수역",
+      "exit": "4",
+      "distanceM": 160,
+      "lines": [
+        "2"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -159,7 +187,10 @@
     "checkCount": 0,
     "isNew": true,
     "createdAt": "2026-08-27",
-    "thumbnail": "/mock/thumb-2.svg"
+    "photos": [
+      { "url": "/mock/photo-2.svg", "at": "2026-08-26" },
+      { "url": "/mock/photo-3.svg", "at": "2026-08-28" }
+    ]
   },
   {
     "id": "p025",
@@ -169,6 +200,15 @@
     "addressJibun": "서울 송파구 가락동 600",
     "lat": 37.4931893,
     "lng": 127.1168967,
+    "nearestStation": {
+      "name": "가락시장역",
+      "exit": "2-1",
+      "distanceM": 90,
+      "lines": [
+        "3",
+        "8"
+      ]
+    },
     "tags": [
       "raw"
     ],
@@ -220,7 +260,19 @@
     "needsReview": false,
     "lastCheckedAt": "2026-08-27",
     "checkCount": 3,
-    "isNew": false
+    "isNew": false,
+    "photos": [
+      { "url": "/mock/photo-1.svg", "at": "2026-08-18" },
+      { "url": "/mock/photo-2.svg", "at": "2026-08-19" },
+      { "url": "/mock/photo-3.svg", "at": "2026-08-20" },
+      { "url": "/mock/photo-4.svg", "at": "2026-08-21" },
+      { "url": "/mock/photo-1.svg", "at": "2026-08-22" },
+      { "url": "/mock/photo-2.svg", "at": "2026-08-23" },
+      { "url": "/mock/photo-3.svg", "at": "2026-08-24" },
+      { "url": "/mock/photo-4.svg", "at": "2026-08-25" },
+      { "url": "/mock/photo-1.svg", "at": "2026-08-26" },
+      { "url": "/mock/photo-2.svg", "at": "2026-08-27" }
+    ]
   },
   {
     "id": "p041",
@@ -230,6 +282,14 @@
     "addressJibun": "서울 강남구 신사동 511-13",
     "lat": 37.5179668,
     "lng": 127.0208766,
+    "nearestStation": {
+      "name": "신사역",
+      "exit": "8",
+      "distanceM": 132,
+      "lines": [
+        "3"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -277,6 +337,14 @@
     "addressJibun": "서울 강남구 역삼동 644-1",
     "lat": 37.5012539,
     "lng": 127.0341252,
+    "nearestStation": {
+      "name": "역삼역",
+      "exit": "4",
+      "distanceM": 125,
+      "lines": [
+        "2"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -324,6 +392,14 @@
     "addressJibun": "서울 강남구 신사동 643-26",
     "lat": 37.5270887,
     "lng": 127.0362692,
+    "nearestStation": {
+      "name": "압구정로데오역",
+      "exit": "5",
+      "distanceM": 342,
+      "lines": [
+        "수인·분당"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -371,6 +447,14 @@
     "addressJibun": "서울 강남구 논현동 115-3",
     "lat": 37.5165427,
     "lng": 127.0363181,
+    "nearestStation": {
+      "name": "강남구청역",
+      "exit": "2",
+      "distanceM": 390,
+      "lines": [
+        "7"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -413,6 +497,14 @@
     "addressJibun": "서울 송파구 방이동 69-10",
     "lat": 37.5131591,
     "lng": 127.1093504,
+    "nearestStation": {
+      "name": "송파나루역",
+      "exit": "2",
+      "distanceM": 374,
+      "lines": [
+        "9"
+      ]
+    },
     "tags": [
       "raw"
     ],
@@ -475,6 +567,14 @@
     "addressJibun": "서울 강남구 대치동 900-56",
     "lat": 37.5034969,
     "lng": 127.0539444,
+    "nearestStation": {
+      "name": "선릉역",
+      "exit": "1",
+      "distanceM": 370,
+      "lines": [
+        "2"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -530,6 +630,14 @@
     "addressJibun": "서울 강남구 개포동 186-11",
     "lat": 37.4889583,
     "lng": 127.0677751,
+    "nearestStation": {
+      "name": "개포동역",
+      "exit": "5",
+      "distanceM": 118,
+      "lines": [
+        "수인·분당"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -577,6 +685,14 @@
     "addressJibun": "서울 강남구 역삼동 809-6",
     "lat": 37.5035724,
     "lng": 127.0256684,
+    "nearestStation": {
+      "name": "신논현역",
+      "exit": "6",
+      "distanceM": 58,
+      "lines": [
+        "9"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -617,6 +733,14 @@
     "addressJibun": "서울 송파구 문정동 620",
     "lat": 37.4808349,
     "lng": 127.1211831,
+    "nearestStation": {
+      "name": "장지역",
+      "exit": "4",
+      "distanceM": 484,
+      "lines": [
+        "8"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -642,6 +766,15 @@
     "addressJibun": "서울 송파구 가락동 600",
     "lat": 37.4932024,
     "lng": 127.1169412,
+    "nearestStation": {
+      "name": "가락시장역",
+      "exit": "2-1",
+      "distanceM": 88,
+      "lines": [
+        "3",
+        "8"
+      ]
+    },
     "tags": [
       "raw"
     ],
@@ -703,6 +836,14 @@
     "addressJibun": "서울 성동구 옥수동 365-21",
     "lat": 37.5418377,
     "lng": 127.0168319,
+    "nearestStation": {
+      "name": "옥수역",
+      "exit": "6",
+      "distanceM": 13,
+      "lines": [
+        "3"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -764,6 +905,15 @@
     "addressJibun": "서울 강동구 천호동 454-15",
     "lat": 37.5383316,
     "lng": 127.1261446,
+    "nearestStation": {
+      "name": "천호역",
+      "exit": "5",
+      "distanceM": 98,
+      "lines": [
+        "5",
+        "8"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -805,6 +955,14 @@
     "addressJibun": "서울 강북구 번동 463-48",
     "lat": 37.6399756,
     "lng": 127.0281579,
+    "nearestStation": {
+      "name": "수유역",
+      "exit": "1",
+      "distanceM": 254,
+      "lines": [
+        "4"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -838,6 +996,14 @@
     "addressJibun": "서울 도봉구 창동 655-6",
     "lat": 37.6467273,
     "lng": 127.0345569,
+    "nearestStation": {
+      "name": "쌍문역",
+      "exit": "2",
+      "distanceM": 137,
+      "lines": [
+        "4"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -893,6 +1059,14 @@
     "addressJibun": "서울 강북구 수유동 221-21",
     "lat": 37.639204,
     "lng": 127.022922,
+    "nearestStation": {
+      "name": "수유역",
+      "exit": "6",
+      "distanceM": 262,
+      "lines": [
+        "4"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -926,6 +1100,14 @@
     "addressJibun": "서울 강서구 화곡동 1114-28",
     "lat": 37.5545168,
     "lng": 126.8536693,
+    "nearestStation": {
+      "name": "가양역",
+      "exit": "7",
+      "distanceM": 683,
+      "lines": [
+        "9"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -988,6 +1170,15 @@
     "addressJibun": "서울 양천구 신월동 226-6",
     "lat": 37.5297734,
     "lng": 126.8355726,
+    "nearestStation": {
+      "name": "까치산역",
+      "exit": "4",
+      "distanceM": 980,
+      "lines": [
+        "2",
+        "5"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -1037,6 +1228,14 @@
     "addressJibun": "서울 양천구 신정동 118-3",
     "lat": 37.5223933,
     "lng": 126.8757911,
+    "nearestStation": {
+      "name": "오목교역",
+      "exit": "6",
+      "distanceM": 182,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1091,6 +1290,14 @@
     "addressJibun": null,
     "lat": 37.5934204,
     "lng": 126.7639943,
+    "nearestStation": {
+      "name": "고촌역",
+      "exit": "2",
+      "distanceM": 1022,
+      "lines": [
+        "김포 골드라인"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1138,6 +1345,14 @@
     "addressJibun": "서울 강서구 공항동 18-3",
     "lat": 37.5639622,
     "lng": 126.8121777,
+    "nearestStation": {
+      "name": "공항시장역",
+      "exit": "3",
+      "distanceM": 106,
+      "lines": [
+        "9"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1178,6 +1393,14 @@
     "addressJibun": "서울 강서구 마곡동 722",
     "lat": 37.5595652,
     "lng": 126.8379432,
+    "nearestStation": {
+      "name": "발산역",
+      "exit": "2",
+      "distanceM": 73,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1218,6 +1441,14 @@
     "addressJibun": "서울 양천구 신월동 54-2",
     "lat": 37.5391429,
     "lng": 126.8278448,
+    "nearestStation": {
+      "name": "화곡역",
+      "exit": "7",
+      "distanceM": 1087,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1266,6 +1497,14 @@
     "addressJibun": "서울 강서구 화곡동 1168",
     "lat": 37.5440689,
     "lng": 126.8362731,
+    "nearestStation": {
+      "name": "화곡역",
+      "exit": "8",
+      "distanceM": 402,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1320,6 +1559,14 @@
     "addressJibun": "서울 강서구 마곡동 795-2",
     "lat": 37.5604514,
     "lng": 126.8371351,
+    "nearestStation": {
+      "name": "발산역",
+      "exit": "9",
+      "distanceM": 174,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1360,6 +1607,14 @@
     "addressJibun": "서울 양천구 신정동 294-18",
     "lat": 37.5187304,
     "lng": 126.8711129,
+    "nearestStation": {
+      "name": "오목교역",
+      "exit": "8",
+      "distanceM": 689,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1400,6 +1655,14 @@
     "addressJibun": "서울 강서구 화곡동 1067-30",
     "lat": 37.5405748,
     "lng": 126.835624,
+    "nearestStation": {
+      "name": "화곡역",
+      "exit": "7",
+      "distanceM": 383,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1447,6 +1710,15 @@
     "addressJibun": "서울 금천구 가산동 50-3",
     "lat": 37.4815645,
     "lng": 126.8834556,
+    "nearestStation": {
+      "name": "가산디지털단지역",
+      "exit": "4",
+      "distanceM": 53,
+      "lines": [
+        "1",
+        "7"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1480,6 +1752,15 @@
     "addressJibun": "서울 금천구 가산동 36-6",
     "lat": 37.4829263,
     "lng": 126.8825886,
+    "nearestStation": {
+      "name": "가산디지털단지역",
+      "exit": "2",
+      "distanceM": 141,
+      "lines": [
+        "1",
+        "7"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1513,6 +1794,14 @@
     "addressJibun": "서울 구로구 신도림동 400-1 금강리빙스텔 2층 팔팔수산(구로역,)",
     "lat": 37.5061838,
     "lng": 126.8773056,
+    "nearestStation": {
+      "name": "구로역",
+      "exit": "3",
+      "distanceM": 497,
+      "lines": [
+        "1"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1561,6 +1850,14 @@
     "addressJibun": "서울 동대문구 제기동 1051-1",
     "lat": 37.57837,
     "lng": 127.0380429,
+    "nearestStation": {
+      "name": "제기동역",
+      "exit": "2",
+      "distanceM": 175,
+      "lines": [
+        "1"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -1623,6 +1920,14 @@
     "addressJibun": "서울 중랑구 면목동 131-7",
     "lat": 37.5924492,
     "lng": 127.0861367,
+    "nearestStation": {
+      "name": "상봉역",
+      "exit": "4",
+      "distanceM": 263,
+      "lines": [
+        "7"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1684,6 +1989,15 @@
     "addressJibun": "서울 마포구 합정동 376-17",
     "lat": 37.5462421,
     "lng": 126.9121016,
+    "nearestStation": {
+      "name": "합정역",
+      "exit": "7",
+      "distanceM": 312,
+      "lines": [
+        "2",
+        "6"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1745,6 +2059,14 @@
     "addressJibun": "서울 마포구 서교동 344-3",
     "lat": 37.5536452,
     "lng": 126.9242483,
+    "nearestStation": {
+      "name": "홍대입구역",
+      "exit": "9",
+      "distanceM": 291,
+      "lines": [
+        "2"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1778,6 +2100,14 @@
     "addressJibun": "서울 마포구 상수동 337-5",
     "lat": 37.5458266,
     "lng": 126.9214087,
+    "nearestStation": {
+      "name": "상수역",
+      "exit": "4",
+      "distanceM": 234,
+      "lines": [
+        "6"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -1812,6 +2142,15 @@
     "addressJibun": "서울 영등포구 당산동6가 314",
     "lat": 37.5348374,
     "lng": 126.9018955,
+    "nearestStation": {
+      "name": "당산역",
+      "exit": "2",
+      "distanceM": 38,
+      "lines": [
+        "2",
+        "9"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -1874,6 +2213,15 @@
     "addressJibun": "서울 마포구 도화동 181-2",
     "lat": 37.5419445,
     "lng": 126.9507819,
+    "nearestStation": {
+      "name": "공덕역",
+      "exit": "9",
+      "distanceM": 121,
+      "lines": [
+        "5",
+        "6"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1921,6 +2269,14 @@
     "addressJibun": "서울 영등포구 여의도동 13-21",
     "lat": 37.5296087,
     "lng": 126.9215695,
+    "nearestStation": {
+      "name": "국회의사당역",
+      "exit": "3",
+      "distanceM": 326,
+      "lines": [
+        "9"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -1961,6 +2317,14 @@
     "addressJibun": "서울 마포구 상수동 314-5",
     "lat": 37.54828,
     "lng": 126.921534,
+    "nearestStation": {
+      "name": "상수역",
+      "exit": "1",
+      "distanceM": 123,
+      "lines": [
+        "6"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -2023,6 +2387,15 @@
     "addressJibun": "서울 영등포구 당산동6가 338-2",
     "lat": 37.5354437,
     "lng": 126.8998208,
+    "nearestStation": {
+      "name": "당산역",
+      "exit": "13",
+      "distanceM": 200,
+      "lines": [
+        "2",
+        "9"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -2071,6 +2444,14 @@
     "addressJibun": "서울 마포구 망원동 485-2",
     "lat": 37.5577667,
     "lng": 126.9075584,
+    "nearestStation": {
+      "name": "망원역",
+      "exit": "2",
+      "distanceM": 302,
+      "lines": [
+        "6"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -2125,6 +2506,15 @@
     "addressJibun": "서울 마포구 서교동 399-18",
     "lat": 37.5495152,
     "lng": 126.9181022,
+    "nearestStation": {
+      "name": "합정역",
+      "exit": "3",
+      "distanceM": 239,
+      "lines": [
+        "2",
+        "6"
+      ]
+    },
     "tags": [
       "raw"
     ],
@@ -2158,6 +2548,15 @@
     "addressJibun": "서울 은평구 불광동 281-173",
     "lat": 37.6100123,
     "lng": 126.9306577,
+    "nearestStation": {
+      "name": "불광역",
+      "exit": "1",
+      "distanceM": 42,
+      "lines": [
+        "3",
+        "6"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -2191,6 +2590,14 @@
     "addressJibun": "서울 종로구 당주동 38-2",
     "lat": 37.5710982,
     "lng": 126.9750135,
+    "nearestStation": {
+      "name": "광화문역",
+      "exit": "8",
+      "distanceM": 70,
+      "lines": [
+        "5"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -2238,6 +2645,15 @@
     "addressJibun": "서울 용산구 한강로1가 221-4",
     "lat": 37.5316072,
     "lng": 126.972934,
+    "nearestStation": {
+      "name": "삼각지역",
+      "exit": "3",
+      "distanceM": 205,
+      "lines": [
+        "4",
+        "6"
+      ]
+    },
     "tags": [
       "grill",
       "raw"
@@ -2293,6 +2709,15 @@
     "addressJibun": "서울 은평구 갈현동 403-27",
     "lat": 37.6207599,
     "lng": 126.9180228,
+    "nearestStation": {
+      "name": "연신내역",
+      "exit": "7",
+      "distanceM": 256,
+      "lines": [
+        "3",
+        "6"
+      ]
+    },
     "tags": [
       "grill"
     ],
@@ -2333,6 +2758,14 @@
     "addressJibun": "서울 중랑구 상봉동 105-85",
     "lat": 37.5933481,
     "lng": 127.0887395,
+    "nearestStation": {
+      "name": "상봉역",
+      "exit": "3",
+      "distanceM": 295,
+      "lines": [
+        "7"
+      ]
+    },
     "tags": [
       "grill",
       "raw"

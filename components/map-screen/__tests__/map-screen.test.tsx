@@ -255,7 +255,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "카테고리: 전체" }));
     const options = within(screen.getByRole("listbox", { name: "카테고리" })).getAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual(["전체", "소금구이", "생새우회"]);
+    expect(options.map((o) => o.textContent)).toEqual(["전체", "새우구이", "생새우회"]);
     fireEvent.click(screen.getByRole("option", { name: "생새우회" }));
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "카테고리: 생새우회" })).toBeInTheDocument();
@@ -266,7 +266,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "카테고리: 생새우회" }));
-    fireEvent.click(screen.getByRole("option", { name: "소금구이" }));
+    fireEvent.click(screen.getByRole("option", { name: "새우구이" }));
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 
@@ -505,6 +505,19 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
   });
 
+  it("popstate: 이미 열린 그 가게면 아무것도 하지 않는다 (사진 뷰어가 URL 그대로 엔트리를 쌓는다)", async () => {
+    await openNara();
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    // 뷰어를 닫는 뒤로가기 — 경로는 /place/nara 그대로다
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    // 시트 높이(펼침)도 지도도 건드리지 않는다 — 여기서 setSnap("half")가 돌면 펼친 시트가 요약으로 튄다
+    expect(screen.getByRole("region", { name: "가게 상세" })).toHaveAttribute("data-snap", "half");
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+  });
+
   it("찜 → '찜한 곳' 칩 필터에 바로 반영 (목: 클라이언트 메모리)", async () => {
     await openNara();
     fireEvent.click(screen.getByRole("button", { name: "찜" }));
@@ -535,7 +548,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
         }),
     );
     await openNara();
-    fireEvent.click(screen.getByRole("button", { name: "다녀왔다면" }));
+    fireEvent.click(screen.getByRole("button", { name: "다녀왔어요" }));
     expect(screen.getByText("확인 4회")).toBeInTheDocument(); // 3 + 1 낙관
     expect(screen.getByText("확인했어요")).toBeInTheDocument();
     // 목 쓰기 지연(400ms)이 끝나야 부모 places에 확정된다
