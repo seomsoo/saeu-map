@@ -41,8 +41,10 @@ function FullTile() {
  * 마지막 칸은 ＋ 타일이라 사진이 있어도 옆에 더 올리고, 10장이 차면 그 자리가 안내 타일로 바뀐다.
  * touch-pan-x: 시트 본문이 pan-y라 가로 스와이프가 시트 드래그로 새지 않게 스트립에서 명시한다.
  *
- * **사진이 없으면 전폭 빈 상태 블록**(같은 높이 128, decisions 2026-09-03 3차). 176 타일 하나만 두면
+ * **사진이 없으면 전폭 빈 상태 블록**(같은 높이 128, decisions 2026-09-03 최종). 176 타일 하나만 두면
  * 오른쪽에 담기지 않은 흰 공간이 남아 미완성으로 읽힌다 — 표적이 하나뿐이니 폭을 다 쓴다.
+ * 회색 채움 대신 **옅은 브랜드 헤어라인**이다: 채운 틴트는 신규 핀 공지 행의 무게라 빈자리가 공지보다
+ * 세면 안 되고, 회색 채움은 94%가 무사진인 지금 시트 맨 위를 늘 회색 상자로 만든다.
  * 카피가 두 줄인 이유: 여기는 버튼 라벨이 아니라 빈 상태다. 상태 한 줄 + 요청 한 줄이 그 문법이고,
  * 스트립 안 ＋ 타일은 그대로 액션 라벨("사진 추가")을 쓴다. 네이버 링크는 사진 유무와 무관하게 리뷰 끝.
  */
@@ -54,10 +56,10 @@ export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps)
         <button
           type="button"
           onClick={onUploadPhoto}
-          className="press flex h-32 w-full flex-col items-center justify-center rounded-12 bg-bg-sunken"
+          className="press flex h-32 w-full flex-col items-center justify-center rounded-12 border border-line-brand"
         >
           {/* 아이콘은 떼고(8) 두 줄은 붙인다(2) — 상태와 요청은 한 덩어리다 */}
-          <span className="icon-[ci--add-plus] mb-2 size-6 text-fg-tertiary" aria-hidden="true" />
+          <span className="icon-[ci--add-plus] mb-2 size-6 text-brand-fg" aria-hidden="true" />
           <span className="text-body-m-medium text-fg">아직 사진이 없어요</span>
           <span className="mt-0.5 text-caption-l-regular text-fg-tertiary">첫 새우를 올려주세요</span>
         </button>
