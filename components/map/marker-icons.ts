@@ -25,6 +25,8 @@ export interface PlaceMarkerStyle {
 /** 개별 핀 36px(썸네일 원) / 클러스터 44px(레드 원 + 가게 수). globals.css와 동일해야 한다. */
 export const PLACE_MARKER_SIZE = 36;
 export const CLUSTER_MARKER_SIZE = 44;
+/** 제보 핀: 44px 히트 박스 안에 레드 머리 28 + 줄기 14, 앵커는 바닥 중앙(핀 끝이 좌표). */
+export const REPORT_PIN_SIZE = 44;
 
 /** innerHTML에 넣어도 되는 이미지 경로 — lib/assets.ts의 공용 가드(상세 사진과 같은 규칙). */
 export function safeThumbnailUrl(url: string | null): string | null {
@@ -86,4 +88,20 @@ export function getClusterIcon(
   };
   clusterIconCache.set(safeCount, icon);
   return icon;
+}
+
+let reportPinIcon: naver.maps.HtmlIcon | null = null;
+
+/**
+ * 제보 2단계의 끌 수 있는 위치 핀 (design 화면 3-2). 전용 에셋 전까지 CSS 도형 — decisions "커스텀 에셋 필요 목록".
+ * 모양이 하나뿐이라 아이콘 객체도 하나다(icon prop이 `===`로 비교된다).
+ */
+export function getReportPinIcon(navermaps: Navermaps): naver.maps.HtmlIcon {
+  reportPinIcon ??= {
+    content:
+      '<div class="saeu-report-pin"><span class="saeu-report-pin__head"></span><span class="saeu-report-pin__stem"></span></div>',
+    size: new navermaps.Size(REPORT_PIN_SIZE, REPORT_PIN_SIZE),
+    anchor: new navermaps.Point(REPORT_PIN_SIZE / 2, REPORT_PIN_SIZE),
+  };
+  return reportPinIcon;
 }

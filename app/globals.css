@@ -255,6 +255,45 @@ body {
     var(--shadow-marker);
 }
 
+/* 제보 핀 44px 히트 박스: 레드 머리 28(흰 점) + 줄기 14, 끝이 좌표(앵커 바닥 중앙). 전용 에셋 전까지 CSS 도형 */
+.saeu-report-pin {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 44px;
+  height: 44px;
+  cursor: grab;
+}
+.saeu-report-pin__head {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-max);
+  background: var(--color-brand);
+  box-shadow:
+    0 0 0 2px var(--color-common-0),
+    var(--shadow-marker);
+}
+.saeu-report-pin__head::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-max);
+  background: var(--color-common-0);
+}
+.saeu-report-pin__stem {
+  width: 3px;
+  height: 14px;
+  margin-top: -1px;
+  background: var(--color-brand);
+  border-radius: 0 0 var(--radius-max) var(--radius-max);
+}
+
 /* ---------------------------------------------------------------------------
  * 유틸
  * ------------------------------------------------------------------------- */

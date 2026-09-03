@@ -20,7 +20,7 @@ import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
 import { isInactive } from "@/lib/time";
 import { markerCategory } from "@/lib/places";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getClusterIcon, getPlaceMarkerIcon } from "./marker-icons";
+import { getClusterIcon, getPlaceMarkerIcon, getReportPinIcon } from "./marker-icons";
 
 type Navermaps = typeof naver.maps;
 
@@ -32,6 +32,17 @@ export interface FitMargin {
   maxZoom?: number | undefined;
 }
 
+/** 지오코더 한 건 — 제보 2단계 주소 검색 행. 표시용이라 상태에 잠깐 들고 있다가 버린다(규칙 2). */
+export interface AddressHit {
+  roadAddress: string;
+  jibunAddress: string;
+  lat: number;
+  lng: number;
+}
+
+/** 주소 검색 결과 상한 (design 화면 3-2: 최대 5행) */
+export const GEOCODE_MAX_HITS = 5;
+
 /** 부모가 지도를 움직일 때 쓰는 명령형 핸들. lib에는 naver 객체가 새지 않는다. */
 export interface MapHandle {
   /** target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙. */
@@ -39,6 +50,12 @@ export interface MapHandle {
   morph(target: LatLng, zoom: number): void;
   fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
   getViewport(): Viewport | null;
+  /**
+   * 도로명 주소 검색(네이버 지오코더 서브모듈). 지도 중심 근처를 우선한 결과 최대 GEOCODE_MAX_HITS건.
+   * 서브모듈이 안 실렸거나 응답이 실패하면 reject — 호출자는 4상태의 '실패'로 보여준다.
+   * 결과는 어디에도 저장하지 않는다(규칙 2). 저장되는 것은 사용자가 확정한 핀 좌표뿐.
+   */
+  geocode(query: string): Promise<AddressHit[]>;
 }
 
 export interface MapViewProps {
@@ -52,6 +69,10 @@ export interface MapViewProps {
   onViewportChange: (viewport: Viewport) => void;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
+  /** 제보 2단계의 끌 수 있는 핀. null·undefined면 없음. */
+  pin?: LatLng | null | undefined;
+  /** 핀을 끌어 놓았을 때의 좌표 */
+  onPinChange?: ((point: LatLng) => void) | undefined;
   /**
    * NCP 인증 실패(키 오류·미등록 도메인). 스크립트는 정상 로드되고 SDK가 window.navermap_authFailure를
    * 부를 뿐이라 ErrorBoundary로는 잡히지 않는다 — 여기서 에러 상태로 넘긴다.
@@ -87,6 +108,8 @@ export function MapView({
   onViewportChange,
   onPlaceClick,
   onClusterClick,
+  pin,
+  onPinChange,
   onAuthFailure,
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
@@ -118,6 +141,7 @@ export function MapView({
           onPlaceClick={onPlaceClick}
           onClusterClick={onClusterClick}
         />
+        {pin && <ReportPin position={pin} onChange={onPinChange} />}
       </NaverMap>
     </Container>
   );
@@ -207,6 +231,34 @@ function MapController({
       },
       getViewport() {
         return readViewport(navermaps, map);
+      },
+      geocode(query) {
+        return new Promise<AddressHit[]>((resolve, reject) => {
+          // 서브모듈이 안 실렸으면(차단·네트워크) Service 자체가 없다
+          const service = (navermaps as { Service?: typeof naver.maps.Service }).Service;
+          if (!service) {
+            reject(new Error("geocoder unavailable"));
+            return;
+          }
+          const center = toLatLng(navermaps, map.getCenter());
+          service.geocode(
+            { query, coordinate: `${center.lng},${center.lat}`, count: GEOCODE_MAX_HITS },
+            (status, response) => {
+              if (status !== service.Status.OK) {
+                reject(new Error("geocode failed"));
+                return;
+              }
+              resolve(
+                response.v2.addresses.slice(0, GEOCODE_MAX_HITS).flatMap((a) => {
+                  const lat = Number(a.y);
+                  const lng = Number(a.x);
+                  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+                  return [{ roadAddress: a.roadAddress, jibunAddress: a.jibunAddress, lat, lng }];
+                }),
+              );
+            },
+          );
+        });
       },
     }),
     [map, navermaps],
@@ -320,3 +372,33 @@ const ClusterMarker = memo(function ClusterMarker({
     />
   );
 });
+
+/* ────────────────────────── 제보 핀 ────────────────────────── */
+
+/** 제보 2단계: 끌 수 있는 핀 하나. 위치는 부모 상태(주소 검색으로도 옮겨진다), 끌어 놓으면 좌표를 올린다. */
+function ReportPin({
+  position,
+  onChange,
+}: {
+  position: LatLng;
+  onChange: ((point: LatLng) => void) | undefined;
+}) {
+  const navermaps = useNavermaps();
+  const handleDragend = useCallback(
+    (e: naver.maps.PointerEvent) => {
+      onChange?.(toLatLng(navermaps, e.coord));
+    },
+    [navermaps, onChange],
+  );
+
+  return (
+    <Marker
+      position={position}
+      draggable
+      icon={getReportPinIcon(navermaps)}
+      title="제보 위치"
+      zIndex={400}
+      onDragend={handleDragend}
+    />
+  );
+}
