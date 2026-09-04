@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
 import { Switch } from "@/components/ui/switch";
@@ -25,9 +25,14 @@ interface MenuLineProps {
   className?: string | undefined;
 }
 
-/** 메뉴명 / 가격(원, 숫자 키패드) / 단위 칩 6개(마리면 몇 마리 입력) — 구이 줄과 회 줄이 같은 3필드 */
+/** 메뉴명 / 가격(원, 숫자 키패드) / 단위 칩 6개(줄바꿈) + 마리면 칩 행 아래 "몇 마리" 입력 — 구이 줄과 회 줄이 같은 3필드 */
 function MenuLine({ raw, value, errors, onChange, className }: MenuLineProps) {
   const groupLabel = raw ? "새우회 단위" : "단위";
+  const countRef = useRef<HTMLInputElement | null>(null);
+  // [마리]를 고르면 바로 수를 묻는다 — 입력이 칩 아래에 나타나며 키보드가 열린다
+  useEffect(() => {
+    if (value.unit === "count") countRef.current?.focus();
+  }, [value.unit]);
   return (
     <div className={cx("flex flex-col gap-3", className)}>
       <TextField
@@ -56,11 +61,8 @@ function MenuLine({ raw, value, errors, onChange, className }: MenuLineProps) {
       />
       <div>
         <p className="text-caption-l-regular text-fg-secondary">{groupLabel}</p>
-        <div
-          role="group"
-          aria-label={groupLabel}
-          className="no-scrollbar mt-1.5 flex items-center gap-1.5 overflow-x-auto py-1"
-        >
+        {/* 가로 스크롤이 아니라 줄바꿈 — 마지막 칩이 잘려 숨는 일이 없다 (decisions 2026-09-04 보완) */}
+        <div role="group" aria-label={groupLabel} className="mt-1.5 flex flex-wrap gap-1.5 py-1">
           {UNIT_CHIPS.map((chip) => (
             <ChipButton
               key={chip.key}
@@ -73,27 +75,29 @@ function MenuLine({ raw, value, errors, onChange, className }: MenuLineProps) {
               {chip.label}
             </ChipButton>
           ))}
-          {value.unit === "count" && (
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              aria-label={raw ? "새우회 몇 마리" : "몇 마리"}
-              aria-invalid={errors.count ? true : undefined}
-              placeholder="몇 마리"
-              value={value.count}
-              maxLength={3}
-              onChange={(e) => {
-                onChange({ count: priceDigits(e.target.value) });
-              }}
-              className="h-8 w-20 shrink-0 rounded-8 bg-bg-sunken px-3 text-body-m-medium text-fg outline-none placeholder:font-normal placeholder:text-fg-placeholder"
-            />
-          )}
         </div>
-        {(errors.unit ?? errors.count) && (
+        {errors.unit && (
           <p role="alert" className="mt-1 text-caption-l-regular text-brand-fg">
-            {errors.unit ?? errors.count}
+            {errors.unit}
           </p>
+        )}
+        {value.unit === "count" && (
+          <TextField
+            ref={countRef}
+            className="mt-3 w-32"
+            label={raw ? "새우회 몇 마리" : "몇 마리"}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="10"
+            suffix="마리"
+            maxLength={3}
+            value={value.count}
+            onChange={(e) => {
+              onChange({ count: priceDigits(e.target.value) });
+            }}
+            error={errors.count}
+            autoComplete="off"
+          />
         )}
       </div>
     </div>

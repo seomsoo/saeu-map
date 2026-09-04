@@ -1,6 +1,7 @@
-import { useId, type ComponentPropsWithoutRef } from "react";
+import { useId, type ComponentPropsWithRef } from "react";
 
-interface TextFieldProps extends Omit<ComponentPropsWithoutRef<"input">, "className" | "id"> {
+/** ref는 input으로 간다(React 19 — 함수 컴포넌트의 ref prop) — 단계가 열릴 때 포커스를 줄 때 쓴다 */
+interface TextFieldProps extends Omit<ComponentPropsWithRef<"input">, "className" | "id"> {
   label: string;
   /** 입력 아래 한 줄(12 brand-fg). 있으면 aria-invalid */
   error?: string | null | undefined;

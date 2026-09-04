@@ -299,11 +299,14 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     expect(screen.getByRole("button", { name: "1kg" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("[마리]를 고르면 몇 마리 입력이 나오고, 비어 있으면 오류", () => {
+  it("[마리]를 고르면 칩 행 아래에 몇 마리 입력이 나와 포커스되고, 비어 있으면 오류가 그 아래", () => {
     const { props } = renderPanel({ step: 3 });
     fill("", "대하", "20000");
     fireEvent.click(screen.getByRole("button", { name: "마리" }));
     const count = screen.getByRole("textbox", { name: "몇 마리" });
+    expect(count).toHaveFocus();
+    expect(within(screen.getByRole("group", { name: "단위" })).queryByRole("textbox")).toBeNull(); // 칩 행 밖
+    expect(screen.getByText("마리", { selector: "span" })).toBeInTheDocument(); // 접미
     fireEvent.click(screen.getByRole("button", { name: "다음" }));
     expect(screen.getByRole("alert")).toHaveTextContent("몇 마리인지 알려주세요");
     fireEvent.change(count, { target: { value: "10" } });
