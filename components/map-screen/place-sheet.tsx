@@ -44,6 +44,8 @@ interface PlaceSheetProps {
   detail: ReactNode;
   /** 제보 패널 (mode === "report"일 때) */
   report?: ReactNode;
+  /** 내 활동 패널 (mode === "me"일 때, 화면 5) */
+  me?: ReactNode;
   /** 화면 4 심판대 — [새로 들어온 집] 칩이 켜진 동안 헤더(제목·캡션)와 본문이 바뀐다. count 0이면 빈 상태 */
   newPanel?: { count: number; content: ReactNode } | null;
   emptyKind: EmptyKind;
@@ -54,6 +56,8 @@ interface PlaceSheetProps {
   onDismissDetail: () => void;
   /** 제보 헤더 ✕ (제보 그만두기, 확인 없음) */
   onDismissReport?: (() => void) | undefined;
+  /** 내 활동 헤더 ✕ */
+  onDismissMe?: (() => void) | undefined;
   onSelect: (id: string) => void;
   onDismissEvent: () => void;
   onClearChips: () => void;
@@ -131,6 +135,7 @@ export function PlaceSheet({
   mode,
   detail,
   report,
+  me,
   newPanel = null,
   emptyKind,
   aside,
@@ -138,6 +143,7 @@ export function PlaceSheet({
   onSnapChange,
   onDismissDetail,
   onDismissReport,
+  onDismissMe,
   onSelect,
   onDismissEvent,
   onClearChips,
@@ -146,7 +152,8 @@ export function PlaceSheet({
 }: PlaceSheetProps) {
   const isDetail = mode === "detail";
   const isReport = mode === "report";
-  const panel = isDetail || isReport;
+  const isMe = mode === "me";
+  const panel = isDetail || isReport || isMe;
   // 화면 4: 제목·캡션이 바뀌고 정렬 트리거는 없다(최신순 고정)
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
@@ -183,15 +190,24 @@ export function PlaceSheet({
       mode={mode}
       snap={snap}
       onSnapChange={onSnapChange}
-      onDismiss={isReport ? onDismissReport : onDismissDetail}
+      onDismiss={isReport ? onDismissReport : isMe ? onDismissMe : onDismissDetail}
       header={header}
       aside={aside}
-      label={isReport ? "가게 제보" : isDetail ? "가게 상세" : "가게 목록"}
-      handleLabel={isReport ? "제보 크기 조절" : isDetail ? "상세 크기 조절" : "목록 크기 조절"}
-      dismissLabel={isReport ? "제보 그만두기" : "상세 닫기"}
+      label={isReport ? "가게 제보" : isDetail ? "가게 상세" : isMe ? "내 활동" : "가게 목록"}
+      handleLabel={
+        isReport
+          ? "제보 크기 조절"
+          : isDetail
+            ? "상세 크기 조절"
+            : isMe
+              ? "내 활동 크기 조절"
+              : "목록 크기 조절"
+      }
+      dismissLabel={isReport ? "제보 그만두기" : isMe ? "내 활동 닫기" : "상세 닫기"}
     >
       {isDetail && detail}
       {isReport && report}
+      {isMe && me}
 
       <div hidden={panel}>
         {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}

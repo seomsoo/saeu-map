@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
-import type { Place } from "@/lib/types";
+import type { MyReview, Place, Session } from "@/lib/types";
 import type { ReportInput } from "@/lib/data";
+import { BOOKMARK_NUDGE_NOTICE } from "../use-map-screen";
 import MapScreen from "../map-screen";
 
 /* ── react-naver-maps 전체를 가짜로. 지도 SDK 없이 화면 동작만 검증한다. ── */
@@ -79,6 +80,12 @@ const dataMocks = vi.hoisted(() => ({
   submitReport: vi.fn<(input: unknown, now: string) => Promise<Place>>(),
   /** 기본은 진짜(factory에서 연결) — 2단계 진입 프리페치 호출을 세는 용도 */
   getGuOfPoint: vi.fn<(point: { lat: number; lng: number }) => Promise<string | null>>(),
+  /** 세션은 가짜 — 목의 400ms·10% 실패를 화면 테스트에 끌어오지 않는다 */
+  getSession: vi.fn<() => Promise<Session>>(),
+  signInWithKakao: vi.fn<() => Promise<Session>>(),
+  signOut: vi.fn<() => Promise<Session>>(),
+  getMyReviews: vi.fn<(now: string) => Promise<MyReview[]>>(),
+  getMyReports: vi.fn<(now: string) => Promise<Place[]>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
@@ -88,8 +95,16 @@ vi.mock("@/lib/data", async (importOriginal) => {
     checkIn: dataMocks.checkIn,
     submitReport: dataMocks.submitReport,
     getGuOfPoint: dataMocks.getGuOfPoint,
+    getSession: dataMocks.getSession,
+    signInWithKakao: dataMocks.signInWithKakao,
+    signOut: dataMocks.signOut,
+    getMyReviews: dataMocks.getMyReviews,
+    getMyReports: dataMocks.getMyReports,
   };
 });
+
+const ANON_SESSION: Session = { userId: "anon-local-1", provider: "anonymous", nickname: null };
+const KAKAO_SESSION: Session = { userId: "u-kakao-1", provider: "kakao", nickname: "새우헌터" };
 
 vi.mock("react-naver-maps", () => ({
   NavermapsProvider: ({ children }: { children: ReactNode }) => children,
@@ -222,6 +237,16 @@ const listCards = () =>
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_NCP_CLIENT_ID", "test-key");
+  dataMocks.getSession.mockReset();
+  dataMocks.getSession.mockResolvedValue(ANON_SESSION);
+  dataMocks.signInWithKakao.mockReset();
+  dataMocks.signInWithKakao.mockResolvedValue(KAKAO_SESSION);
+  dataMocks.signOut.mockReset();
+  dataMocks.signOut.mockResolvedValue({ ...ANON_SESSION, userId: "anon-local-2" });
+  dataMocks.getMyReviews.mockReset();
+  dataMocks.getMyReviews.mockResolvedValue([]);
+  dataMocks.getMyReports.mockReset();
+  dataMocks.getMyReports.mockResolvedValue([]);
   fake.map.panTo.mockClear();
   fake.map.setCenter.mockClear();
   fake.map.morph.mockClear();
@@ -1107,5 +1132,122 @@ describe("화면 4 — [새로 들어온 집] 칩이 켜지면 시트가 심판�
     const article = screen.getByRole("article", { name: "수성2호왕새우소금구이 상세" });
     expect(within(article).getByRole("status")).toHaveTextContent("확인했어요");
     vi.restoreAllMocks();
+  });
+});
+
+describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패널(시트 me 모드)", () => {
+  let pushState: ReturnType<typeof vi.spyOn>;
+  let back: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    pushState = vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    // 우리 엔트리를 빼고 popstate — 실제 브라우저와 같은 순서
+    back = vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.history.replaceState(null, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("익명: 프로필 → 로그인 시트 → 카카오 → 패널(상단 두 층·FAB 숨김, 찜 탭, 마커는 찜한 곳만) → ✕로 닫힘", async () => {
+    // 찜 2곳은 세션과 무관한 진짜 목(클라이언트 메모리)에 둔다
+    const { toggleBookmark } = await import("@/lib/data");
+    await toggleBookmark("nara");
+    await toggleBookmark("hana");
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const profile = screen.getByRole("button", { name: "내 활동" });
+    fireEvent.click(profile);
+    const login = await screen.findByRole("dialog", { name: "카카오로 로그인" });
+    expect(login).toHaveTextContent("로그인하면 찜·리뷰·제보가 기기가 바뀌어도 남아요");
+    fireEvent.click(within(login).getByRole("button", { name: "카카오로 시작하기" }));
+    const panel = await screen.findByRole("region", { name: "내 활동" });
+    expect(panel).toHaveAttribute("data-mode", "me");
+    expect(pushState).toHaveBeenLastCalledWith({ saeuMe: true }, "", "/");
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
+    const list = within(panel).getByRole("list", { name: "찜한 곳" });
+    expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(2);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("marker").map((m) => m.textContent).sort()).toEqual(
+        ["나라수산", "노량진수산시장 하나수산"].sort(),
+      );
+    });
+    // 하트 해제 → 목록·마커에서 빠진다
+    fireEvent.click(within(list).getByRole("button", { name: "나라수산 찜 해제" }));
+    await waitFor(() => {
+      expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 활동 닫기" }));
+    expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    await toggleBookmark("hana"); // 되돌린다
+  });
+
+  it("패널의 찜 카드 탭 → 상세(/place) → 뒤로가기 → 패널로 복귀, 한 번 더 → 목록", async () => {
+    dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
+    const { toggleBookmark } = await import("@/lib/data");
+    await toggleBookmark("nara");
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    // 세션이 카카오로 로드된 뒤 눌러야 시트 없이 바로 열린다
+    await waitFor(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "내 활동" }));
+      expect(await screen.findByRole("region", { name: "내 활동" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(pushState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
+    // 뒤로: 상세 엔트리가 빠지고 me 표식 엔트리로
+    act(() => {
+      window.history.replaceState({ saeuMe: true }, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("region", { name: "내 활동" })).toHaveAttribute("data-snap", "full");
+    act(() => {
+      window.history.replaceState(null, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+    expect(back).not.toHaveBeenCalled();
+    await toggleBookmark("nara");
+  });
+
+  it("로그아웃 → 패널 닫힘 + 토스트 + 프로필은 익명 아이콘", async () => {
+    dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    await waitFor(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "내 활동" }));
+      expect(await screen.findByRole("region", { name: "내 활동" })).toBeInTheDocument();
+    });
+    // pushState가 가짜라 표식 엔트리를 직접 둔다 — 닫기가 back()으로 그 엔트리를 빼는지 본다
+    window.history.replaceState({ saeuMe: true }, "", "/");
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("로그아웃했어요");
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("익명이 세 번째 찜을 켜면 넛지 토스트 한 번 (벽은 아니다)", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const bookmarkIn = async (name: RegExp) => {
+      fireEvent.click(screen.getByRole("button", { name }));
+      fireEvent.click(await screen.findByRole("button", { name: "찜" }));
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "true");
+      });
+      fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    };
+    await bookmarkIn(/나라수산, 마포구/);
+    await bookmarkIn(/365활새우 창우수산, 영등포구/);
+    expect(screen.queryByRole("status")).toBeNull();
+    await bookmarkIn(/노량진수산시장 하나수산, 동작구/);
+    expect(screen.getByRole("status")).toHaveTextContent(BOOKMARK_NUDGE_NOTICE);
+    const { toggleBookmark } = await import("@/lib/data");
+    for (const id of ["nara", "changwoo", "hana"]) await toggleBookmark(id);
   });
 });

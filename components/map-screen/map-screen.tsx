@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { ActivityPanel } from "@/components/activity/activity-panel";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
@@ -139,12 +140,13 @@ function MapScreenBody({
       </div>
 
       {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
-          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3) */}
+          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
+          내 활동 패널이 열린 동안도 숨긴다(화면 5) */}
       <div
         ref={topStackRef}
         className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto"
       >
-        {s.mode !== "report" && (
+        {s.mode !== "report" && s.mode !== "me" && (
           <>
             <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5">
               <SearchBar
@@ -223,6 +225,23 @@ function MapScreenBody({
             />
           )
         }
+        me={
+          s.mode === "me" && (
+            <ActivityPanel
+              now={now}
+              tab={s.meTab}
+              onTabChange={s.setMeTab}
+              bookmarkedPlaces={s.bookmarkedPlaces}
+              origin={s.origin}
+              onOpenPlace={s.selectFromCard}
+              onToggleBookmark={s.toggleBookmark}
+              onPlaceIdsChange={s.setMePlaceIds}
+              onSignedOut={s.handleSignedOut}
+              onAccountDeleted={s.handleAccountDeleted}
+              onNotice={s.showNotice}
+            />
+          )
+        }
         newPanel={
           s.newPanel
             ? {
@@ -251,6 +270,7 @@ function MapScreenBody({
         onSnapChange={s.setSnap}
         onDismissDetail={s.closeDetail}
         onDismissReport={s.cancelReport}
+        onDismissMe={s.closeMe}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
         onClearChips={s.clearChips}
