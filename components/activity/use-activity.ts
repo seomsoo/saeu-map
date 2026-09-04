@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   REVIEW_DELETE_FAILED_NOTICE,
   REVIEW_UPDATED_NOTICE,
@@ -34,6 +34,11 @@ interface UseActivityInput {
  */
 export function useActivity({ now, tab, onNotice }: UseActivityInput) {
   const [reviews, setReviews] = useState<MyReview[]>([]);
+  /**
+   * 낙관 삭제가 아직 안 끝난 리뷰 id. 목록을 다시 읽으면(탭을 나갔다 오면) 서버엔 아직 있어
+   * 지운 행이 되살아난다 — 로드 결과에서 이 집합을 빼고, 실패했을 때만 되돌린다 (Codex PR #8 #2).
+   */
+  const deletingIds = useRef<ReadonlySet<string>>(new Set());
   const [reviewsStatus, setReviewsStatus] = useState<LoadStatus>("loading");
   const [reports, setReports] = useState<Place[]>([]);
   const [reportsStatus, setReportsStatus] = useState<LoadStatus>("loading");
@@ -47,7 +52,7 @@ export function useActivity({ now, tab, onNotice }: UseActivityInput) {
         if (tab === "reviews") {
           const list = await getMyReviews(now);
           if (!alive) return;
-          setReviews(list);
+          setReviews(list.filter((r) => !deletingIds.current.has(r.id)));
           setReviewsStatus("ready");
         } else {
           const list = await getMyReports(now);
@@ -98,12 +103,28 @@ export function useActivity({ now, tab, onNotice }: UseActivityInput) {
   const deleteReview = useCallback(
     (id: string) => {
       const removed = reviews.find((r) => r.id === id);
-      if (!removed) return;
+      if (!removed || deletingIds.current.has(id)) return;
+      deletingIds.current = new Set(deletingIds.current).add(id);
       setReviews((prev) => prev.filter((r) => r.id !== id));
-      requestDeleteReview(id).catch(() => {
-        setReviews((prev) => sortReviewsNewest([...prev, removed]) as MyReview[]);
-        onNotice(REVIEW_DELETE_FAILED_NOTICE);
-      });
+      const forget = () => {
+        const next = new Set(deletingIds.current);
+        next.delete(id);
+        deletingIds.current = next;
+      };
+      requestDeleteReview(id).then(
+        // 성공: 표식만 지운다. 목록은 이미 빠져 있고, 다시 읽으면 서버에서도 없다
+        forget,
+        () => {
+          forget();
+          // 되돌릴 때 중복을 만들지 않는다 — 그 사이 재로드가 이미 넣어 뒀을 수 있다
+          setReviews((prev) =>
+            prev.some((r) => r.id === id)
+              ? prev
+              : (sortReviewsNewest([...prev, removed]) as MyReview[]),
+          );
+          onNotice(REVIEW_DELETE_FAILED_NOTICE);
+        },
+      );
     },
     [reviews, onNotice],
   );

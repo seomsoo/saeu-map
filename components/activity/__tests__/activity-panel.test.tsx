@@ -218,3 +218,85 @@ describe("ActivityPanel — 화면 5: 프로필·3탭·로그아웃·탈퇴", ()
     });
   });
 });
+
+describe("낙관 삭제와 재로드의 경합 (Codex PR #8 #2)", () => {
+  /** 두 건 — 하나를 지워도 목록이 남아 "되살아나지 않는다"를 볼 수 있다 */
+  const keeper = (): MyReview => ({
+    ...myReview(),
+    id: "rv002",
+    placeId: "seongsu",
+    placeName: "성수부두",
+    text: "남는 리뷰",
+  });
+
+  beforeEach(() => {
+    data.getSession.mockResolvedValue(KAKAO);
+    data.getMyReviews.mockResolvedValue([myReview(), keeper()]);
+    data.getMyReports.mockResolvedValue([]);
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("삭제 중 탭을 나갔다 와도 지운 행이 되살아나지 않는다", async () => {
+    let settle: () => void = () => {};
+    data.deleteReview.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    const view = renderPanel({ tab: "reviews" });
+    const list = await screen.findByRole("list", { name: "내 리뷰" });
+    const mineRow = within(list).getByText("대하 크기가 실했어요").closest("li");
+    if (!mineRow) throw new Error("row expected");
+    fireEvent.click(within(mineRow).getByRole("button", { name: "리뷰 삭제" }));
+    fireEvent.click(within(mineRow).getByRole("button", { name: "삭제" }));
+    expect(screen.queryByText("대하 크기가 실했어요")).toBeNull();
+
+    // 탭을 나갔다 돌아오면 목록을 다시 읽는다 — 서버엔 아직 그 리뷰가 있다
+    const before = data.getMyReviews.mock.calls.length;
+    view.rerender(
+      <SessionProvider>
+        <ActivityPanel {...view.props} tab="reports" />
+      </SessionProvider>,
+    );
+    view.rerender(
+      <SessionProvider>
+        <ActivityPanel {...view.props} tab="reviews" />
+      </SessionProvider>,
+    );
+    await waitFor(() => {
+      expect(data.getMyReviews.mock.calls.length).toBeGreaterThan(before);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("list", { name: "내 리뷰" })).toBeInTheDocument();
+    });
+    expect(screen.queryByText("대하 크기가 실했어요")).toBeNull();
+
+    // 삭제가 끝나도 되살아나지 않는다
+    await act(async () => {
+      settle();
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("대하 크기가 실했어요")).toBeNull();
+  });
+
+  it("실패하면 한 번만 되돌아온다 (재로드가 이미 넣어 뒀어도 중복 없음)", async () => {
+    data.deleteReview.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderPanel({ tab: "reviews" });
+    const list = await screen.findByRole("list", { name: "내 리뷰" });
+    const mineRow = within(list).getByText("대하 크기가 실했어요").closest("li");
+    if (!mineRow) throw new Error("row expected");
+    fireEvent.click(within(mineRow).getByRole("button", { name: "리뷰 삭제" }));
+    fireEvent.click(within(mineRow).getByRole("button", { name: "삭제" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("리뷰를 삭제하지 못했어요");
+    });
+    expect(screen.getAllByText("대하 크기가 실했어요")).toHaveLength(1);
+  });
+});

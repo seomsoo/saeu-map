@@ -161,6 +161,33 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(back).not.toHaveBeenCalled();
   });
 
+  it("지난 게이트의 성공이 다음 요청에 새지 않는다 (Codex PR #8 #1)", async () => {
+    renderConsumer();
+    await waitFor(() => {
+      expect(sessionText()).toBe("anonymous:");
+    });
+    // 한 번 성공시켜 resultRef를 true로 만든다
+    fireEvent.click(screen.getByRole("button", { name: "게이트" }));
+    fireEvent.click(screen.getByRole("button", { name: "카카오로 시작하기" }));
+    await waitFor(() => {
+      expect(resultText()).toBe("ok");
+    });
+    // 로그아웃 → 다시 게이트 → 뒤로가기로 닫으면 취소(false)여야 한다
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    await waitFor(() => {
+      expect(sessionText()).toBe("anonymous:");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "게이트" }));
+    expect(loginDialog()).toBeInTheDocument();
+    act(() => {
+      window.history.replaceState(null, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => {
+      expect(resultText()).toBe("no");
+    });
+  });
+
   it("로그아웃하면 새 익명", async () => {
     data.getSession.mockResolvedValue(KAKAO);
     renderConsumer();

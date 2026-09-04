@@ -1217,6 +1217,22 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     return screen.getByRole("region", { name: "내 활동" });
   };
 
+  it("내 활동에서는 활성 탭의 가게만 마커로 — 옛 선택은 끼워 넣지 않는다 (Codex PR #8 #3)", async () => {
+    const { toggleBookmark } = await import("@/lib/data");
+    await toggleBookmark("nara");
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    // 찜하지 않은 가게를 열었다 닫으면 selectedId만 남는다
+    fireEvent.click(screen.getByRole("button", { name: /365활새우 창우수산, 영등포구/ }));
+    expect(screen.getByRole("article", { name: /창우수산 상세/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    await openMe();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("marker").map((m) => m.textContent)).toEqual(["나라수산"]);
+    });
+    await toggleBookmark("nara");
+  });
+
   it("내 활동 ✕는 우리 엔트리를 빼고 닫는다 — 클릭 이벤트가 source로 새면 엔트리가 남는다", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });

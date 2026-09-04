@@ -277,23 +277,29 @@ export function useMapScreen({
           : filtered,
     [reportStep, places, meOpen, meMarkerSet, filtered],
   );
-  // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
+  /* 선택 핀은 클러스터에서 빼 단독 마커로 보이게 한다(상세가 열린 동안 필터와 무관하게 유지 — Codex PR #4).
+     단 내 활동에서는 "활성 탭의 가게만"이 약속이라, 마커 풀에 없는 옛 선택은 끼워 넣지 않는다 (Codex PR #8 #3). */
+  const markerSelection = useMemo(
+    () =>
+      selectedPlace && (!meOpen || meMarkerSet.has(selectedPlace.id)) ? selectedPlace : null,
+    [selectedPlace, meOpen, meMarkerSet],
+  );
   const index = useMemo(
     () =>
       buildPlaceIndex(
-        selectedPlace ? markerPool.filter((p) => p.id !== selectedPlace.id) : markerPool,
+        markerSelection ? markerPool.filter((p) => p.id !== markerSelection.id) : markerPool,
       ),
-    [markerPool, selectedPlace],
+    [markerPool, markerSelection],
   );
 
   const items = useMemo<ClusterItem[]>(() => {
     if (!viewport) return [];
     const list = index.getItems(viewport.bounds, viewport.zoom);
-    if (selectedPlace && inBounds(selectedPlace, viewport.bounds)) {
-      list.push({ kind: "place", place: selectedPlace });
+    if (markerSelection && inBounds(markerSelection, viewport.bounds)) {
+      list.push({ kind: "place", place: markerSelection });
     }
     return list;
-  }, [index, viewport, selectedPlace]);
+  }, [index, viewport, markerSelection]);
 
   const inView = useMemo(
     () => (viewport ? filtered.filter((p) => inBounds(p, viewport.bounds)) : []),

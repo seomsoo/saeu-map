@@ -80,6 +80,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const previous = promptRef.current;
         previous?.resolve(false); // 겹쳐 열리면 앞 요청은 취소로 본다 (엔트리는 이미 있다)
         if (!previous) pushOverlayHistoryEntry();
+        // 새 요청은 항상 취소에서 출발한다 — 지난 성공이 남아 있으면 뒤로가기로 닫아도 true가 된다 (Codex PR #8 #1)
+        resultRef.current = false;
         const next: Prompt = { reason, resolve };
         promptRef.current = next;
         setPrompt(next);
