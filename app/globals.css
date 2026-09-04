@@ -167,6 +167,9 @@
   --spacing-safe-right: env(safe-area-inset-right);
   --spacing-safe-left-or-5: max(env(safe-area-inset-left), calc(var(--spacing) * 5));
   --spacing-safe-right-or-5: max(env(safe-area-inset-right), calc(var(--spacing) * 5));
+  /* 절대 위치 요소용 — 절대 오프셋은 containing block의 padding box에서 재므로 부모의
+     padding-inline이 밀어주지 않는다. 시트 닫기 ✕가 그 경우 (Codex PR #7 #3). */
+  --spacing-safe-right-or-2: max(env(safe-area-inset-right), calc(var(--spacing) * 2));
 }
 
 body {
@@ -373,25 +376,26 @@ body {
  * ------------------------------------------------------------------------- */
 /* 상세 요약 높이는 여기 한 곳에서 — 로딩 스켈레톤(app/place/[id]/loading.tsx)도 같은 값을
    써야 스켈레톤 → 실제 시트에서 높이가 튀지 않는다. */
+/* 로딩 스켈레톤 전용 — 시트 안에서는 같은 값을 --sheet-vh 기준으로 다시 잰다(키보드 대응).
+   스켈레톤은 키보드가 없는 첫 페인트라 dvh로 충분하다. */
 :root {
   --sheet-detail-half: max(30dvh, 270px);
-  /* 제보 2단계 요약(핀 맞추는 동안). 상세보다 높다 — ‹ 줄·제목·캡션·주소 입력·CTA가 스크롤 없이 들어가야 한다 */
-  --sheet-report-half: max(40dvh, 330px);
 }
 .saeu-detail-summary-h {
   height: var(--sheet-detail-half);
 }
 .saeu-sheet {
   --sheet-collapsed: 88px;
-  --sheet-half: 40dvh;
   /* use-keyboard-inset.ts가 :root에 쓴다. --kb = 보이는 창 바닥이 뜬 높이(시트의 bottom),
-     --vvh = 보이는 창의 높이(시트가 그 안에 들어가야 한다).
+     --vvh = 보이는 창의 높이. **시트의 모든 높이는 --sheet-vh 하나를 기준으로 잰다** — JS의
+     sheetViewportHeight()와 같은 값이어야 스냅 판정이 CSS와 어긋나지 않는다(Codex PR #7 #2).
      높이를 92dvh - --kb로 하면 안 된다: iOS가 visual viewport를 끝까지 밀면 --kb가 0이 되는데
-     그때도 창은 키보드만큼 낮아, 92dvh 시트가 위로 넘쳐 제목·입력이 화면 밖으로 밀린다.
-     height와 transform이 둘 다 --sheet-full을 쓰므로 스냅 계산은 그대로 맞는다. */
-  --sheet-full: calc(0.92 * var(--vvh, 100dvh));
+     그때도 창은 키보드만큼 낮아, 92dvh 시트가 위로 넘쳐 제목·입력이 화면 밖으로 밀린다. */
+  --sheet-vh: var(--vvh, 100dvh);
+  --sheet-half: calc(0.4 * var(--sheet-vh));
+  --sheet-full: calc(0.92 * var(--sheet-vh));
   --sheet-header-h: 88px;
-  --sheet-visible: var(--sheet-half);
+  --sheet-visible: min(var(--sheet-half), var(--sheet-full));
   --sheet-drag: 0px;
   position: fixed;
   inset-inline: 0;
@@ -406,11 +410,14 @@ body {
 .saeu-sheet[data-dragging="true"] {
   transition: none;
 }
+/* min(..., --sheet-full): 키보드로 창이 줄면 px 하한(88·270·330)이 시트 높이를 넘어선다.
+   그대로 두면 translateY = full - visible 이 음수가 돼 시트가 앵커 위로 솟고 본문이 배경 밖으로
+   나간다 — 제보 2단계에서 지도가 아예 안 보였다 (Codex PR #7 #1). */
 .saeu-sheet[data-snap="collapsed"] {
-  --sheet-visible: var(--sheet-collapsed);
+  --sheet-visible: min(var(--sheet-collapsed), var(--sheet-full));
 }
 .saeu-sheet[data-snap="half"] {
-  --sheet-visible: var(--sheet-half);
+  --sheet-visible: min(var(--sheet-half), var(--sheet-full));
 }
 .saeu-sheet[data-snap="full"] {
   --sheet-visible: var(--sheet-full);
@@ -435,12 +442,12 @@ body {
 /* 상세 모드 (design 화면 2): 헤더 = 핸들 + 닫기 ✕(44px), 요약 = 30%(최소 270px = 확인 캡션까지,
    낮은 뷰포트에서도 접지 않음). 특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
 .saeu-sheet[data-mode="detail"] {
-  --sheet-half: var(--sheet-detail-half);
+  --sheet-half: max(calc(0.3 * var(--sheet-vh)), 270px);
   --sheet-header-h: 44px;
 }
 /* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다 */
 .saeu-sheet[data-mode="report"] {
-  --sheet-half: var(--sheet-report-half);
+  --sheet-half: max(calc(0.4 * var(--sheet-vh)), 330px);
   --sheet-header-h: 44px;
 }
 /* 상세 본문은 스냅과 무관하게 스크롤 컨테이너로 둔다 — 요약에서 잠가 버리면 휠·키보드 사용자가

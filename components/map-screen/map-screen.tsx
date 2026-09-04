@@ -100,6 +100,7 @@ export default function MapScreen({
                 s.moveReportPin(point, "drag");
               }}
               onMapTap={s.reportStep === 2 ? tapReportPin : undefined}
+              onUserPan={s.handleUserPan}
               onAuthFailure={s.handleMapError}
             />
           </NaverMapProvider>

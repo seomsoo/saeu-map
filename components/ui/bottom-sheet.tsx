@@ -52,6 +52,20 @@ const FLING_VELOCITY = 0.6; // px/ms
 /** 포인터 탭·드래그 직후 따라오는 click(캡처로 리타겟될 수 있음)을 무시하는 창 */
 const CLICK_SUPPRESS_MS = 250;
 
+/**
+ * 시트 계산의 기준 높이. **키보드가 뜨면 보이는 창이 기준**이라 CSS의 `--sheet-vh`와 같은 값이다.
+ * `window.innerHeight`를 쓰면 키보드 높이만큼 과대평가해 드래그가 엉뚱한 스냅으로 간다 (Codex PR #7 #2).
+ */
+export function sheetViewportHeight(): number {
+  return Math.round(window.visualViewport?.height ?? window.innerHeight);
+}
+
+/** 시트 바닥의 화면 y. `fixed` + `bottom: var(--kb)`라 보이는 창의 바닥과 같다. */
+export function sheetBottomY(): number {
+  const vv = window.visualViewport;
+  return vv ? Math.round(vv.offsetTop + vv.height) : window.innerHeight;
+}
+
 export function sheetSnaps(mode: SheetMode): readonly SheetSnap[] {
   return mode === "list" ? ["collapsed", "half", "full"] : ["half", "full"];
 }
@@ -61,40 +75,49 @@ export function sheetVisiblePx(
   snap: SheetSnap,
   viewportHeight: number,
   mode: SheetMode = "list",
+  /** `@media (max-height)`는 레이아웃 뷰포트를 본다 — 키보드로 줄어든 값이 아니다 */
+  layoutHeight: number = viewportHeight,
 ): number {
+  const full = Math.round(viewportHeight * SHEET_FULL_RATIO);
+  /** CSS의 `min(..., --sheet-full)`과 같은 clamp. px 하한이 시트 높이를 넘으면 시트가 앵커 위로 솟는다 */
+  const fit = (px: number) => Math.min(px, full);
   if (mode === "detail") {
     switch (snap) {
       case "collapsed":
       case "half":
-        return Math.max(
-          Math.round(viewportHeight * SHEET_DETAIL_HALF_RATIO),
-          SHEET_DETAIL_HALF_MIN_PX,
+        return fit(
+          Math.max(
+            Math.round(viewportHeight * SHEET_DETAIL_HALF_RATIO),
+            SHEET_DETAIL_HALF_MIN_PX,
+          ),
         );
       case "full":
-        return Math.round(viewportHeight * SHEET_FULL_RATIO);
+        return full;
     }
   }
   if (mode === "report") {
     switch (snap) {
       case "collapsed":
       case "half":
-        return Math.max(
-          Math.round(viewportHeight * SHEET_REPORT_HALF_RATIO),
-          SHEET_REPORT_HALF_MIN_PX,
+        return fit(
+          Math.max(
+            Math.round(viewportHeight * SHEET_REPORT_HALF_RATIO),
+            SHEET_REPORT_HALF_MIN_PX,
+          ),
         );
       case "full":
-        return Math.round(viewportHeight * SHEET_FULL_RATIO);
+        return full;
     }
   }
   switch (snap) {
     case "collapsed":
-      return SHEET_COLLAPSED_PX;
+      return fit(SHEET_COLLAPSED_PX);
     case "half":
-      return viewportHeight <= SHEET_SHORT_VIEWPORT_MAX
-        ? SHEET_COLLAPSED_PX
-        : Math.round(viewportHeight * SHEET_HALF_RATIO);
+      return layoutHeight <= SHEET_SHORT_VIEWPORT_MAX
+        ? fit(SHEET_COLLAPSED_PX)
+        : fit(Math.round(viewportHeight * SHEET_HALF_RATIO));
     case "full":
-      return Math.round(viewportHeight * SHEET_FULL_RATIO);
+      return full;
   }
 }
 
@@ -258,7 +281,7 @@ export function BottomSheet({
   const panel = mode !== "list";
 
   const cycleSnap = useCallback(() => {
-    onSnapChange(nextSnapOnTap(snap, window.innerHeight, mode));
+    onSnapChange(nextSnapOnTap(snap, sheetViewportHeight(), mode));
   }, [snap, mode, onSnapChange]);
 
   const setDragOffset = (px: number, dragging: boolean) => {
@@ -283,7 +306,8 @@ export function BottomSheet({
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startVisible: window.innerHeight - rect.top,
+      // 시트 바닥은 보이는 창의 바닥이다 — innerHeight를 쓰면 키보드 높이만큼 부풀려진다
+      startVisible: sheetBottomY() - rect.top,
       lastY: e.clientY,
       lastT: e.timeStamp,
       velocity: 0,
@@ -340,7 +364,7 @@ export function BottomSheet({
     drag.lastY = e.clientY;
     drag.lastT = e.timeStamp;
 
-    const vh = window.innerHeight;
+    const vh = sheetViewportHeight();
     // 상세는 0까지(닫힘 판정), 제보는 요약이 바닥(닫힘 없음), 목록은 collapsed
     const min =
       mode === "report"
@@ -374,7 +398,7 @@ export function BottomSheet({
       snap,
       visible: drag.startVisible - (e.clientY - drag.startY),
       velocity: drag.velocity,
-      viewportHeight: window.innerHeight,
+      viewportHeight: sheetViewportHeight(),
     });
     if (release.kind === "dismiss") {
       onDismiss?.();
@@ -497,7 +521,7 @@ export function BottomSheet({
             onPointerDown={(e) => {
               e.stopPropagation();
             }}
-            className="absolute top-0 right-2 flex size-11 items-center justify-center text-fg-tertiary"
+            className="absolute top-0 right-safe-right-or-2 flex size-11 items-center justify-center text-fg-tertiary"
           >
             <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
           </button>

@@ -94,6 +94,8 @@ export interface MapViewProps {
   onPinChange?: ((point: LatLng) => void) | undefined;
   /** 지도 빈 곳 탭(click·tap) — 제보 2단계가 핀을 그 자리로 옮긴다. 없으면 무시 */
   onMapTap?: ((point: LatLng) => void) | undefined;
+  /** 사용자가 지도를 끌기 시작했다. idle과 달리 프로그램 이동과 절대 섞이지 않는다 — 현위치 추적 해제용 */
+  onUserPan?: (() => void) | undefined;
   /**
    * NCP 인증 실패(키 오류·미등록 도메인). 스크립트는 정상 로드되고 SDK가 window.navermap_authFailure를
    * 부를 뿐이라 ErrorBoundary로는 잡히지 않는다 — 여기서 에러 상태로 넘긴다.
@@ -135,6 +137,7 @@ export function MapView({
   userLocation,
   onPinChange,
   onMapTap,
+  onUserPan,
   onAuthFailure,
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
@@ -162,6 +165,7 @@ export function MapView({
           handleRef={handleRef}
           onViewportChange={onViewportChange}
           onMapTap={onMapTap}
+          onUserPan={onUserPan}
         />
         <PlaceMarkers
           items={items}
@@ -224,10 +228,12 @@ function MapController({
   handleRef,
   onViewportChange,
   onMapTap,
+  onUserPan,
 }: {
   handleRef: Ref<MapHandle>;
   onViewportChange: (viewport: Viewport) => void;
   onMapTap: ((point: LatLng) => void) | undefined;
+  onUserPan: (() => void) | undefined;
 }) {
   const map = useMap();
   const navermaps = useNavermaps();
@@ -239,6 +245,13 @@ function MapController({
 
   // idle은 이동이 끝날 때마다. 초기 상태는 idle이 안 올 수 있어 마운트 시 한 번 직접 보고.
   useListener(map, "idle", report);
+
+  /* dragstart는 손가락이 지도를 끌 때만 온다 — 프로그램 이동(panTo·morph·focus)은 안 낸다.
+     idle로 사용자 조작을 가려내면 시간 창에 기대야 하고, 창 안에서 민 경우를 놓친다 (Codex PR #7 #4). */
+  const handleUserPan = useCallback(() => {
+    onUserPan?.();
+  }, [onUserPan]);
+  useListener(map, "dragstart", handleUserPan);
 
   // 데스크탑은 click, 터치는 tap — 둘 다 같은 좌표라 두 번 와도 무해. 마커 위 탭은 마커가 받는다.
   const handleTap = useCallback(

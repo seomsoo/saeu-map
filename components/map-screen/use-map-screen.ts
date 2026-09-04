@@ -11,7 +11,12 @@ import {
 } from "react";
 import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
-import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
+import {
+  sheetViewportHeight,
+  sheetVisiblePx,
+  type SheetMode,
+  type SheetSnap,
+} from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { getGuOfPoint, toggleBookmark as requestToggleBookmark } from "@/lib/data";
 import {
@@ -241,7 +246,12 @@ export function useMapScreen({
       return;
     }
     setSortOrigin(next.center);
-    setFollowing(false); // 사용자가 지도를 밀었다 — 더 이상 내 위치를 보고 있지 않다
+  }, []);
+
+  /* 손가락이 지도를 끌기 시작하면 추적 해제. idle로 판정하면 프로그램 이동 창(1500ms) 안에 민 경우를
+     놓치고, 그 뒤 idle이 보장되지 않아 FAB이 계속 활성으로 남는다 (Codex PR #7 #4). */
+  const handleUserPan = useCallback(() => {
+    setFollowing(false);
   }, []);
 
   /** 스크립트 로드 실패(ErrorBoundary)·NCP 인증 실패(navermap_authFailure) → runtime */
@@ -257,7 +267,7 @@ export function useMapScreen({
   const visibleStripCenterY = useCallback(
     (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
       const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
-      const vh = window.innerHeight;
+      const vh = sheetViewportHeight();
       const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
       return top + Math.max(0, bottom - top) / 2;
     },
@@ -391,7 +401,7 @@ export function useMapScreen({
     const bounds = boundsOf(matches);
     if (!bounds || !mapRef.current) return;
     const top = (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-    const bottom = sheetVisiblePx(snap, window.innerHeight, mode) + 16;
+    const bottom = sheetVisiblePx(snap, sheetViewportHeight(), mode) + 16;
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
@@ -525,7 +535,7 @@ export function useMapScreen({
       programmaticMoveAt.current = performance.now();
       mapRef.current.fitBounds(bounds, {
         top: 72,
-        bottom: sheetVisiblePx("half", window.innerHeight, "report") + 24,
+        bottom: sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
         left: 40,
         right: 40,
         maxZoom: REPORT_ZOOM,
@@ -680,6 +690,7 @@ export function useMapScreen({
     toggleBookmark,
     handleClusterClick,
     handleViewportChange,
+    handleUserPan,
     handleMapError,
     handleMissingConfig,
     dismissEvent,

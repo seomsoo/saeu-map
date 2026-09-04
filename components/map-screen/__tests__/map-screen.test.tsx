@@ -449,7 +449,6 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     const fab = () => screen.getByRole("button", { name: "내 위치" });
     expect(fab()).toHaveAttribute("aria-pressed", "false");
 
-    const nowSpy = vi.spyOn(performance, "now").mockReturnValue(0);
     vi.stubGlobal("navigator", {
       geolocation: {
         getCurrentPosition: (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) => {
@@ -462,13 +461,11 @@ describe("MapScreen — design 화면 1의 1~8", () => {
       expect(fab()).toHaveAttribute("aria-pressed", "true");
     });
 
-    // 프로그램 이동 창(1500ms)이 지난 뒤의 idle = 사용자가 민 것
-    nowSpy.mockReturnValue(5000);
+    // dragstart는 손가락이 끌 때만 온다 — 프로그램 이동 창 안이어도 바로 풀려야 한다 (Codex PR #7 #4)
     act(() => {
-      fake.listeners["idle"]?.(undefined);
+      fake.listeners["dragstart"]?.(undefined);
     });
     expect(fab()).toHaveAttribute("aria-pressed", "false");
-    nowSpy.mockRestore();
   });
 
   it("내 위치: geolocation 없음(jsdom) → 안내, 지도는 안 움직임", async () => {
