@@ -453,7 +453,7 @@ export function BottomSheet({
       {aside && (
         <div
           className={cx(
-            "absolute inset-x-5 -top-13 flex items-center justify-between",
+            "absolute inset-x-0 -top-13 flex items-center justify-between pl-safe-left-or-5 pr-safe-right-or-5",
             snap === "full" && "hidden",
           )}
         >

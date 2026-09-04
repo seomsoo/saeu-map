@@ -131,7 +131,7 @@ export default function MapScreen({
       >
         {s.mode !== "report" && (
           <>
-            <div className="px-5 pt-safe-top-or-3">
+            <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5">
               <SearchBar
                 value={s.query}
                 onChange={s.setQuery}
@@ -140,7 +140,7 @@ export default function MapScreen({
               />
             </div>
             {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
-            <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
+            <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5">
               <CategoryDropdown tab={s.tab} onChange={s.setTab} />
               <FilterChips chips={s.chips} onToggle={s.toggleChip} />
             </div>
