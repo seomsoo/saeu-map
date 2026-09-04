@@ -294,6 +294,9 @@ describe("toggleBookmark", () => {
     expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
     expect(await toggleBookmark("p018")).toEqual([]);
     await expect(toggleBookmark("")).rejects.toThrow();
+    // 없는 가게·검수 대기 가게는 거부 — 찜 Set에 가짜 id가 쌓이지 않는다
+    await expect(toggleBookmark("nonexistent")).rejects.toThrow("place not found");
+    await expect(toggleBookmark("p108")).rejects.toThrow("place not found");
   });
 });
 
@@ -512,6 +515,11 @@ describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·�
     await settle(signInWithKakao());
     await expect(updateNickname(" 새 ")).rejects.toThrow();
     await expect(updateNickname("열세글자가넘는닉네임입니다요")).rejects.toThrow();
+    // 폭 없는 공백·방향 제어문자·기호는 거부, 전각은 NFKC로 반각이 된다
+    await expect(updateNickname("\u200b\u200b")).rejects.toThrow();
+    await expect(updateNickname("새우헌터\u202e")).rejects.toThrow();
+    await expect(updateNickname("새우<b>")).rejects.toThrow();
+    expect((await settle(updateNickname("ｓｈｒｉｍｐ"))).nickname).toBe("shrimp");
     const session = await settle(updateNickname(" 새우왕 "));
     expect(session.nickname).toBe("새우왕");
     expect((await getMyReviews(NOW)).every((r) => r.nickname === "새우왕")).toBe(true);
@@ -668,6 +676,7 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
   it("탈퇴 뒤에는 내 리뷰가 화면에서 빠지고 찜은 비고 제보는 남되 작성자가 없다", async () => {
     await settle(signInWithKakao());
     await toggleBookmark("p018");
+    await settle(checkIn("p041", NOW));
     const created: Place = await settle(submitReport(reportInput(), NOW));
     const mineBefore = await getMyReviews(NOW);
     expect(mineBefore.length).toBeGreaterThan(0);
@@ -681,6 +690,8 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
     const kept = await getPlaceById(created.id, NOW);
     expect(kept).toBeDefined();
     expect(kept && "reporterId" in kept).toBe(false);
+    // 확인 이벤트는 집계에 남되 개인 식별자는 뗀다
+    expect((await getCheckins(undefined, NOW)).some((c) => c.actor === "u-kakao-1")).toBe(false);
     await settle(signInWithKakao());
     expect(await getBookmarkedPlaceIds()).toEqual([]);
     expect(await getMyReviews(NOW)).toEqual([]);

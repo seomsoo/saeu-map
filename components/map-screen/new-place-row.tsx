@@ -77,17 +77,17 @@ export function NewPlaceRow({
           )}
         </div>
       </button>
-      {/* 상태·액션 줄 — 텍스트 열에 맞춰 들여쓴다(썸네일 64 + 간격 12) */}
-      <div className="mt-2 flex items-center justify-between gap-3 pl-19">
+      {/* 상태·액션 줄 — 텍스트 열에 맞춰 들여쓴다(썸네일 64 + 간격 12). 320에서는 버튼 묶음이 다음 줄로 내려간다(상태 라벨을 세로로 접지 않는다) */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pl-19">
         {verified ? (
-          <span className="flex items-center gap-1 text-caption-l-medium text-fg-secondary">
+          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-caption-l-medium text-fg-secondary">
             <span className="icon-[ci--check] size-3" aria-hidden="true" />
             확인됨
           </span>
         ) : (
-          <span className="text-caption-l-regular text-fg-tertiary">검증 전</span>
+          <span className="shrink-0 whitespace-nowrap text-caption-l-regular text-fg-tertiary">검증 전</span>
         )}
-        <div className="flex shrink-0 gap-2">
+        <div className="ml-auto flex shrink-0 gap-2">
           {done ? (
             <span role="status" className={cx(buttonVariants({ variant: "tint", size: "md" }))}>
               <span className="icon-[ci--check] size-4" aria-hidden="true" />

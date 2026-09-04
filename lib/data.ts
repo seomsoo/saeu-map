@@ -161,6 +161,9 @@ function newAnonymousSession(): Session {
 }
 let currentSession: Session = newAnonymousSession();
 
+/** 탈퇴한 사용자의 확인 이벤트에 남는 actor 값 — 개인 식별자가 아니다. */
+const DELETED_ACTOR = "deleted";
+
 /** 목 카카오 유저 = 목 리뷰 2건의 작성자 "새우헌터" — 로그인하자마자 내 리뷰·본인 [수정][삭제]가 보인다. */
 const KAKAO_MOCK_USER_ID = "u-kakao-1";
 const KAKAO_MOCK_NICKNAME = "새우헌터";
@@ -476,11 +479,19 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
   return place;
 }
 
+/** 시드(검수 통과)나 제보로 생긴 가게인가 — 찜 Set에 가짜 id가 쌓이지 않게 (Phase 6 FK 자리). */
+function placeExists(id: string): boolean {
+  if (rawPlaces.some((p) => p.id === id && !p.needsReview)) return true;
+  for (const data of datasetCache.values()) if (data.places.some((p) => p.id === id)) return true;
+  return false;
+}
+
 /** 찜 토글 (spec 5 "찜") — 현재 세션 기준. 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
 export function toggleBookmark(placeId: string): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
   return Promise.resolve(placeId).then((raw) => {
     const id = idSchema.parse(raw);
+    if (!placeExists(id)) throw new Error("place not found");
     const mine = bookmarksOf(currentSession.userId);
     if (mine.has(id)) mine.delete(id);
     else mine.add(id);
@@ -545,6 +556,8 @@ export async function deleteAccount(): Promise<Session> {
       delete rest.reporterId;
       return rest;
     });
+    // 확인 이벤트는 집계(시즌 카운터·확인 N회)에 남되 개인 식별자는 뗀다 — Phase 6: actor nullable + ON DELETE SET NULL
+    data.checkins = data.checkins.map((c) => (c.actor === me ? { ...c, actor: DELETED_ACTOR } : c));
   }
   bookmarksByUser.delete(me);
   kakaoNickname = KAKAO_MOCK_NICKNAME;
@@ -552,8 +565,20 @@ export async function deleteAccount(): Promise<Session> {
   return currentSession;
 }
 
-/** 닉네임 2~12자 (spec 5 "카카오 프로필 기본, 수정 가능"). */
-export const nicknameSchema = z.string().trim().min(2).max(12);
+/**
+ * 닉네임 — 한글·영문·숫자 2~12자, 단어 사이 공백 하나 (spec 5 "카카오 프로필 기본, 수정 가능").
+ * NFKC로 정규화하고 문자 종류를 제한한다: 폭 없는 공백·방향 제어문자로 빈 이름이나 남 흉내를 못 만들게 (security-reviewer 2026-09-04).
+ */
+export const nicknameSchema = z
+  .string()
+  .transform((s) => s.normalize("NFKC").trim())
+  .pipe(
+    z
+      .string()
+      .min(2)
+      .max(12)
+      .regex(/^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u),
+  );
 
 /** 닉네임 변경 — 카카오 세션만. 이미 쓴 리뷰의 표시 이름도 같이 바뀐다(프로필 조인 흉내). */
 export async function updateNickname(nickname: string): Promise<Session> {
@@ -593,6 +618,8 @@ let reviewSeq = 0;
 
 /**
  * 리뷰 등록. 익명은 거부한다(spec 5 "익명 별점 없음" — 게이트는 UI가 먼저 세우고 여기는 마지막 방어선).
+ * 속도 제한 자리: 핀당 리뷰 1개(같은 가게 두 번째 리뷰는 수정으로), 일 N개 — Phase 6 Upstash(spec 스팸 4겹 2).
+ * 사진은 MIME(`file.type`)만 보는데 클라이언트가 정하는 값이라 위조 가능 — 서버 sharp 재인코딩(spec 스팸 3)이 방어선.
  * 등록은 확인이기도 하다: 확인일 갱신 + checkins 이벤트 + 확인 +1 (spec 5 "리뷰 등록 시 확인일도 갱신").
  * 갱신된 Place도 함께 돌려준다 — 호출자가 상호 블록 캡션("오늘 확인")을 바로 맞춘다.
  */
@@ -689,7 +716,8 @@ const placeFlagSchema = z.object({
 
 /**
  * 신규 패널 [정보가 달라요] 접수 (design 화면 4 변형 (a)). 사진 신고와 같은 계약 — 검증 + 지연만,
- * 수정 제안 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능").
+ * 수정 제안 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능") —
+ * 가장 싼 도배 경로라 속도 제한 자리: 핀당 일 1 (Phase 6 Upstash, spec 스팸 4겹 2).
  */
 export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
   placeFlagSchema.parse(input);

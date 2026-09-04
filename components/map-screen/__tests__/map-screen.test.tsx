@@ -86,10 +86,20 @@ const dataMocks = vi.hoisted(() => ({
   signOut: vi.fn<() => Promise<Session>>(),
   getMyReviews: vi.fn<(now: string) => Promise<MyReview[]>>(),
   getMyReports: vi.fn<(now: string) => Promise<Place[]>>(),
+  /** 찜은 메모리 Set 가짜 — 진짜는 존재하는 가게만 받는데 시드(nara 등)는 목 JSON에 없다 */
+  bookmarks: new Set<string>(),
+  toggleBookmark: vi.fn<(id: string) => Promise<string[]>>(),
+  getBookmarkedPlaceIds: vi.fn<() => Promise<string[]>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
+  dataMocks.toggleBookmark.mockImplementation((id) => {
+    if (dataMocks.bookmarks.has(id)) dataMocks.bookmarks.delete(id);
+    else dataMocks.bookmarks.add(id);
+    return Promise.resolve([...dataMocks.bookmarks]);
+  });
+  dataMocks.getBookmarkedPlaceIds.mockImplementation(() => Promise.resolve([...dataMocks.bookmarks]));
   return {
     ...original,
     checkIn: dataMocks.checkIn,
@@ -100,6 +110,8 @@ vi.mock("@/lib/data", async (importOriginal) => {
     signOut: dataMocks.signOut,
     getMyReviews: dataMocks.getMyReviews,
     getMyReports: dataMocks.getMyReports,
+    toggleBookmark: dataMocks.toggleBookmark,
+    getBookmarkedPlaceIds: dataMocks.getBookmarkedPlaceIds,
   };
 });
 
@@ -237,6 +249,7 @@ const listCards = () =>
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_NCP_CLIENT_ID", "test-key");
+  dataMocks.bookmarks.clear();
   dataMocks.getSession.mockReset();
   dataMocks.getSession.mockResolvedValue(ANON_SESSION);
   dataMocks.signInWithKakao.mockReset();

@@ -7,7 +7,7 @@ import { TextField } from "@/components/ui/text-field";
 import { nicknameSchema } from "@/lib/data";
 import type { Session } from "@/lib/types";
 
-export const NICKNAME_RANGE_MESSAGE = "2~12자로 적어주세요";
+export const NICKNAME_RANGE_MESSAGE = "한글·영문·숫자로 2~12자 적어주세요";
 export const NICKNAME_SAVED_NOTICE = "닉네임을 바꿨어요";
 export const NICKNAME_SAVE_FAILED_NOTICE = "닉네임을 바꾸지 못했어요";
 
@@ -41,6 +41,7 @@ export function ProfileRow({ session, onSave, onNotice }: ProfileRowProps) {
   };
 
   const save = () => {
+    if (pending) return; // Enter 연타 — 버튼은 disabled지만 키보드 경로는 아니다
     const parsed = nicknameSchema.safeParse(draft);
     if (!parsed.success) {
       setError(NICKNAME_RANGE_MESSAGE);
