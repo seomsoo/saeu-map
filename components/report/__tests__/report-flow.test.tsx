@@ -225,6 +225,10 @@ describe("ReportPanel 2단계 — 위치", () => {
     expect(props.onBack).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
     expect(props.onOpenExisting).toHaveBeenCalledWith("hana");
+    // [다른 가게예요]는 3단계가 아니라 핀 화면으로 — 등록은 [여기가 맞아요]의 검사를 거친다
+    fireEvent.click(screen.getByRole("button", { name: "다른 가게예요" }));
+    expect(props.onClearTapped).toHaveBeenCalledTimes(2);
+    expect(props.onStepChange).not.toHaveBeenCalled();
   });
 
   it("150m 안 비슷한 상호 → 중복 의심 패널(후보·거리, 아웃라인 2개), [이 가게예요]는 그 상세로", async () => {

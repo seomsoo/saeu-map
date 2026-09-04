@@ -127,6 +127,11 @@ export function StepLocation({
               className="flex-1"
               onClick={() => {
                 onDismissDuplicate(place.id);
+                // 탭으로 연 후보는 핀 확정을 거치지 않았다 — 핀 화면으로 돌아가 [여기가 맞아요]의 검사를 받는다
+                if (reason === "tap") {
+                  onClearTapped();
+                  return;
+                }
                 onConfirm(place.id);
               }}
             >

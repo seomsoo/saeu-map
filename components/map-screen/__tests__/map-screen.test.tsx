@@ -842,6 +842,10 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     fireEvent.click(screen.getByRole("button", { name: "이전" }));
     expect(screen.getByRole("heading", { name: "핀을 가게 위치로 옮겨주세요" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
+    fireEvent.click(screen.getByRole("button", { name: "다른 가게예요" }));
+    expect(screen.getByRole("heading", { name: "핀을 가게 위치로 옮겨주세요" })).toBeInTheDocument(); // 3단계로 건너뛰지 않는다
+    fireEvent.click(screen.getByRole("button", { name: "나라수산" })); // 답한 가게라도 다시 탭하면 다시 묻는다
+    expect(screen.getByRole("heading", { name: "이미 등록된 가게예요" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
     expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
