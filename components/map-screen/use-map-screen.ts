@@ -65,19 +65,28 @@ interface UseMapScreenInput {
   topStackRef: RefObject<HTMLDivElement | null>;
 }
 
-/** 조용히 위치 요청. 거부·실패·미지원은 전부 null (플랜 결정 1: 거부 시 지도 중심 기준). */
-function requestPosition(): Promise<LatLng | null> {
+/**
+ * 위치 요청. 실패 이유를 구분한다 — **거부는 다시 눌러도 팝업이 안 뜨므로**(브라우저가 기억한다)
+ * "다시 시도" 안내를 주면 사용자가 버튼만 계속 누르게 된다 (decisions 2026-09-04).
+ * 조용한 호출자(첫 로드·제보 2단계)는 `ok`만 보고 이유는 무시한다.
+ */
+type PositionResult =
+  | { ok: true; point: LatLng }
+  | { ok: false; reason: "denied" | "unavailable" };
+
+function requestPosition(): Promise<PositionResult> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      resolve(null);
+      resolve({ ok: false, reason: "unavailable" });
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        resolve({ ok: true, point: { lat: pos.coords.latitude, lng: pos.coords.longitude } });
       },
-      () => {
-        resolve(null);
+      (err) => {
+        // code 1 = PERMISSION_DENIED. 2(위치 못 구함)·3(타임아웃)은 다시 시도할 만하다.
+        resolve({ ok: false, reason: err.code === 1 ? "denied" : "unavailable" });
       },
       { timeout: 8000, maximumAge: 60_000 },
     );
@@ -120,6 +129,8 @@ export function useMapScreen({
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
+  /** 지도가 지금 내 위치에 맞춰져 있나 — 현위치 FAB의 활성 표시. 사용자가 지도를 밀면 풀린다. */
+  const [following, setFollowing] = useState(false);
   const noticeTimer = useRef<number | null>(null);
   /** 상세·제보를 열 때의 목록 시트 높이 — 닫으면 복원 */
   const listSnapRef = useRef<SheetSnap>("half");
@@ -222,6 +233,7 @@ export function useMapScreen({
       return;
     }
     setSortOrigin(next.center);
+    setFollowing(false); // 사용자가 지도를 밀었다 — 더 이상 내 위치를 보고 있지 않다
   }, []);
 
   /** 스크립트 로드 실패(ErrorBoundary)·NCP 인증 실패(navermap_authFailure) → runtime */
@@ -253,8 +265,9 @@ export function useMapScreen({
   /* ── 위치: 첫 로드 시 조용히 ── */
   useEffect(() => {
     let cancelled = false;
-    void requestPosition().then((pos) => {
-      if (cancelled || !pos) return;
+    void requestPosition().then((res) => {
+      if (cancelled || !res.ok) return;
+      const pos = res.point;
       setUserLocation(pos);
       // 권한 프롬프트 뒤 늦게 왔는데 제보 중이면 위치만 기억한다 — 2단계에서 맞춘 핀이 화면 밖으로 밀리면 안 된다 (Codex PR #6 #5)
       if (reportStepRef.current !== null) return;
@@ -442,8 +455,9 @@ export function useMapScreen({
       void getGuOfPoint(start).catch(() => undefined);
       if (userLocation !== null) return;
       // 위치를 아직 모르면 한 번 조용히 묻고, 사용자가 핀을 건드리기 전이면 그리로 옮긴다
-      void requestPosition().then((pos) => {
-        if (!pos || !inBounds(pos, SEOUL_AREA)) return;
+      void requestPosition().then((res) => {
+        if (!res.ok || !inBounds(res.point, SEOUL_AREA)) return;
+        const pos = res.point;
         setUserLocation(pos);
         if (pinTouchedRef.current || reportStepRef.current !== 2) return;
         setReportPin(pos);
@@ -604,15 +618,21 @@ export function useMapScreen({
 
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
   const locateMe = useCallback(() => {
-    void requestPosition().then((pos) => {
-      if (!pos) {
-        showNotice("위치를 가져올 수 없어요");
+    void requestPosition().then((res) => {
+      if (!res.ok) {
+        // 거부는 다시 눌러도 팝업이 안 뜬다 — "다시 시도"로 읽히면 버튼만 계속 누르게 된다
+        showNotice(
+          res.reason === "denied"
+            ? "위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해주세요"
+            : "위치를 가져올 수 없어요",
+        );
         return;
       }
-      setUserLocation(pos);
+      setUserLocation(res.point);
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.focus(pos, USER_ZOOM, { screenY: stripCenterY() });
+      mapRef.current.focus(res.point, USER_ZOOM, { screenY: stripCenterY() });
+      setFollowing(true);
     });
   }, [mapRef, showNotice, stripCenterY]);
 
@@ -634,6 +654,7 @@ export function useMapScreen({
     reportPin,
     reportCandidateId,
     userLocation,
+    following,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
     origin,
     eventDismissed,

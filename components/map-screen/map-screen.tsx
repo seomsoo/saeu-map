@@ -207,7 +207,11 @@ export default function MapScreen({
           )
         }
         emptyKind={s.emptyKind}
-        aside={s.mode === "list" ? <FabRow onLocate={s.locateMe} onReport={s.openReport} /> : undefined}
+        aside={
+          s.mode === "list" ? (
+            <FabRow onLocate={s.locateMe} onReport={s.openReport} following={s.following} />
+          ) : undefined
+        }
         onSortChange={s.setSort}
         onSnapChange={s.setSnap}
         onDismissDetail={s.closeDetail}

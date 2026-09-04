@@ -102,22 +102,29 @@ vi.mock("react-naver-maps", () => ({
     onClick,
     position,
     defaultPosition,
+    clickable,
   }: {
     title: string;
     onClick?: () => void;
     position?: { lat: number; lng: number };
     defaultPosition?: { lat: number; lng: number };
-  }) => (
-    <button
-      type="button"
-      data-testid="marker"
-      data-lat={(position ?? defaultPosition)?.lat}
-      data-lng={(position ?? defaultPosition)?.lng}
-      onClick={onClick}
-    >
-      {title}
-    </button>
-  ),
+    clickable?: boolean;
+  }) => {
+    const box = {
+      "data-testid": "marker",
+      "data-lat": (position ?? defaultPosition)?.lat,
+      "data-lng": (position ?? defaultPosition)?.lng,
+    };
+    // 현위치 마커는 clickable={false}라 실제로도 버튼이 아니다 — 버튼으로 그리면
+    // 현위치 FAB(aria-label "내 위치")과 접근 이름이 겹쳐 쿼리가 모호해진다
+    return clickable === false ? (
+      <span {...box}>{title}</span>
+    ) : (
+      <button type="button" {...box} onClick={onClick}>
+        {title}
+      </button>
+    );
+  },
   useMap: () => fake.map,
   useNavermaps: () => fake.navermaps,
   useListener: (_target: unknown, event: string, handler: (e: unknown) => void) => {
@@ -404,6 +411,64 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     const marker = await screen.findByText("내 위치", { selector: '[data-testid="marker"]' });
     expect(marker).toHaveAttribute("data-lat", "37.5665");
     expect(marker).toHaveAttribute("data-lng", "126.978");
+  });
+
+  it("위치 거부(PERMISSION_DENIED)는 '다시 시도'가 아니라 설정 안내 — 거부 뒤엔 팝업이 안 뜬다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (_ok: unknown, fail: (e: { code: number }) => void) => {
+          fail({ code: 1 }); // PERMISSION_DENIED
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해주세요",
+    );
+  });
+
+  it("위치를 못 구하거나 타임아웃(code 2·3)이면 다시 시도할 수 있게 안내", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (_ok: unknown, fail: (e: { code: number }) => void) => {
+          fail({ code: 3 }); // TIMEOUT
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("위치를 가져올 수 없어요");
+  });
+
+  it("현위치로 이동하면 FAB이 활성, 사용자가 지도를 밀면 풀린다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const fab = () => screen.getByRole("button", { name: "내 위치" });
+    expect(fab()).toHaveAttribute("aria-pressed", "false");
+
+    const nowSpy = vi.spyOn(performance, "now").mockReturnValue(0);
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) => {
+          ok({ coords: { latitude: 37.5665, longitude: 126.978 } });
+        },
+      },
+    });
+    fireEvent.click(fab());
+    await waitFor(() => {
+      expect(fab()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    // 프로그램 이동 창(1500ms)이 지난 뒤의 idle = 사용자가 민 것
+    nowSpy.mockReturnValue(5000);
+    act(() => {
+      fake.listeners["idle"]?.(undefined);
+    });
+    expect(fab()).toHaveAttribute("aria-pressed", "false");
+    nowSpy.mockRestore();
   });
 
   it("내 위치: geolocation 없음(jsdom) → 안내, 지도는 안 움직임", async () => {
