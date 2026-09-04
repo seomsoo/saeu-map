@@ -1,5 +1,5 @@
 import { haversineKm } from "./geo";
-import type { Place } from "./types";
+import type { LatLng, Place } from "./types";
 
 /**
  * 중복 가게 판정 — 크롤러 `collect.py`의 `same_place`를 그대로 이식했다(spec 4.3-2).
@@ -8,6 +8,8 @@ import type { Place } from "./types";
 
 export const DUPLICATE_RADIUS_KM = 0.15;
 export const NAME_SIMILARITY_MIN = 0.85;
+/** 핀 자리 근접 검사 — 상호와 무관하게 이 안에 기존 가게가 있으면 묻는다(같은 건물·옆 점포 거리, decisions 2026-09-04 보완). */
+export const PIN_OVERLAP_KM = 0.03;
 /** 1단계 자동완성은 두 글자부터 (design 화면 3-1). */
 export const NAME_MATCH_MIN_CHARS = 2;
 export const NAME_MATCH_LIMIT = 5;
@@ -108,6 +110,22 @@ export function findDuplicate(
     if (!samePlace(candidate, place)) continue;
     const km = haversineKm(candidate, place);
     if (km < bestKm) {
+      best = place;
+      bestKm = km;
+    }
+  }
+  return best;
+}
+
+/** 핀 자리(PIN_OVERLAP_KM 안)에 있는 가장 가까운 가게 — 상호는 보지 않는다. 없으면 null. */
+export function findOverlapping(point: LatLng, places: readonly Place[]): Place | null {
+  let best: Place | null = null;
+  let bestKm = Number.POSITIVE_INFINITY;
+  for (const place of places) {
+    const km = haversineKm(point, place);
+    if (km > PIN_OVERLAP_KM) continue;
+    if (best === null || km < bestKm) {
+      // 같은 거리면 먼저 온 가게 — 목록 순서가 곧 우선순위라 반복 확정에서도 같은 후보가 나온다
       best = place;
       bestKm = km;
     }

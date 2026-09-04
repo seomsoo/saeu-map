@@ -53,6 +53,8 @@ const fake = vi.hoisted(() => {
   /* 지오코더 서브모듈 — 테스트가 geocode.mockImplementation으로 응답을 정한다 */
   const Service = { Status: { OK: 200, ERROR: 500 }, geocode: vi.fn() };
   const navermaps = { LatLng, LatLngBounds, Size, Point, Service };
+  /* useListener로 단 핸들러 — 테스트가 지도 이벤트(click 등)를 직접 쏜다 */
+  const listeners: Record<string, (e: unknown) => void> = {};
   const map = {
     getBounds: () => new LatLngBounds(new LatLng(37.4, 126.8), new LatLng(37.7, 127.2)),
     getZoom: () => 12,
@@ -67,7 +69,7 @@ const fake = vi.hoisted(() => {
       fromOffsetToCoord: (p: Point) => new LatLng(p.y, p.x),
     }),
   };
-  return { navermaps, map };
+  return { navermaps, map, listeners };
 });
 
 // lib/data는 진짜(찜 토글은 클라이언트 메모리)지만, 쓰기 checkIn만 가짜 — 시드 가게는 목 JSON에 없다
@@ -87,14 +89,32 @@ vi.mock("react-naver-maps", () => ({
     <div data-testid="map">{children}</div>
   ),
   NaverMap: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  Marker: ({ title, onClick }: { title: string; onClick?: () => void }) => (
-    <button type="button" data-testid="marker" onClick={onClick}>
+  Marker: ({
+    title,
+    onClick,
+    position,
+    defaultPosition,
+  }: {
+    title: string;
+    onClick?: () => void;
+    position?: { lat: number; lng: number };
+    defaultPosition?: { lat: number; lng: number };
+  }) => (
+    <button
+      type="button"
+      data-testid="marker"
+      data-lat={(position ?? defaultPosition)?.lat}
+      data-lng={(position ?? defaultPosition)?.lng}
+      onClick={onClick}
+    >
       {title}
     </button>
   ),
   useMap: () => fake.map,
   useNavermaps: () => fake.navermaps,
-  useListener: () => {},
+  useListener: (_target: unknown, event: string, handler: (e: unknown) => void) => {
+    fake.listeners[event] = handler;
+  },
 }));
 
 const NOW = "2026-09-01T12:00:00+09:00";
@@ -785,11 +805,46 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(screen.getByRole("button", { name: "수성2호왕새우소금구이" })).toBeInTheDocument();
   });
 
-  it("제보 중 마커를 탭해도 상세가 열리지 않는다 (기존 마커는 보이기만)", async () => {
+  it("1단계에서 마커를 탭해도 상세가 열리지 않는다 (기존 마커는 보이기만)", async () => {
     await openReport();
     fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
     expect(screen.queryByRole("article")).toBeNull();
     expect(screen.getByRole("region", { name: "가게 제보" })).toBeInTheDocument();
+  });
+
+  it("2단계: 지도 빈 곳 탭(click 리스너) → 핀이 그 자리로, 지도는 안 움직인다. 1단계 탭은 무시", async () => {
+    await openReport();
+    act(() => {
+      fake.listeners["click"]?.({ coord: new fake.navermaps.LatLng(37.56, 127.01) });
+    });
+    expect(screen.queryByRole("button", { name: "제보 위치" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "탭 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    const pin = screen.getByRole("button", { name: "제보 위치" });
+    expect(pin).toHaveAttribute("data-lat", "37.55"); // 보던 지도 중심에서 시작
+    const zooms = fake.map.setZoom.mock.calls.length;
+    const pans = fake.map.panTo.mock.calls.length;
+    act(() => {
+      fake.listeners["click"]?.({ coord: new fake.navermaps.LatLng(37.56, 127.01) });
+    });
+    expect(screen.getByRole("button", { name: "제보 위치" })).toHaveAttribute("data-lat", "37.56");
+    expect(fake.map.setZoom).toHaveBeenCalledTimes(zooms);
+    expect(fake.map.panTo).toHaveBeenCalledTimes(pans);
+  });
+
+  it("2단계: 기존 마커를 탭하면 그 가게로 '핀 자리에 이미 등록된 가게가 있어요' 패널 + fitBounds, [이 가게예요]는 상세로", async () => {
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "탭 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
+    expect(screen.getByRole("heading", { name: "핀 자리에 이미 등록된 가게가 있어요" })).toBeInTheDocument();
+    expect(fake.map.fitBounds).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "이전" }));
+    expect(screen.getByRole("heading", { name: "핀을 가게 위치로 옮겨주세요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
+    fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
+    expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
   });
 
   it("지도를 못 불러온 상태에선 제보 입구가 토스트로 막힌다", async () => {

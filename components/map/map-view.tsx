@@ -83,6 +83,8 @@ export interface MapViewProps {
   pin?: LatLng | null | undefined;
   /** 핀을 끌어 놓았을 때의 좌표 */
   onPinChange?: ((point: LatLng) => void) | undefined;
+  /** 지도 빈 곳 탭(click·tap) — 제보 2단계가 핀을 그 자리로 옮긴다. 없으면 무시 */
+  onMapTap?: ((point: LatLng) => void) | undefined;
   /**
    * NCP 인증 실패(키 오류·미등록 도메인). 스크립트는 정상 로드되고 SDK가 window.navermap_authFailure를
    * 부를 뿐이라 ErrorBoundary로는 잡히지 않는다 — 여기서 에러 상태로 넘긴다.
@@ -122,6 +124,7 @@ export function MapView({
   onClusterClick,
   pin,
   onPinChange,
+  onMapTap,
   onAuthFailure,
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
@@ -148,6 +151,7 @@ export function MapView({
         <MapController
           handleRef={handleRef}
           onViewportChange={onViewportChange}
+          onMapTap={onMapTap}
         />
         <PlaceMarkers
           items={items}
@@ -194,9 +198,11 @@ function readViewport(
 function MapController({
   handleRef,
   onViewportChange,
+  onMapTap,
 }: {
   handleRef: Ref<MapHandle>;
   onViewportChange: (viewport: Viewport) => void;
+  onMapTap: ((point: LatLng) => void) | undefined;
 }) {
   const map = useMap();
   const navermaps = useNavermaps();
@@ -208,6 +214,18 @@ function MapController({
 
   // idle은 이동이 끝날 때마다. 초기 상태는 idle이 안 올 수 있어 마운트 시 한 번 직접 보고.
   useListener(map, "idle", report);
+
+  // 데스크탑은 click, 터치는 tap — 둘 다 같은 좌표라 두 번 와도 무해. 마커 위 탭은 마커가 받는다.
+  const handleTap = useCallback(
+    (...args: unknown[]) => {
+      const e = args[0] as naver.maps.PointerEvent | undefined; // useListener는 인자를 unknown으로 넘긴다
+      if (!e) return;
+      onMapTap?.(toLatLng(navermaps, e.coord));
+    },
+    [navermaps, onMapTap],
+  );
+  useListener(map, "click", handleTap);
+  useListener(map, "tap", handleTap);
   useEffect(() => {
     report();
   }, [report]);

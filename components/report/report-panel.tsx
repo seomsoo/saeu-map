@@ -29,6 +29,9 @@ export interface ReportPanelProps {
   onPinChange: (point: LatLng) => void;
   /** 중복 후보가 보이게 지도를 맞춘다 */
   onShowCandidate: (candidate: Place) => void;
+  /** 2단계에서 탭한 기존 마커 — 그 가게로 중복 의심 패널을 연다 */
+  tappedPlaceId: string | null;
+  onClearTapped: () => void;
   /** 이미 있는 가게로 넘어가기 — 플로우를 닫고 그 가게 상세를 연다 */
   onOpenExisting: (id: string) => void;
   /** 등록 성공 — 목록·마커에 추가 */
@@ -50,6 +53,8 @@ export function ReportPanel({
   onStepChange,
   onPinChange,
   onShowCandidate,
+  tappedPlaceId,
+  onClearTapped,
   onOpenExisting,
   onCreated,
   onNotice,
@@ -110,6 +115,8 @@ export function ReportPanel({
           onBack={onBack}
           onPinChange={onPinChange}
           onShowCandidate={onShowCandidate}
+          tappedPlaceId={tappedPlaceId}
+          onClearTapped={onClearTapped}
           onOpenExisting={onOpenExisting}
           onDismissDuplicate={dismissDuplicate}
           onConfirm={(duplicateOf) => {

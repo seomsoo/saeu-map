@@ -35,6 +35,8 @@ function renderPanel(overrides: Partial<ReportPanelProps> = {}) {
     onStepChange: vi.fn(),
     onPinChange: vi.fn(),
     onShowCandidate: vi.fn(),
+    tappedPlaceId: null,
+    onClearTapped: vi.fn(),
     onOpenExisting: vi.fn(),
     onCreated: vi.fn(),
     onNotice: vi.fn(),
@@ -195,13 +197,34 @@ describe("ReportPanel 2단계 — 위치", () => {
     });
   });
 
-  it("중복 없으면 바로 3단계", async () => {
-    const { props } = renderStep2("완전히 다른 새우집", MAPO);
+  it("비슷한 상호도 없고 핀 자리(30m)에 가게도 없으면 바로 3단계", async () => {
+    // fixture 가게들은 전부 MAPO에 있다 — 40m 떨어진 핀은 근접 검사에 안 걸린다
+    const { props } = renderStep2("완전히 다른 새우집", { lat: MAPO.lat + 0.00036, lng: MAPO.lng });
     fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
     await waitFor(() => {
       expect(props.onStepChange).toHaveBeenCalledWith(3);
     });
     expect(props.onShowCandidate).not.toHaveBeenCalled();
+  });
+
+  it("상호가 전혀 달라도 핀 자리 30m 안에 가게가 있으면 '핀 자리에 이미 등록된 가게가 있어요'", async () => {
+    const { props } = renderStep2("완전히 다른 새우집", MAPO);
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    expect(await screen.findByRole("heading", { name: "핀 자리에 이미 등록된 가게가 있어요" })).toBeInTheDocument();
+    expect(props.onShowCandidate).toHaveBeenCalledWith(expect.objectContaining({ id: "nara" }));
+    fireEvent.click(screen.getByRole("button", { name: "다른 가게예요" }));
+    expect(props.onStepChange).toHaveBeenCalledWith(3);
+  });
+
+  it("지도에서 탭한 기존 마커(tappedPlaceId)는 바로 후보 패널, ‹는 onClearTapped", () => {
+    const { props } = renderStep2("나라새우집", MAPO, { tappedPlaceId: "hana" });
+    expect(screen.getByRole("heading", { name: "핀 자리에 이미 등록된 가게가 있어요" })).toBeInTheDocument();
+    expect(screen.getByText("노량진수산시장 하나수산")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "이전" }));
+    expect(props.onClearTapped).toHaveBeenCalledTimes(1);
+    expect(props.onBack).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
+    expect(props.onOpenExisting).toHaveBeenCalledWith("hana");
   });
 
   it("150m 안 비슷한 상호 → 중복 의심 패널(후보·거리, 아웃라인 2개), [이 가게예요]는 그 상세로", async () => {

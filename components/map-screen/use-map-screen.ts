@@ -115,6 +115,8 @@ export function useMapScreen({
   const [reportStep, setReportStep] = useState<ReportStep | null>(null);
   /** 제보 2단계의 핀 — MapView가 그리고 패널이 확정한다 */
   const [reportPin, setReportPin] = useState<LatLng | null>(null);
+  /** 2단계에서 탭한 기존 마커 — 패널이 그 가게로 중복 의심 패널을 연다 */
+  const [reportCandidateId, setReportCandidateId] = useState<string | null>(null);
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
@@ -310,22 +312,6 @@ export function useMapScreen({
     }
   }, []);
 
-  /* ── 상호작용 ── */
-  const selectFromMarker = useCallback(
-    (id: string) => {
-      if (reportStepRef.current !== null) return; // 제보 중엔 기존 마커가 보이기만 한다 (design 화면 3)
-      openDetail(id, "marker");
-    },
-    [openDetail],
-  );
-
-  const selectFromCard = useCallback(
-    (id: string) => {
-      openDetail(id, "card");
-    },
-    [openDetail],
-  );
-
   /** 다녀왔다면 성공 등으로 갱신된 가게를 목록·마커에 반영 */
   const patchPlace = useCallback((updated: Place) => {
     setPlaces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -415,6 +401,7 @@ export function useMapScreen({
   const goToReportStep = useCallback(
     (step: ReportStep) => {
       setReportStep(step);
+      setReportCandidateId(null);
       setSnap(step === 2 ? "half" : "full");
       if (step !== 2 || reportPin !== null) return;
       const start = userLocation ?? viewport?.center ?? SEOUL_CENTER;
@@ -452,7 +439,13 @@ export function useMapScreen({
   const closeReportFlow = useCallback(() => {
     setReportStep(null);
     setReportPin(null);
+    setReportCandidateId(null);
     setSnap(listSnapRef.current);
+  }, []);
+
+  /** 중복 의심 패널의 ‹ — 탭한 마커 후보를 비운다(핀 화면으로) */
+  const clearReportCandidate = useCallback(() => {
+    setReportCandidateId(null);
   }, []);
 
   /** 헤더 ✕ — 확인 없이 그만둔다. 우리가 push한 엔트리면 뒤로 가서 popstate가 마저 닫는다(멱등) */
@@ -473,9 +466,9 @@ export function useMapScreen({
     else goToReportStep(prev);
   }, [closeReportFlow, goToReportStep]);
 
-  /** 핀 이동 — 드래그는 이미 그 자리라 지도를 두고, 주소 검색은 핀이 보이게 옮긴다 */
+  /** 핀 이동 — 탭·드래그는 이미 보이는 자리라 지도를 두고, 주소 검색은 핀이 보이게 옮긴다 */
   const moveReportPin = useCallback(
-    (point: LatLng, source: "drag" | "search") => {
+    (point: LatLng, source: "tap" | "drag" | "search") => {
       pinTouchedRef.current = true;
       setReportPin(point);
       if (source === "search") focusReportPin(point);
@@ -508,6 +501,31 @@ export function useMapScreen({
       openDetail(id, "report");
     },
     [closeReportFlow, openDetail],
+  );
+
+  /* ── 상호작용 ── */
+  const selectFromMarker = useCallback(
+    (id: string) => {
+      const step = reportStepRef.current;
+      if (step === 2) {
+        // 2단계: 이미 있는 마커를 누른 건 "여기 있는 이 가게" — 중복 의심 패널로 (design 화면 3 변형 (a))
+        const place = places.find((p) => p.id === id);
+        if (!place) return;
+        setReportCandidateId(id);
+        showReportPair(place);
+        return;
+      }
+      if (step !== null) return; // 다른 단계에선 기존 마커가 보이기만 한다
+      openDetail(id, "marker");
+    },
+    [openDetail, places, showReportPair],
+  );
+
+  const selectFromCard = useCallback(
+    (id: string) => {
+      openDetail(id, "card");
+    },
+    [openDetail],
   );
 
   /** 제보 성공으로 생긴 가게를 목록·마커에 추가 */
@@ -581,6 +599,7 @@ export function useMapScreen({
     notice,
     reportStep,
     reportPin,
+    reportCandidateId,
     userLocation,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
     origin,
@@ -624,6 +643,7 @@ export function useMapScreen({
     backReportStep,
     goToReportStep,
     moveReportPin,
+    clearReportCandidate,
     showReportPair,
     openDetailFromReport,
     addPlace,

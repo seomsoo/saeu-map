@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Toast } from "@/components/ui/toast";
 import type {
   EventCard as EventCardData,
+  LatLng,
   Place,
   PlaceDetail as PlaceDetailData,
   SeasonStats,
@@ -56,6 +57,14 @@ export default function MapScreen({
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
+  /** 제보 2단계: 지도 빈 곳 탭 = 핀 이동 (드래그는 미세 조정). 다른 단계에선 무시 */
+  const { moveReportPin } = s;
+  const tapReportPin = useCallback(
+    (point: LatLng) => {
+      moveReportPin(point, "tap");
+    },
+    [moveReportPin],
+  );
   /** 제보 2단계 주소 검색 — 지도 핸들 경유(표시용, 저장 안 함). 지도가 아직 없으면 실패 상태로 */
   const geocode = useCallback(
     (query: string) =>
@@ -89,6 +98,7 @@ export default function MapScreen({
               onPinChange={(point) => {
                 s.moveReportPin(point, "drag");
               }}
+              onMapTap={s.reportStep === 2 ? tapReportPin : undefined}
               onAuthFailure={s.handleMapError}
             />
           </NaverMapProvider>
@@ -187,6 +197,8 @@ export default function MapScreen({
                 s.moveReportPin(point, "search");
               }}
               onShowCandidate={s.showReportPair}
+              tappedPlaceId={s.reportCandidateId}
+              onClearTapped={s.clearReportCandidate}
               onOpenExisting={s.openDetailFromReport}
               onCreated={s.addPlace}
               onNotice={s.showNotice}

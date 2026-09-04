@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   findDuplicate,
   findNameMatches,
+  findOverlapping,
   normalizeName,
   samePlace,
   similarityRatio,
@@ -87,6 +88,18 @@ describe("findDuplicate", () => {
   it("없으면 null", () => {
     const place = makePlace({ name: "나라수산", lat: 37.6, lng: 126.95 });
     expect(findDuplicate({ name: "나라수산", lat: 37.54, lng: 126.95 }, [place])).toBeNull();
+  });
+});
+
+describe("findOverlapping — 핀 자리 30m, 상호 무관", () => {
+  const pin = { lat: 37.54, lng: 126.95 };
+
+  it("30m 안에서 가장 가까운 가게, 밖이면 null", () => {
+    const near = makePlace({ name: "전혀 다른 이름", lat: 37.5401, lng: 126.95 }); // ≈11m
+    const nearer = makePlace({ name: "또 다른 이름", lat: 37.54005, lng: 126.95 }); // ≈6m
+    const far = makePlace({ name: "나라수산", lat: 37.5404, lng: 126.95 }); // ≈44m
+    expect(findOverlapping(pin, [near, far, nearer])).toBe(nearer);
+    expect(findOverlapping(pin, [far])).toBeNull();
   });
 });
 
