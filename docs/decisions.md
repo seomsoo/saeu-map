@@ -315,6 +315,9 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **`panTo`에 `animate:false`(= `setCenter`)를 더했다.** 첫 페인트에서 지도가 뜨자마자 105px 미끄러지면 안 된다. `/place/[id]` 직접 진입은 그대로 애니메이션(핀으로 날아가는 게 그 인터랙션의 요점). 늦게 오는 위치 응답이 호출 시점의 시트 상태를 보도록 `snapRef`/`modeRef`를 뒀다(`reportStepRef`와 같은 패턴 — 클로저 값은 낡는다).
 - 테스트 지도 페이크에 `setCenter`가 없어 전 케이스가 `TypeError`로 죽었다(실제 SDK엔 있다). 페이크에 추가.
 
+- **`window.innerHeight`와 `dvh`가 갈릴 것이라는 가설은 틀렸다 — 고치지 않는다.** CSS는 `dvh`, JS는 `window.innerHeight`로 소스가 둘이라 키보드에서 어긋날 것으로 봤으나, 390×702에서 `innerHeight === visualViewport === dvh === svh === lvh === 702`로 완전히 일치했다. iOS와 Android Chrome(108+) 모두 가상 키보드 기본이 `resizes-visual`이라 **둘 다 안 줄어든다**. 소스 통일은 이득 없이 변경 위험만 있어 보류.
+- **대신 진짜 위험은 따로 있다(백로그, 실기기 확인 필요)**: 시트가 `position: fixed; bottom: 0`인데 iOS에서 키보드가 뜨면 레이아웃 뷰포트가 안 줄어 **하단 CTA가 키보드 뒤로 들어간다**. 제보 1·3·4단계와 주소 검색이 그 자리고, Phase 4 리뷰 작성 폼이 같은 자리를 다시 만든다. 필요하면 `interactiveWidget: "resizes-content"` 또는 `visualViewport` 구독.
+
 - **cover 단독으로는 보이는 지도가 거의 안 는다.** dvh가 safe-area만큼 커지지만 `40dvh` 시트와 `pt-safe-top-or-3` 상단이 같이 커져 상쇄된다(iPhone 14 Pro 추정 349 → 358px). 효과는 검색 블록을 플로팅으로 바꿀 때 난다 — 지도가 `absolute inset-0`이라 상태바·홈 인디케이터 뒤까지 그려지므로 421 → 477px. 인앱 브라우저의 cover 동작은 사파리와 다를 수 있어 실기기 확인이 완료 조건.
 
 ## 커스텀 에셋 필요 목록
