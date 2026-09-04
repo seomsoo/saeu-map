@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
 import { Switch } from "@/components/ui/switch";
@@ -23,10 +23,12 @@ interface MenuLineProps {
   errors: MenuDraftErrors;
   onChange: (changes: Partial<MenuDraft>) => void;
   className?: string | undefined;
+  /** 회 줄을 방금 켰을 때 포커스를 주기 위해 StepMenu가 넘긴다 */
+  nameRef?: Ref<HTMLInputElement> | undefined;
 }
 
 /** 메뉴명 / 가격(원, 숫자 키패드) / 단위 칩 6개(줄바꿈) + 마리면 칩 행 아래 "몇 마리" 입력 — 구이 줄과 회 줄이 같은 3필드 */
-function MenuLine({ raw, value, errors, onChange, className }: MenuLineProps) {
+function MenuLine({ raw, value, errors, onChange, className, nameRef }: MenuLineProps) {
   const groupLabel = raw ? "새우회 단위" : "단위";
   const countRef = useRef<HTMLInputElement | null>(null);
   // [마리]를 고르면 바로 수를 묻는다 — 입력이 칩 아래에 나타나며 키보드가 열린다
@@ -36,6 +38,7 @@ function MenuLine({ raw, value, errors, onChange, className }: MenuLineProps) {
   return (
     <div className={cx("flex flex-col gap-3", className)}>
       <TextField
+        ref={nameRef}
         label={raw ? "새우회 메뉴명" : "메뉴명"}
         placeholder={raw ? "예: 생새우회" : "예: 왕새우 소금구이"}
         maxLength={MENU_NAME_MAX}
@@ -133,6 +136,21 @@ export function StepMenu({
     grill: {},
     raw: {},
   });
+  /*
+   * 회 줄은 토글 아래에 생겨서 스크롤 밖이면 안 보인다 — 켠 직후 메뉴명에 포커스를 줘 따라 올라오게 한다
+   * ([마리] 칩이 "몇 마리" 입력에 포커스하는 것과 같은 방식).
+   * 마운트 이펙트로 하지 않는 이유: report-panel이 switch로 단계를 언마운트하므로 rawToo가 켜진 채
+   * ‹로 3단계에 다시 들어오면 그때마다 포커스를 뺏는다. "방금 켰다"는 신호를 따로 둔다.
+   */
+  const rawNameRef = useRef<HTMLInputElement | null>(null);
+  /** "방금 켰다"는 신호. state로 두면 이펙트에서 되돌리게 되고 그건 연쇄 렌더다(린트). 정리(cleanup)로 만지지 않으니
+      StrictMode 이중 effect에도 안전하다 — 첫 실행이 소비하고 두 번째는 그냥 지나간다. */
+  const rawJustEnabled = useRef(false);
+  useEffect(() => {
+    if (!rawToo || !rawJustEnabled.current) return;
+    rawJustEnabled.current = false;
+    rawNameRef.current?.focus();
+  }, [rawToo]);
 
   const next = () => {
     const grillResult = validateMenuDraft(grill, false);
@@ -161,7 +179,7 @@ export function StepMenu({
     <StepFrame
       step={3}
       title="메뉴와 가격을 알려주세요"
-      caption="대표 메뉴 한 줄이면 돼요"
+      caption="대표 메뉴 한 줄이면 돼요. 이름·가격·단위를 모두 채워주세요"
       onBack={onBack}
       footer={
         <Button variant="brand" size="xl" className="w-full" onClick={next}>
@@ -178,10 +196,19 @@ export function StepMenu({
           onChangeGrill(changes);
         }}
       />
-      <Switch className="mt-7" label="새우회도 팔아요" checked={rawToo} onChange={onRawTooChange} />
+      <Switch
+        className="mt-7"
+        label="새우회도 팔아요"
+        checked={rawToo}
+        onChange={(next) => {
+          rawJustEnabled.current = next;
+          onRawTooChange(next);
+        }}
+      />
       {rawToo && (
         <MenuLine
           raw
+          nameRef={rawNameRef}
           className="mt-3"
           value={raw}
           errors={errors.raw}
