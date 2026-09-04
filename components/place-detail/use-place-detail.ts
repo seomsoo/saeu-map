@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  checkIn as requestCheckIn,
   getPlaceDetail,
   type PhotoReportReason,
   reportPhoto as requestReportPhoto,
@@ -12,10 +11,12 @@ import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/nav
 import { copyText, sharePlace } from "@/lib/share";
 import type { Place, Review } from "@/lib/types";
 import type { ReviewsStatus } from "./review-section";
+import { useCheckIn } from "./use-check-in";
 
-/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·리뷰·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
+export { CHECKIN_FAILED_NOTICE } from "./use-check-in";
+
+/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
 export const COMING_SOON_NOTICE = "준비 중이에요";
-export const CHECKIN_FAILED_NOTICE = "확인을 저장하지 못했어요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
@@ -49,11 +50,9 @@ export function usePlaceDetail({
   onChecked,
   onNotice,
 }: UsePlaceDetailInput) {
-  const [optimistic, setOptimistic] = useState<Place | null>(null);
   const [reviews, setReviews] = useState<Review[]>(initialReviews ?? []);
   const [status, setStatus] = useState<ReviewsStatus>(initialReviews ? "ready" : "loading");
   const [attempt, setAttempt] = useState(0);
-  const pendingRef = useRef(false);
 
   /* ── 리뷰 로드 (컴포넌트는 place.id로 key되어 가게가 바뀌면 처음 상태에서 다시 시작) ── */
   useEffect(() => {
@@ -84,29 +83,12 @@ export function usePlaceDetail({
     setAttempt((n) => n + 1);
   }, []);
 
-  /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 ── */
-  const done = checked || optimistic !== null;
-
-  const checkIn = useCallback(() => {
-    if (done || pendingRef.current) return;
-    pendingRef.current = true;
-    const base = place;
-    setOptimistic({ ...base, checkCount: base.checkCount + 1, lastCheckedAt: now });
-    requestCheckIn(base.id, now)
-      .then(
-        (updated) => {
-          onPatchPlace(updated);
-          onChecked(base.id);
-        },
-        () => {
-          onNotice(CHECKIN_FAILED_NOTICE);
-        },
-      )
-      .finally(() => {
-        pendingRef.current = false;
-        setOptimistic(null);
-      });
-  }, [done, place, now, onPatchPlace, onChecked, onNotice]);
+  /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 (신규 패널 [맞아요]와 같은 훅) ── */
+  const {
+    place: shownPlace,
+    done,
+    checkIn,
+  } = useCheckIn({ place, now, checked, onPatchPlace, onChecked, onNotice });
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
@@ -190,7 +172,7 @@ export function usePlaceDetail({
   }, [onNotice]);
 
   return {
-    place: optimistic ?? place,
+    place: shownPlace,
     done,
     reviews,
     status,

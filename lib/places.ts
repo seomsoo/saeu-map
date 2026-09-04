@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { haversineKm } from "./geo";
 import { assertNever } from "./assert-never";
+import { toMs } from "./time";
 
 /* ────────────────────────── 필터 ────────────────────────── */
 
@@ -147,6 +148,12 @@ export function sortPlaces(
   }
 }
 
+/** 신규 패널(화면 4): 등록일 내림차순, 등록일이 없으면 확인일. 동률은 이름. 원본 불변. */
+export function sortByCreatedDesc(places: readonly Place[]): Place[] {
+  const stamp = (p: Place) => toMs(p.createdAt ?? p.lastCheckedAt);
+  return [...places].sort((a, b) => stamp(b) - stamp(a) || byName(a, b));
+}
+
 export const SORT_LABELS: Record<SortKey, string> = {
   distance: "가까운순",
   recent: "최근 확인순",
@@ -179,6 +186,15 @@ export function unitChipLabel(menu: Menu): string | null {
     case "none":
       return null;
   }
+}
+
+/** 대표 메뉴 한 줄 — "왕새우 소금구이 1kg 35,000원". 메뉴가 없으면 null (제보 완료 카드·신규 패널 행). */
+export function primaryMenuLine(place: Place): string | null {
+  const menu = primaryMenu(place);
+  if (!menu) return null;
+  return [menu.name, unitChipLabel(menu), menu.price !== null ? `${formatPrice(menu.price)}원` : null]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** 마커·색점 색: 구이 우선 코랄, 회만이면 틸. */

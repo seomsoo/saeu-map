@@ -320,13 +320,14 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 
-  it("칩 '새로 들어온 집' → 신규만, '찜한 곳' → 빈 상태", async () => {
+  it("칩 '새로 들어온 집' → 심판대 패널(신규만, 마커도 신규만), '찜한 곳' → 빈 상태", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(await screen.findByRole("heading", { name: "관악구 1곳" })).toBeInTheDocument();
-    expect(listCards()[0]).toHaveTextContent("수성2호왕새우소금구이");
-    expect(screen.getByText("새로 제보됨")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
+    const rows = within(screen.getByRole("list", { name: "새로 들어온 집" })).getAllByRole("heading", { level: 3 });
+    expect(rows.map((r) => r.textContent)).toEqual(["수성2호왕새우소금구이"]);
+    expect(screen.getAllByTestId("marker").map((m) => m.textContent)).toEqual(["수성2호왕새우소금구이"]);
 
     fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
     fireEvent.click(screen.getByRole("button", { name: "찜한 곳" }));
@@ -1041,5 +1042,70 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(screen.getByRole("status")).toHaveTextContent("지도를 불러오지 못해 제보할 수 없어요");
     expect(screen.queryByRole("region", { name: "가게 제보" })).toBeNull();
     expect(history.pushState).not.toHaveBeenCalled();
+  });
+});
+
+describe("화면 4 — [새로 들어온 집] 칩이 켜지면 시트가 심판대 패널로", () => {
+  const farNew = () =>
+    makePlace({
+      id: "paju",
+      name: "파주새우",
+      gu: "파주시",
+      lat: 37.95,
+      lng: 126.8,
+      isNew: true,
+      createdAt: day(1),
+      lastCheckedAt: day(1),
+      checkCount: 0,
+    });
+
+  it("헤더가 '새로 들어온 집 N곳' + 캡션으로 바뀌고 정렬 트리거는 없다. 뷰포트 밖 신규도 최신순으로 보인다", async () => {
+    renderScreen({ places: [...seed(), farNew()] });
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    expect(screen.getByRole("heading", { name: "새로 들어온 집 2곳" })).toBeInTheDocument();
+    expect(screen.getByText("아직 검증 전이에요. 다녀오셨다면 확인해주세요")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^정렬:/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("시즌 카운터")).not.toBeInTheDocument();
+    const rows = within(screen.getByRole("list", { name: "새로 들어온 집" })).getAllByRole("heading", { level: 3 });
+    expect(rows.map((r) => r.textContent)).toEqual(["파주새우", "수성2호왕새우소금구이"]);
+    // 칩을 끄면 목록으로 (지역 N곳 + 정렬 + 시즌 카운터)
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    expect(screen.getByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "정렬: 가까운순" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("신규가 0곳이면 '이번 주 새 제보가 없어요' + [제보]", async () => {
+    renderScreen({ places: seed().filter((p) => !p.isNew) });
+    await screen.findByRole("heading", { name: /곳$/ });
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    expect(screen.getByRole("heading", { name: "새로 들어온 집 0곳" })).toBeInTheDocument();
+    const empty = screen.getByRole("status");
+    expect(empty).toHaveTextContent("이번 주 새 제보가 없어요");
+    expect(empty).toHaveTextContent("제보하면 여기 떠요");
+    expect(within(empty).getByRole("button", { name: "제보" })).toBeInTheDocument();
+  });
+
+  it("패널의 [맞아요]는 상세의 다녀왔어요와 같은 확인이라, 상세를 열면 이미 [확인했어요]다", async () => {
+    dataMocks.checkIn.mockImplementation((id) => {
+      const base = seed().find((p) => p.id === id);
+      if (!base) throw new Error("no place");
+      return Promise.resolve({ ...base, checkCount: base.checkCount + 1, lastCheckedAt: NOW });
+    });
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    const row = within(screen.getByRole("list", { name: "새로 들어온 집" }));
+    fireEvent.click(row.getByRole("button", { name: "맞아요" }));
+    await waitFor(() => {
+      expect(dataMocks.checkIn).toHaveBeenCalledWith("suseong", NOW);
+    });
+    expect(row.getByText("확인됨")).toBeInTheDocument();
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "수성2호왕새우소금구이, 관악구" }));
+    const article = screen.getByRole("article", { name: "수성2호왕새우소금구이 상세" });
+    expect(within(article).getByRole("status")).toHaveTextContent("확인했어요");
+    vi.restoreAllMocks();
   });
 });

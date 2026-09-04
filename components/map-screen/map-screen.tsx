@@ -19,6 +19,7 @@ import type {
 import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
+import { NewPlacesPanel } from "./new-places-panel";
 import { PlaceSheet } from "./place-sheet";
 import { ProfileButton } from "./profile-button";
 import { SearchBar } from "./search-bar";
@@ -219,6 +220,24 @@ function MapScreenBody({
               onNotice={s.showNotice}
             />
           )
+        }
+        newPanel={
+          s.newPanel
+            ? {
+                count: s.newPanel.length,
+                content: (
+                  <NewPlacesPanel
+                    places={s.newPanel}
+                    now={now}
+                    checkedIds={s.checkedIds}
+                    onOpen={s.selectFromCard}
+                    onPatchPlace={s.patchPlace}
+                    onChecked={s.markChecked}
+                    onNotice={s.showNotice}
+                  />
+                ),
+              }
+            : null
         }
         emptyKind={s.emptyKind}
         aside={

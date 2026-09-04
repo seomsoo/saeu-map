@@ -26,8 +26,8 @@ const DOT_CLASS: Record<PlaceTag, string> = {
   raw: "bg-teal-500",
 };
 
-/** 썸네일 타일 — 사진이 없으면 마커 플레이스홀더와 같은 톤(가라앉은 배경 + 카테고리 색점). */
-function Thumbnail({ place }: { place: Place }) {
+/** 썸네일 타일 64px — 사진이 없으면 마커 플레이스홀더와 같은 톤(가라앉은 배경 + 카테고리 색점). 카드·신규 패널 행이 같이 쓴다. */
+export function PlaceThumbnail({ place }: { place: Place }) {
   return (
     <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-12 bg-bg-sunken">
       {place.thumbnailUrl ? (
@@ -88,7 +88,7 @@ export const PlaceCard = memo(function PlaceCard({
           trailing !== undefined && "pr-16",
         )}
       >
-        <Thumbnail place={place} />
+        <PlaceThumbnail place={place} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
