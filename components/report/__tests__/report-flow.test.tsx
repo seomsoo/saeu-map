@@ -71,7 +71,7 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "1");
     fireEvent.click(screen.getByRole("button", { name: "이전" }));
     expect(props.onBack).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("찾는 가게가 없나요?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "새로 등록하기" })).toBeInTheDocument();
   });
 
   it("두 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
@@ -87,6 +87,20 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(rows[0]).toHaveTextContent("나라수산");
     expect(rows[0]).toHaveTextContent("마포구 · 새우구이 · 생새우회");
     expect(rows[0]).toHaveTextContent("이미 있어요");
+  });
+
+  it("[새로 등록하기]는 매치 유무와 무관하게 늘 있고, 설명 캡션은 없다", () => {
+    renderPanel();
+    const input = screen.getByRole("textbox", { name: "가게 이름" });
+    const cta = () => screen.getByRole("button", { name: "새로 등록하기" });
+    expect(cta()).toBeInTheDocument();
+    expect(screen.queryByText("찾는 가게가 없나요?")).toBeNull();
+    fireEvent.change(input, { target: { value: "나라 수산" } });
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
+    expect(cta()).toBeInTheDocument(); // 매치가 있어도 "그중엔 없다"며 등록할 수 있어야 한다
+    fireEvent.change(input, { target: { value: "없는가게이름" } });
+    expect(cta()).toBeInTheDocument();
+    expect(screen.queryByText("찾는 가게가 없나요?")).toBeNull();
   });
 
   it("매치 행을 탭하면 그 가게로 넘어간다", () => {
