@@ -336,7 +336,8 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **원인**: 시트가 `position: fixed; bottom: 0; height: 92dvh`인데 키보드가 떠도 레이아웃 뷰포트(`innerHeight`·`dvh`)는 안 줄고 visual viewport만 줄어든다. 시트는 키보드 뒤에 남고, iOS가 포커스된 입력을 보이려고 visual viewport를 아래로 스크롤(`offsetTop`)하면서 시트 위쪽 내용이 화면 밖으로 밀려났다.
 - **`window.visualViewport` 구독 하나로 iOS·안드로이드를 같이 덮는다.** `max(0, innerHeight - vv.height - vv.offsetTop)`을 `--kb`로 `:root`에 쓰고(`components/ui/use-keyboard-inset.ts`), `.saeu-sheet`가 `bottom: var(--kb)`로 키보드 위에 앉고 `--sheet-full: calc(92dvh - var(--kb))`로 그만큼 낮아진다. 안 낮추면 위가 화면 밖으로 넘친다. `height`·`transform`이 둘 다 `--sheet-full`을 쓰므로 스냅 계산은 그대로 맞는다.
 - **뷰포트 meta의 `interactive-widget`은 쓰지 않는다.** Chrome 108+·Firefox 132+ 전용이라 **Safari에 없고**(WebKit 259770 오픈), 켜면 Chromium에서만 레이아웃 뷰포트가 줄어 **`h-dvh`인 지도까지 리사이즈된다** — 제보 2단계(주소 검색 + 지도)에서 타이핑마다 지도가 튀는 안드로이드 전용 부작용을 새로 만드는 셈이다. 안드로이드 기본값도 `resizes-visual`이라 증상이 iOS와 같으므로 visualViewport 하나면 양쪽이 다 고쳐진다.
-- 검증(390×702, `--kb: 336px` 주입): CTA가 642 → **306**으로 올라오고 진행바(100)·제목(150)·입력(227)은 그대로 — 키보드 위 가시 영역 0~366 안에 전부 들어온다. 헤드리스엔 가상 키보드가 없어 **실기기 확인이 완료 조건**이다.
+- **높이는 `--kb`가 아니라 `--vvh`(보이는 창의 높이)로 정한다 — 첫 수정이 틀렸다.** 처음엔 `--sheet-full: calc(92dvh - var(--kb))`로 했는데, **iOS가 visual viewport를 끝까지 밀면 `offsetTop`이 키보드 높이와 같아져 `--kb`가 0이 된다**(795 − 459 − 336 = 0). 그때도 창은 키보드만큼 낮은데 시트만 92dvh로 남아 위로 272px 넘치고, 넘친 만큼 제목·입력이 화면 밖으로 밀린다 — **실기기에서 증상이 그대로였다.** `bottom`은 `--kb`가 맞지만 높이는 창 높이 자체를 써야 한다: `--sheet-full: calc(0.92 * var(--vvh, 100dvh))`.
+- 검증(`--kb`·`--vvh` 주입, 두 상태 모두): `offsetTop 0`(kb 336)과 `offsetTop 336`(kb 0) **양쪽에서** 시트가 보이는 창 안에 들어가고 진행바·제목·입력·CTA가 전부 보인다. 헤드리스엔 가상 키보드가 없어 **실기기 확인이 완료 조건**이다.
 - **알아 둘 것**: `--kb > 0`이면 CSS(`dvh`)와 JS(`window.innerHeight` 기반 `sheetVisiblePx`)가 갈린다. 위 "두 소스는 일치한다"는 판단의 전제를 이 변경이 깬다. 스냅 계산은 드래그할 때만 쓰이고 타이핑 중엔 드래그하지 않아 이번엔 두지만, 소스 통일 백로그의 근거가 하나 늘었다.
 - **안드로이드는 미확인.** 지금까지의 측정·스크린샷이 전부 아이폰 하나에서 나왔다. 코드는 양쪽을 덮지만 동작 확인 전까지는 추정이다.
 

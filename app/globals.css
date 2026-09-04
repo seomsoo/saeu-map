@@ -384,10 +384,12 @@ body {
 .saeu-sheet {
   --sheet-collapsed: 88px;
   --sheet-half: 40dvh;
-  /* --kb = 가상 키보드가 먹은 높이 (components/ui/use-keyboard-inset.ts가 :root에 쓴다).
-     키보드가 뜨면 시트가 그 위에 앉고(bottom) 그만큼 낮아진다(--sheet-full) — 안 낮추면 위가 화면 밖으로 넘친다.
+  /* use-keyboard-inset.ts가 :root에 쓴다. --kb = 보이는 창 바닥이 뜬 높이(시트의 bottom),
+     --vvh = 보이는 창의 높이(시트가 그 안에 들어가야 한다).
+     높이를 92dvh - --kb로 하면 안 된다: iOS가 visual viewport를 끝까지 밀면 --kb가 0이 되는데
+     그때도 창은 키보드만큼 낮아, 92dvh 시트가 위로 넘쳐 제목·입력이 화면 밖으로 밀린다.
      height와 transform이 둘 다 --sheet-full을 쓰므로 스냅 계산은 그대로 맞는다. */
-  --sheet-full: calc(92dvh - var(--kb, 0px));
+  --sheet-full: calc(0.92 * var(--vvh, 100dvh));
   --sheet-header-h: 88px;
   --sheet-visible: var(--sheet-half);
   --sheet-drag: 0px;

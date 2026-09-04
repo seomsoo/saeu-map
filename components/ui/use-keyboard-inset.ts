@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 /** JS가 :root에 쓰고 .saeu-sheet가 읽는다. globals.css의 폴백(0px)과 이름이 같아야 한다. */
 const KEYBOARD_INSET_VAR = "--kb";
+/** 보이는 창의 높이. 시트는 이 안에 들어가야 한다 — --kb만으로는 부족하다(아래 주석). */
+const VISUAL_HEIGHT_VAR = "--vvh";
 
 /**
  * 가상 키보드가 먹은 높이를 `--kb`로 내보낸다. 시트가 레이아웃 뷰포트가 아니라 **보이는 영역** 바닥에 앉게 하는 값.
@@ -23,10 +25,14 @@ export function useKeyboardInset(): void {
 
     const root = document.documentElement;
     const update = () => {
+      // --kb: 보이는 창의 바닥이 레이아웃 뷰포트 바닥에서 얼마나 떠 있나 (시트의 bottom).
       // offsetTop을 빼는 이유: iOS는 키보드를 띄우며 visual viewport를 아래로 밀기도 한다.
-      // 그 경우 남은 아래쪽 여백이 실제로 시트가 피해야 할 높이다.
       const inset = window.innerHeight - vv.height - vv.offsetTop;
       root.style.setProperty(KEYBOARD_INSET_VAR, `${String(Math.max(0, Math.round(inset)))}px`);
+      // --vvh: 보이는 창의 높이. **--kb만으로 높이를 줄이면 안 된다** — iOS가 visual viewport를
+      // 끝까지 밀면 offsetTop이 키보드 높이와 같아져 --kb가 0이 되는데, 그때도 창은 여전히
+      // 키보드만큼 낮다. 그 상태에서 92dvh 시트는 위로 넘쳐 제목·입력이 화면 밖으로 밀린다.
+      root.style.setProperty(VISUAL_HEIGHT_VAR, `${String(Math.round(vv.height))}px`);
     };
 
     update();
@@ -36,6 +42,7 @@ export function useKeyboardInset(): void {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
       root.style.removeProperty(KEYBOARD_INSET_VAR);
+      root.style.removeProperty(VISUAL_HEIGHT_VAR);
     };
   }, []);
 }
