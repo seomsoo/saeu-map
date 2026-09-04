@@ -94,6 +94,7 @@ export default function MapScreen({
               onViewportChange={s.handleViewportChange}
               onPlaceClick={s.selectFromMarker}
               onClusterClick={s.handleClusterClick}
+              userLocation={s.userLocation}
               pin={s.reportStep === 2 ? s.reportPin : null} // 핀은 2단계에만 보인다 (좌표는 단계를 오가도 남는다)
               onPinChange={(point) => {
                 s.moveReportPin(point, "drag");

@@ -223,6 +223,12 @@ beforeEach(() => {
   fake.navermaps.Service.geocode.mockReset();
 });
 
+// stubGlobal(navigator.geolocation)은 restoreAllMocks로 안 풀린다 — 안 풀면 다음 테스트에서
+// 위치가 잡혀 지도가 한 번 더 움직인다(panTo 호출 수가 어긋남).
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("MapScreen — design 화면 1의 1~8", () => {
   it("검색·카테고리 드롭다운·칩·FAB(내 위치·제보)·시트 헤더(지역 N곳 + 정렬 + 시즌 카운터)·이벤트 배너가 모두 있다", async () => {
     renderScreen();
@@ -380,6 +386,24 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     fireEvent.click(screen.getByRole("option", { name: "확인 많은 순" }));
     const names = listCards().map((h) => h.textContent);
     expect(names.slice(0, 2)).toEqual(["나라수산", "노량진수산시장 하나수산"]); // 3회, 1회
+  });
+
+  it("위치를 알면 지도에 '내 위치' 마커가 그 좌표에 그려진다 (모르면 없다)", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    expect(screen.queryByText("내 위치", { selector: '[data-testid="marker"]' })).toBeNull();
+
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) => {
+          ok({ coords: { latitude: 37.5665, longitude: 126.978 } });
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    const marker = await screen.findByText("내 위치", { selector: '[data-testid="marker"]' });
+    expect(marker).toHaveAttribute("data-lat", "37.5665");
+    expect(marker).toHaveAttribute("data-lng", "126.978");
   });
 
   it("내 위치: geolocation 없음(jsdom) → 안내, 지도는 안 움직임", async () => {

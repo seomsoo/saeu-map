@@ -24,6 +24,7 @@ import {
   getClusterIcon,
   getPlaceMarkerIcon,
   getReportPinIcon,
+  getUserLocationIcon,
 } from "./marker-icons";
 
 type Navermaps = typeof naver.maps;
@@ -85,6 +86,8 @@ export interface MapViewProps {
   onViewportChange: (viewport: Viewport) => void;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
+  /** 내 위치(파란 점). 권한이 없거나 아직 모르면 null — 마커를 안 그린다. */
+  userLocation?: LatLng | null | undefined;
   /** 제보 2단계의 끌 수 있는 핀. null·undefined면 없음. */
   pin?: LatLng | null | undefined;
   /** 핀을 끌어 놓았을 때의 좌표 */
@@ -129,6 +132,7 @@ export function MapView({
   onPlaceClick,
   onClusterClick,
   pin,
+  userLocation,
   onPinChange,
   onMapTap,
   onAuthFailure,
@@ -166,9 +170,24 @@ export function MapView({
           onPlaceClick={onPlaceClick}
           onClusterClick={onClusterClick}
         />
+        {userLocation && <UserLocationMarker position={userLocation} />}
         {pin && <ReportPin position={pin} onChange={onPinChange} />}
       </NaverMap>
     </Container>
+  );
+}
+
+/** 내 위치 파란 점. 탭 대상이 아니고(마커 탭은 가게만) 가게 마커보다 아래에 깔린다. */
+function UserLocationMarker({ position }: { position: LatLng }) {
+  const navermaps = useNavermaps();
+  return (
+    <Marker
+      position={position}
+      icon={getUserLocationIcon(navermaps)}
+      title="내 위치"
+      clickable={false}
+      zIndex={5}
+    />
   );
 }
 

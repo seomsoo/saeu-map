@@ -27,6 +27,8 @@ export const PLACE_MARKER_SIZE = 36;
 export const CLUSTER_MARKER_SIZE = 44;
 /** 제보 핀: 44px 히트 박스 안에 레드 머리 28 + 줄기 14, 앵커는 바닥 중앙(핀 끝이 좌표). */
 export const REPORT_PIN_SIZE = 44;
+/** 내 위치: 파란 점 16px, 앵커는 한가운데(점이 곧 좌표). 탭 대상이 아니라 히트 박스를 키우지 않는다. */
+export const LOCATOR_SIZE = 16;
 
 /** innerHTML에 넣어도 되는 이미지 경로 — lib/assets.ts의 공용 가드(상세 사진과 같은 규칙). */
 export function safeThumbnailUrl(url: string | null): string | null {
@@ -96,6 +98,18 @@ let reportPinIcon: naver.maps.HtmlIcon | null = null;
  * 제보 2단계의 끌 수 있는 위치 핀 (design 화면 3-2). 전용 에셋 전까지 CSS 도형 — decisions "커스텀 에셋 필요 목록".
  * 모양이 하나뿐이라 아이콘 객체도 하나다(icon prop이 `===`로 비교된다).
  */
+let locatorIcon: naver.maps.HtmlIcon | null = null;
+
+/** 내 위치 표시. 가게 마커와 달리 상태가 없어 캐시가 하나면 된다. */
+export function getUserLocationIcon(navermaps: Navermaps): naver.maps.HtmlIcon {
+  locatorIcon ??= {
+    content: '<div class="saeu-locator"></div>',
+    size: new navermaps.Size(LOCATOR_SIZE, LOCATOR_SIZE),
+    anchor: new navermaps.Point(LOCATOR_SIZE / 2, LOCATOR_SIZE / 2),
+  };
+  return locatorIcon;
+}
+
 export function getReportPinIcon(navermaps: Navermaps): naver.maps.HtmlIcon {
   reportPinIcon ??= {
     content:

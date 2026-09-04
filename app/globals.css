@@ -47,6 +47,9 @@
   --color-gray-900: #191f28;
   /* 상태·공통 */
   --color-green-500: #1fb56c;
+  /* 현위치 파랑 — 네이버·카카오·구글이 다 쓰는 관습이라 설명 없이 읽힌다. 브랜드 팔레트가 아니라
+     "내 위치"의 사실 표기다(지하철 노선색과 같은 결). 마커 한 곳에만 쓴다 — decisions 2026-09-04 */
+  --color-blue-500: #2e7cf6;
   --color-common-0: #ffffff;
   --color-common-100: #000000;
   /* 지하철 노선색 — 우리 팔레트가 아니라 사실 표기다(OSM 릴레이션 colour = 공식 노선색).
@@ -78,6 +81,7 @@
   --color-brand-fg: var(--color-red-600);
   /* 옅은 브랜드 헤어라인 — 채우지 않고 자리만 표시하는 입력 블록(빈 사진 상태)용. 활성 칩·찜의 border-brand-fg(red-600)보다 한참 약하다 */
   --color-line-brand: var(--color-red-50);
+  --color-locator: var(--color-blue-500);
   --color-toast: var(--color-gray-800);
   /* 사진 뷰어처럼 화면을 통째로 덮는 몰입 표면 */
   --color-bg-immersive: var(--color-common-100);
@@ -291,6 +295,16 @@ body {
   height: 8px;
   border-radius: var(--radius-max);
   background: var(--color-common-0);
+}
+/* 내 위치 — 파란 점 + 흰 링. 새우 모양 에셋이 나오면 교체한다 (decisions 2026-09-04 커스텀 에셋 목록) */
+.saeu-locator {
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--color-common-0);
+  border-radius: var(--radius-max);
+  background: var(--color-locator);
+  box-shadow: var(--shadow-marker);
 }
 .saeu-report-pin__stem {
   width: 3px;
