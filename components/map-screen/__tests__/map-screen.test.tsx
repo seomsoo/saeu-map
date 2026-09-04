@@ -76,12 +76,19 @@ const fake = vi.hoisted(() => {
 const dataMocks = vi.hoisted(() => ({
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
   submitReport: vi.fn<(input: unknown, now: string) => Promise<Place>>(),
+  /** 기본은 진짜(factory에서 연결) — 2단계 진입 프리페치 호출을 세는 용도 */
+  getGuOfPoint: vi.fn<(point: { lat: number; lng: number }) => Promise<string | null>>(),
 }));
-vi.mock("@/lib/data", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/data")>()),
-  checkIn: dataMocks.checkIn,
-  submitReport: dataMocks.submitReport,
-}));
+vi.mock("@/lib/data", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/data")>();
+  dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
+  return {
+    ...original,
+    checkIn: dataMocks.checkIn,
+    submitReport: dataMocks.submitReport,
+    getGuOfPoint: dataMocks.getGuOfPoint,
+  };
+});
 
 vi.mock("react-naver-maps", () => ({
   NavermapsProvider: ({ children }: { children: ReactNode }) => children,
@@ -595,6 +602,7 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   const openReport = async () => {
@@ -849,6 +857,89 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     fireEvent.click(screen.getByRole("button", { name: "이 가게예요" }));
     expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     expect(history.replaceState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
+  });
+
+  it("2단계 진입에 핀 시작 좌표로 경계 파일을 미리 받아 둔다 — [여기가 맞아요]에서 기다리지 않는다 (Codex PR #6 #4)", async () => {
+    await openReport();
+    const before = dataMocks.getGuOfPoint.mock.calls.length;
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "프리페치 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    expect(dataMocks.getGuOfPoint).toHaveBeenCalledTimes(before + 1);
+    expect(dataMocks.getGuOfPoint).toHaveBeenLastCalledWith({ lat: 37.55, lng: 127.0 }); // 보던 지도 중심 = 핀 시작
+  });
+
+  it("등록 중 ✕로 닫으면 늦게 온 성공이 플로우를 다시 열지 않는다 — 가게는 목록·마커에 추가된다 (Codex PR #6 #3)", async () => {
+    let resolveSubmit: (place: Place) => void = () => {};
+    dataMocks.submitReport.mockImplementation(
+      () =>
+        new Promise<Place>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "닫고 간 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    await screen.findByRole("heading", { name: "메뉴와 가격을 알려주세요" });
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "왕새우 소금구이" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    fireEvent.click(screen.getByRole("button", { name: "한판" }));
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    expect(screen.getByRole("button", { name: /등록 중/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "제보 그만두기" })); // 목 400ms 안에 ✕
+    expect(screen.getByRole("region", { name: "가게 목록" })).toHaveAttribute("data-mode", "list");
+    await act(async () => {
+      resolveSubmit(
+        makePlace({
+          id: "r009",
+          name: "닫고 간 새우집",
+          gu: "성동구",
+          lat: 37.55,
+          lng: 127.0,
+          source: "report",
+          isNew: true,
+          createdAt: NOW,
+          lastCheckedAt: NOW,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("region", { name: "가게 목록" })).toHaveAttribute("data-mode", "list");
+    expect(screen.queryByRole("heading", { name: "등록됐어요!" })).toBeNull();
+    expect(
+      within(screen.getByRole("list", { name: "가게 목록" })).getByRole("heading", { name: "닫고 간 새우집" }),
+    ).toBeInTheDocument();
+  });
+
+  it("마운트 때 보낸 위치 요청이 2단계에서 핀을 옮긴 뒤 늦게 오면 지도를 옮기지 않는다 (Codex PR #6 #5)", async () => {
+    // 권한 프롬프트를 열어 둔 채 제보를 시작한 경우 — 응답 콜백을 잡아 두었다가 나중에 부른다
+    const pending: ((pos: { coords: { latitude: number; longitude: number } }) => void)[] = [];
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (ok: (typeof pending)[number]) => {
+          pending.push(ok);
+        },
+      },
+    });
+    await openReport();
+    fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "늦은 위치 새우집" } });
+    fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
+    act(() => {
+      fake.listeners["click"]?.({ coord: new fake.navermaps.LatLng(37.56, 127.01) });
+    });
+    expect(screen.getByRole("button", { name: "제보 위치" })).toHaveAttribute("data-lat", "37.56");
+    expect(pending.length).toBeGreaterThanOrEqual(2); // 마운트 요청 + 2단계 진입 요청
+    fake.map.morph.mockClear();
+    const pans = fake.map.panTo.mock.calls.length;
+    await act(async () => {
+      for (const ok of pending) ok({ coords: { latitude: 37.5665, longitude: 126.978 } }); // 시청 — 서울 안
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fake.map.morph).not.toHaveBeenCalled();
+    expect(fake.map.panTo).toHaveBeenCalledTimes(pans);
+    expect(screen.getByRole("button", { name: "제보 위치" })).toHaveAttribute("data-lat", "37.56");
   });
 
   it("지도를 못 불러온 상태에선 제보 입구가 토스트로 막힌다", async () => {

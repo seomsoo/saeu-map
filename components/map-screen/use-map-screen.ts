@@ -13,7 +13,7 @@ import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
 import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
-import { toggleBookmark as requestToggleBookmark } from "@/lib/data";
+import { getGuOfPoint, toggleBookmark as requestToggleBookmark } from "@/lib/data";
 import {
   isDetailHistoryState,
   isReportHistoryState,
@@ -232,6 +232,8 @@ export function useMapScreen({
     void requestPosition().then((pos) => {
       if (cancelled || !pos) return;
       setUserLocation(pos);
+      // 권한 프롬프트 뒤 늦게 왔는데 제보 중이면 위치만 기억한다 — 2단계에서 맞춘 핀이 화면 밖으로 밀리면 안 된다 (Codex PR #6 #5)
+      if (reportStepRef.current !== null) return;
       // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다.
       // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
       if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
@@ -400,6 +402,8 @@ export function useMapScreen({
   /** 단계 이동 + 스냅(2단계만 요약). 2단계 첫 진입에 핀을 세운다: 현 위치 → 보던 지도 중심 → 서울 중심 */
   const goToReportStep = useCallback(
     (step: ReportStep) => {
+      // 닫힌 플로우는 움직이지 않는다 — 등록·확정 검사가 ✕ 뒤에 끝나면 created 없는 빈 시트로 다시 열렸다 (Codex PR #6 #2·#3)
+      if (reportStepRef.current === null) return;
       setReportStep(step);
       setReportCandidateId(null);
       setSnap(step === 2 ? "half" : "full");
@@ -407,6 +411,8 @@ export function useMapScreen({
       const start = userLocation ?? viewport?.center ?? SEOUL_CENTER;
       setReportPin(start);
       focusReportPin(start);
+      // 경계 파일(서울 60KB, 밖이면 +180KB)을 지금 받아 두면 [여기가 맞아요]에서 기다리지 않는다 — 모듈 캐시라 한 번뿐 (Codex PR #6 #4)
+      void getGuOfPoint(start).catch(() => undefined);
       if (userLocation !== null) return;
       // 위치를 아직 모르면 한 번 조용히 묻고, 사용자가 핀을 건드리기 전이면 그리로 옮긴다
       void requestPosition().then((pos) => {

@@ -1,19 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AddressHit } from "@/components/map/map-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
 import type { ReportInput } from "@/lib/data";
 import type { Place } from "@/lib/types";
 import { ReportPanel, type ReportPanelProps } from "../report-panel";
 
-// 등록만 가짜 — 나머지(getGuOfPoint 등)는 진짜
+// 등록만 가짜. 구 판정은 기본이 진짜(factory에서 연결)고, 검사 도중 단계를 떠나는 테스트만 응답 시점을 잡는다
 const dataMocks = vi.hoisted(() => ({
   submitReport: vi.fn<(input: ReportInput, now: string) => Promise<Place>>(),
+  getGuOfPoint: vi.fn<(point: { lat: number; lng: number }) => Promise<string | null>>(),
 }));
-vi.mock("@/lib/data", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/data")>()),
-  submitReport: dataMocks.submitReport,
-}));
+vi.mock("@/lib/data", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/data")>();
+  dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
+  return { ...original, submitReport: dataMocks.submitReport, getGuOfPoint: dataMocks.getGuOfPoint };
+});
 
 const NOW = "2026-09-04T12:00:00+09:00";
 
@@ -265,6 +267,26 @@ describe("ReportPanel 2단계 — 위치", () => {
       expect(props.onStepChange).toHaveBeenCalledTimes(2);
     });
     expect(screen.queryByRole("heading", { name: "150m 안에 비슷한 가게가 있어요" })).toBeNull();
+  });
+
+  it("확정 검사 중에 이 단계를 떠나면(‹·✕) 늦게 끝난 검사가 단계를 옮기지 않는다 (Codex PR #6 #2)", async () => {
+    let resolveGu: (gu: string | null) => void = () => {};
+    dataMocks.getGuOfPoint.mockImplementationOnce(
+      () =>
+        new Promise<string | null>((resolve) => {
+          resolveGu = resolve;
+        }),
+    );
+    // 후보가 없는 입력 — 검사가 끝나면 그대로 onConfirm(3단계)이 불리던 경우
+    const { props, goto } = renderStep2("완전히 다른 새우집", { lat: MAPO.lat + 0.00036, lng: MAPO.lng });
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    goto(1); // 경계 판정이 끝나기 전에 ‹ — 2단계가 언마운트된다
+    await act(async () => {
+      resolveGu("마포구");
+      await Promise.resolve();
+    });
+    expect(props.onStepChange).not.toHaveBeenCalled();
+    expect(props.onShowCandidate).not.toHaveBeenCalled();
   });
 });
 

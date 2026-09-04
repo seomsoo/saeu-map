@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AddressHit } from "@/components/map/map-view";
 import { Button } from "@/components/ui/button";
 import { getGuOfPoint } from "@/lib/data";
@@ -72,6 +72,17 @@ export function StepLocation({
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [found, setFound] = useState<Candidate | null>(null);
+  /**
+   * 확정 검사(경계 파일 로드) 중에 ‹·✕로 이 단계를 떠났으면 결과를 버린다 — 늦게 끝난 검사가 1단계에서 3단계로 튀거나
+   * 닫힌 플로우를 다시 열었다(Codex PR #6 #2). effect 본문에서 true로 되돌려 StrictMode 이중 effect에도 안전(decisions 2026-09-04).
+   */
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const tapped = tappedPlaceId === null ? null : (places.find((p) => p.id === tappedPlaceId) ?? null);
   const candidate: Candidate | null = tapped ? { place: tapped, reason: "tap" } : found;
 
@@ -81,6 +92,7 @@ export function StepLocation({
     setError(null);
     try {
       const gu = await getGuOfPoint(pin);
+      if (!alive.current) return; // 떠난 단계는 움직이지 않는다
       if (gu === null) {
         setError(OUTSIDE_KOREA_ERROR);
         return;
