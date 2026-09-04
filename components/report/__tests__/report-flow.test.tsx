@@ -55,9 +55,9 @@ function renderStep2(name: string, pin: ReportPanelProps["pin"], overrides: Part
   return { ...view, goto };
 }
 
-// 목 fixture 기본 좌표(37.54, 126.95)는 마포구 안. 김포 고촌(37.6, 126.77)은 서울 밖.
+// 목 fixture 기본 좌표(37.54, 126.95)는 마포구 안. 서해(36.0, 125.0)는 한국 밖.
 const MAPO = { lat: 37.54, lng: 126.95 };
-const GIMPO = { lat: 37.6, lng: 126.77 };
+const SEA = { lat: 36.0, lng: 125.0 };
 const hit = (roadAddress: string, jibunAddress = ""): AddressHit => ({ roadAddress, jibunAddress, ...MAPO });
 
 describe("ReportPanel 1단계 — 가게 이름", () => {
@@ -180,11 +180,19 @@ describe("ReportPanel 2단계 — 위치", () => {
     expect(geocode).toHaveBeenCalledTimes(1);
   });
 
-  it("서울 밖 핀은 [여기가 맞아요]에서 막힌다", async () => {
-    const { props } = renderStep2("나라새우집", GIMPO);
+  it("한국 밖(바다) 핀은 [여기가 맞아요]에서 막힌다", async () => {
+    const { props } = renderStep2("나라새우집", SEA);
     fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("서울 안의 위치만 제보할 수 있어요");
+    expect(await screen.findByRole("alert")).toHaveTextContent("한국 안의 위치만 제보할 수 있어요");
     expect(props.onStepChange).not.toHaveBeenCalled();
+  });
+
+  it("서울 밖(김포)도 통과한다", async () => {
+    const { props } = renderStep2("김포 새우집", { lat: 37.6, lng: 126.77 });
+    fireEvent.click(screen.getByRole("button", { name: "여기가 맞아요" }));
+    await waitFor(() => {
+      expect(props.onStepChange).toHaveBeenCalledWith(3);
+    });
   });
 
   it("중복 없으면 바로 3단계", async () => {

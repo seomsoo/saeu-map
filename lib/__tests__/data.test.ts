@@ -273,9 +273,10 @@ describe("toggleBookmark", () => {
 });
 
 describe("getGuOfPoint", () => {
-  it("서울 안이면 구, 밖이면 null", async () => {
+  it("서울은 구, 서울 밖은 '시군구(시도)', 한국 밖은 null", async () => {
     expect(await getGuOfPoint({ lat: 37.5571, lng: 126.9245 })).toBe("마포구");
-    expect(await getGuOfPoint({ lat: 37.6, lng: 126.77 })).toBeNull();
+    expect(await getGuOfPoint({ lat: 37.6, lng: 126.77 })).toBe("김포시(경기)");
+    expect(await getGuOfPoint({ lat: 36.0, lng: 125.0 })).toBeNull();
   });
 });
 
@@ -295,8 +296,9 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
   const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
 
   beforeAll(async () => {
-    // 경계 JSON 동적 import를 가짜 타이머 밖에서 미리 끝낸다 (gu.ts가 캐시한다)
+    // 경계 JSON(서울·전국) 동적 import를 가짜 타이머 밖에서 미리 끝낸다 (gu.ts가 캐시한다)
     await getGuOfPoint({ lat: 37.5571, lng: 126.9245 });
+    await getGuOfPoint({ lat: 37.6, lng: 126.77 });
   });
   beforeEach(() => {
     vi.useFakeTimers();
@@ -388,9 +390,13 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
     }
   });
 
-  it("서울 밖 좌표(김포)는 거부", async () => {
-    await expect(submitReport({ ...input(), lat: 37.6, lng: 126.77 }, NOW)).rejects.toThrow(
-      "outside seoul",
+  it("서울 밖(김포)도 등록되고 구 라벨은 '김포시(경기)', 한국 밖(바다)은 거부", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const pending = submitReport({ ...input(), lat: 37.6, lng: 126.77 }, NOW);
+    await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+    expect((await pending).gu).toBe("김포시(경기)");
+    await expect(submitReport({ ...input(), lat: 36.0, lng: 125.0 }, NOW)).rejects.toThrow(
+      "outside korea",
     );
   });
 });

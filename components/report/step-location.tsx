@@ -11,7 +11,7 @@ import type { LatLng, Place } from "@/lib/types";
 import { AddressSearch } from "./address-search";
 import { StepFrame } from "./step-frame";
 
-export const OUTSIDE_SEOUL_ERROR = "서울 안의 위치만 제보할 수 있어요";
+export const OUTSIDE_KOREA_ERROR = "한국 안의 위치만 제보할 수 있어요";
 
 interface StepLocationProps {
   /** 1단계에서 넣은 이름 — 중복 재검사에 쓴다 */
@@ -36,7 +36,7 @@ interface StepLocationProps {
 
 /**
  * 2단계 — 위치 (design 화면 3-2). 지도의 끌 수 있는 핀 + 주소 검색 보조. [여기가 맞아요]를 누르면
- * 핀 좌표로 구를 판정해 서울 밖이면 막고, 150m 안 비슷한 상호가 있으면 같은 시트 안에서 중복 의심 패널로 바뀐다(변형 (a)).
+ * 핀 좌표로 구를 판정해 한국 밖(바다)이면 막고, 150m 안 비슷한 상호가 있으면 같은 시트 안에서 중복 의심 패널로 바뀐다(변형 (a)).
  */
 export function StepLocation({
   name,
@@ -62,7 +62,7 @@ export function StepLocation({
     try {
       const gu = await getGuOfPoint(pin);
       if (gu === null) {
-        setError(OUTSIDE_SEOUL_ERROR);
+        setError(OUTSIDE_KOREA_ERROR);
         return;
       }
       const duplicate = findDuplicate({ name, lat: pin.lat, lng: pin.lng }, places);

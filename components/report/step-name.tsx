@@ -25,7 +25,14 @@ interface StepNameProps {
  * 1단계 — 가게 이름 (design 화면 3-1). 입력은 열리자마자 포커스, 두 글자부터 우리 DB를 맞춰 최대 5행
  * "이미 있어요". 매치가 없으면 목록 자리 없이 바로 캡션 + [새로 등록하기].
  */
-export function StepName({ places, value, onChange, onBack, onOpenExisting, onNext }: StepNameProps) {
+export function StepName({
+  places,
+  value,
+  onChange,
+  onBack,
+  onOpenExisting,
+  onNext,
+}: StepNameProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const composing = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,14 +66,16 @@ export function StepName({ places, value, onChange, onBack, onOpenExisting, onNe
       onBack={onBack}
       footer={
         <>
-          <p className="mb-3 text-center text-caption-l-regular text-fg-tertiary">찾는 가게가 없나요?</p>
+          <p className="mb-3 text-center text-caption-l-regular text-fg-tertiary">
+            찾는 가게가 없나요?
+          </p>
           <Button variant="brand" size="xl" className="w-full" onClick={submit}>
             새로 등록하기
           </Button>
         </>
       }
     >
-      <div className="flex h-12 items-center gap-0.5 rounded-8 bg-bg-sunken px-4">
+      <div className="flex h-12 items-center gap-1.5 rounded-8 bg-bg-sunken px-4">
         <span
           className="icon-[ci--search-magnifying-glass] -ml-1 size-6 shrink-0 text-fg-placeholder"
           aria-hidden="true"
@@ -87,7 +96,7 @@ export function StepName({ places, value, onChange, onBack, onOpenExisting, onNe
           onCompositionEnd={() => {
             composing.current = false;
           }}
-          placeholder="예: 나라수산"
+          placeholder="예: 왕새우직판장"
           aria-label="가게 이름"
           aria-invalid={error !== null}
           autoComplete="off"
@@ -101,7 +110,10 @@ export function StepName({ places, value, onChange, onBack, onOpenExisting, onNe
         </p>
       )}
       {matches.length > 0 && (
-        <ul aria-label="이미 있는 가게" className="mt-3 divide-y divide-line-hairline">
+        <ul
+          aria-label="이미 있는 가게"
+          className="mt-3 divide-y divide-line-hairline"
+        >
           {matches.map((place) => (
             <li key={place.id}>
               <button
@@ -112,9 +124,13 @@ export function StepName({ places, value, onChange, onBack, onOpenExisting, onNe
                 className="press flex h-14 w-full items-center gap-3 text-left"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body-l-semibold text-fg">{place.name}</span>
+                  <span className="block truncate text-body-l-semibold text-fg">
+                    {place.name}
+                  </span>
                   <span className="block truncate text-caption-l-regular text-fg-tertiary">
-                    {[place.gu, ...place.tags.map((t) => TAG_LABELS[t])].join(" · ")}
+                    {[place.gu, ...place.tags.map((t) => TAG_LABELS[t])].join(
+                      " · ",
+                    )}
                   </span>
                 </span>
                 <Chip tone="active" size="xs">

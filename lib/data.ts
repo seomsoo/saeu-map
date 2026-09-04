@@ -298,7 +298,7 @@ export function getBookmarkedPlaceIds(): Promise<string[]> {
   return Promise.resolve([...bookmarkedIds]);
 }
 
-/** 좌표가 속한 서울 자치구("마포구"). 25구 밖이면 null — 제보 2단계가 핀 확정 때 검사한다(decisions 2026-09-04). */
+/** 좌표가 속한 시군구 라벨("마포구", "김포시(경기)"). 한국 밖이면 null — 제보 2단계가 핀 확정 때 검사한다(decisions 2026-09-04). */
 export function getGuOfPoint(point: LatLng): Promise<string | null> {
   return guOfPoint(point);
 }
@@ -367,7 +367,7 @@ export const reportMenuSchema = z.object({
   raw: z.boolean(),
 });
 
-/** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 주소는 받지 않는다 — 구는 좌표로 판정. */
+/** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 주소는 받지 않는다 — 구는 좌표로 판정(전국). 좌표 범위는 한국 대략 상자. */
 export const reportInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
   lat: z.number().min(33).max(39),
@@ -390,13 +390,13 @@ let reportSeq = 0;
 
 /**
  * 제보 등록 (spec 4.3, 5 "모든 제보 즉시 노출"). 성공하면 만들어진 Place를 돌려주고 데이터셋 끝에 붙인다.
- * 구는 좌표로 판정하고 서울 밖이면 지연 전에 거부한다. 주소·최근접역은 비워 둔다(Phase 6 서버 파생).
+ * 구는 좌표로 판정하고 한국 밖(바다)이면 지연 전에 거부한다. 주소·최근접역은 비워 둔다(Phase 6 서버 파생).
  * `now`는 목 데이터셋 조회·등록 시각용이다 — Phase 6에서는 서버가 정한다(checkIn과 같은 계약).
  */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const report = reportInputSchema.parse(input);
   const gu = await guOfPoint(report);
-  if (gu === null) throw new Error("outside seoul");
+  if (gu === null) throw new Error("outside korea");
   await simulateWrite();
   const data = dataset(now);
   const createdAt = new Date(toMs(now)).toISOString();
