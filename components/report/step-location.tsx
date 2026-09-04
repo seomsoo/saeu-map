@@ -13,15 +13,16 @@ import { StepFrame } from "./step-frame";
 
 export const OUTSIDE_KOREA_ERROR = "한국 안의 위치만 제보할 수 있어요";
 
-/** 중복 의심 후보 — name: 150m 안 비슷한 상호 / overlap: 핀 자리(30m) 기존 가게 또는 탭한 마커 */
+/** 중복 의심 후보 — name: 150m 안 비슷한 상호 / overlap: 핀 자리(30m) 기존 가게 / tap: 지도에서 탭한 마커 */
 interface Candidate {
   place: Place;
-  reason: "name" | "overlap";
+  reason: "name" | "overlap" | "tap";
 }
 
 const CANDIDATE_TITLE: Record<Candidate["reason"], string> = {
   name: "150m 안에 비슷한 가게가 있어요",
   overlap: "핀 자리에 이미 등록된 가게가 있어요",
+  tap: "이미 등록된 가게예요", // 핀이 멀리 있어도 되는 말
 };
 
 interface StepLocationProps {
@@ -72,7 +73,7 @@ export function StepLocation({
   const [checking, setChecking] = useState(false);
   const [found, setFound] = useState<Candidate | null>(null);
   const tapped = tappedPlaceId === null ? null : (places.find((p) => p.id === tappedPlaceId) ?? null);
-  const candidate: Candidate | null = tapped ? { place: tapped, reason: "overlap" } : found;
+  const candidate: Candidate | null = tapped ? { place: tapped, reason: "tap" } : found;
 
   const confirm = async () => {
     if (!pin || checking) return;

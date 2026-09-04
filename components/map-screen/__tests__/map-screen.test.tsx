@@ -832,12 +832,12 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(fake.map.panTo).toHaveBeenCalledTimes(pans);
   });
 
-  it("2단계: 기존 마커를 탭하면 그 가게로 '핀 자리에 이미 등록된 가게가 있어요' 패널 + fitBounds, [이 가게예요]는 상세로", async () => {
+  it("2단계: 기존 마커를 탭하면 그 가게로 '이미 등록된 가게예요' 패널 + fitBounds, [이 가게예요]는 상세로", async () => {
     await openReport();
     fireEvent.change(screen.getByRole("textbox", { name: "가게 이름" }), { target: { value: "탭 새우집" } });
     fireEvent.click(screen.getByRole("button", { name: "새로 등록하기" }));
     fireEvent.click(screen.getByRole("button", { name: "나라수산" }));
-    expect(screen.getByRole("heading", { name: "핀 자리에 이미 등록된 가게가 있어요" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이미 등록된 가게예요" })).toBeInTheDocument();
     expect(fake.map.fitBounds).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "이전" }));
     expect(screen.getByRole("heading", { name: "핀을 가게 위치로 옮겨주세요" })).toBeInTheDocument();

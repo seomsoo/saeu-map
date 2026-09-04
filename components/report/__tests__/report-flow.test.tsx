@@ -216,9 +216,9 @@ describe("ReportPanel 2단계 — 위치", () => {
     expect(props.onStepChange).toHaveBeenCalledWith(3);
   });
 
-  it("지도에서 탭한 기존 마커(tappedPlaceId)는 바로 후보 패널, ‹는 onClearTapped", () => {
+  it("지도에서 탭한 기존 마커(tappedPlaceId)는 바로 후보 패널('이미 등록된 가게예요'), ‹는 onClearTapped", () => {
     const { props } = renderStep2("나라새우집", MAPO, { tappedPlaceId: "hana" });
-    expect(screen.getByRole("heading", { name: "핀 자리에 이미 등록된 가게가 있어요" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이미 등록된 가게예요" })).toBeInTheDocument();
     expect(screen.getByText("노량진수산시장 하나수산")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "이전" }));
     expect(props.onClearTapped).toHaveBeenCalledTimes(1);
