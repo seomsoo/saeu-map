@@ -10,10 +10,15 @@ import {
   type RefObject,
 } from "react";
 import type { MapHandle } from "@/components/map/map-view";
+import { previousReportStep, type ReportStep } from "@/components/report/types";
 import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
-import { toggleBookmark as requestToggleBookmark } from "@/lib/data";
-import { isDetailHistoryState, type SaeuHistoryState } from "@/lib/history-state";
+import { getGuOfPoint, toggleBookmark as requestToggleBookmark } from "@/lib/data";
+import {
+  isDetailHistoryState,
+  isReportHistoryState,
+  type SaeuHistoryState,
+} from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
 import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
 import type {
@@ -27,6 +32,8 @@ import type {
 
 export const INITIAL_ZOOM = 12;
 const USER_ZOOM = 14;
+/** 제보 2단계: 핀을 맞추는 줌 (건물 단위) */
+const REPORT_ZOOM = 17;
 const SEARCH_FIT_MAX_ZOOM = 16;
 /** 서울·근교. 위치가 이 밖이면 거리 정렬에만 쓰고 지도는 옮기지 않는다. */
 const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
@@ -104,12 +111,25 @@ export function useMapScreen({
   const [eventDismissed, setEventDismissed] = useState(false);
   const [snap, setSnap] = useState<SheetSnap>("half");
   const [notice, setNotice] = useState<string | null>(null);
+  /** 제보 플로우 단계(화면 3). null이면 닫힘. 입력값은 패널이 갖고 여기는 단계·핀·히스토리만 안다 */
+  const [reportStep, setReportStep] = useState<ReportStep | null>(null);
+  /** 제보 2단계의 핀 — MapView가 그리고 패널이 확정한다 */
+  const [reportPin, setReportPin] = useState<LatLng | null>(null);
+  /** 2단계에서 탭한 기존 마커 — 패널이 그 가게로 중복 의심 패널을 연다 */
+  const [reportCandidateId, setReportCandidateId] = useState<string | null>(null);
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
   const noticeTimer = useRef<number | null>(null);
-  /** 상세를 열 때의 목록 시트 높이 — 닫으면 복원 */
+  /** 상세·제보를 열 때의 목록 시트 높이 — 닫으면 복원 */
   const listSnapRef = useRef<SheetSnap>("half");
+  /** popstate·마커 탭 핸들러가 재구독 없이 현재 제보 단계를 읽는다 */
+  const reportStepRef = useRef<ReportStep | null>(null);
+  useEffect(() => {
+    reportStepRef.current = reportStep;
+  }, [reportStep]);
+  /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
+  const pinTouchedRef = useRef(false);
 
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
@@ -136,15 +156,18 @@ export function useMapScreen({
     () => (detailId ? (places.find((p) => p.id === detailId) ?? null) : null),
     [places, detailId],
   );
-  const mode: SheetMode = detailPlace ? "detail" : "list";
+  const mode: SheetMode = detailPlace ? "detail" : reportStep !== null ? "report" : "list";
 
+  // 제보 중엔 칩·탭·검색어와 무관하게 전부 마커로 — 중복 후보가 필터에 걸려 안 보이면 안 된다(design 화면 3 변형 (a)).
+  // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다.
+  const markerPool = reportStep !== null ? places : filtered;
   // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
   const index = useMemo(
     () =>
       buildPlaceIndex(
-        selectedPlace ? filtered.filter((p) => p.id !== selectedPlace.id) : filtered,
+        selectedPlace ? markerPool.filter((p) => p.id !== selectedPlace.id) : markerPool,
       ),
-    [filtered, selectedPlace],
+    [markerPool, selectedPlace],
   );
 
   const items = useMemo<ClusterItem[]>(() => {
@@ -209,6 +232,8 @@ export function useMapScreen({
     void requestPosition().then((pos) => {
       if (cancelled || !pos) return;
       setUserLocation(pos);
+      // 권한 프롬프트 뒤 늦게 왔는데 제보 중이면 위치만 기억한다 — 2단계에서 맞춘 핀이 화면 밖으로 밀리면 안 된다 (Codex PR #6 #5)
+      if (reportStepRef.current !== null) return;
       // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다.
       // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
       if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
@@ -245,7 +270,7 @@ export function useMapScreen({
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
   const openDetail = useCallback(
-    (id: string, source: "card" | "marker" | "history") => {
+    (id: string, source: "card" | "marker" | "history" | "report") => {
       const place = places.find((p) => p.id === id);
       if (!place) return;
       // 이미 열려 있는 그 가게면 아무것도 하지 않는다. 사진 뷰어가 URL 그대로 엔트리를 쌓으므로
@@ -253,14 +278,17 @@ export function useMapScreen({
       if (detailId === id) return;
       setSelectedId(id);
       const switching = detailId !== null; // 상세가 열린 채 다른 마커를 탭
-      if (!switching) listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억
+      if (!switching && source !== "report") listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억 (제보는 열 때 이미 기억했다)
       setDetailId(id);
       setSnap("half");
       if (source !== "history") {
         // 이벤트 핸들러 안에서만 호출 — Next의 History 패치가 상태(__NA·tree)를 덧붙여 popstate가 클라이언트에서 처리된다
         const state: SaeuHistoryState = { saeuDetail: true };
         const url = `/place/${encodeURIComponent(id)}`;
-        if (switching) {
+        if (source === "report") {
+          // 제보에서 넘어옴: 우리가 push한 제보 엔트리를 상세로 교체 — 닫기·뒤로 한 번에 목록 (design 화면 3)
+          window.history.replaceState(state, "", url);
+        } else if (switching) {
           // 상세 → 다른 상세는 엔트리를 교체해 닫기 한 번에 목록으로 간다 (Codex #4). 직접 진입이면 표식 없이 교체해 닫기 = replace "/" 유지
           window.history.replaceState(isDetailHistoryState(window.history.state) ? state : null, "", url);
         } else {
@@ -286,34 +314,6 @@ export function useMapScreen({
     }
   }, []);
 
-  // 브라우저 뒤로/앞으로 → 경로를 읽어 열기/닫기. id 출처는 pathname (useParams는 / 트리를 보고한다)
-  useEffect(() => {
-    const onPopState = () => {
-      const id = placeIdFromPath(window.location.pathname);
-      if (id) openDetail(id, "history");
-      else closeDetail("history");
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-    };
-  }, [openDetail, closeDetail]);
-
-  /* ── 상호작용 ── */
-  const selectFromMarker = useCallback(
-    (id: string) => {
-      openDetail(id, "marker");
-    },
-    [openDetail],
-  );
-
-  const selectFromCard = useCallback(
-    (id: string) => {
-      openDetail(id, "card");
-    },
-    [openDetail],
-  );
-
   /** 다녀왔다면 성공 등으로 갱신된 가게를 목록·마커에 반영 */
   const patchPlace = useCallback((updated: Place) => {
     setPlaces((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -325,6 +325,7 @@ export function useMapScreen({
 
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
+      if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
       mapRef.current?.morph(center, zoom);
     },
@@ -386,6 +387,184 @@ export function useMapScreen({
     [],
   );
 
+  /* ── 제보 플로우 (화면 3): 단계·핀·히스토리만. 입력값은 components/report가 갖는다 ── */
+  const focusReportPin = useCallback(
+    (point: LatLng) => {
+      if (!mapRef.current) return;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.focus(point, REPORT_ZOOM, {
+        screenY: visibleStripCenterY("half", "report"),
+      });
+    },
+    [mapRef, visibleStripCenterY],
+  );
+
+  /** 단계 이동 + 스냅(2단계만 요약). 2단계 첫 진입에 핀을 세운다: 현 위치 → 보던 지도 중심 → 서울 중심 */
+  const goToReportStep = useCallback(
+    (step: ReportStep) => {
+      // 닫힌 플로우는 움직이지 않는다 — 등록·확정 검사가 ✕ 뒤에 끝나면 created 없는 빈 시트로 다시 열렸다 (Codex PR #6 #2·#3)
+      if (reportStepRef.current === null) return;
+      setReportStep(step);
+      setReportCandidateId(null);
+      setSnap(step === 2 ? "half" : "full");
+      if (step !== 2 || reportPin !== null) return;
+      const start = userLocation ?? viewport?.center ?? SEOUL_CENTER;
+      setReportPin(start);
+      focusReportPin(start);
+      // 경계 파일(서울 60KB, 밖이면 +180KB)을 지금 받아 두면 [여기가 맞아요]에서 기다리지 않는다 — 모듈 캐시라 한 번뿐 (Codex PR #6 #4)
+      void getGuOfPoint(start).catch(() => undefined);
+      if (userLocation !== null) return;
+      // 위치를 아직 모르면 한 번 조용히 묻고, 사용자가 핀을 건드리기 전이면 그리로 옮긴다
+      void requestPosition().then((pos) => {
+        if (!pos || !inBounds(pos, SEOUL_AREA)) return;
+        setUserLocation(pos);
+        if (pinTouchedRef.current || reportStepRef.current !== 2) return;
+        setReportPin(pos);
+        focusReportPin(pos);
+      });
+    },
+    [reportPin, userLocation, viewport, focusReportPin],
+  );
+
+  /** 제보 열기 (FAB·빈 상태 [제보]). 2단계가 지도라 지도 에러면 막는다 */
+  const openReport = useCallback(() => {
+    if (mapError) {
+      showNotice("지도를 불러오지 못해 제보할 수 없어요");
+      return;
+    }
+    listSnapRef.current = snap;
+    pinTouchedRef.current = false;
+    setReportPin(null);
+    setReportStep(1);
+    setSnap("full");
+    // URL은 그대로, 엔트리 하나가 플로우 전체 — popstate가 한 단계씩 내린다 (design 화면 3)
+    const state: SaeuHistoryState = { saeuReport: true };
+    window.history.pushState(state, "");
+  }, [mapError, snap, showNotice]);
+
+  const closeReportFlow = useCallback(() => {
+    setReportStep(null);
+    setReportPin(null);
+    setReportCandidateId(null);
+    setSnap(listSnapRef.current);
+  }, []);
+
+  /** 중복 의심 패널의 ‹ — 탭한 마커 후보를 비운다(핀 화면으로) */
+  const clearReportCandidate = useCallback(() => {
+    setReportCandidateId(null);
+  }, []);
+
+  /** 헤더 ✕ — 확인 없이 그만둔다. 우리가 push한 엔트리면 뒤로 가서 popstate가 마저 닫는다(멱등) */
+  const cancelReport = useCallback(() => {
+    closeReportFlow();
+    if (isReportHistoryState(window.history.state)) window.history.back();
+  }, [closeReportFlow]);
+
+  /** 패널의 ‹ — 브라우저 뒤로가기와 같은 길(popstate가 한 단계 내린다). 엔트리가 없으면 직접 내린다 */
+  const backReportStep = useCallback(() => {
+    if (isReportHistoryState(window.history.state)) {
+      window.history.back();
+      return;
+    }
+    const step = reportStepRef.current;
+    const prev = step === null ? null : previousReportStep(step);
+    if (prev === null) closeReportFlow();
+    else goToReportStep(prev);
+  }, [closeReportFlow, goToReportStep]);
+
+  /** 핀 이동 — 탭·드래그는 이미 보이는 자리라 지도를 두고, 주소 검색은 핀이 보이게 옮긴다 */
+  const moveReportPin = useCallback(
+    (point: LatLng, source: "tap" | "drag" | "search") => {
+      pinTouchedRef.current = true;
+      setReportPin(point);
+      if (source === "search") focusReportPin(point);
+    },
+    [focusReportPin],
+  );
+
+  /** 2단계 중복 의심: 핀과 후보가 둘 다 요약 시트 위에 보이게 (design 화면 3 변형 (a)) */
+  const showReportPair = useCallback(
+    (candidate: LatLng) => {
+      if (!reportPin || !mapRef.current) return;
+      const bounds = boundsOf([reportPin, candidate]);
+      if (!bounds) return;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.fitBounds(bounds, {
+        top: 72,
+        bottom: sheetVisiblePx("half", window.innerHeight, "report") + 24,
+        left: 40,
+        right: 40,
+        maxZoom: REPORT_ZOOM,
+      });
+    },
+    [reportPin, mapRef],
+  );
+
+  /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기] — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
+  const openDetailFromReport = useCallback(
+    (id: string) => {
+      closeReportFlow();
+      openDetail(id, "report");
+    },
+    [closeReportFlow, openDetail],
+  );
+
+  /* ── 상호작용 ── */
+  const selectFromMarker = useCallback(
+    (id: string) => {
+      const step = reportStepRef.current;
+      if (step === 2) {
+        // 2단계: 이미 있는 마커를 누른 건 "여기 있는 이 가게" — 중복 의심 패널로 (design 화면 3 변형 (a))
+        const place = places.find((p) => p.id === id);
+        if (!place) return;
+        setReportCandidateId(id);
+        showReportPair(place);
+        return;
+      }
+      if (step !== null) return; // 다른 단계에선 기존 마커가 보이기만 한다
+      openDetail(id, "marker");
+    },
+    [openDetail, places, showReportPair],
+  );
+
+  const selectFromCard = useCallback(
+    (id: string) => {
+      openDetail(id, "card");
+    },
+    [openDetail],
+  );
+
+  /** 제보 성공으로 생긴 가게를 목록·마커에 추가 */
+  const addPlace = useCallback((place: Place) => {
+    setPlaces((prev) => [...prev, place]);
+  }, []);
+
+  // 브라우저 뒤로/앞으로. 제보 중이면 한 단계 뒤로 + 엔트리 재장전(1단계·완료에선 닫힘),
+  // 아니면 경로를 읽어 상세 열기/닫기. id 출처는 pathname (useParams는 / 트리를 보고한다)
+  useEffect(() => {
+    const onPopState = () => {
+      const step = reportStepRef.current;
+      if (step !== null) {
+        const prev = previousReportStep(step);
+        if (prev === null) {
+          closeReportFlow();
+          return;
+        }
+        goToReportStep(prev);
+        const state: SaeuHistoryState = { saeuReport: true };
+        window.history.pushState(state, "");
+        return;
+      }
+      const id = placeIdFromPath(window.location.pathname);
+      if (id) openDetail(id, "history");
+      else closeDetail("history");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [openDetail, closeDetail, closeReportFlow, goToReportStep]);
+
   /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
   const toggleBookmark = useCallback(
     (id: string) => {
@@ -412,6 +591,7 @@ export function useMapScreen({
 
   return {
     // 상태
+    places,
     tab,
     chips,
     query,
@@ -423,6 +603,9 @@ export function useMapScreen({
     checkedIds,
     snap,
     notice,
+    reportStep,
+    reportPin,
+    reportCandidateId,
     userLocation,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
     origin,
@@ -461,6 +644,15 @@ export function useMapScreen({
     dismissEvent,
     showNotice,
     locateMe,
+    openReport,
+    cancelReport,
+    backReportStep,
+    goToReportStep,
+    moveReportPin,
+    clearReportCandidate,
+    showReportPair,
+    openDetailFromReport,
+    addPlace,
   };
 }
 

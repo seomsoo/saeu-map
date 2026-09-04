@@ -56,3 +56,19 @@ export function boundsOf(points: LatLng[]): BoundsLiteral | null {
   }
   return b;
 }
+
+/**
+ * 점이 링 안에 있는지 — 짝홀(ray casting). 링은 GeoJSON처럼 [lng, lat] 순이고 닫혀 있어도(첫 점 반복) 된다.
+ * 경계 위의 점은 어느 쪽으로도 갈 수 있다(수십 m 정밀도면 충분한 구 판정용).
+ */
+export function pointInRing(point: LatLng, ring: readonly (readonly number[])[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax = 0, ay = 0] = ring[i] ?? [];
+    const [bx = 0, by = 0] = ring[j] ?? [];
+    if (ay > point.lat === by > point.lat) continue;
+    const x = ((bx - ax) * (point.lat - ay)) / (by - ay) + ax;
+    if (point.lng < x) inside = !inside;
+  }
+  return inside;
+}

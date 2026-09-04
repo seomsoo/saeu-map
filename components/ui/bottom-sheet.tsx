@@ -11,8 +11,11 @@ import {
 import { cx } from "@/lib/cx";
 
 export type SheetSnap = "collapsed" | "half" | "full";
-/** list = 화면 1 목록(3단, 항상 열림) / detail = 화면 2 상세(요약·전체 2단 + 아래로 스와이프하면 닫힘) */
-export type SheetMode = "list" | "detail";
+/**
+ * list = 화면 1 목록(3단, 항상 열림) / detail = 화면 2 상세(요약·전체 2단 + 아래로 스와이프하면 닫힘)
+ * report = 화면 3 제보(요약·전체 2단, 닫기는 헤더 ✕뿐 — 입력 중인 값이 스와이프 한 번에 사라지면 안 된다)
+ */
+export type SheetMode = "list" | "detail" | "report";
 export type SheetRelease = { kind: "snap"; snap: SheetSnap } | { kind: "dismiss" };
 
 /*
@@ -31,7 +34,14 @@ export const SHEET_SHORT_VIEWPORT_MAX = 639;
  */
 export const SHEET_DETAIL_HALF_RATIO = 0.3;
 export const SHEET_DETAIL_HALF_MIN_PX = 270;
-/** 상세 헤더 = 핸들 + 오른쪽 닫기 ✕ (44px 히트) */
+/**
+ * 제보 요약(2단계, 지도에서 핀을 맞추는 동안) = 40%, 최소 330px — 상세의 270에는 안 들어간다:
+ * 헤더 44 + 진행바 6 + ‹ 줄 44 + 제목 34 + 4 + 캡션 20 + 20 + 주소 입력 48 + CTA 줄(12+48+12) = 292에
+ * 오류 한 줄(20) 여유. 그래도 390×844에서 지도가 500px 남는다(decisions 2026-09-04).
+ */
+export const SHEET_REPORT_HALF_RATIO = 0.4;
+export const SHEET_REPORT_HALF_MIN_PX = 330;
+/** 상세·제보 헤더 = 핸들 + 오른쪽 닫기 ✕ (44px 히트) */
 export const SHEET_DETAIL_HEADER_PX = 44;
 /** 상세: 요약 위치보다 이만큼 더 내린 채 놓으면 닫힘 */
 export const SHEET_DISMISS_PX = 100;
@@ -42,7 +52,7 @@ const FLING_VELOCITY = 0.6; // px/ms
 const CLICK_SUPPRESS_MS = 250;
 
 export function sheetSnaps(mode: SheetMode): readonly SheetSnap[] {
-  return mode === "detail" ? ["half", "full"] : ["collapsed", "half", "full"];
+  return mode === "list" ? ["collapsed", "half", "full"] : ["half", "full"];
 }
 
 /** 스냅별 보이는 높이(px). 카드 탭 시 지도 오프셋 계산에도 쓴다. */
@@ -58,6 +68,18 @@ export function sheetVisiblePx(
         return Math.max(
           Math.round(viewportHeight * SHEET_DETAIL_HALF_RATIO),
           SHEET_DETAIL_HALF_MIN_PX,
+        );
+      case "full":
+        return Math.round(viewportHeight * SHEET_FULL_RATIO);
+    }
+  }
+  if (mode === "report") {
+    switch (snap) {
+      case "collapsed":
+      case "half":
+        return Math.max(
+          Math.round(viewportHeight * SHEET_REPORT_HALF_RATIO),
+          SHEET_REPORT_HALF_MIN_PX,
         );
       case "full":
         return Math.round(viewportHeight * SHEET_FULL_RATIO);
@@ -80,13 +102,13 @@ function halfIsCollapsed(viewportHeight: number): boolean {
   return sheetVisiblePx("half", viewportHeight) === SHEET_COLLAPSED_PX;
 }
 
-/** 핸들 탭: 목록 collapsed → half → full → collapsed / 상세 half ↔ full */
+/** 핸들 탭: 목록 collapsed → half → full → collapsed / 상세·제보 half ↔ full */
 export function nextSnapOnTap(
   current: SheetSnap,
   viewportHeight: number,
   mode: SheetMode = "list",
 ): SheetSnap {
-  if (mode === "detail") return current === "full" ? "half" : "full";
+  if (mode !== "list") return current === "full" ? "half" : "full";
   switch (current) {
     case "collapsed":
       return halfIsCollapsed(viewportHeight) ? "full" : "half";
@@ -104,7 +126,7 @@ export function neighborSnap(
   viewportHeight: number,
   mode: SheetMode = "list",
 ): SheetSnap {
-  if (mode === "detail") return direction === "up" ? "full" : "half";
+  if (mode !== "list") return direction === "up" ? "full" : "half";
   const skipHalf = halfIsCollapsed(viewportHeight);
   if (direction === "up") {
     if (current === "collapsed") return skipHalf ? "full" : "half";
@@ -134,6 +156,7 @@ function nearestSnap(
 /**
  * 드래그를 놓았을 때의 판정. 목록은 플링이면 한 단계, 아니면 가장 가까운 스냅.
  * 상세는 그에 더해 half에서 아래로 튕기거나 요약보다 SHEET_DISMISS_PX 아래에 놓으면 닫힘.
+ * 제보는 닫힘이 없다 — 아래로 튕겨도 요약에 머문다(닫기는 헤더 ✕뿐).
  */
 export function resolveRelease({
   mode,
@@ -189,12 +212,12 @@ interface BottomSheetProps {
   children: ReactNode;
   label: string;
   className?: string | undefined;
-  /** 기본 list. detail은 핸들만 남기고 본문 드래그·아래로 스와이프 닫기를 켠다. */
+  /** 기본 list. detail은 핸들만 남기고 본문 드래그·아래로 스와이프 닫기를 켠다. report는 헤더만 상세와 같고 본문 드래그·스와이프 닫기가 없다. */
   mode?: SheetMode;
   handleLabel?: string;
-  /** 상세 모드에서 아래로 스와이프해 닫을 때. 헤더 오른쪽 ✕ 버튼도 이걸 부른다. */
+  /** 상세 모드에서 아래로 스와이프해 닫을 때. 헤더 오른쪽 ✕ 버튼도 이걸 부른다(상세·제보). */
   onDismiss?: (() => void) | undefined;
-  /** 헤더 ✕의 접근 가능한 이름 (상세 모드) */
+  /** 헤더 ✕의 접근 가능한 이름 (상세·제보 모드) */
   dismissLabel?: string;
 }
 
@@ -206,6 +229,8 @@ interface BottomSheetProps {
  *       맨 위에서 아래로 끄는 것만 시트 드래그로 가로챈다(non-passive touchmove로 브라우저 스크롤 선점 차단).
  *       요약에서도 본문은 스크롤 컨테이너로 남는다 — 잠그면 휠·키보드로는 본문에 닿을 길이 없다.
  *       닫기 ✕는 본문이 아니라 헤더(시트 크롬)에 있다 — 사진 유무·스크롤 위치와 무관하게 늘 같은 자리.
+ * 제보: 헤더(핸들 + ✕)와 2단(half/full)은 상세와 같지만 본문 드래그가 없고(입력 폼이라 스크롤·선택이 우선)
+ *       아래로 끌어도 요약 아래로는 안 내려간다 — 닫기는 ✕뿐(design 화면 3).
  */
 export function BottomSheet({
   snap,
@@ -226,6 +251,8 @@ export function BottomSheet({
   const lastPointerCycleAt = useRef(0);
   const lastBodyDragEndAt = useRef(0);
   const detail = mode === "detail";
+  /** 상세·제보 공통: 헤더는 핸들 44 + ✕, 목록 헤더 없음 */
+  const panel = mode !== "list";
 
   const cycleSnap = useCallback(() => {
     onSnapChange(nextSnapOnTap(snap, window.innerHeight, mode));
@@ -311,7 +338,13 @@ export function BottomSheet({
     drag.lastT = e.timeStamp;
 
     const vh = window.innerHeight;
-    const min = detail ? 0 : SHEET_COLLAPSED_PX;
+    // 상세는 0까지(닫힘 판정), 제보는 요약이 바닥(닫힘 없음), 목록은 collapsed
+    const min =
+      mode === "report"
+        ? sheetVisiblePx("half", vh, "report")
+        : detail
+          ? 0
+          : SHEET_COLLAPSED_PX;
     const max = sheetVisiblePx("full", vh, mode);
     const visible = Math.min(max, Math.max(min, drag.startVisible - dy));
     setDragOffset(drag.startVisible - visible, true);
@@ -393,17 +426,17 @@ export function BottomSheet({
 
   // 요약으로 돌아오면 본문을 맨 위로 (전체에서 스크롤한 채 요약이 되면 위가 잘린다)
   useEffect(() => {
-    if (detail && snap === "half" && bodyRef.current) bodyRef.current.scrollTop = 0;
-  }, [detail, snap]);
+    if (panel && snap === "half" && bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [panel, snap]);
 
-  // 목록 스크롤 위치는 상세가 열리는 동안 기억했다가 돌아올 때 복원 (목록 본문은 hidden으로 유지된다)
+  // 목록 스크롤 위치는 상세·제보가 열리는 동안 기억했다가 돌아올 때 복원 (목록 본문은 hidden으로 유지된다)
   const listScrollTop = useRef(0);
   const onBodyScroll = (e: { currentTarget: HTMLDivElement }) => {
-    if (!detail) listScrollTop.current = e.currentTarget.scrollTop;
+    if (!panel) listScrollTop.current = e.currentTarget.scrollTop;
   };
   useEffect(() => {
-    if (!detail && bodyRef.current) bodyRef.current.scrollTop = listScrollTop.current;
-  }, [detail]);
+    if (!panel && bodyRef.current) bodyRef.current.scrollTop = listScrollTop.current;
+  }, [panel]);
 
   return (
     <section
@@ -430,7 +463,7 @@ export function BottomSheet({
       <div
         className={cx(
           "saeu-sheet__header relative flex shrink-0 flex-col touch-none select-none",
-          !detail && "border-b border-line-hairline",
+          !panel && "border-b border-line-hairline",
         )}
         onPointerDown={onHeaderPointerDown}
         onPointerMove={onPointerMove}
@@ -444,7 +477,7 @@ export function BottomSheet({
           onClick={onHandleClick}
           className={cx(
             "flex w-full shrink-0 items-center justify-center",
-            detail ? "h-11" : "h-6.5",
+            panel ? "h-11" : "h-6.5",
           )}
         >
           <span
@@ -452,7 +485,7 @@ export function BottomSheet({
             className="block h-1.5 w-12.5 rounded-max bg-line-hairline"
           />
         </button>
-        {detail && onDismiss && (
+        {panel && onDismiss && (
           /* 헤더는 pointerdown에서 즉시 캡처하므로, 막지 않으면 이 버튼의 click이 헤더로 리타겟된다 */
           <button
             type="button"
@@ -466,7 +499,7 @@ export function BottomSheet({
             <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
           </button>
         )}
-        {!detail && (
+        {!panel && (
           <div className="flex min-h-0 flex-1 items-center px-5 pb-4">{header}</div>
         )}
       </div>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/data";
 import { isPhotoHistoryState, type SaeuHistoryState } from "@/lib/history-state";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
+import { copyText, sharePlace } from "@/lib/share";
 import type { Place, Review } from "@/lib/types";
 import type { ReviewsStatus } from "./review-section";
 
@@ -17,8 +18,6 @@ export const COMING_SOON_NOTICE = "준비 중이에요";
 export const CHECKIN_FAILED_NOTICE = "확인을 저장하지 못했어요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
-export const LINK_COPIED_NOTICE = "링크를 복사했어요";
-export const LINK_COPY_FAILED_NOTICE = "링크를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
 /** 실패 토스트는 뷰어 안에서 뜬다(top layer가 지도 화면 토스트를 가린다) — 문구만 여기 모아 둔다 */
 export const PHOTO_REPORT_FAILED_NOTICE = "신고를 접수하지 못했어요";
@@ -35,19 +34,6 @@ interface UsePlaceDetailInput {
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
   onNotice: (message: string) => void;
-}
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function sharePath(placeId: string): string {
-  return `/place/${encodeURIComponent(placeId)}`;
 }
 
 /**
@@ -124,27 +110,15 @@ export function usePlaceDetail({
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
+    if (place.addressRoad === null) return; // 주소 없는 제보 핀은 [복사] 자체가 없다
     void copyText(place.addressRoad).then((ok) => {
       onNotice(ok ? ADDRESS_COPIED_NOTICE : ADDRESS_COPY_FAILED_NOTICE);
     });
   }, [place.addressRoad, onNotice]);
 
   const share = useCallback(() => {
-    const url = `${window.location.origin}${sharePath(place.id)}`;
-    const fallback = () =>
-      copyText(url).then((ok) => {
-        onNotice(ok ? LINK_COPIED_NOTICE : LINK_COPY_FAILED_NOTICE);
-      });
-    if ("share" in navigator) {
-      navigator.share({ title: place.name, url }).catch((error: unknown) => {
-        // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        return fallback();
-      });
-      return;
-    }
-    void fallback();
-  }, [place.id, place.name, onNotice]);
+    sharePlace(place, onNotice);
+  }, [place, onNotice]);
 
   // 앱 스킴 폴백 타이머 — 상세를 닫거나 가게를 바꾸면(언마운트) 취소한다 (security-reviewer 2026-09-02)
   const routeFallback = useRef<(() => void) | null>(null);

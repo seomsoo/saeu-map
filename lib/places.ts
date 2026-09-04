@@ -32,7 +32,7 @@ export function matchesQuery(place: Place, normalized: string): boolean {
     place.name,
     place.gu,
     place.addressJibun ?? "",
-    place.addressRoad,
+    place.addressRoad ?? "",
   ]
     .join(" ")
     .toLowerCase()

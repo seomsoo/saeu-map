@@ -42,7 +42,8 @@ export interface Place {
   id: string;
   name: string;
   gu: string;
-  addressRoad: string;
+  /** 도로명 주소. 제보 핀은 주소를 저장하지 않아 null(규칙 2) → 상세에 "주소를 알려주세요" 입구. */
+  addressRoad: string | null;
   addressJibun: string | null;
   lat: number;
   lng: number;
@@ -65,6 +66,8 @@ export interface Place {
   checkCount: number;
   isNew: boolean;
   createdAt?: string;
+  /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
+  duplicateSuspectOf?: string;
 }
 
 export interface Checkin {

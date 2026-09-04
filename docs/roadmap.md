@@ -36,10 +36,10 @@
 - 후속(완료 선언 뒤, 같은 날 `feat/phase2-redesign`): 화면 2 리디자인(확인 줄 해체·정보 블록화·사진 스트립·뷰어·신고) → 빈 사진 상태 최종안 → 정보 블록에 최근접역 + 호선 배지(OSM 파생) → 정보 블록 미세 조정(아이콘 열·16px 배지·접히는 주소·지번 축약). 테스트 166 → 208개. 결정은 decisions.md 2026-09-03 6항목, 플랜은 phase2-detail-redesign·phase2-photo-viewer·phase2-nearest-station.md.
 
 ## Phase 3 — 제보 플로우 (spec 4.3 · design 화면 3)
-- [ ] 4단계 + 완료 화면, 진행바
-- [ ] 1단계 가게명 검색 → 기존 가게 전환 갈림길
-- [ ] 2단계 지도 핀 + 주소 검색 + 150m·유사도 중복 재검사(same_place 이식)
-- [ ] zod 검증, 제출 시 즉시 노출(목: places에 추가 + isNew)
+- [x] 4단계 + 완료 화면, 진행바
+- [x] 1단계 가게명 검색 → 기존 가게 전환 갈림길
+- [x] 2단계 지도 핀 + 주소 검색 + 150m·유사도 중복 재검사(same_place 이식)
+- [x] zod 검증, 제출 시 즉시 노출(목: places에 추가 + isNew)
 - 완료: 중복 가게 제보 시 기존 상세로 전환됨, 신규 제보가 지도에 바로 뜸, 갭 스윕 0건
 
 ## Phase 4 — 신규 패널 · 내 활동 · 로그인 분기 (spec 4.4 · design 화면 4·5)
@@ -61,6 +61,7 @@
 - [ ] lib/data.ts → Supabase 교체, 익명 auth + 카카오 linkIdentity
 - [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP)
 - [ ] /admin 4탭, 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
+- [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(기존 핀 이전·리다이렉트 — spec 4.3 엣지)
 - [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
 - 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴
 

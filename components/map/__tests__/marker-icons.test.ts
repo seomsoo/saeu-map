@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CLUSTER_MARKER_SIZE,
   PLACE_MARKER_SIZE,
+  REPORT_PIN_SIZE,
   getClusterIcon,
   getPlaceMarkerIcon,
+  getReportPinIcon,
   safeThumbnailUrl,
 } from "../marker-icons";
 
@@ -82,5 +84,17 @@ describe("getClusterIcon", () => {
     expect(icon.content).toBe('<div class="saeu-cluster">20</div>');
     expect(icon.size).toEqual(new Size(CLUSTER_MARKER_SIZE, CLUSTER_MARKER_SIZE));
     expect(getClusterIcon(navermaps, 20)).toBe(getClusterIcon(navermaps, 20));
+  });
+});
+
+describe("getReportPinIcon — 제보 핀", () => {
+  it("44px 히트 박스, 앵커는 바닥 중앙(핀 끝이 좌표), 같은 객체를 돌려준다", () => {
+    const icon = getReportPinIcon(navermaps);
+    expect(icon.size).toEqual(new Size(REPORT_PIN_SIZE, REPORT_PIN_SIZE));
+    expect(icon.anchor).toEqual(new Point(REPORT_PIN_SIZE / 2, REPORT_PIN_SIZE));
+    expect(icon.content).toContain('class="saeu-report-pin"');
+    expect(icon.content).toContain("saeu-report-pin__head");
+    expect(icon.content).toContain("saeu-report-pin__stem");
+    expect(getReportPinIcon(navermaps)).toBe(icon);
   });
 });
