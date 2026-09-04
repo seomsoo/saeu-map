@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { ReviewForm } from "@/components/review/review-form";
 import { SectionBand } from "@/components/ui/section-band";
 import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
@@ -24,6 +26,9 @@ export interface PlaceDetailProps {
   /** 이 세션에서 이미 "다녀왔어요"를 누른 가게 */
   checked: boolean;
   initialReviews?: Review[] | undefined;
+  /** 제보 완료 "리뷰도 남겨볼래요?"로 들어옴 — 열리자마자 리뷰 게이트(→ 폼). 한 번 쓰고 부모가 지운다 */
+  autoReview?: boolean | undefined;
+  onAutoReviewConsumed?: (() => void) | undefined;
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
   onToggleBookmark: () => void;
@@ -41,6 +46,8 @@ export function PlaceDetail({
   bookmarked,
   checked,
   initialReviews,
+  autoReview = false,
+  onAutoReviewConsumed,
   onPatchPlace,
   onChecked,
   onToggleBookmark,
@@ -57,6 +64,16 @@ export function PlaceDetail({
   });
   // 외부 링크는 화이트리스트 호스트만 (규칙 3의 링크판)
   const naverUrl = isAllowedNaverPlaceUrl(place.naverPlaceUrl) ? place.naverPlaceUrl : null;
+
+  // 제보 완료에서 넘어온 리뷰 의도는 한 번만 — ref라 StrictMode 이중 effect에도 게이트가 두 번 서지 않는다
+  const autoHandled = useRef(false);
+  const { writeReview } = d;
+  useEffect(() => {
+    if (!autoReview || autoHandled.current) return;
+    autoHandled.current = true;
+    onAutoReviewConsumed?.();
+    writeReview();
+  }, [autoReview, onAutoReviewConsumed, writeReview]);
 
   return (
     <article aria-label={`${place.name} 상세`}>
@@ -95,7 +112,7 @@ export function PlaceDetail({
         now={now}
         done={d.done}
         onCheckIn={d.checkIn}
-        onWriteReview={d.comingSoon}
+        onWriteReview={d.writeReview}
       />
       <SectionBand />
       {/* 8 */}
@@ -103,11 +120,25 @@ export function PlaceDetail({
         status={d.status}
         reviews={d.reviews}
         naverUrl={naverUrl}
+        currentUserId={d.currentUserId}
         onRetry={d.retryReviews}
+        onEdit={d.editReview}
+        onDelete={d.deleteReview}
       />
       <SectionBand />
       {/* 9 */}
       <FooterLinks onSelect={d.comingSoon} />
+      {/* 화면 5 변형 (b) — 리뷰 폼. 뷰어와 같은 top layer 오버레이 */}
+      {d.reviewForm && (
+        <ReviewForm
+          placeId={place.id}
+          placeName={place.name}
+          now={now}
+          initial={d.reviewForm.initial}
+          onSaved={d.handleReviewSaved}
+          onClose={d.closeReviewForm}
+        />
+      )}
       {/* 변형 (e) — 전체 화면 사진 뷰어. body 포털이라 시트 밖(top layer)에 뜬다. */}
       {d.photoIndex !== null && (
         <PhotoViewer

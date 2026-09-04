@@ -1,16 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { SessionProvider } from "@/components/auth/session-provider";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
-import type { Photo, Place, PlaceDetail as PlaceDetailData, Review } from "@/lib/types";
+import type { Photo, Place, PlaceDetail as PlaceDetailData, Review, Session } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
 
 type PhotoReport = Parameters<typeof import("@/lib/data").reportPhoto>[0];
+type ReviewInput = Parameters<typeof import("@/lib/data").submitReview>[0];
+type ReviewPatch = Parameters<typeof import("@/lib/data").updateReview>[1];
+
+const ANON: Session = { userId: "anon-local-1", provider: "anonymous", nickname: null };
+const KAKAO: Session = { userId: "u-kakao-1", provider: "kakao", nickname: "새우헌터" };
 
 const data = vi.hoisted(() => ({
   getPlaceDetail: vi.fn<(id: string, now: string) => Promise<PlaceDetailData | undefined>>(),
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
   reportPhoto: vi.fn<(input: PhotoReport) => Promise<void>>(),
+  getSession: vi.fn<() => Promise<Session>>(),
+  signInWithKakao: vi.fn<() => Promise<Session>>(),
+  submitReview: vi.fn<(input: ReviewInput, now: string) => Promise<{ review: Review; place: Place }>>(),
+  updateReview: vi.fn<(id: string, patch: ReviewPatch, now: string) => Promise<Review>>(),
+  deleteReview: vi.fn<(id: string) => Promise<void>>(),
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
@@ -19,6 +30,11 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   getPlaceDetail: data.getPlaceDetail,
   checkIn: data.checkIn,
   reportPhoto: data.reportPhoto,
+  getSession: data.getSession,
+  signInWithKakao: data.signInWithKakao,
+  submitReview: data.submitReview,
+  updateReview: data.updateReview,
+  deleteReview: data.deleteReview,
 }));
 
 const NOW = "2026-09-01T12:00:00+09:00";
@@ -79,8 +95,16 @@ function renderDetail(place: Place, overrides: Partial<PlaceDetailProps> = {}) {
     onNotice: vi.fn(),
     ...overrides,
   };
-  const view = render(<PlaceDetail {...props} />);
-  return { ...view, props };
+  const view = render(
+    <SessionProvider>
+      <PlaceDetail {...props} />
+    </SessionProvider>,
+  );
+  // 상세는 세션 컨텍스트 안에서 돈다 — rerender도 같은 래퍼로
+  const rerender = (element: React.ReactElement) => {
+    view.rerender(<SessionProvider>{element}</SessionProvider>);
+  };
+  return { ...view, rerender, props };
 }
 
 beforeEach(() => {
@@ -89,6 +113,13 @@ beforeEach(() => {
   data.reportPhoto.mockReset();
   data.reportPhoto.mockResolvedValue(undefined);
   data.getPlaceDetail.mockResolvedValue({ place: nara(), reviews: [] });
+  data.getSession.mockReset();
+  data.getSession.mockResolvedValue(ANON);
+  data.signInWithKakao.mockReset();
+  data.signInWithKakao.mockResolvedValue(KAKAO);
+  data.submitReview.mockReset();
+  data.updateReview.mockReset();
+  data.deleteReview.mockReset();
 });
 
 afterEach(() => {
@@ -472,7 +503,6 @@ describe("찜·복사·공유·준비 중 입구", () => {
       "영업시간을 알려주세요",
       "대표 메뉴 수정",
       "사이드 수정",
-      "리뷰 남기기",
       "정보 수정 제안",
       "신고",
       "사장님이신가요?",
@@ -577,5 +607,117 @@ describe("주소가 없는 제보 핀", () => {
     renderDetail(nara({ addressRoad: null, addressJibun: null, nearestStation: null }));
     expect(screen.getByRole("button", { name: "주소를 알려주세요" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "주소 복사" })).toBeNull();
+  });
+});
+
+describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭제 (화면 5 변형 (b)·(c))", () => {
+  beforeEach(() => {
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+
+  it("익명이 [리뷰 남기기] → 로그인 시트, 로그인하면 바로 리뷰 폼", async () => {
+    renderDetail(nara(), { initialReviews: [] });
+    fireEvent.click(screen.getByRole("button", { name: "리뷰 남기기" }));
+    const login = await screen.findByRole("dialog", { name: "카카오로 로그인" });
+    expect(login).toHaveTextContent("리뷰를 남기려면 로그인이 필요해요");
+    expect(screen.queryByRole("dialog", { name: "리뷰 남기기" })).toBeNull();
+    fireEvent.click(within(login).getByRole("button", { name: "카카오로 시작하기" }));
+    expect(await screen.findByRole("dialog", { name: "리뷰 남기기" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "카카오로 로그인" })).toBeNull();
+  });
+
+  it("[나중에 할게요]면 폼이 열리지 않는다", async () => {
+    renderDetail(nara(), { initialReviews: [] });
+    fireEvent.click(screen.getByRole("button", { name: "리뷰 남기기" }));
+    const login = await screen.findByRole("dialog", { name: "카카오로 로그인" });
+    fireEvent.click(within(login).getByRole("button", { name: "나중에 할게요" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(screen.queryByRole("dialog", { name: "리뷰 남기기" })).toBeNull();
+  });
+
+  it("카카오: 폼 → 등록 → 리뷰 맨 앞 + 확인 캡션 갱신 + 토스트, 내 리뷰엔 [수정][삭제]", async () => {
+    data.getSession.mockResolvedValue(KAKAO);
+    const saved: Review = {
+      id: "rv-local-1",
+      placeId: "nara",
+      authorId: "u-kakao-1",
+      rating: 5,
+      text: "머리버터구이 최고",
+      nickname: "새우헌터",
+      at: NOW,
+    };
+    const place = nara({ checkCount: 5, lastCheckedAt: NOW });
+    data.submitReview.mockResolvedValue({ review: saved, place });
+    const { props } = renderDetail(nara(), { initialReviews: [review(4, { nickname: "을지로사람" })] });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "리뷰 남기기" })).toBeInTheDocument();
+    });
+    // 세션이 로드된 뒤 눌러야 게이트가 즉시 통과한다
+    await waitFor(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "리뷰 남기기" }));
+      expect(await screen.findByRole("dialog", { name: "리뷰 남기기" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "5점" }));
+    fireEvent.click(screen.getByRole("button", { name: "등록하기" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("리뷰를 남겼어요");
+    });
+    expect(props.onPatchPlace).toHaveBeenCalledWith(place);
+    const section = screen.getByRole("heading", { level: 3, name: /리뷰/ }).closest("section");
+    if (!section) throw new Error("section expected");
+    const [first, second] = within(section).getAllByRole("listitem");
+    if (!first || !second) throw new Error("two rows expected");
+    expect(first).toHaveTextContent("새우헌터");
+    expect(first).toHaveTextContent("머리버터구이 최고");
+    expect(within(first).getByRole("button", { name: "리뷰 수정" })).toBeInTheDocument();
+    expect(within(first).getByRole("button", { name: "리뷰 삭제" })).toBeInTheDocument();
+    // 남의 리뷰엔 없다
+    expect(within(second).queryByRole("button", { name: "리뷰 수정" })).toBeNull();
+  });
+
+  it("본인 리뷰 [수정] → 수정 폼 → '수정됨'. [삭제]는 인라인 확인 → 낙관 제거, 실패면 원복 + 토스트", async () => {
+    data.getSession.mockResolvedValue(KAKAO);
+    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터", text: "원래 글" });
+    const edited = { ...mine, rating: 3, text: "고친 글", editedAt: NOW };
+    data.updateReview.mockResolvedValue(edited);
+    data.deleteReview.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderDetail(nara(), { initialReviews: [mine, review(5, { nickname: "을지로사람" })] });
+    const editButton = await screen.findByRole("button", { name: "리뷰 수정" });
+    fireEvent.click(editButton);
+    const form = await screen.findByRole("dialog", { name: "리뷰 수정" });
+    expect(within(form).getByRole("textbox", { name: "후기 (선택)" })).toHaveValue("원래 글");
+    fireEvent.change(within(form).getByRole("textbox", { name: "후기 (선택)" }), { target: { value: "고친 글" } });
+    fireEvent.click(within(form).getByRole("button", { name: "저장하기" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("리뷰를 고쳤어요");
+    });
+    expect(screen.getByText("고친 글")).toBeInTheDocument();
+    expect(screen.getByText("수정됨")).toBeInTheDocument();
+    expect(props.onPatchPlace).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "리뷰 삭제" }));
+    expect(screen.getByText("삭제할까요?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(screen.queryByText("삭제할까요?")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "리뷰 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+    expect(screen.queryByText("고친 글")).toBeNull(); // 낙관 제거
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("리뷰를 삭제하지 못했어요");
+    });
+    expect(screen.getByText("고친 글")).toBeInTheDocument(); // 원복
+    expect(data.deleteReview).toHaveBeenCalledWith("rv-mine");
+  });
+
+  it("autoReview(제보 완료 → 리뷰도 남겨볼래요?): 열리자마자 게이트가 서고 한 번만 소비된다", async () => {
+    const onAutoReviewConsumed = vi.fn();
+    renderDetail(nara(), { initialReviews: [], autoReview: true, onAutoReviewConsumed });
+    expect(await screen.findByRole("dialog", { name: "카카오로 로그인" })).toBeInTheDocument();
+    expect(onAutoReviewConsumed).toHaveBeenCalledTimes(1);
   });
 });

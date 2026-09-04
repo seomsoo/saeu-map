@@ -190,6 +190,8 @@ function MapScreenBody({
               initialReviews={
                 initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
               }
+              autoReview={s.reviewIntentId === detailPlace.id}
+              onAutoReviewConsumed={s.clearReviewIntent}
               onPatchPlace={s.patchPlace}
               onChecked={s.markChecked}
               onToggleBookmark={() => {

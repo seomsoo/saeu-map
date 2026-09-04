@@ -145,6 +145,8 @@ export function useMapScreen({
   const [reportPin, setReportPin] = useState<LatLng | null>(null);
   /** 2단계에서 탭한 기존 마커 — 패널이 그 가게로 중복 의심 패널을 연다 */
   const [reportCandidateId, setReportCandidateId] = useState<string | null>(null);
+  /** 제보 완료 "리뷰도 남겨볼래요?" — 이 가게 상세가 열리자마자 리뷰 게이트를 세운다(한 번 쓰고 지운다) */
+  const [reviewIntentId, setReviewIntentId] = useState<string | null>(null);
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
@@ -567,14 +569,19 @@ export function useMapScreen({
     [reportPin, mapRef],
   );
 
-  /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기] — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
+  /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기]·"리뷰도 남겨볼래요?" — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
   const openDetailFromReport = useCallback(
-    (id: string) => {
+    (id: string, options?: { review: boolean }) => {
       closeReportFlow();
       openDetail(id, "report");
+      if (options?.review) setReviewIntentId(id);
     },
     [closeReportFlow, openDetail],
   );
+
+  const clearReviewIntent = useCallback(() => {
+    setReviewIntentId(null);
+  }, []);
 
   /* ── 상호작용 ── */
   const selectFromMarker = useCallback(
@@ -698,6 +705,7 @@ export function useMapScreen({
     reportStep,
     reportPin,
     reportCandidateId,
+    reviewIntentId,
     userLocation,
     following,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
@@ -749,6 +757,7 @@ export function useMapScreen({
     clearReportCandidate,
     showReportPair,
     openDetailFromReport,
+    clearReviewIntent,
     addPlace,
   };
 }
