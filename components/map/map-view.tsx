@@ -49,8 +49,14 @@ export const GEOCODE_MAX_HITS = 5;
 
 /** 부모가 지도를 움직일 때 쓰는 명령형 핸들. lib에는 naver 객체가 새지 않는다. */
 export interface MapHandle {
-  /** target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙. */
-  panTo(target: LatLng, options?: { screenY?: number | undefined }): void;
+  /**
+   * target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙.
+   * animate:false는 setCenter — 첫 페인트에서 지도가 미끄러지면 안 될 때만.
+   */
+  panTo(
+    target: LatLng,
+    options?: { screenY?: number | undefined; animate?: boolean | undefined },
+  ): void;
   morph(target: LatLng, zoom: number): void;
   /** 줌을 바꾼 뒤(애니메이션 없이) panTo — 제보 2단계가 핀을 시트 위 가시 영역 가운데에 놓을 때 */
   focus(
@@ -233,9 +239,13 @@ function MapController({
   useImperativeHandle(handleRef, () => {
     const panTo: MapHandle["panTo"] = (target, options) => {
       const latlng = new navermaps.LatLng(target.lat, target.lng);
+      const move = (coord: naver.maps.Coord) => {
+        if (options?.animate === false) map.setCenter(coord);
+        else map.panTo(coord);
+      };
       const screenY = options?.screenY;
       if (screenY === undefined) {
-        map.panTo(latlng);
+        move(latlng);
         return;
       }
       // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
@@ -246,7 +256,7 @@ function MapController({
         offset.x,
         size.height / 2 + (offset.y - screenY),
       );
-      map.panTo(projection.fromOffsetToCoord(centerOffset));
+      move(projection.fromOffsetToCoord(centerOffset));
     };
     return {
       panTo,

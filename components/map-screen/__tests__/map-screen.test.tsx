@@ -60,6 +60,7 @@ const fake = vi.hoisted(() => {
     getZoom: () => 12,
     getCenter: () => new LatLng(37.55, 127.0),
     panTo: vi.fn(),
+    setCenter: vi.fn(),
     morph: vi.fn(),
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
@@ -215,6 +216,7 @@ const listCards = () =>
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_NCP_CLIENT_ID", "test-key");
   fake.map.panTo.mockClear();
+  fake.map.setCenter.mockClear();
   fake.map.morph.mockClear();
   fake.map.fitBounds.mockClear();
   fake.map.setZoom.mockClear();

@@ -130,6 +130,9 @@ export function useMapScreen({
   }, [reportStep]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
+  /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
+  const snapRef = useRef<SheetSnap>("half");
+  const modeRef = useRef<SheetMode>("list");
 
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
@@ -157,6 +160,10 @@ export function useMapScreen({
     [places, detailId],
   );
   const mode: SheetMode = detailPlace ? "detail" : reportStep !== null ? "report" : "list";
+  useEffect(() => {
+    snapRef.current = snap;
+    modeRef.current = mode;
+  }, [snap, mode]);
 
   // 제보 중엔 칩·탭·검색어와 무관하게 전부 마커로 — 중복 후보가 필터에 걸려 안 보이면 안 된다(design 화면 3 변형 (a)).
   // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다.
@@ -226,6 +233,23 @@ export function useMapScreen({
     setMapError("config");
   }, []);
 
+  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
+  const visibleStripCenterY = useCallback(
+    (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
+      const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
+      const vh = window.innerHeight;
+      const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
+      return top + Math.max(0, bottom - top) / 2;
+    },
+    [topStackRef],
+  );
+
+  /** 지금 보이는 지도의 한가운데 y. 늦게 도착한 콜백도 호출 시점 상태로 계산한다 */
+  const stripCenterY = useCallback(
+    () => visibleStripCenterY(snapRef.current, modeRef.current),
+    [visibleStripCenterY],
+  );
+
   /* ── 위치: 첫 로드 시 조용히 ── */
   useEffect(() => {
     let cancelled = false;
@@ -238,34 +262,37 @@ export function useMapScreen({
       // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
       if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
         programmaticMoveAt.current = performance.now();
-        mapRef.current.morph(pos, USER_ZOOM);
+        mapRef.current.focus(pos, USER_ZOOM, { screenY: stripCenterY() });
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [mapRef, initialPlaceId]);
+  }, [mapRef, initialPlaceId, stripCenterY]);
 
-  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
-  const visibleStripCenterY = useCallback(
-    (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
-      const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
-      const vh = window.innerHeight;
-      const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
-      return top + Math.max(0, bottom - top) / 2;
-    },
-    [topStackRef],
-  );
-
-  /* ── /place/[id] 직접 진입: 지도가 뜨면 핀을 요약 시트 위 가시 영역 중앙으로 (카드 탭과 같은 목표) ── */
+  /* ── 첫 화면 위치 맞추기 ──
+     SDK는 defaultCenter를 컨테이너 정중앙에 놓는데, 상단 두 층과 시트에 가려
+     실제로 보이는 지도의 한가운데는 그보다 위다(702px 기준 246 vs 351 — 105px 어긋남).
+     그래서 서울 중심이 시트 쪽으로 치우치고 위쪽 절반은 빈 땅이 됐다 (decisions 2026-09-04).
+     /place/[id] 직접 진입은 핀을, 그 외에는 지금 중심을 같은 자리로 옮긴다. */
   const initialPanDone = useRef(false);
   useEffect(() => {
-    if (initialPanDone.current || !initialPlaceId || !viewport || !mapRef.current) return;
-    const place = places.find((p) => p.id === initialPlaceId);
-    if (!place) return;
+    if (initialPanDone.current || !viewport || !mapRef.current) return;
+    if (initialPlaceId) {
+      const place = places.find((p) => p.id === initialPlaceId);
+      if (!place) return;
+      initialPanDone.current = true;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+      return;
+    }
     initialPanDone.current = true;
     programmaticMoveAt.current = performance.now();
-    mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+    // 첫 페인트라 애니메이션 없이 — 지도가 뜨자마자 미끄러지면 안 된다
+    mapRef.current.panTo(viewport.center, {
+      screenY: visibleStripCenterY("half", "list"),
+      animate: false,
+    });
   }, [initialPlaceId, viewport, places, mapRef, visibleStripCenterY]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
@@ -327,9 +354,9 @@ export function useMapScreen({
     (clusterId: number, center: LatLng) => {
       if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
-      mapRef.current?.morph(center, zoom);
+      mapRef.current?.focus(center, zoom, { screenY: stripCenterY() });
     },
-    [index, mapRef],
+    [index, mapRef, stripCenterY],
   );
 
   const toggleChip = useCallback((chip: ChipKey) => {
@@ -585,9 +612,9 @@ export function useMapScreen({
       setUserLocation(pos);
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.morph(pos, USER_ZOOM);
+      mapRef.current.focus(pos, USER_ZOOM, { screenY: stripCenterY() });
     });
-  }, [mapRef, showNotice]);
+  }, [mapRef, showNotice, stripCenterY]);
 
   return {
     // 상태
