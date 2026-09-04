@@ -60,7 +60,7 @@ interface PlaceSheetProps {
   onDismissMe?: (() => void) | undefined;
   onSelect: (id: string) => void;
   onDismissEvent: () => void;
-  onClearChips: () => void;
+  onClearFilters: () => void;
   onReport: () => void;
   onRetry: () => void;
 }
@@ -68,7 +68,7 @@ interface PlaceSheetProps {
 const REPORT_ACTION_ICON = <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />;
 
 /** 빈 상태 4종 — EmptyKind에 케이스가 늘면 여기서 컴파일 에러로 잡힌다. */
-function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => void) {
+function renderEmpty(kind: EmptyKind, onReport: () => void, onClearFilters: () => void) {
   switch (kind) {
     case "bookmarks":
       return (
@@ -95,7 +95,7 @@ function renderEmpty(kind: EmptyKind, onReport: () => void, onClearChips: () => 
         <EmptyState
           title="조건에 맞는 집이 없어요"
           description="칩을 풀거나 지도를 옮겨보세요"
-          action={<OutlineButton onClick={onClearChips}>필터 해제</OutlineButton>}
+          action={<OutlineButton onClick={onClearFilters}>필터 해제</OutlineButton>}
         />
       );
     case "area":
@@ -146,7 +146,7 @@ export function PlaceSheet({
   onDismissMe,
   onSelect,
   onDismissEvent,
-  onClearChips,
+  onClearFilters,
   onReport,
   onRetry,
 }: PlaceSheetProps) {
@@ -228,7 +228,7 @@ export function PlaceSheet({
           />
         )}
 
-        {status === "ready" && listCount === 0 && renderEmpty(emptyKind, onReport, onClearChips)}
+        {status === "ready" && listCount === 0 && renderEmpty(emptyKind, onReport, onClearFilters)}
 
         {status === "ready" && newPanel && newPanel.count > 0 && newPanel.content}
 

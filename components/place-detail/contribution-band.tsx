@@ -8,6 +8,8 @@ interface ContributionBandProps {
   now: string;
   /** 이 세션에서 이미 확인함(핀당 하루 1회) 또는 낙관적 반영 중 */
   done: boolean;
+  /** 이 가게에 이미 쓴 내 리뷰가 있으면 이 블록의 리뷰 버튼을 뺀다 — 수정·삭제는 아래 리뷰 행이 갖는다 */
+  hasMyReview: boolean;
   onCheckIn: () => void;
   onWriteReview: () => void;
 }
@@ -21,6 +23,7 @@ export function ContributionBand({
   place,
   now,
   done,
+  hasMyReview,
   onCheckIn,
   onWriteReview,
 }: ContributionBandProps) {
@@ -47,9 +50,11 @@ export function ContributionBand({
             다녀왔어요
           </Button>
         )}
-        <Button variant="outline" size="lg" className="flex-1" onClick={onWriteReview}>
-          리뷰 남기기
-        </Button>
+        {!hasMyReview && (
+          <Button variant="outline" size="lg" className="flex-1" onClick={onWriteReview}>
+            리뷰 남기기
+          </Button>
+        )}
       </div>
     </section>
   );

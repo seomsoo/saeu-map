@@ -49,6 +49,8 @@ function renderPanel(overrides: Partial<Parameters<typeof ActivityPanel>[0]> = {
     tab: "bookmarks" as const,
     onTabChange: vi.fn(),
     bookmarkedPlaces: [nara, changwoo],
+    bookmarksStatus: "ready" as const,
+    onRetryBookmarks: vi.fn(),
     origin: null,
     onOpenPlace: vi.fn(),
     onToggleBookmark: vi.fn(),

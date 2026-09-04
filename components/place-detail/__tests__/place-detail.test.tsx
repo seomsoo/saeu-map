@@ -721,3 +721,22 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
     expect(onAutoReviewConsumed).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [리뷰 남기기]를 빼고 행의 [수정]만 남긴다", () => {
+  it("내 리뷰가 있으면 기여 블록엔 [다녀왔어요]만, 없으면 둘 다", async () => {
+    data.getSession.mockResolvedValue(KAKAO);
+    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터" });
+    const { unmount } = renderDetail(nara(), { initialReviews: [mine] });
+    const band = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
+    await waitFor(() => {
+      expect(within(band).queryByRole("button", { name: "리뷰 남기기" })).toBeNull();
+    });
+    expect(within(band).getByRole("button", { name: "다녀왔어요" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "리뷰 수정" })).toBeInTheDocument();
+    unmount();
+
+    renderDetail(nara(), { initialReviews: [review(5, { nickname: "을지로사람" })] });
+    const band2 = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
+    expect(within(band2).getByRole("button", { name: "리뷰 남기기" })).toBeInTheDocument();
+  });
+});

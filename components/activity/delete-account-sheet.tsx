@@ -61,9 +61,8 @@ export function DeleteAccountSheet({ onConfirm, onClose }: DeleteAccountSheetPro
             취소
           </Button>
           <Button
-            variant="outline"
+            variant="danger"
             size="xl"
-            className="border-brand-fg text-brand-fg"
             onClick={confirm}
             disabled={pending}
             aria-busy={pending}

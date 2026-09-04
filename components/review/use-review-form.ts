@@ -7,6 +7,8 @@ import type { Place, Review } from "@/lib/types";
 export const REVIEW_TEXT_MAX = 500;
 export const RATING_REQUIRED_MESSAGE = "별점을 골라주세요";
 export const REVIEW_SAVE_FAILED_MESSAGE = "리뷰를 등록하지 못했어요. 다시 시도해주세요";
+/** 핀당 1개 규칙에 걸림 — 익명으로 폼을 열고 로그인한 뒤에야 알 수 있는 경계(spec 5 스팸 4겹 2) */
+export const REVIEW_DUPLICATE_MESSAGE = "이미 이 가게에 리뷰를 남겼어요. 기존 리뷰를 수정해주세요";
 
 /** 저장 결과 — 새 리뷰면 확인일이 갱신된 가게도 함께(상호 블록 캡션 "오늘 확인"), 수정이면 null */
 export interface ReviewSaveResult {
@@ -51,8 +53,9 @@ export function useReviewForm({ placeId, now, initial }: UseReviewFormInput) {
         return { review, place: null };
       }
       return await submitReview({ placeId, rating, text, photo }, now);
-    } catch {
-      setSubmitError(REVIEW_SAVE_FAILED_MESSAGE);
+    } catch (error) {
+      const duplicate = error instanceof Error && error.message === "already reviewed";
+      setSubmitError(duplicate ? REVIEW_DUPLICATE_MESSAGE : REVIEW_SAVE_FAILED_MESSAGE);
       return null;
     } finally {
       setPending(false);

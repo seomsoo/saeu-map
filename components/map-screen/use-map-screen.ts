@@ -9,7 +9,7 @@ import {
   useState,
   type RefObject,
 } from "react";
-import type { ActivityTab } from "@/components/activity/use-activity";
+import type { ActivityTab, LoadStatus } from "@/components/activity/use-activity";
 import { useSession } from "@/components/auth/session-provider";
 import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
@@ -68,7 +68,7 @@ const PLACE_PATH = /^\/place\/([A-Za-z0-9_-]+)\/?$/;
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
 export type MapErrorReason = "runtime" | "config";
-/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) / new = 이번 주 새 제보 없음(화면 4) */
+/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 켜 둔 조건(칩·카테고리·검색어)에 맞는 집 없음(필터 해제 유도) / new = 이번 주 새 제보 없음(화면 4) */
 export type EmptyKind = "area" | "bookmarks" | "filter" | "new";
 
 export function placeIdFromPath(pathname: string): string | null {
@@ -126,6 +126,8 @@ export function useMapScreen({
   // 가게·찜은 서버 초기값에서 시작해 클라이언트 state가 진실이 된다 (다녀왔다면·찜 결과를 카드·칩 필터에 반영)
   const [places, setPlaces] = useState(initialPlaces);
   const [bookmarkedIds, setBookmarkedIds] = useState(initialBookmarkedIds);
+  /** 찜을 어느 세션까지 읽었나 — 상태(로딩·에러)는 이 값과 현재 세션을 비교해 파생한다(effect 안에서 setState 금지) */
+  const [bookmarksLoaded, setBookmarksLoaded] = useState<{ userId: string; ok: boolean } | null>(null);
   /** 익명 찜 넛지는 세션당 한 번 */
   const bookmarkNudgedRef = useRef(false);
   const [tab, setTab] = useState<TabKey>("all");
@@ -196,18 +198,39 @@ export function useMapScreen({
     [places, bookmarked],
   );
 
-  // 세션이 바뀌면(첫 로드·로그인 승계·로그아웃·탈퇴) 찜은 그 사용자의 것으로 — 목은 lib/data 메모리라 바로 온다
+  // 세션이 바뀌면(첫 로드·로그인 승계·로그아웃·탈퇴) 찜은 그 사용자의 것으로 — 목은 lib/data 메모리라 바로 온다.
+  // 서버가 준 초기값으로 시작하므로 status는 ready에서 출발하고, 세션이 바뀔 때만 다시 읽는다(내 활동 찜 탭의 4상태).
   const sessionUserId = session?.userId ?? null;
   useEffect(() => {
-    if (sessionUserId === null) return;
+    if (sessionUserId === null || bookmarksLoaded?.userId === sessionUserId) return;
     let alive = true;
-    void getBookmarkedPlaceIds().then((ids) => {
-      if (alive) setBookmarkedIds(ids);
-    });
+    getBookmarkedPlaceIds().then(
+      (ids) => {
+        if (!alive) return;
+        setBookmarkedIds(ids);
+        setBookmarksLoaded({ userId: sessionUserId, ok: true });
+      },
+      () => {
+        if (alive) setBookmarksLoaded({ userId: sessionUserId, ok: false });
+      },
+    );
     return () => {
       alive = false;
     };
-  }, [sessionUserId]);
+  }, [sessionUserId, bookmarksLoaded]);
+
+  /** 내 활동 찜 탭의 4상태 — 아직 이 세션의 찜을 못 읽었으면 로딩, 실패면 에러 */
+  const bookmarksStatus: LoadStatus =
+    sessionUserId === null || bookmarksLoaded?.userId === sessionUserId
+      ? bookmarksLoaded?.ok === false
+        ? "error"
+        : "ready"
+      : "loading";
+
+  /** 찜 탭 [다시 시도] — 읽은 표식을 지우면 위 effect가 다시 돈다 */
+  const retryBookmarks = useCallback(() => {
+    setBookmarksLoaded(null);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -302,13 +325,18 @@ export function useMapScreen({
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
   );
+  /* 신규 패널에서 0곳인 이유는 둘이다: 이번 주 새 제보가 없거나(new), 켜 둔 다른 조건이 걸러냈거나(filter).
+     후자에 "이번 주 새 제보가 없어요"를 띄우면 신규가 있는데 없다고 말하게 된다 (gap-sweeper 2026-09-04). */
+  const hasAnyNew = useMemo(() => places.some((p) => p.isNew), [places]);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
       ? "bookmarks"
-      : chips.some(isSideChip)
-        ? "filter"
-        : newPanelOpen
-          ? "new"
+      : newPanelOpen
+        ? hasAnyNew
+          ? "filter"
+          : "new"
+        : chips.some(isSideChip)
+          ? "filter"
           : "area";
 
   /* ── 지도 이벤트 ── */
@@ -459,9 +487,11 @@ export function useMapScreen({
     setQuery("");
   }, []);
 
-  /** 필터 빈 상태의 [필터 해제] — 칩 전부 해제 */
-  const clearChips = useCallback(() => {
-    setChips([]);
+  /** 필터 빈 상태의 [필터 해제] — 칩·카테고리·검색어를 함께 푼다. 신규 패널이면 그 칩은 남긴다(패널이 닫혀 버린다) */
+  const clearFilters = useCallback(() => {
+    setChips((prev) => (prev.includes("new") ? ["new"] : []));
+    setTab("all");
+    setQuery("");
   }, []);
 
   /** 검색 확정(Enter/돋보기): 결과가 다 보이게 지도 이동 */
@@ -716,6 +746,7 @@ export function useMapScreen({
   const closeMe = useCallback((source: "ui" | "history" = "ui") => {
     setMeOpen(false);
     setMePlaceIds([]);
+    setMeTab("bookmarks"); // 다음에 열 때도 기본은 찜 (design 화면 5-2)
     setSnap(listSnapRef.current);
     if (source === "ui" && isMeHistoryState(window.history.state)) window.history.back();
   }, []);
@@ -816,6 +847,7 @@ export function useMapScreen({
     status,
     mapErrorReason: mapError,
     emptyKind,
+    bookmarksStatus,
     // 파생
     items,
     sorted,
@@ -830,7 +862,7 @@ export function useMapScreen({
     // 액션
     setTab,
     toggleChip,
-    clearChips,
+    clearFilters,
     setQuery,
     clearQuery,
     submitSearch,
@@ -856,6 +888,7 @@ export function useMapScreen({
     setMePlaceIds,
     handleSignedOut,
     handleAccountDeleted,
+    retryBookmarks,
     openReport,
     cancelReport,
     backReportStep,

@@ -232,6 +232,8 @@ function MapScreenBody({
               tab={s.meTab}
               onTabChange={s.setMeTab}
               bookmarkedPlaces={s.bookmarkedPlaces}
+              bookmarksStatus={s.bookmarksStatus}
+              onRetryBookmarks={s.retryBookmarks}
               origin={s.origin}
               onOpenPlace={s.selectFromCard}
               onToggleBookmark={s.toggleBookmark}
@@ -273,7 +275,7 @@ function MapScreenBody({
         onDismissMe={s.closeMe}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
-        onClearChips={s.clearChips}
+        onClearFilters={s.clearFilters}
         onReport={s.openReport}
         onRetry={reloadPage}
       />

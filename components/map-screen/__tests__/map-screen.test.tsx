@@ -1181,7 +1181,8 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     expect(pushState).toHaveBeenLastCalledWith({ saeuMe: true }, "", "/");
     expect(screen.queryByRole("searchbox")).toBeNull();
     expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
-    const list = within(panel).getByRole("list", { name: "찜한 곳" });
+    // 찜은 세션이 로드된 뒤 다시 읽는다(그동안 스켈레톤) — 4상태
+    const list = await within(panel).findByRole("list", { name: "찜한 곳" });
     expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(2);
     await waitFor(() => {
       expect(screen.getAllByTestId("marker").map((m) => m.textContent).sort()).toEqual(
@@ -1262,5 +1263,78 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     expect(screen.getByRole("status")).toHaveTextContent(BOOKMARK_NUDGE_NOTICE);
     const { toggleBookmark } = await import("@/lib/data");
     for (const id of ["nara", "changwoo", "hana"]) await toggleBookmark(id);
+  });
+});
+
+describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상태·기본 탭 (gap-sweeper 2026-09-04)", () => {
+  let back: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    back = vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.history.replaceState(null, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, "", "/");
+  });
+
+  /** 세션이 카카오로 로드된 뒤 프로필을 눌러 패널을 연다 */
+  const openMe = async () => {
+    await waitFor(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "내 활동" }));
+      expect(await screen.findByRole("region", { name: "내 활동" })).toBeInTheDocument();
+    });
+    return screen.getByRole("region", { name: "내 활동" });
+  };
+
+  it("내 활동 ✕는 우리 엔트리를 빼고 닫는다 — 클릭 이벤트가 source로 새면 엔트리가 남는다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    await openMe();
+    window.history.replaceState({ saeuMe: true }, "", "/");
+    fireEvent.click(screen.getByRole("button", { name: "내 활동 닫기" }));
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
+  });
+
+  it("내 활동은 다시 열 때도 기본이 찜 탭", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const panel = await openMe();
+    fireEvent.click(within(panel).getByRole("tab", { name: "내 제보" }));
+    await waitFor(() => {
+      expect(within(panel).getByRole("tab", { name: "내 제보" })).toHaveAttribute("aria-selected", "true");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 활동 닫기" }));
+    const reopened = await openMe();
+    expect(within(reopened).getByRole("tab", { name: "찜" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("신규 패널이 다른 조건 때문에 0곳이면 '조건에 맞는 집이 없어요' + [필터 해제]가 검색어까지 푼다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
+    // 신규(수성2호)와 안 겹치는 검색어 → 0곳이지만 신규 자체는 있다
+    fireEvent.change(screen.getByRole("searchbox", { name: "가게·동네 검색" }), {
+      target: { value: "노량진" },
+    });
+    const empty = await screen.findByRole("status");
+    expect(empty).toHaveTextContent("조건에 맞는 집이 없어요");
+    expect(empty).not.toHaveTextContent("이번 주 새 제보가 없어요");
+    fireEvent.click(within(empty).getByRole("button", { name: "필터 해제" }));
+    // 검색어는 풀리고 신규 칩은 남는다(패널이 닫히면 안 된다)
+    expect(screen.getByRole("searchbox", { name: "가게·동네 검색" })).toHaveValue("");
+    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
+  });
+
+  it("신규가 아예 없으면 '이번 주 새 제보가 없어요'", async () => {
+    renderScreen({ places: seed().filter((p) => !p.isNew) });
+    await screen.findByRole("heading", { name: /곳$/ });
+    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("이번 주 새 제보가 없어요");
   });
 });

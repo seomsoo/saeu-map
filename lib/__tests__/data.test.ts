@@ -606,11 +606,12 @@ describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·�
 
   it("수정: 본인만, editedAt 기록, 남의 리뷰는 forbidden", async () => {
     await settle(signInWithKakao());
-    const { review } = await settle(submitReview(input(), NOW));
+    // 등록 테스트가 이미 p004에 남겼다 — 핀당 1개라 다른 가게에 쓴다
+    const { review } = await settle(submitReview(input({ placeId: "p041" }), NOW));
     const updated = await settle(updateReview(review.id, { rating: 5, text: " 고쳤어요 " }, NOW));
     expect(updated).toMatchObject({ id: review.id, rating: 5, text: "고쳤어요" });
     expect(updated.editedAt).toBe(new Date(Date.parse(NOW)).toISOString());
-    expect((await getPlaceDetail("p004", NOW))?.reviews.find((r) => r.id === review.id)).toBe(updated);
+    expect((await getPlaceDetail("p041", NOW))?.reviews.find((r) => r.id === review.id)).toBe(updated);
     // 남의 리뷰(rv003 성수사람)
     await expect(updateReview("rv003", { rating: 1, text: "" }, NOW)).rejects.toThrow("forbidden");
     await expect(updateReview(review.id, { rating: 9, text: "" }, NOW)).rejects.toThrow();
@@ -618,7 +619,8 @@ describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·�
 
   it("삭제: 소프트 — 상세·목록·내 리뷰·평균에서 빠지고 확인 기록은 남는다, 두 번 삭제·남의 리뷰는 거부", async () => {
     await settle(signInWithKakao());
-    const { review } = await settle(submitReview(input({ placeId: "p018", rating: 1 }), NOW));
+    // 목 카카오 유저가 p018에 이미 가진 리뷰(rv004) — 핀당 1개라 새로 쓰지 않고 그걸 지운다
+    const review = { id: "rv004" };
     const withMine = ratingSummary((await getPlaceDetail("p018", NOW))?.reviews ?? []);
     const checkins = (await getCheckins("p018", NOW)).length;
     await settle(deleteReview(review.id));
@@ -630,6 +632,43 @@ describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·�
     expect(await getCheckins("p018", NOW)).toHaveLength(checkins);
     await expect(deleteReview(review.id)).rejects.toThrow("forbidden");
     await expect(deleteReview("rv003")).rejects.toThrow("forbidden");
+  });
+});
+
+describe("리뷰는 핀당 1개 (spec 5 스팸 4겹 2 — 두 번째는 수정)", () => {
+  const NOW = "2030-03-04T12:00:00+09:00";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("이미 내 리뷰가 있는 가게면 지연 없이 거부하고, 그 리뷰를 지우면 다시 쓸 수 있다", async () => {
+    await settle(signInWithKakao());
+    const input = { placeId: "p162", rating: 4, text: "", photo: null };
+    // 목 카카오 유저는 p162에 이미 리뷰가 있다(rv001)
+    await expect(submitReview(input, NOW)).rejects.toThrow("already reviewed");
+    await settle(deleteReview("rv001"));
+    const { review } = await settle(submitReview(input, NOW));
+    expect(review.placeId).toBe("p162");
+    // 두 번째는 다시 거부
+    await expect(submitReview(input, NOW)).rejects.toThrow("already reviewed");
+    await settle(deleteReview(review.id));
+  });
+
+  it("남이 쓴 리뷰는 상관없다 (같은 가게에 남의 리뷰만 있으면 쓸 수 있다)", async () => {
+    await settle(signInWithKakao());
+    // p019에는 남의 리뷰(성수부두단골)만 있다 — 내 리뷰만 판정에 쓰인다
+    const { review } = await settle(
+      submitReview({ placeId: "p019", rating: 5, text: "", photo: null }, NOW),
+    );
+    expect(review.authorId).toBe("u-kakao-1");
+    await settle(deleteReview(review.id));
   });
 });
 
@@ -678,6 +717,8 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
     await toggleBookmark("p018");
     await settle(checkIn("p041", NOW));
     const created: Place = await settle(submitReport(reportInput(), NOW));
+    // 앞 테스트들이 목 리뷰를 지웠을 수 있다 — 지울 내 리뷰를 여기서 직접 만든다
+    await settle(submitReview({ placeId: "p045", rating: 4, text: "", photo: null }, NOW));
     const mineBefore = await getMyReviews(NOW);
     expect(mineBefore.length).toBeGreaterThan(0);
 

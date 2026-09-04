@@ -616,6 +616,13 @@ export type ReviewPatch = z.infer<typeof reviewPatchSchema>;
 
 let reviewSeq = 0;
 
+/** 이 가게에 현재 세션이 쓴(삭제되지 않은) 리뷰 — 핀당 1개 규칙과 [리뷰 수정] 전환의 기준. */
+function myReviewOf(placeId: string, now: DateInput): Review | undefined {
+  return visibleReviews(dataset(now).reviews).find(
+    (r) => r.placeId === placeId && r.authorId === currentSession.userId,
+  );
+}
+
 /**
  * 리뷰 등록. 익명은 거부한다(spec 5 "익명 별점 없음" — 게이트는 UI가 먼저 세우고 여기는 마지막 방어선).
  * 속도 제한 자리: 핀당 리뷰 1개(같은 가게 두 번째 리뷰는 수정으로), 일 N개 — Phase 6 Upstash(spec 스팸 4겹 2).
@@ -629,6 +636,8 @@ export async function submitReview(
 ): Promise<{ review: Review; place: Place }> {
   const parsed = reviewInputSchema.parse(input);
   if (currentSession.provider !== "kakao") throw new Error("login required");
+  // 핀당 1개 (spec 5 스팸 4겹 2) — 두 번째는 수정이다. UI가 먼저 [리뷰 수정]으로 보내고 여기가 마지막 방어선.
+  if (myReviewOf(parsed.placeId, now)) throw new Error("already reviewed");
   await simulateWrite();
   const data = dataset(now);
   const current = data.places.find((p) => p.id === parsed.placeId);

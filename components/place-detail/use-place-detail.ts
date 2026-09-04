@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import type { ReviewSaveResult } from "@/components/review/use-review-form";
 import {
@@ -194,12 +194,25 @@ export function usePlaceDetail({
     };
   }, []);
 
-  /** [리뷰 남기기] — 익명이면 로그인 시트, 로그인하면(또는 이미면) 폼. 게이트 뒤 폼으로 복귀(spec 5). */
+  /** 이 가게에 쓴 내 리뷰 — 있으면 [리뷰 남기기]가 [리뷰 수정]이 된다(핀당 1개, spec 5 스팸 4겹 2). */
+  const currentUserId = session?.userId ?? null;
+  const myReview = useMemo(
+    () => (currentUserId === null ? undefined : reviews.find((r) => r.authorId === currentUserId)),
+    [reviews, currentUserId],
+  );
+  /** 늦게 온 게이트 결과가 최신 목록을 봐야 한다 — 로그인 직후 리렌더 전에 resolve될 수 있다 */
+  const myReviewRef = useRef(myReview);
+  useEffect(() => {
+    myReviewRef.current = myReview;
+  }, [myReview]);
+
+  /** [리뷰 남기기]·[리뷰 수정] — 익명이면 로그인 시트, 로그인하면(또는 이미면) 폼. 게이트 뒤 폼으로 복귀(spec 5). */
   const writeReview = useCallback(() => {
     void requireLogin("review").then((ok) => {
       if (!ok || !alive.current) return;
       pushOverlayHistoryEntry();
-      setReviewForm({});
+      const mine = myReviewRef.current;
+      setReviewForm(mine ? { initial: mine } : {});
     });
   }, [requireLogin]);
 
@@ -257,7 +270,9 @@ export function usePlaceDetail({
     closePhoto,
     reportPhoto,
     /** 본인 리뷰 판정용 — 세션을 아직 모르면 null(아무 리뷰도 내 것이 아니다) */
-    currentUserId: session?.userId ?? null,
+    currentUserId,
+    /** 이 가게에 이미 쓴 내 리뷰 — 기여 블록 버튼이 [리뷰 수정]으로 바뀐다 */
+    hasMyReview: myReview !== undefined,
     reviewForm,
     writeReview,
     editReview,

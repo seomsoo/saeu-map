@@ -518,7 +518,11 @@ export function BottomSheet({
           <button
             type="button"
             aria-label={dismissLabel}
-            onClick={onDismiss}
+            /* 인자 없이 부른다 — 닫기 함수들은 (source)를 받는데 MouseEvent가 들어가면 "ui" 판정이 깨져
+               히스토리 엔트리가 남는다 (gap-sweeper 2026-09-04) */
+            onClick={() => {
+              onDismiss();
+            }}
             onPointerDown={(e) => {
               e.stopPropagation();
             }}

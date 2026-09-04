@@ -22,6 +22,9 @@ interface ActivityPanelProps {
   onTabChange: (tab: ActivityTab) => void;
   /** 찜한 가게 — 진실은 지도 훅(places ∩ bookmarkedIds) */
   bookmarkedPlaces: readonly Place[];
+  /** 찜 목록 로드 상태 (4상태) — 목록과 같은 곳에서 온다 */
+  bookmarksStatus: LoadStatus;
+  onRetryBookmarks: () => void;
   origin: LatLng | null;
   onOpenPlace: (id: string) => void;
   onToggleBookmark: (id: string) => void;
@@ -67,6 +70,8 @@ export function ActivityPanel({
   tab,
   onTabChange,
   bookmarkedPlaces,
+  bookmarksStatus,
+  onRetryBookmarks,
   origin,
   onOpenPlace,
   onToggleBookmark,
@@ -122,6 +127,7 @@ export function ActivityPanel({
       </div>
 
       {tab === "bookmarks" &&
+        (statusView(bookmarksStatus, onRetryBookmarks, <ListSkeleton />) ??
         (bookmarkedPlaces.length === 0 ? (
           <EmptyState title="아직 찜한 곳이 없어요" description="가게 상세의 하트로 찜할 수 있어요" />
         ) : (
@@ -149,7 +155,7 @@ export function ActivityPanel({
               />
             ))}
           </ul>
-        ))}
+        )))}
 
       {tab === "reviews" &&
         (statusView(a.reviewsStatus, a.retry, <ReviewsSkeleton />) ??

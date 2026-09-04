@@ -112,6 +112,7 @@ export function PlaceDetail({
         now={now}
         done={d.done}
         onCheckIn={d.checkIn}
+        hasMyReview={d.hasMyReview}
         onWriteReview={d.writeReview}
       />
       <SectionBand />
