@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
 import { PlaceDetail } from "@/components/place-detail/place-detail";
@@ -19,6 +20,7 @@ import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
 import { PlaceSheet } from "./place-sheet";
+import { ProfileButton } from "./profile-button";
 import { SearchBar } from "./search-bar";
 import { useMapScreen } from "./use-map-screen";
 
@@ -42,8 +44,17 @@ function reloadPage() {
 /**
  * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로,
  * [＋ 제보]를 누르면 화면 3(제보)으로 바뀐다. 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
+ * 세션(익명/카카오)과 로그인 시트는 SessionProvider가 갖고, 화면 훅은 `useSession()`으로 읽는다(화면 5).
  */
-export default function MapScreen({
+export default function MapScreen(props: MapScreenProps) {
+  return (
+    <SessionProvider>
+      <MapScreenBody {...props} />
+    </SessionProvider>
+  );
+}
+
+function MapScreenBody({
   now,
   places,
   stats,
@@ -54,6 +65,7 @@ export default function MapScreen({
 }: MapScreenProps) {
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
+  const { session } = useSession();
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
@@ -139,6 +151,7 @@ export default function MapScreen({
                 onChange={s.setQuery}
                 onClear={s.clearQuery}
                 onSubmit={s.submitSearch}
+                trailing={<ProfileButton session={session} onClick={s.openMe} />}
               />
             </div>
             {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}

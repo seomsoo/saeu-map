@@ -9,6 +9,7 @@ import {
   useState,
   type RefObject,
 } from "react";
+import { useSession } from "@/components/auth/session-provider";
 import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
 import {
@@ -49,6 +50,9 @@ const SEARCH_FIT_MAX_ZOOM = 16;
 /** 서울·근교. 위치가 이 밖이면 거리 정렬에만 쓰고 지도는 옮기지 않는다. */
 const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
 const NOTICE_MS = 2000;
+/** 익명 찜 이 개수째에 로그인 넛지 한 번 (spec 5 "벽은 아님") */
+const BOOKMARK_NUDGE_AT = 3;
+export const BOOKMARK_NUDGE_NOTICE = "로그인하면 찜이 기기가 바뀌어도 남아요";
 /** 프로그램적 이동(카드 탭·위치 이동) 뒤 이 시간 안에 온 idle은 정렬 기준점을 갱신하지 않는다 */
 const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 /** id 문자 화이트리스트 — 디코딩이 필요 없고, 이상한 %시퀀스로 popstate가 터지지 않는다 (security-reviewer 2026-09-02) */
@@ -111,9 +115,12 @@ export function useMapScreen({
   mapRef,
   topStackRef,
 }: UseMapScreenInput) {
+  const { session, requireLogin } = useSession();
   // 가게·찜은 서버 초기값에서 시작해 클라이언트 state가 진실이 된다 (다녀왔다면·찜 결과를 카드·칩 필터에 반영)
   const [places, setPlaces] = useState(initialPlaces);
   const [bookmarkedIds, setBookmarkedIds] = useState(initialBookmarkedIds);
+  /** 익명 찜 넛지는 세션당 한 번 */
+  const bookmarkNudgedRef = useRef(false);
   const [tab, setTab] = useState<TabKey>("all");
   const [chips, setChips] = useState<ChipKey[]>([]);
   const [query, setQuery] = useState("");
@@ -150,6 +157,11 @@ export function useMapScreen({
   useEffect(() => {
     reportStepRef.current = reportStep;
   }, [reportStep]);
+  /** popstate가 상세가 열려 있지 않을 때(오버레이 엔트리가 빠질 때 등) 목록 스냅을 건드리지 않게 */
+  const detailIdRef = useRef<string | null>(initialPlaceId ?? null);
+  useEffect(() => {
+    detailIdRef.current = detailId;
+  }, [detailId]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
   /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
@@ -601,7 +613,7 @@ export function useMapScreen({
       }
       const id = placeIdFromPath(window.location.pathname);
       if (id) openDetail(id, "history");
-      else closeDetail("history");
+      else if (detailIdRef.current !== null) closeDetail("history");
     };
     window.addEventListener("popstate", onPopState);
     return () => {
@@ -609,15 +621,34 @@ export function useMapScreen({
     };
   }, [openDetail, closeDetail, closeReportFlow, goToReportStep]);
 
-  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
+  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts, 세션별). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
   const toggleBookmark = useCallback(
     (id: string) => {
-      requestToggleBookmark(id).then(setBookmarkedIds, () => {
-        showNotice("찜을 저장하지 못했어요");
-      });
+      requestToggleBookmark(id).then(
+        (ids) => {
+          setBookmarkedIds(ids);
+          if (
+            session?.provider === "anonymous" &&
+            ids.length === BOOKMARK_NUDGE_AT &&
+            ids.includes(id) &&
+            !bookmarkNudgedRef.current
+          ) {
+            bookmarkNudgedRef.current = true;
+            showNotice(BOOKMARK_NUDGE_NOTICE);
+          }
+        },
+        () => {
+          showNotice("찜을 저장하지 못했어요");
+        },
+      );
     },
-    [showNotice],
+    [session, showNotice],
   );
+
+  /** 검색 바 프로필 버튼 — 내 활동(화면 5). 익명이면 로그인 시트가 먼저 선다. 패널 열기는 다음 단위에서 잇는다. */
+  const openMe = useCallback(() => {
+    void requireLogin("me");
+  }, [requireLogin]);
 
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
   const locateMe = useCallback(() => {
@@ -696,6 +727,7 @@ export function useMapScreen({
     dismissEvent,
     showNotice,
     locateMe,
+    openMe,
     openReport,
     cancelReport,
     backReportStep,
