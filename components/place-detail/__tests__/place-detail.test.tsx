@@ -30,9 +30,13 @@ const photo = (n: number): Photo => ({
   uploadedAt: day(n),
 });
 
+let reviewSeq = 0;
 function review(rating: number, overrides: Partial<Review> = {}): Review {
+  reviewSeq += 1;
   return {
+    id: `rv${String(reviewSeq)}`,
     placeId: "nara",
+    authorId: "u-other",
     rating,
     text: "대하가 실했어요.",
     nickname: "새우헌터",

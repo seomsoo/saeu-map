@@ -64,7 +64,7 @@ export function ReviewSection({ status, reviews, naverUrl, onRetry }: ReviewSect
       {status === "ready" && reviews.length > 0 && (
         <ul className="mt-1 divide-y divide-line-hairline">
           {reviews.map((review) => (
-            <li key={`${review.nickname}-${review.at}`} className="py-3">
+            <li key={review.id} className="py-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="min-w-0 truncate text-body-m-semibold text-fg">{review.nickname}</span>
                 <span className="shrink-0 text-caption-l-regular text-fg-tertiary tabular-nums">

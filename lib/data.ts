@@ -11,13 +11,16 @@ import type {
   Checkin,
   EventCard,
   LatLng,
+  MyReview,
   NearestStation,
   Photo,
   Place,
   PlaceDetail,
+  PlaceFlagReason,
   PlaceTag,
   Review,
   SeasonStats,
+  Session,
 } from "./types";
 import {
   type DateInput,
@@ -148,8 +151,38 @@ function dataset(now: DateInput): Dataset {
   return built;
 }
 
-/** 찜 자리 — 모듈 메모리 Set. 클라이언트에선 탭 단위(새로고침 시 소멸), 서버에선 항상 빈 값. Phase 4에서 사용자 단위로 교체. */
-const bookmarkedIds = new Set<string>();
+/* ── 세션(목) — Supabase 익명 auth + 카카오 linkIdentity 흉내 (spec 5 로그인) ──
+ * 모듈 메모리라 클라이언트에선 탭 단위(새로고침 = 새 익명), 서버에선 한 번도 로그인하지 않은 익명 하나가
+ * 요청 사이에 공유된다 — 서버는 읽기(빈 찜)만 하고 세션 쓰기는 전부 클라이언트 핸들러에서만 부른다. */
+let anonymousSeq = 0;
+function newAnonymousSession(): Session {
+  anonymousSeq += 1;
+  return { userId: `anon-local-${String(anonymousSeq)}`, provider: "anonymous", nickname: null };
+}
+let currentSession: Session = newAnonymousSession();
+
+/** 목 카카오 유저 = 목 리뷰 2건의 작성자 "새우헌터" — 로그인하자마자 내 리뷰·본인 [수정][삭제]가 보인다. */
+const KAKAO_MOCK_USER_ID = "u-kakao-1";
+const KAKAO_MOCK_NICKNAME = "새우헌터";
+/** 바꾼 닉네임은 로그아웃 뒤 다시 로그인해도 남는다(프로필 컬럼 흉내). */
+let kakaoNickname = KAKAO_MOCK_NICKNAME;
+
+/** 찜 — 사용자별 Set(bookmarks(user_id, place_id) 흉내). 익명 찜은 기기 한정이라 새 익명이 되면 사라진다. */
+const bookmarksByUser = new Map<string, Set<string>>();
+function bookmarksOf(userId: string): Set<string> {
+  let set = bookmarksByUser.get(userId);
+  if (!set) {
+    set = new Set();
+    bookmarksByUser.set(userId, set);
+  }
+  return set;
+}
+
+/** 소프트 삭제된 리뷰 id(deleted_at 흉내) — 화면·평균에서 즉시 제외, 관리자에겐 보인다(spec 5). 데이터셋 캐시가 날짜별이라 id로 거른다. */
+const deletedReviewIds = new Set<string>();
+function visibleReviews(reviews: readonly Review[]): Review[] {
+  return reviews.filter((r) => !deletedReviewIds.has(r.id));
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -210,7 +243,7 @@ export function getPlaceDetail(
   if (!place) return Promise.resolve(undefined);
   return Promise.resolve({
     place,
-    reviews: sortReviewsNewest(reviews.filter((r) => r.placeId === id)),
+    reviews: sortReviewsNewest(visibleReviews(reviews).filter((r) => r.placeId === id)),
   });
 }
 
@@ -228,7 +261,7 @@ export function getReviews(
   placeId?: string,
   now: DateInput = Date.now(),
 ): Promise<Review[]> {
-  const { reviews } = dataset(now);
+  const reviews = visibleReviews(dataset(now).reviews);
   return Promise.resolve(
     placeId ? reviews.filter((r) => r.placeId === placeId) : reviews,
   );
@@ -294,8 +327,9 @@ export function getEventCard(
   return Promise.resolve(inPeriod ? rawEventCard : null);
 }
 
+/** 현재 세션의 찜 목록. 서버에서는 항상 빈 값(서버 세션은 로그인하지 않는다). */
 export function getBookmarkedPlaceIds(): Promise<string[]> {
-  return Promise.resolve([...bookmarkedIds]);
+  return Promise.resolve([...bookmarksOf(currentSession.userId)]);
 }
 
 /** 좌표가 속한 시군구 라벨("마포구", "김포시(경기)"). 한국 밖이면 null — 제보 2단계가 핀 확정 때 검사한다(decisions 2026-09-04). */
@@ -326,7 +360,10 @@ export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
     lastCheckedAt: at,
   };
   data.places = data.places.map((p) => (p.id === id ? updated : p));
-  data.checkins = [...data.checkins, { placeId: id, type: "visited", at, actor: "anon-local" }];
+  data.checkins = [
+    ...data.checkins,
+    { placeId: id, type: "visited", at, actor: currentSession.userId },
+  ];
   return updated;
 }
 
@@ -433,18 +470,228 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     isNew: true,
     createdAt,
     ...(report.duplicateOf !== null && { duplicateSuspectOf: report.duplicateOf }),
+    reporterId: currentSession.userId,
   };
   data.places = [...data.places, place];
   return place;
 }
 
-/** 찜 토글 (spec 5 "찜"). 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
+/** 찜 토글 (spec 5 "찜") — 현재 세션 기준. 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
 export function toggleBookmark(placeId: string): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
   return Promise.resolve(placeId).then((raw) => {
     const id = idSchema.parse(raw);
-    if (bookmarkedIds.has(id)) bookmarkedIds.delete(id);
-    else bookmarkedIds.add(id);
-    return [...bookmarkedIds];
+    const mine = bookmarksOf(currentSession.userId);
+    if (mine.has(id)) mine.delete(id);
+    else mine.add(id);
+    return [...mine];
   });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 공개 API — 세션 (spec 5 로그인. 목: Supabase 익명 auth + 카카오 linkIdentity 흉내)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+export function getSession(): Promise<Session> {
+  return Promise.resolve(currentSession);
+}
+
+/**
+ * 카카오 로그인(목). 익명 세션의 기록(찜·제보·확인)을 카카오 id로 승계한다 — linkIdentity와 같은 결과.
+ * 실제 OAuth·세션 지속은 Phase 6. 실패(10%)하면 세션은 그대로.
+ */
+export async function signInWithKakao(): Promise<Session> {
+  if (currentSession.provider === "kakao") return currentSession;
+  await simulateWrite();
+  const anonymousId = currentSession.userId;
+  const kakaoId = KAKAO_MOCK_USER_ID;
+  // 찜 승계: 익명 Set을 카카오 Set에 합친다
+  const carried = bookmarksOf(anonymousId);
+  const target = bookmarksOf(kakaoId);
+  for (const id of carried) target.add(id);
+  bookmarksByUser.delete(anonymousId);
+  // 제보·확인 승계 (캐시된 데이터셋 전부 — 날짜별 캐시라 한 곳만 고치면 다른 now에서 되돌아온다)
+  for (const data of datasetCache.values()) {
+    data.places = data.places.map((p) =>
+      p.reporterId === anonymousId ? { ...p, reporterId: kakaoId } : p,
+    );
+    data.checkins = data.checkins.map((c) =>
+      c.actor === anonymousId ? { ...c, actor: kakaoId } : c,
+    );
+  }
+  currentSession = { userId: kakaoId, provider: "kakao", nickname: kakaoNickname };
+  return currentSession;
+}
+
+/** 로그아웃 — 새 익명 세션. 익명 찜은 기기 한정이라 이전 카카오 찜은 다음 로그인 때 다시 보인다. */
+export function signOut(): Promise<Session> {
+  currentSession = newAnonymousSession();
+  return Promise.resolve(currentSession);
+}
+
+/**
+ * 탈퇴 (spec 5 "개인 데이터 완전 삭제"). 내 리뷰는 소프트 삭제(관리자 기록용), 찜은 삭제,
+ * 제보한 가게는 남기되 작성자를 뗀다(가게는 공공 데이터). 끝나면 새 익명 세션.
+ */
+export async function deleteAccount(): Promise<Session> {
+  if (currentSession.provider !== "kakao") throw new Error("login required");
+  await simulateWrite();
+  const me = currentSession.userId;
+  for (const data of datasetCache.values()) {
+    for (const r of data.reviews) if (r.authorId === me) deletedReviewIds.add(r.id);
+    data.places = data.places.map((p) => {
+      if (p.reporterId !== me) return p;
+      const rest: Place = { ...p };
+      delete rest.reporterId;
+      return rest;
+    });
+  }
+  bookmarksByUser.delete(me);
+  kakaoNickname = KAKAO_MOCK_NICKNAME;
+  currentSession = newAnonymousSession();
+  return currentSession;
+}
+
+/** 닉네임 2~12자 (spec 5 "카카오 프로필 기본, 수정 가능"). */
+export const nicknameSchema = z.string().trim().min(2).max(12);
+
+/** 닉네임 변경 — 카카오 세션만. 이미 쓴 리뷰의 표시 이름도 같이 바뀐다(프로필 조인 흉내). */
+export async function updateNickname(nickname: string): Promise<Session> {
+  const next = nicknameSchema.parse(nickname);
+  if (currentSession.provider !== "kakao") throw new Error("login required");
+  await simulateWrite();
+  const me = currentSession.userId;
+  for (const data of datasetCache.values()) {
+    data.reviews = data.reviews.map((r) => (r.authorId === me ? { ...r, nickname: next } : r));
+  }
+  kakaoNickname = next;
+  currentSession = { ...currentSession, nickname: next };
+  return currentSession;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 공개 API — 리뷰 쓰기 (spec 5 리뷰: 카카오 필수, 본인 수정·삭제, 소프트 삭제)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/** 리뷰 입력(design 화면 5 변형 (b)): 별점 필수, 후기 선택 500자, 사진 1장 선택(목은 버린다). */
+export const reviewInputSchema = z.object({
+  placeId: idSchema,
+  rating: z.number().int().min(1).max(5),
+  text: z.string().trim().max(500),
+  photo: z
+    .instanceof(File)
+    .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+    .nullable(),
+});
+export type ReviewInput = z.infer<typeof reviewInputSchema>;
+
+/** 수정은 별점·후기만 (사진 교체는 Phase 6 저장소와 함께). */
+export const reviewPatchSchema = reviewInputSchema.pick({ rating: true, text: true });
+export type ReviewPatch = z.infer<typeof reviewPatchSchema>;
+
+let reviewSeq = 0;
+
+/**
+ * 리뷰 등록. 익명은 거부한다(spec 5 "익명 별점 없음" — 게이트는 UI가 먼저 세우고 여기는 마지막 방어선).
+ * 등록은 확인이기도 하다: 확인일 갱신 + checkins 이벤트 + 확인 +1 (spec 5 "리뷰 등록 시 확인일도 갱신").
+ * 갱신된 Place도 함께 돌려준다 — 호출자가 상호 블록 캡션("오늘 확인")을 바로 맞춘다.
+ */
+export async function submitReview(
+  input: ReviewInput,
+  now: DateInput,
+): Promise<{ review: Review; place: Place }> {
+  const parsed = reviewInputSchema.parse(input);
+  if (currentSession.provider !== "kakao") throw new Error("login required");
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === parsed.placeId);
+  if (!current) throw new Error("place not found");
+  const at = new Date(toMs(now)).toISOString();
+  reviewSeq += 1;
+  const review: Review = {
+    id: `rv-local-${String(reviewSeq)}`,
+    placeId: parsed.placeId,
+    authorId: currentSession.userId,
+    rating: parsed.rating,
+    text: parsed.text,
+    nickname: currentSession.nickname ?? KAKAO_MOCK_NICKNAME,
+    at,
+  };
+  const place: Place = { ...current, checkCount: current.checkCount + 1, lastCheckedAt: at };
+  data.reviews = [...data.reviews, review];
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  data.checkins = [
+    ...data.checkins,
+    { placeId: place.id, type: "visited", at, actor: currentSession.userId },
+  ];
+  return { review, place };
+}
+
+/** 본인 리뷰 수정 — 별점·후기, `editedAt` 기록(화면엔 "수정됨"만). 남의 리뷰·삭제된 리뷰는 거부. */
+export async function updateReview(
+  reviewId: string,
+  patch: ReviewPatch,
+  now: DateInput,
+): Promise<Review> {
+  const id = idSchema.parse(reviewId);
+  const changes = reviewPatchSchema.parse(patch);
+  const data = dataset(now);
+  const current = visibleReviews(data.reviews).find((r) => r.id === id);
+  if (!current || current.authorId !== currentSession.userId) throw new Error("forbidden");
+  await simulateWrite();
+  const updated: Review = {
+    ...current,
+    ...changes,
+    editedAt: new Date(toMs(now)).toISOString(),
+  };
+  data.reviews = data.reviews.map((r) => (r.id === id ? updated : r));
+  return updated;
+}
+
+/** 본인 리뷰 소프트 삭제 — 화면·평균에서 즉시 빠지고 checkins 확인 기록은 남는다(spec 5). */
+export async function deleteReview(reviewId: string): Promise<void> {
+  const id = idSchema.parse(reviewId);
+  const mine = [...datasetCache.values()].some((data) =>
+    data.reviews.some(
+      (r) => r.id === id && r.authorId === currentSession.userId && !deletedReviewIds.has(r.id),
+    ),
+  );
+  if (!mine) throw new Error("forbidden");
+  await simulateWrite();
+  deletedReviewIds.add(id);
+}
+
+/** 내 활동 > 내 리뷰 — 현재 세션이 쓴 리뷰(최신순) + 가게명. 숨긴 가게의 리뷰는 뺀다. */
+export function getMyReviews(now: DateInput): Promise<MyReview[]> {
+  const { places, reviews } = dataset(now);
+  const names = new Map(places.map((p) => [p.id, p.name]));
+  const mine = sortReviewsNewest(
+    visibleReviews(reviews).filter((r) => r.authorId === currentSession.userId),
+  ).flatMap((r) => {
+    const placeName = names.get(r.placeId);
+    return placeName === undefined ? [] : [{ ...r, placeName }];
+  });
+  return Promise.resolve(mine);
+}
+
+/** 내 활동 > 내 제보 — 현재 세션이 제보한 가게(최신순). */
+export function getMyReports(now: DateInput): Promise<Place[]> {
+  const mine = dataset(now)
+    .places.filter((p) => p.reporterId === currentSession.userId)
+    .sort((a, b) => toMs(b.createdAt ?? b.lastCheckedAt) - toMs(a.createdAt ?? a.lastCheckedAt));
+  return Promise.resolve(mine);
+}
+
+const placeFlagSchema = z.object({
+  placeId: idSchema,
+  reason: z.enum(["location", "menu", "closed", "other"]),
+});
+
+/**
+ * 신규 패널 [정보가 달라요] 접수 (design 화면 4 변형 (a)). 사진 신고와 같은 계약 — 검증 + 지연만,
+ * 수정 제안 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능").
+ */
+export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
+  placeFlagSchema.parse(input);
+  await simulateWrite();
 }
