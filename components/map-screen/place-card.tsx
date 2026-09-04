@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, type ReactNode } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TAG_LABELS, distanceKm, markerCategory, sideChips } from "@/lib/places";
@@ -17,6 +17,8 @@ interface PlaceCardProps {
   origin: LatLng | null;
   selected: boolean;
   onSelect: (id: string) => void;
+  /** 카드 오른쪽 세로 중앙에 얹히는 액션(내 활동 찜 탭의 하트). 카드 버튼의 형제라 버튼 안에 버튼이 생기지 않는다. */
+  trailing?: ReactNode;
 }
 
 const DOT_CLASS: Record<PlaceTag, string> = {
@@ -59,6 +61,7 @@ export const PlaceCard = memo(function PlaceCard({
   origin,
   selected,
   onSelect,
+  trailing,
 }: PlaceCardProps) {
   const ref = useRef<HTMLLIElement | null>(null);
 
@@ -71,7 +74,7 @@ export const PlaceCard = memo(function PlaceCard({
   const categories = place.tags.map((tag) => TAG_LABELS[tag]).join(" · ");
 
   return (
-    <li ref={ref} data-place-id={place.id}>
+    <li ref={ref} data-place-id={place.id} className={cx(trailing !== undefined && "relative")}>
       <button
         type="button"
         onClick={() => {
@@ -82,6 +85,7 @@ export const PlaceCard = memo(function PlaceCard({
         className={cx(
           "flex w-full gap-3 px-5 py-3 text-left transition-colors",
           selected ? "bg-bg-sunken" : "active:bg-bg-dim",
+          trailing !== undefined && "pr-16",
         )}
       >
         <Thumbnail place={place} />
@@ -122,6 +126,9 @@ export const PlaceCard = memo(function PlaceCard({
           )}
         </div>
       </button>
+      {trailing !== undefined && (
+        <div className="absolute top-1/2 right-3 -translate-y-1/2">{trailing}</div>
+      )}
     </li>
   );
 });

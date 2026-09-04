@@ -63,6 +63,9 @@
   --color-subway-7: #6e7e31;
   --color-subway-8: #d11d70;
   --color-subway-9: #a49d87;
+  /* 카카오 옐로 — 카카오 로그인 버튼의 브랜드 가이드(사실 표기). 우리 팔레트가 아니라 Semantic 역할을
+     주지 않고 로그인 시트의 그 버튼 한 곳에만 쓴다 — decisions 2026-09-04 */
+  --color-kakao-500: #fee500;
 
   /* ===== Semantic / Color (라이트) ===== */
   --color-bg: var(--color-common-0);
@@ -445,8 +448,9 @@ body {
   --sheet-half: max(calc(0.3 * var(--sheet-vh)), 270px);
   --sheet-header-h: 44px;
 }
-/* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다 */
-.saeu-sheet[data-mode="report"] {
+/* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다. 내 활동(화면 5)도 같은 기하 */
+.saeu-sheet[data-mode="report"],
+.saeu-sheet[data-mode="me"] {
   --sheet-half: max(calc(0.4 * var(--sheet-vh)), 330px);
   --sheet-header-h: 44px;
 }
