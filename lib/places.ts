@@ -188,11 +188,16 @@ export function unitChipLabel(menu: Menu): string | null {
   }
 }
 
-/** 대표 메뉴 한 줄 — "왕새우 소금구이 1kg 35,000원". 메뉴가 없으면 null (제보 완료 카드·신규 패널 행). */
+/**
+ * 대표 메뉴 한 줄 — "왕새우 소금구이 1kg 35,000원". 메뉴가 없으면 null (제보 완료 카드·신규 패널 행).
+ * 크롤 메뉴명에 단위가 이미 들어 있으면("생새우대하구이 한판" + 한판) 단위를 한 번만 쓴다.
+ */
 export function primaryMenuLine(place: Place): string | null {
   const menu = primaryMenu(place);
   if (!menu) return null;
-  return [menu.name, unitChipLabel(menu), menu.price !== null ? `${formatPrice(menu.price)}원` : null]
+  const unit = unitChipLabel(menu);
+  const unitDuplicated = unit !== null && menu.name.replace(/\s+/g, "").includes(unit.replace(/\s+/g, ""));
+  return [menu.name, unitDuplicated ? null : unit, menu.price !== null ? `${formatPrice(menu.price)}원` : null]
     .filter(Boolean)
     .join(" ");
 }

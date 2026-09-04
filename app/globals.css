@@ -173,6 +173,7 @@
   /* 절대 위치 요소용 — 절대 오프셋은 containing block의 padding box에서 재므로 부모의
      padding-inline이 밀어주지 않는다. 시트 닫기 ✕가 그 경우 (Codex PR #7 #3). */
   --spacing-safe-right-or-2: max(env(safe-area-inset-right), calc(var(--spacing) * 2));
+  --spacing-safe-left-or-2: max(env(safe-area-inset-left), calc(var(--spacing) * 2));
 }
 
 body {

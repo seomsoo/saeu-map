@@ -694,9 +694,16 @@ export function useMapScreen({
       if (!ok || meOpenRef.current) return;
       const state: SaeuHistoryState = { saeuMe: true };
       if (detailIdRef.current !== null) {
-        // 상세 위에서 눌렀다: 상세 엔트리를 패널로 바꾼다 — 뒤로 한 번에 목록. back()을 기다렸다 push하면 순서가 꼬인다
+        // 상세 위에서 눌렀다: back()을 기다렸다 push하면 순서가 꼬이므로 엔트리를 바꾼다.
+        // 목록에서 연 상세면 그 엔트리를 패널로(뒤로 한 번에 목록), 직접 진입(/place/[id])이면
+        // 목록 엔트리로 만든 뒤 패널을 얹는다 — 안 그러면 닫기의 back()이 이 사이트 밖으로 나간다
         setDetailId(null);
-        window.history.replaceState(state, "", "/");
+        if (isDetailHistoryState(window.history.state)) {
+          window.history.replaceState(state, "", "/");
+        } else {
+          window.history.replaceState(null, "", "/");
+          window.history.pushState(state, "", "/");
+        }
       } else {
         listSnapRef.current = snapRef.current;
         window.history.pushState(state, "", "/");
