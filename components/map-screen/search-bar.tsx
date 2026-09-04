@@ -11,7 +11,8 @@ interface SearchBarProps {
   onSubmit: () => void;
 }
 
-/** 1. 검색바 — 우리 데이터 내 가게명·동네. 입력 즉시 필터, 확정 시 지도 이동. (버틸까 Search Bar) */
+/** 1. 검색바 — 우리 데이터 내 가게명·동네. 입력 즉시 필터, 확정 시 지도 이동.
+ *  지도 위에 떠 있는 pill(칩과 같은 층·문법) — 불투명 블록으로 지도를 덮지 않는다 (decisions 2026-09-04). */
 export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps) {
   const composing = useRef(false);
 
@@ -29,7 +30,7 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="flex h-12 w-full items-center gap-0.5 rounded-8 bg-bg-sunken px-4"
+      className="flex h-12 w-full items-center gap-0.5 rounded-max border border-line bg-bg px-4 shadow-float"
     >
       {/* 히트 영역 40px, 시각은 24px 아이콘 — 음수 마진으로 아이콘 위치는 그대로 (Codex #3 P2) */}
       <button

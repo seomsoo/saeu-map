@@ -131,7 +131,7 @@ export default function MapScreen({
       >
         {s.mode !== "report" && (
           <>
-            <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
+            <div className="px-5 pt-safe-top-or-3">
               <SearchBar
                 value={s.query}
                 onChange={s.setQuery}

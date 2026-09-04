@@ -305,6 +305,11 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 
 - **DevTools 기기 에뮬레이션은 브라우저 UI를 시뮬레이션하지 않는다.** 실기기는 656~702px만 준다. 뷰포트가 142px 줄 때 시트는 비례라 57px만 줄고 상단 스택 72px은 고정이라 안 주므로 손실을 보이는 지도가 전부 흡수한다. 그 위에 칩 행(~70)·FAB 줄(~60)이 또 고정으로 얹혀 아무것도 안 가린 지도는 368 → 254px(−31%). 지금까지의 320/390/430 확인이 전부 이 잘못된 높이 위에서 이뤄졌다 — 검증 뷰포트에 높이를 박는다.
 - **`viewport-fit: cover`가 없었다.** `env(safe-area-inset-*)`는 cover 없이는 **항상 0**을 반환한다. `globals.css:155-159`의 `--spacing-safe-*` 토큰 4개와 이를 쓰는 7곳(`place-sheet.tsx:191`, `step-frame.tsx:63`, `footer-links.tsx:10`, `photo-viewer.tsx` 2곳, `photo-report-sheet.tsx:30`, 로딩 2곳)이 전부 12px 폴백으로 죽어 있었다. `app/layout.tsx`에 한 줄. 사용처는 이미 다 맞게 걸려 있어 고칠 게 없었다.
+- **검색 바를 칩과 같은 떠 있는 pill로.** 불투명 흰 블록(`bg-bg … shadow-float`, 고정 72px)이 지도를 완전히 덮고 있었다. 껍데기를 `rounded-8 bg-bg-sunken` → `rounded-max border border-line bg-bg shadow-float`로 바꿔 칩과 같은 층·같은 문법(pill + 헤어라인 보더 + float)으로 통일하고, 래퍼에서 `bg-bg`·`shadow-float`·`pb-3`을 뺐다(간격은 부모 `gap-2.5`가 담당). 지도가 `absolute inset-0`이라 pill 뒤로 이어져 그려진다. **390×702 실측: 보이는 지도 353 → 421px (+19%).**
+- **`SearchBar`는 `map-screen.tsx` 한 곳에서만 쓰여 새 컴포넌트가 필요 없었다.** `rounded-8 bg-bg-sunken` 입력 껍데기를 복붙한 나머지 4곳(`address-search.tsx:69`, `step-name.tsx:78`, `ui/text-field.tsx:25`, `photo-picker`)은 **시트 안 입력이라 그대로** 둔다 — 지도 위에 뜨는 건 검색 바 하나뿐이다.
+- **로딩 스켈레톤 2곳(`app/loading.tsx`, `app/place/[id]/loading.tsx`)을 같이 바꿨다.** 상단 블록 마크업이 3개 파일에 복제돼 있어 안 맞추면 스켈레톤 → 실제에서 화면이 튄다. (시트 요약 높이를 `--sheet-detail-half` 한 곳에서 관리하는 것과 같은 이유)
+- **용어 정정**: 살아 있는 문서의 "검색 블록" → "검색 바"(CLAUDE.md, spec 4.1, design 공통 블록·화면 1·화면 3). decisions·plans의 과거 기록은 로그라 그대로 둔다. design 화면 3의 "390×844에서 지도가 500px 남는다"는 DevTools 값이라 폐기 — 실기기 702px에서는 40%(281)가 아니라 **330px 하한이 걸려** 372px이다.
+
 - **cover 단독으로는 보이는 지도가 거의 안 는다.** dvh가 safe-area만큼 커지지만 `40dvh` 시트와 `pt-safe-top-or-3` 상단이 같이 커져 상쇄된다(iPhone 14 Pro 추정 349 → 358px). 효과는 검색 블록을 플로팅으로 바꿀 때 난다 — 지도가 `absolute inset-0`이라 상태바·홈 인디케이터 뒤까지 그려지므로 421 → 477px. 인앱 브라우저의 cover 동작은 사파리와 다를 수 있어 실기기 확인이 완료 조건.
 
 ## 커스텀 에셋 필요 목록

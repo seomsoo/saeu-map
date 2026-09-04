@@ -10,8 +10,8 @@ export default function PlaceLoading() {
       aria-label="불러오는 중"
     >
       <div className="absolute inset-x-0 top-0 flex flex-col gap-2.5">
-        <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
-          <Skeleton className="h-12" />
+        <div className="px-5 pt-safe-top-or-3">
+          <Skeleton className="h-12 rounded-max" />
         </div>
         <div className="flex gap-1.5 px-5" aria-hidden="true">
           <Skeleton className="h-9 w-14 rounded-max" />
