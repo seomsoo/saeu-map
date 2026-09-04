@@ -36,11 +36,6 @@ describe("filterPlaces — 칩", () => {
   const fresh = makePlace({ isNew: true });
   const old = makePlace({ isNew: false });
 
-  it("새로 들어온 집", () => {
-    expect(
-      filterPlaces([fresh, old], { tab: "all", ...noChips, chips: ["new"] }),
-    ).toEqual([fresh]);
-  });
   it("찜한 곳은 북마크 집합 기준, 비어 있으면 0곳", () => {
     expect(
       filterPlaces([fresh, old], { tab: "all", ...noChips, chips: ["bookmarked"] }),
@@ -59,7 +54,7 @@ describe("filterPlaces — 칩", () => {
       filterPlaces([fresh, old], {
         tab: "all",
         ...noChips,
-        chips: ["new", "bookmarked"],
+        chips: ["ramen", "bookmarked"],
         bookmarkedIds: new Set([old.id]),
       }),
     ).toEqual([]);
@@ -85,11 +80,15 @@ describe("filterPlaces — 사이드 칩", () => {
       }),
     ).toEqual([both]);
   });
-  it("사이드 칩과 새로 들어온 집도 AND", () => {
-    const freshRamen = makePlace({ isNew: true, sides: { headButter: false, ramen: true, friedRice: false } });
+  it("사이드 칩과 찜한 곳도 AND", () => {
     expect(
-      filterPlaces([freshRamen, ramenOnly], { tab: "all", ...noChips, chips: ["ramen", "new"] }),
-    ).toEqual([freshRamen]);
+      filterPlaces([both, ramenOnly], {
+        tab: "all",
+        ...noChips,
+        chips: ["ramen", "bookmarked"],
+        bookmarkedIds: new Set([both.id]),
+      }),
+    ).toEqual([both]);
   });
   it("카드 미니칩 라벨과 필터 라벨은 같은 출처", () => {
     expect(sideChips({ headButter: true, ramen: true, friedRice: true }).map((c) => c.label)).toEqual([

@@ -297,7 +297,6 @@ describe("MapScreen — design 화면 1의 1~8", () => {
       "머리버터구이",
       "라면",
       "볶음밥",
-      "새로 들어온 집",
       "찜한 곳",
     ]);
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
@@ -358,16 +357,9 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 
-  it("칩 '새로 들어온 집' → 심판대 패널(신규만, 마커도 신규만), '찜한 곳' → 빈 상태", async () => {
+  it("칩 '찜한 곳' → 찜 0곳이면 빈 상태 (칩은 전부 목록을 좁히는 필터다)", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
-    const rows = within(screen.getByRole("list", { name: "새로 들어온 집" })).getAllByRole("heading", { level: 3 });
-    expect(rows.map((r) => r.textContent)).toEqual(["수성2호왕새우소금구이"]);
-    expect(screen.getAllByTestId("marker").map((m) => m.textContent)).toEqual(["수성2호왕새우소금구이"]);
-
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
     fireEvent.click(screen.getByRole("button", { name: "찜한 곳" }));
     expect(await screen.findByText("아직 찜한 곳이 없어요")).toBeInTheDocument();
   });
@@ -637,7 +629,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
 
   it("상세가 열린 채 칩으로 그 가게를 걸러내도 핀은 남는다 (Codex #4)", async () => {
     await openNara();
-    fireEvent.click(screen.getByRole("button", { name: /새로 들어온 집/ }));
+    fireEvent.click(screen.getByRole("button", { name: "볶음밥" }));
     expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     expect(screen.getAllByTestId("marker").some((m) => m.textContent === "나라수산")).toBe(true);
   });
@@ -1083,71 +1075,6 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
   });
 });
 
-describe("화면 4 — [새로 들어온 집] 칩이 켜지면 시트가 심판대 패널로", () => {
-  const farNew = () =>
-    makePlace({
-      id: "paju",
-      name: "파주새우",
-      gu: "파주시",
-      lat: 37.95,
-      lng: 126.8,
-      isNew: true,
-      createdAt: day(1),
-      lastCheckedAt: day(1),
-      checkCount: 0,
-    });
-
-  it("헤더가 '새로 들어온 집 N곳' + 캡션으로 바뀌고 정렬 트리거는 없다. 뷰포트 밖 신규도 최신순으로 보인다", async () => {
-    renderScreen({ places: [...seed(), farNew()] });
-    await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(screen.getByRole("heading", { name: "새로 들어온 집 2곳" })).toBeInTheDocument();
-    expect(screen.getByText("아직 검증 전이에요. 다녀오셨다면 확인해주세요")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^정렬:/ })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("시즌 카운터")).not.toBeInTheDocument();
-    const rows = within(screen.getByRole("list", { name: "새로 들어온 집" })).getAllByRole("heading", { level: 3 });
-    expect(rows.map((r) => r.textContent)).toEqual(["파주새우", "수성2호왕새우소금구이"]);
-    // 칩을 끄면 목록으로 (지역 N곳 + 정렬 + 시즌 카운터)
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(screen.getByRole("heading", { name: "서울 전체 4곳" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "정렬: 가까운순" })).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "가게 목록" })).toBeInTheDocument();
-  });
-
-  it("신규가 0곳이면 '이번 주 새 제보가 없어요' + [제보]", async () => {
-    renderScreen({ places: seed().filter((p) => !p.isNew) });
-    await screen.findByRole("heading", { name: /곳$/ });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(screen.getByRole("heading", { name: "새로 들어온 집 0곳" })).toBeInTheDocument();
-    const empty = screen.getByRole("status");
-    expect(empty).toHaveTextContent("이번 주 새 제보가 없어요");
-    expect(empty).toHaveTextContent("제보하면 여기 떠요");
-    expect(within(empty).getByRole("button", { name: "제보" })).toBeInTheDocument();
-  });
-
-  it("패널의 [맞아요]는 상세의 다녀왔어요와 같은 확인이라, 상세를 열면 이미 [확인했어요]다", async () => {
-    dataMocks.checkIn.mockImplementation((id) => {
-      const base = seed().find((p) => p.id === id);
-      if (!base) throw new Error("no place");
-      return Promise.resolve({ ...base, checkCount: base.checkCount + 1, lastCheckedAt: NOW });
-    });
-    renderScreen();
-    await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    const row = within(screen.getByRole("list", { name: "새로 들어온 집" }));
-    fireEvent.click(row.getByRole("button", { name: "맞아요" }));
-    await waitFor(() => {
-      expect(dataMocks.checkIn).toHaveBeenCalledWith("suseong", NOW);
-    });
-    expect(row.getByText("확인됨")).toBeInTheDocument();
-    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
-    fireEvent.click(screen.getByRole("button", { name: "수성2호왕새우소금구이, 관악구" }));
-    const article = screen.getByRole("article", { name: "수성2호왕새우소금구이 상세" });
-    expect(within(article).getByRole("status")).toHaveTextContent("확인했어요");
-    vi.restoreAllMocks();
-  });
-});
-
 describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패널(시트 me 모드)", () => {
   let pushState: ReturnType<typeof vi.spyOn>;
   let back: ReturnType<typeof vi.spyOn>;
@@ -1313,28 +1240,4 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     expect(within(reopened).getByRole("tab", { name: "찜" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("신규 패널이 다른 조건 때문에 0곳이면 '조건에 맞는 집이 없어요' + [필터 해제]가 검색어까지 푼다", async () => {
-    renderScreen();
-    await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
-    // 신규(수성2호)와 안 겹치는 검색어 → 0곳이지만 신규 자체는 있다
-    fireEvent.change(screen.getByRole("searchbox", { name: "가게·동네 검색" }), {
-      target: { value: "노량진" },
-    });
-    const empty = await screen.findByRole("status");
-    expect(empty).toHaveTextContent("조건에 맞는 집이 없어요");
-    expect(empty).not.toHaveTextContent("이번 주 새 제보가 없어요");
-    fireEvent.click(within(empty).getByRole("button", { name: "필터 해제" }));
-    // 검색어는 풀리고 신규 칩은 남는다(패널이 닫히면 안 된다)
-    expect(screen.getByRole("searchbox", { name: "가게·동네 검색" })).toHaveValue("");
-    expect(await screen.findByRole("heading", { name: "새로 들어온 집 1곳" })).toBeInTheDocument();
-  });
-
-  it("신규가 아예 없으면 '이번 주 새 제보가 없어요'", async () => {
-    renderScreen({ places: seed().filter((p) => !p.isNew) });
-    await screen.findByRole("heading", { name: /곳$/ });
-    fireEvent.click(screen.getByRole("button", { name: "새로 들어온 집" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("이번 주 새 제보가 없어요");
-  });
 });

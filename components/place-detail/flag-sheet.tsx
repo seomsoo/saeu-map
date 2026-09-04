@@ -5,7 +5,7 @@ import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { flagPlace } from "@/lib/data";
 import type { Place, PlaceFlagReason } from "@/lib/types";
 
-/** 사유 4개 고정 — 사진 신고 시트와 같은 문법(design 화면 4 변형 (a)). */
+/** 사유 4개 고정 — 사진 신고 시트와 같은 문법(design 화면 2-9). */
 const REASONS: { value: PlaceFlagReason; label: string }[] = [
   { value: "location", label: "위치가 달라요" },
   { value: "menu", label: "메뉴·가격이 달라요" },
@@ -24,8 +24,9 @@ interface FlagSheetProps {
 }
 
 /**
- * [정보가 달라요] 사유 시트 — 바텀 모달, 44px 행 4개. **탭이 곧 제출**이라 확인 버튼이 없다.
+ * 상세 맨 아래 [정보 수정 제안]의 사유 시트 — 바텀 모달, 44px 행 4개. **탭이 곧 제출**이라 확인 버튼이 없다.
  * 접수 중엔 누른 행이 "접수 중…"으로 비활성. 실패하면 시트 안 오류 한 줄 + 다시 탭이 재시도.
+ * 접수된 제안은 관리자 수정 제안 큐로 간다(Phase 6, spec 4.5).
  */
 export function FlagSheet({ place, onFlagged, onClose }: FlagSheetProps) {
   const [pending, setPending] = useState<PlaceFlagReason | null>(null);

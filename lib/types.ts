@@ -101,8 +101,8 @@ export interface Viewport {
 /** 지도 메인 탭: 다중 태그 매칭 */
 export type TabKey = "all" | "grill" | "raw";
 
-/** 지도 메인 토글 칩 — 사이드 3종 + 새로 들어온 집 + 찜한 곳 = 5개 (spec 4.1 상한) */
-export type ChipKey = keyof Sides | "new" | "bookmarked";
+/** 지도 메인 토글 칩 — 사이드 3종 + 찜한 곳 = 4개 (spec 4.1 상한 5개 중, 2026-09-05 신규 칩 제거) */
+export type ChipKey = keyof Sides | "bookmarked";
 
 /** 정렬: 가까운순(기본) / 최근 확인순 / 확인 많은 순 */
 export type SortKey = "distance" | "recent" | "checks";

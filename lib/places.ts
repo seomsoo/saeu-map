@@ -10,7 +10,6 @@ import type {
 } from "./types";
 import { haversineKm } from "./geo";
 import { assertNever } from "./assert-never";
-import { toMs } from "./time";
 
 /* ────────────────────────── 필터 ────────────────────────── */
 
@@ -69,9 +68,6 @@ export function matchesChips(
 ): boolean {
   for (const chip of chips) {
     switch (chip) {
-      case "new":
-        if (!place.isNew) return false;
-        break;
       case "bookmarked":
         if (!bookmarkedIds.has(place.id)) return false;
         break;
@@ -146,12 +142,6 @@ export function sortPlaces(
           b.checkCount - a.checkCount || byRecent(a, b) || byName(a, b),
       );
   }
-}
-
-/** 신규 패널(화면 4): 등록일 내림차순, 등록일이 없으면 확인일. 동률은 이름. 원본 불변. */
-export function sortByCreatedDesc(places: readonly Place[]): Place[] {
-  const stamp = (p: Place) => toMs(p.createdAt ?? p.lastCheckedAt);
-  return [...places].sort((a, b) => stamp(b) - stamp(a) || byName(a, b));
 }
 
 export const SORT_LABELS: Record<SortKey, string> = {

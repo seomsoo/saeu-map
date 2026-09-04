@@ -7,6 +7,7 @@ import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
 import { ContributionBand } from "./contribution-band";
+import { FlagSheet } from "./flag-sheet";
 import { FooterLinks } from "./footer-links";
 import { PlaceInfo } from "./info-rows";
 import { MenuList } from "./menu-list";
@@ -128,7 +129,11 @@ export function PlaceDetail({
       />
       <SectionBand />
       {/* 9 */}
-      <FooterLinks onSelect={d.comingSoon} />
+      <FooterLinks onSuggest={d.openFlag} onSelect={d.comingSoon} />
+      {/* 하단 [정보 수정 제안] — 사유 시트(탭이 곧 제출). 접수는 Phase 6 관리자 큐로 */}
+      {d.flagOpen && (
+        <FlagSheet place={place} onFlagged={d.handleFlagged} onClose={d.closeFlag} />
+      )}
       {/* 화면 5 변형 (b) — 리뷰 폼. 뷰어와 같은 top layer 오버레이 */}
       {d.reviewForm && (
         <ReviewForm

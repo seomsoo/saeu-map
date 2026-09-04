@@ -5,6 +5,7 @@ import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Photo, Place, PlaceDetail as PlaceDetailData, Review, Session } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
+import { FLAG_FAILED_MESSAGE } from "../flag-sheet";
 
 type PhotoReport = Parameters<typeof import("@/lib/data").reportPhoto>[0];
 type ReviewInput = Parameters<typeof import("@/lib/data").submitReview>[0];
@@ -22,6 +23,7 @@ const data = vi.hoisted(() => ({
   submitReview: vi.fn<(input: ReviewInput, now: string) => Promise<{ review: Review; place: Place }>>(),
   updateReview: vi.fn<(id: string, patch: ReviewPatch, now: string) => Promise<Review>>(),
   deleteReview: vi.fn<(id: string) => Promise<void>>(),
+  flagPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
@@ -35,6 +37,7 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   submitReview: data.submitReview,
   updateReview: data.updateReview,
   deleteReview: data.deleteReview,
+  flagPlace: data.flagPlace,
 }));
 
 const NOW = "2026-09-01T12:00:00+09:00";
@@ -120,6 +123,7 @@ beforeEach(() => {
   data.submitReview.mockReset();
   data.updateReview.mockReset();
   data.deleteReview.mockReset();
+  data.flagPlace.mockReset();
 });
 
 afterEach(() => {
@@ -503,7 +507,6 @@ describe("찜·복사·공유·준비 중 입구", () => {
       "영업시간을 알려주세요",
       "대표 메뉴 수정",
       "사이드 수정",
-      "정보 수정 제안",
       "신고",
       "사장님이신가요?",
     ];
@@ -738,5 +741,42 @@ describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [�
     renderDetail(nara(), { initialReviews: [review(5, { nickname: "을지로사람" })] });
     const band2 = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
     expect(within(band2).getByRole("button", { name: "리뷰 남기기" })).toBeInTheDocument();
+  });
+});
+
+describe("정보 수정 제안 — 하단 줄이 사유 시트를 연다 (탭이 곧 제출)", () => {
+  beforeEach(() => {
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+
+  it("사유를 누르면 접수되고 시트가 닫히며 토스트", async () => {
+    data.flagPlace.mockResolvedValue(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "정보 수정 제안" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 정보가 달라요" });
+    expect(within(sheet).getByText("어떤 정보가 달라요?")).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole("button", { name: "문 닫았어요" }));
+    expect(data.flagPlace).toHaveBeenCalledWith({ placeId: "nara", reason: "closed" });
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("알려주셔서 고마워요");
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("실패하면 시트 안 오류 한 줄, 다시 탭이 재시도", async () => {
+    data.flagPlace.mockRejectedValueOnce(new Error("mock write failed")).mockResolvedValueOnce(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "정보 수정 제안" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 정보가 달라요" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(FLAG_FAILED_MESSAGE);
+    expect(props.onNotice).not.toHaveBeenCalledWith("알려주셔서 고마워요");
+    fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("알려주셔서 고마워요");
+    });
   });
 });

@@ -17,7 +17,6 @@ import type {
   SortKey,
 } from "@/lib/types";
 import { EventCard } from "./event-card";
-import { NEW_PANEL_CAPTION, NEW_PANEL_TITLE } from "./new-places-panel";
 import { PlaceCard, PlaceCardSkeleton } from "./place-card";
 import { SeasonCounter } from "./season-counter";
 import type { EmptyKind, MapStatus } from "./use-map-screen";
@@ -46,8 +45,6 @@ interface PlaceSheetProps {
   report?: ReactNode;
   /** 내 활동 패널 (mode === "me"일 때, 화면 5) */
   me?: ReactNode;
-  /** 화면 4 심판대 — [새로 들어온 집] 칩이 켜진 동안 헤더(제목·캡션)와 본문이 바뀐다. count 0이면 빈 상태 */
-  newPanel?: { count: number; content: ReactNode } | null;
   emptyKind: EmptyKind;
   /** 시트 가장자리 위에 얹히는 FAB 줄 (상세 동안은 없음) */
   aside: ReactNode;
@@ -67,7 +64,7 @@ interface PlaceSheetProps {
 
 const REPORT_ACTION_ICON = <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />;
 
-/** 빈 상태 4종 — EmptyKind에 케이스가 늘면 여기서 컴파일 에러로 잡힌다. */
+/** 빈 상태 3종 — EmptyKind에 케이스가 늘면 여기서 컴파일 에러로 잡힌다. */
 function renderEmpty(kind: EmptyKind, onReport: () => void, onClearFilters: () => void) {
   switch (kind) {
     case "bookmarks":
@@ -75,19 +72,6 @@ function renderEmpty(kind: EmptyKind, onReport: () => void, onClearFilters: () =
         <EmptyState
           title="아직 찜한 곳이 없어요"
           description="가게 상세의 하트로 찜할 수 있어요"
-        />
-      );
-    case "new":
-      return (
-        <EmptyState
-          title="이번 주 새 제보가 없어요"
-          description="제보하면 여기 떠요"
-          action={
-            <OutlineButton onClick={onReport} className="pl-3">
-              {REPORT_ACTION_ICON}
-              제보
-            </OutlineButton>
-          }
         />
       );
     case "filter":
@@ -136,7 +120,6 @@ export function PlaceSheet({
   detail,
   report,
   me,
-  newPanel = null,
   emptyKind,
   aside,
   onSortChange,
@@ -154,36 +137,28 @@ export function PlaceSheet({
   const isReport = mode === "report";
   const isMe = mode === "me";
   const panel = isDetail || isReport || isMe;
-  // 화면 4: 제목·캡션이 바뀌고 정렬 트리거는 없다(최신순 고정)
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
         {status === "ready" ? (
           <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums">
-            {newPanel ? NEW_PANEL_TITLE : areaLabel} {newPanel ? newPanel.count : count}곳
+            {areaLabel} {count}곳
           </h2>
         ) : (
           <Skeleton className="h-7 w-32" />
         )}
-        {!newPanel && (
-          <DropdownChip
-            label="정렬"
-            value={sort}
-            options={SORT_OPTIONS}
-            onChange={onSortChange}
-            appearance="text"
-            align="end"
-          />
-        )}
+        <DropdownChip
+          label="정렬"
+          value={sort}
+          options={SORT_OPTIONS}
+          onChange={onSortChange}
+          appearance="text"
+          align="end"
+        />
       </div>
-      {newPanel ? (
-        <p className="truncate text-caption-l-regular text-fg-tertiary">{NEW_PANEL_CAPTION}</p>
-      ) : (
-        <SeasonCounter stats={stats} />
-      )}
+      <SeasonCounter stats={stats} />
     </div>
   );
-  const listCount = newPanel ? newPanel.count : places.length;
 
   return (
     <BottomSheet
@@ -228,11 +203,9 @@ export function PlaceSheet({
           />
         )}
 
-        {status === "ready" && listCount === 0 && renderEmpty(emptyKind, onReport, onClearFilters)}
+        {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearFilters)}
 
-        {status === "ready" && newPanel && newPanel.count > 0 && newPanel.content}
-
-        {status === "ready" && !newPanel && places.length > 0 && (
+        {status === "ready" && places.length > 0 && (
           <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
             {places.map((place) => (
               <PlaceCard

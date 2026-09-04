@@ -14,6 +14,7 @@ import {
   pushOverlayHistoryEntry,
   type SaeuHistoryState,
 } from "@/lib/history-state";
+import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
 import { sortReviewsNewest } from "@/lib/reviews";
 import { copyText, sharePlace } from "@/lib/share";
@@ -28,6 +29,7 @@ export const COMING_SOON_NOTICE = "준비 중이에요";
 export const REVIEW_SAVED_NOTICE = "리뷰를 남겼어요";
 export const REVIEW_UPDATED_NOTICE = "리뷰를 고쳤어요";
 export const REVIEW_DELETE_FAILED_NOTICE = "리뷰를 삭제하지 못했어요";
+export const FLAGGED_NOTICE = "알려주셔서 고마워요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
@@ -182,6 +184,21 @@ export function usePlaceDetail({
     onNotice(COMING_SOON_NOTICE);
   }, [onNotice]);
 
+  /* ── 정보 수정 제안(하단 줄) — 사유 시트. 접수는 관리자 수정 제안 큐로(Phase 6, spec 4.5) ── */
+  const [flagOpen, setFlagOpen] = useState(false);
+  const clearFlag = useCallback(() => {
+    setFlagOpen(false);
+  }, []);
+  const closeFlag = useOverlayHistory(flagOpen, clearFlag);
+  const openFlag = useCallback(() => {
+    pushOverlayHistoryEntry();
+    setFlagOpen(true);
+  }, []);
+  const handleFlagged = useCallback(() => {
+    closeFlag();
+    onNotice(FLAGGED_NOTICE);
+  }, [closeFlag, onNotice]);
+
   /* ── 리뷰 쓰기 (화면 5 변형 (b)·(c)): 로그인 게이트 → 폼(오버레이), 본인 수정·낙관 삭제 ── */
   const { session, requireLogin } = useSession();
   const [reviewForm, setReviewForm] = useState<{ initial?: Review } | null>(null);
@@ -265,6 +282,10 @@ export function usePlaceDetail({
     share,
     openRoute,
     comingSoon,
+    flagOpen,
+    openFlag,
+    closeFlag,
+    handleFlagged,
     photoIndex,
     openPhoto,
     closePhoto,

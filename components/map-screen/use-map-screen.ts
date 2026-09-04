@@ -37,7 +37,6 @@ import {
   densestPoint,
   filterPlaces,
   isSideChip,
-  sortByCreatedDesc,
   sortPlaces,
 } from "@/lib/places";
 import type {
@@ -68,8 +67,8 @@ const PLACE_PATH = /^\/place\/([A-Za-z0-9_-]+)\/?$/;
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
 export type MapErrorReason = "runtime" | "config";
-/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 켜 둔 조건(칩·카테고리·검색어)에 맞는 집 없음(필터 해제 유도) / new = 이번 주 새 제보 없음(화면 4) */
-export type EmptyKind = "area" | "bookmarks" | "filter" | "new";
+/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 켜 둔 사이드 칩에 맞는 집 없음(필터 해제 유도) */
+export type EmptyKind = "area" | "bookmarks" | "filter";
 
 export function placeIdFromPath(pathname: string): string | null {
   const match = PLACE_PATH.exec(pathname);
@@ -243,14 +242,6 @@ export function useMapScreen({
     [places, tab, chips, deferredQuery, bookmarked],
   );
 
-  /* 화면 4 심판대: [새로 들어온 집] 칩이 켜지면 시트가 패널로 바뀐다 — 뷰포트와 무관하게 필터를 통과한
-     신규 전부를 최신순으로(서너 곳뿐이라 지도 안으로 자르면 늘 비어 보인다, decisions 2026-09-04). 마커는 기존 파이프라인. */
-  const newPanelOpen = chips.includes("new");
-  const newPanel = useMemo(
-    () => (newPanelOpen ? sortByCreatedDesc(filtered) : null),
-    [newPanelOpen, filtered],
-  );
-
   // 필터에서 빠진 가게는 선택 해제된 것으로 본다. 단 상세가 열려 있으면 그 핀은 필터와 무관하게 유지 (Codex #4)
   const selectedPlace = useMemo(() => {
     const pool = detailId ? places : filtered;
@@ -325,19 +316,12 @@ export function useMapScreen({
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
   );
-  /* 신규 패널에서 0곳인 이유는 둘이다: 이번 주 새 제보가 없거나(new), 켜 둔 다른 조건이 걸러냈거나(filter).
-     후자에 "이번 주 새 제보가 없어요"를 띄우면 신규가 있는데 없다고 말하게 된다 (gap-sweeper 2026-09-04). */
-  const hasAnyNew = useMemo(() => places.some((p) => p.isNew), [places]);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
       ? "bookmarks"
-      : newPanelOpen
-        ? hasAnyNew
-          ? "filter"
-          : "new"
-        : chips.some(isSideChip)
-          ? "filter"
-          : "area";
+      : chips.some(isSideChip)
+        ? "filter"
+        : "area";
 
   /* ── 지도 이벤트 ── */
   const handleViewportChange = useCallback((next: Viewport) => {
@@ -487,9 +471,9 @@ export function useMapScreen({
     setQuery("");
   }, []);
 
-  /** 필터 빈 상태의 [필터 해제] — 칩·카테고리·검색어를 함께 푼다. 신규 패널이면 그 칩은 남긴다(패널이 닫혀 버린다) */
+  /** 필터 빈 상태의 [필터 해제] — 칩·카테고리·검색어를 함께 푼다 */
   const clearFilters = useCallback(() => {
-    setChips((prev) => (prev.includes("new") ? ["new"] : []));
+    setChips([]);
     setTab("all");
     setQuery("");
   }, []);
@@ -853,8 +837,6 @@ export function useMapScreen({
     sorted,
     inViewCount: inView.length,
     areaLabel,
-    /** 화면 4 패널 목록 — [새로 들어온 집] 칩이 꺼져 있으면 null */
-    newPanel,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
     initialCenter: initialPlace ?? densestCenter ?? SEOUL_CENTER,
