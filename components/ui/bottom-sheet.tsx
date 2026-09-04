@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { cx } from "@/lib/cx";
+import { useKeyboardInset } from "./use-keyboard-inset";
 
 export type SheetSnap = "collapsed" | "half" | "full";
 /**
@@ -245,6 +246,8 @@ export function BottomSheet({
   onDismiss,
   dismissLabel = "닫기",
 }: BottomSheetProps) {
+  // 키보드가 뜨면 시트가 그 위에 앉는다 (--kb → .saeu-sheet의 bottom·--sheet-full)
+  useKeyboardInset();
   const sheetRef = useRef<HTMLElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);

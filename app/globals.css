@@ -370,13 +370,16 @@ body {
 .saeu-sheet {
   --sheet-collapsed: 88px;
   --sheet-half: 40dvh;
-  --sheet-full: 92dvh;
+  /* --kb = 가상 키보드가 먹은 높이 (components/ui/use-keyboard-inset.ts가 :root에 쓴다).
+     키보드가 뜨면 시트가 그 위에 앉고(bottom) 그만큼 낮아진다(--sheet-full) — 안 낮추면 위가 화면 밖으로 넘친다.
+     height와 transform이 둘 다 --sheet-full을 쓰므로 스냅 계산은 그대로 맞는다. */
+  --sheet-full: calc(92dvh - var(--kb, 0px));
   --sheet-header-h: 88px;
   --sheet-visible: var(--sheet-half);
   --sheet-drag: 0px;
   position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: var(--kb, 0px);
   height: var(--sheet-full);
   transform: translateY(
     calc(var(--sheet-full) - var(--sheet-visible) + var(--sheet-drag))
