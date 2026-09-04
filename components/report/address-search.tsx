@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import type { AddressHit } from "@/components/map/map-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -30,15 +30,8 @@ export function AddressSearch({ geocode, onPick }: AddressSearchProps) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState<SearchState>({ kind: "idle" });
   const composing = useRef(false);
-  /** 늦게 온 이전 응답을 버린다 */
+  /** 늦게 온 이전 응답을 버린다. (마운트 여부 ref는 두지 않는다 — StrictMode의 이중 effect가 false로 굳혀 응답이 영영 버려졌다) */
   const requestSeq = useRef(0);
-  const mounted = useRef(true);
-  useEffect(
-    () => () => {
-      mounted.current = false;
-    },
-    [],
-  );
 
   const search = () => {
     const q = query.trim();
@@ -47,11 +40,11 @@ export function AddressSearch({ geocode, onPick }: AddressSearchProps) {
     setState({ kind: "loading" });
     geocode(q).then(
       (hits) => {
-        if (!mounted.current || seq !== requestSeq.current) return;
+        if (seq !== requestSeq.current) return;
         setState(hits.length === 0 ? { kind: "empty" } : { kind: "ready", hits });
       },
       () => {
-        if (!mounted.current || seq !== requestSeq.current) return;
+        if (seq !== requestSeq.current) return;
         setState({ kind: "error" });
       },
     );
