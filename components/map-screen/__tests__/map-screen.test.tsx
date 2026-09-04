@@ -775,6 +775,16 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(history.back).toHaveBeenCalledTimes(1);
   });
 
+  it("제보 중엔 칩 필터와 무관하게 전부 마커로 보인다 (중복 후보가 필터에 가려지면 안 된다)", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    fireEvent.click(screen.getByRole("button", { name: "볶음밥" })); // 시드에 볶음밥 되는 집 없음 → 마커 0
+    expect(screen.queryByRole("button", { name: "나라수산" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "제보" }));
+    expect(screen.getByRole("button", { name: "나라수산" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "수성2호왕새우소금구이" })).toBeInTheDocument();
+  });
+
   it("제보 중 마커를 탭해도 상세가 열리지 않는다 (기존 마커는 보이기만)", async () => {
     await openReport();
     fireEvent.click(screen.getByRole("button", { name: "나라수산" }));

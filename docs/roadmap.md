@@ -61,6 +61,7 @@
 - [ ] lib/data.ts → Supabase 교체, 익명 auth + 카카오 linkIdentity
 - [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP)
 - [ ] /admin 4탭, 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
+- [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(기존 핀 이전·리다이렉트 — spec 4.3 엣지)
 - [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
 - 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴
 

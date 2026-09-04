@@ -156,13 +156,16 @@ export function useMapScreen({
   );
   const mode: SheetMode = detailPlace ? "detail" : reportStep !== null ? "report" : "list";
 
+  // 제보 중엔 칩·탭·검색어와 무관하게 전부 마커로 — 중복 후보가 필터에 걸려 안 보이면 안 된다(design 화면 3 변형 (a)).
+  // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다.
+  const markerPool = reportStep !== null ? places : filtered;
   // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
   const index = useMemo(
     () =>
       buildPlaceIndex(
-        selectedPlace ? filtered.filter((p) => p.id !== selectedPlace.id) : filtered,
+        selectedPlace ? markerPool.filter((p) => p.id !== selectedPlace.id) : markerPool,
       ),
-    [filtered, selectedPlace],
+    [markerPool, selectedPlace],
   );
 
   const items = useMemo<ClusterItem[]>(() => {
@@ -334,6 +337,7 @@ export function useMapScreen({
 
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
+      if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
       mapRef.current?.morph(center, zoom);
     },

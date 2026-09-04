@@ -58,7 +58,7 @@ export function StepFrame({ step, title, caption, onBack, footer, children }: St
         )}
         <h2 className={cx("text-title-m-bold text-fg", !onBack && "pt-4")}>{title}</h2>
         <p className="mt-1 text-body-m-regular text-fg-secondary">{caption}</p>
-        {children && <div className="mt-5 pb-4">{children}</div>}
+        {children && <div className="mt-5 pb-3">{children}</div>}
       </div>
       <div className="shrink-0 px-5 pt-3 pb-safe-bottom-or-3">{footer}</div>
     </div>
