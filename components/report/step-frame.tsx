@@ -58,9 +58,18 @@ export function StepFrame({ step, title, caption, onBack, footer, children }: St
         )}
         <h2 className={cx("text-title-m-bold text-fg", !onBack && "pt-4")}>{title}</h2>
         <p className="mt-1 text-body-m-regular text-fg-secondary">{caption}</p>
-        {children && <div className="mt-5 pb-3">{children}</div>}
+        {children && <div className="mt-5 pb-6">{children}</div>}
       </div>
-      <div className="shrink-0 px-5 pt-3 pb-safe-bottom-or-3">{footer}</div>
+      <div className="relative shrink-0 px-5 pt-3 pb-safe-bottom-or-3">
+        {/* 본문이 CTA 경계에서 뚝 잘리지 않게 위로 페이드. 장식용 그라데이션 배경(금지)이 아니라
+            스크롤 끝을 부드럽게 하는 마스크다 (decisions 2026-09-04). 시트가 불투명 흰색이라
+            backdrop blur는 흰 위에 흰이 겹쳐 거의 안 보인다 — 흰색 → 투명 페이드가 실제로 효과가 있다. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-full h-5 bg-linear-to-t from-bg to-transparent"
+        />
+        {footer}
+      </div>
     </div>
   );
 }
