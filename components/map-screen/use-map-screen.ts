@@ -20,7 +20,13 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
+import {
+  areaLabel as computeAreaLabel,
+  densestPoint,
+  filterPlaces,
+  isSideChip,
+  sortPlaces,
+} from "@/lib/places";
 import type {
   ChipKey,
   LatLng,
@@ -145,6 +151,9 @@ export function useMapScreen({
   const snapRef = useRef<SheetSnap>("half");
   const modeRef = useRef<SheetMode>("list");
 
+  /** 첫 지도 중심: 가게가 가장 몰린 곳. 서버가 준 목록으로만 — 제보로 목록이 늘어도 흔들리지 않는다 */
+  const densestCenter = useMemo(() => densestPoint(initialPlaces), [initialPlaces]);
+
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
 
@@ -218,7 +227,6 @@ export function useMapScreen({
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
   );
-  const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
       ? "bookmarks"
@@ -262,26 +270,11 @@ export function useMapScreen({
     [visibleStripCenterY],
   );
 
-  /* ── 위치: 첫 로드 시 조용히 ── */
-  useEffect(() => {
-    let cancelled = false;
-    void requestPosition().then((res) => {
-      if (cancelled || !res.ok) return;
-      const pos = res.point;
-      setUserLocation(pos);
-      // 권한 프롬프트 뒤 늦게 왔는데 제보 중이면 위치만 기억한다 — 2단계에서 맞춘 핀이 화면 밖으로 밀리면 안 된다 (Codex PR #6 #5)
-      if (reportStepRef.current !== null) return;
-      // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다.
-      // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
-      if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
-        programmaticMoveAt.current = performance.now();
-        mapRef.current.focus(pos, USER_ZOOM, { screenY: stripCenterY() });
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [mapRef, initialPlaceId, stripCenterY]);
+  /*
+   * 첫 로드에 위치를 묻지 않는다 — 맥락 없이 뜬 권한 팝업은 반사적으로 거부되고, 거부는 되돌리기가
+   * 브라우저마다 다른 미로다. 현위치 FAB을 누를 때만 묻는다(그때의 거부는 의도적 선택이다).
+   * 대신 첫 화면은 가게가 가장 몰린 곳으로 연다. 거리·정렬은 그때까지 지도 중심 기준(spec 4.1).
+   */
 
   /* ── 첫 화면 위치 맞추기 ──
      SDK는 defaultCenter를 컨테이너 정중앙에 놓는데, 상단 두 층과 시트에 가려
@@ -668,8 +661,8 @@ export function useMapScreen({
     areaLabel,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
-    initialCenter: initialPlace ?? (userInSeoul ? userLocation : SEOUL_CENTER),
-    initialZoom: initialPlace || userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
+    initialCenter: initialPlace ?? densestCenter ?? SEOUL_CENTER,
+    initialZoom: initialPlace ? USER_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,

@@ -1003,8 +1003,8 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     ).toBeInTheDocument();
   });
 
-  it("마운트 때 보낸 위치 요청이 2단계에서 핀을 옮긴 뒤 늦게 오면 지도를 옮기지 않는다 (Codex PR #6 #5)", async () => {
-    // 권한 프롬프트를 열어 둔 채 제보를 시작한 경우 — 응답 콜백을 잡아 두었다가 나중에 부른다
+  it("2단계 진입에 보낸 위치 요청이 핀을 옮긴 뒤 늦게 오면 지도를 옮기지 않는다 (Codex PR #6 #5)", async () => {
+    // 권한 프롬프트를 열어 둔 채 핀을 맞춘 경우 — 응답 콜백을 잡아 두었다가 나중에 부른다
     const pending: ((pos: { coords: { latitude: number; longitude: number } }) => void)[] = [];
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -1020,7 +1020,7 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
       fake.listeners["click"]?.({ coord: new fake.navermaps.LatLng(37.56, 127.01) });
     });
     expect(screen.getByRole("button", { name: "제보 위치" })).toHaveAttribute("data-lat", "37.56");
-    expect(pending.length).toBeGreaterThanOrEqual(2); // 마운트 요청 + 2단계 진입 요청
+    expect(pending.length).toBeGreaterThanOrEqual(1); // 2단계 진입 요청 (마운트 요청은 없앴다)
     fake.map.morph.mockClear();
     const pans = fake.map.panTo.mock.calls.length;
     await act(async () => {
