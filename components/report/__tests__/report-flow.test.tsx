@@ -71,7 +71,7 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(screen.getByRole("progressbar", { name: "제보 진행" })).toHaveAttribute("aria-valuenow", "1");
     fireEvent.click(screen.getByRole("button", { name: "이전" }));
     expect(props.onBack).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("찾는 가게가 없나요?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "새로 등록하기" })).toBeInTheDocument();
   });
 
   it("두 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
@@ -87,6 +87,20 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(rows[0]).toHaveTextContent("나라수산");
     expect(rows[0]).toHaveTextContent("마포구 · 새우구이 · 생새우회");
     expect(rows[0]).toHaveTextContent("이미 있어요");
+  });
+
+  it("[새로 등록하기]는 매치 유무와 무관하게 늘 있고, 설명 캡션은 없다", () => {
+    renderPanel();
+    const input = screen.getByRole("textbox", { name: "가게 이름" });
+    const cta = () => screen.getByRole("button", { name: "새로 등록하기" });
+    expect(cta()).toBeInTheDocument();
+    expect(screen.queryByText("찾는 가게가 없나요?")).toBeNull();
+    fireEvent.change(input, { target: { value: "나라 수산" } });
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
+    expect(cta()).toBeInTheDocument(); // 매치가 있어도 "그중엔 없다"며 등록할 수 있어야 한다
+    fireEvent.change(input, { target: { value: "없는가게이름" } });
+    expect(cta()).toBeInTheDocument();
+    expect(screen.queryByText("찾는 가게가 없나요?")).toBeNull();
   });
 
   it("매치 행을 탭하면 그 가게로 넘어간다", () => {
@@ -341,6 +355,18 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     expect(props.onStepChange).toHaveBeenCalledWith(4);
   });
 
+  it("rawToo가 켜진 채 3단계에 다시 들어오면 포커스를 뺏지 않는다 (단계는 switch로 언마운트된다)", () => {
+    const { rerender, props } = renderPanel({ step: 3 });
+    fill("", "왕새우 소금구이", "35000");
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+    fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
+    expect(screen.getByRole("textbox", { name: "새우회 메뉴명" })).toHaveFocus();
+    // 4단계로 갔다가 ‹로 돌아온다 — 3단계가 통째로 다시 마운트된다
+    rerender(<ReportPanel {...props} step={4} />);
+    rerender(<ReportPanel {...props} step={3} />);
+    expect(screen.getByRole("textbox", { name: "새우회 메뉴명" })).not.toHaveFocus();
+  });
+
   it("'새우회도 팔아요'를 켜면 회 줄이 펼쳐지고 그 줄도 검증된다", () => {
     const { props } = renderPanel({ step: 3 });
     fill("", "왕새우 소금구이", "35000");
@@ -348,7 +374,8 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     expect(screen.queryByRole("textbox", { name: "새우회 메뉴명" })).toBeNull();
     fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
     expect(screen.getByRole("switch", { name: "새우회도 팔아요" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("textbox", { name: "새우회 메뉴명" })).toBeInTheDocument();
+    // 회 줄은 토글 아래에 생겨 스크롤 밖이면 안 보인다 — 켠 직후 메뉴명에 포커스를 줘 따라 올라오게 한다
+    expect(screen.getByRole("textbox", { name: "새우회 메뉴명" })).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "다음" }));
     expect(screen.getAllByRole("alert")).toHaveLength(3); // 회 줄의 세 오류
     expect(props.onStepChange).not.toHaveBeenCalled();

@@ -10,6 +10,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // env(safe-area-inset-*)는 viewport-fit: cover 없이는 항상 0을 반환한다 — globals.css의
+  // --spacing-safe-* 토큰과 pb-safe-bottom-or-3/pt-safe-top-or-3 유틸이 전부 12px 폴백으로 죽어 있었다.
+  // cover를 켜면 지도(absolute inset-0)가 상태바·홈 인디케이터 뒤까지 그려지고, 콘텐츠는 위 토큰들이 되민다.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

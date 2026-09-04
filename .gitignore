@@ -40,6 +40,8 @@ playwright-report/
 
 # playwright mcp artifacts
 .playwright-mcp/
+# MCP의 filename은 브라우저 cwd(리포 루트) 기준이라 위 규칙을 비껴간다 — 루트 PNG는 전부 산출물이다 (2회 발생)
+/*.png
 
 # python (scripts/)
 __pycache__/

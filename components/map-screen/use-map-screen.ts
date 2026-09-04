@@ -11,7 +11,12 @@ import {
 } from "react";
 import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
-import { sheetVisiblePx, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
+import {
+  sheetViewportHeight,
+  sheetVisiblePx,
+  type SheetMode,
+  type SheetSnap,
+} from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import { getGuOfPoint, toggleBookmark as requestToggleBookmark } from "@/lib/data";
 import {
@@ -20,7 +25,13 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { areaLabel as computeAreaLabel, filterPlaces, isSideChip, sortPlaces } from "@/lib/places";
+import {
+  areaLabel as computeAreaLabel,
+  densestPoint,
+  filterPlaces,
+  isSideChip,
+  sortPlaces,
+} from "@/lib/places";
 import type {
   ChipKey,
   LatLng,
@@ -65,19 +76,28 @@ interface UseMapScreenInput {
   topStackRef: RefObject<HTMLDivElement | null>;
 }
 
-/** 조용히 위치 요청. 거부·실패·미지원은 전부 null (플랜 결정 1: 거부 시 지도 중심 기준). */
-function requestPosition(): Promise<LatLng | null> {
+/**
+ * 위치 요청. 실패 이유를 구분한다 — **거부는 다시 눌러도 팝업이 안 뜨므로**(브라우저가 기억한다)
+ * "다시 시도" 안내를 주면 사용자가 버튼만 계속 누르게 된다 (decisions 2026-09-04).
+ * 조용한 호출자(첫 로드·제보 2단계)는 `ok`만 보고 이유는 무시한다.
+ */
+type PositionResult =
+  | { ok: true; point: LatLng }
+  | { ok: false; reason: "denied" | "unavailable" };
+
+function requestPosition(): Promise<PositionResult> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      resolve(null);
+      resolve({ ok: false, reason: "unavailable" });
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        resolve({ ok: true, point: { lat: pos.coords.latitude, lng: pos.coords.longitude } });
       },
-      () => {
-        resolve(null);
+      (err) => {
+        // code 1 = PERMISSION_DENIED. 2(위치 못 구함)·3(타임아웃)은 다시 시도할 만하다.
+        resolve({ ok: false, reason: err.code === 1 ? "denied" : "unavailable" });
       },
       { timeout: 8000, maximumAge: 60_000 },
     );
@@ -120,6 +140,8 @@ export function useMapScreen({
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
+  /** 지도가 지금 내 위치에 맞춰져 있나 — 현위치 FAB의 활성 표시. 사용자가 지도를 밀면 풀린다. */
+  const [following, setFollowing] = useState(false);
   const noticeTimer = useRef<number | null>(null);
   /** 상세·제보를 열 때의 목록 시트 높이 — 닫으면 복원 */
   const listSnapRef = useRef<SheetSnap>("half");
@@ -130,6 +152,12 @@ export function useMapScreen({
   }, [reportStep]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
+  /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
+  const snapRef = useRef<SheetSnap>("half");
+  const modeRef = useRef<SheetMode>("list");
+
+  /** 첫 지도 중심: 가게가 가장 몰린 곳. 서버가 준 목록으로만 — 제보로 목록이 늘어도 흔들리지 않는다 */
+  const densestCenter = useMemo(() => densestPoint(initialPlaces), [initialPlaces]);
 
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
@@ -157,6 +185,10 @@ export function useMapScreen({
     [places, detailId],
   );
   const mode: SheetMode = detailPlace ? "detail" : reportStep !== null ? "report" : "list";
+  useEffect(() => {
+    snapRef.current = snap;
+    modeRef.current = mode;
+  }, [snap, mode]);
 
   // 제보 중엔 칩·탭·검색어와 무관하게 전부 마커로 — 중복 후보가 필터에 걸려 안 보이면 안 된다(design 화면 3 변형 (a)).
   // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다.
@@ -200,7 +232,6 @@ export function useMapScreen({
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
   );
-  const userInSeoul = userLocation !== null && inBounds(userLocation, SEOUL_AREA);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
       ? "bookmarks"
@@ -217,6 +248,12 @@ export function useMapScreen({
     setSortOrigin(next.center);
   }, []);
 
+  /* 손가락이 지도를 끌기 시작하면 추적 해제. idle로 판정하면 프로그램 이동 창(1500ms) 안에 민 경우를
+     놓치고, 그 뒤 idle이 보장되지 않아 FAB이 계속 활성으로 남는다 (Codex PR #7 #4). */
+  const handleUserPan = useCallback(() => {
+    setFollowing(false);
+  }, []);
+
   /** 스크립트 로드 실패(ErrorBoundary)·NCP 인증 실패(navermap_authFailure) → runtime */
   const handleMapError = useCallback(() => {
     setMapError((prev) => prev ?? "runtime");
@@ -226,46 +263,52 @@ export function useMapScreen({
     setMapError("config");
   }, []);
 
-  /* ── 위치: 첫 로드 시 조용히 ── */
-  useEffect(() => {
-    let cancelled = false;
-    void requestPosition().then((pos) => {
-      if (cancelled || !pos) return;
-      setUserLocation(pos);
-      // 권한 프롬프트 뒤 늦게 왔는데 제보 중이면 위치만 기억한다 — 2단계에서 맞춘 핀이 화면 밖으로 밀리면 안 된다 (Codex PR #6 #5)
-      if (reportStepRef.current !== null) return;
-      // 지도가 이미 떠 있으면 이동, 아직이면 initialCenter/initialZoom이 같은 조건으로 처리한다.
-      // /place/[id] 직접 진입은 핀이 우선 — 위치로 옮기지 않는다 (거리 정렬 기준으로만 쓴다)
-      if (!initialPlaceId && inBounds(pos, SEOUL_AREA) && mapRef.current) {
-        programmaticMoveAt.current = performance.now();
-        mapRef.current.morph(pos, USER_ZOOM);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [mapRef, initialPlaceId]);
-
   /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
   const visibleStripCenterY = useCallback(
     (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
       const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
-      const vh = window.innerHeight;
+      const vh = sheetViewportHeight();
       const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
       return top + Math.max(0, bottom - top) / 2;
     },
     [topStackRef],
   );
 
-  /* ── /place/[id] 직접 진입: 지도가 뜨면 핀을 요약 시트 위 가시 영역 중앙으로 (카드 탭과 같은 목표) ── */
+  /** 지금 보이는 지도의 한가운데 y. 늦게 도착한 콜백도 호출 시점 상태로 계산한다 */
+  const stripCenterY = useCallback(
+    () => visibleStripCenterY(snapRef.current, modeRef.current),
+    [visibleStripCenterY],
+  );
+
+  /*
+   * 첫 로드에 위치를 묻지 않는다 — 맥락 없이 뜬 권한 팝업은 반사적으로 거부되고, 거부는 되돌리기가
+   * 브라우저마다 다른 미로다. 현위치 FAB을 누를 때만 묻는다(그때의 거부는 의도적 선택이다).
+   * 대신 첫 화면은 가게가 가장 몰린 곳으로 연다. 거리·정렬은 그때까지 지도 중심 기준(spec 4.1).
+   */
+
+  /* ── 첫 화면 위치 맞추기 ──
+     SDK는 defaultCenter를 컨테이너 정중앙에 놓는데, 상단 두 층과 시트에 가려
+     실제로 보이는 지도의 한가운데는 그보다 위다(702px 기준 246 vs 351 — 105px 어긋남).
+     그래서 서울 중심이 시트 쪽으로 치우치고 위쪽 절반은 빈 땅이 됐다 (decisions 2026-09-04).
+     /place/[id] 직접 진입은 핀을, 그 외에는 지금 중심을 같은 자리로 옮긴다. */
   const initialPanDone = useRef(false);
   useEffect(() => {
-    if (initialPanDone.current || !initialPlaceId || !viewport || !mapRef.current) return;
-    const place = places.find((p) => p.id === initialPlaceId);
-    if (!place) return;
+    if (initialPanDone.current || !viewport || !mapRef.current) return;
+    if (initialPlaceId) {
+      const place = places.find((p) => p.id === initialPlaceId);
+      if (!place) return;
+      initialPanDone.current = true;
+      programmaticMoveAt.current = performance.now();
+      mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+      return;
+    }
     initialPanDone.current = true;
     programmaticMoveAt.current = performance.now();
-    mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+    // 첫 페인트라 애니메이션 없이 — 지도가 뜨자마자 미끄러지면 안 된다
+    mapRef.current.panTo(viewport.center, {
+      screenY: visibleStripCenterY("half", "list"),
+      animate: false,
+    });
   }, [initialPlaceId, viewport, places, mapRef, visibleStripCenterY]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
@@ -327,9 +370,9 @@ export function useMapScreen({
     (clusterId: number, center: LatLng) => {
       if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
-      mapRef.current?.morph(center, zoom);
+      mapRef.current?.focus(center, zoom, { screenY: stripCenterY() });
     },
-    [index, mapRef],
+    [index, mapRef, stripCenterY],
   );
 
   const toggleChip = useCallback((chip: ChipKey) => {
@@ -358,7 +401,7 @@ export function useMapScreen({
     const bounds = boundsOf(matches);
     if (!bounds || !mapRef.current) return;
     const top = (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-    const bottom = sheetVisiblePx(snap, window.innerHeight, mode) + 16;
+    const bottom = sheetVisiblePx(snap, sheetViewportHeight(), mode) + 16;
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
@@ -415,8 +458,9 @@ export function useMapScreen({
       void getGuOfPoint(start).catch(() => undefined);
       if (userLocation !== null) return;
       // 위치를 아직 모르면 한 번 조용히 묻고, 사용자가 핀을 건드리기 전이면 그리로 옮긴다
-      void requestPosition().then((pos) => {
-        if (!pos || !inBounds(pos, SEOUL_AREA)) return;
+      void requestPosition().then((res) => {
+        if (!res.ok || !inBounds(res.point, SEOUL_AREA)) return;
+        const pos = res.point;
         setUserLocation(pos);
         if (pinTouchedRef.current || reportStepRef.current !== 2) return;
         setReportPin(pos);
@@ -491,7 +535,7 @@ export function useMapScreen({
       programmaticMoveAt.current = performance.now();
       mapRef.current.fitBounds(bounds, {
         top: 72,
-        bottom: sheetVisiblePx("half", window.innerHeight, "report") + 24,
+        bottom: sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
         left: 40,
         right: 40,
         maxZoom: REPORT_ZOOM,
@@ -577,17 +621,23 @@ export function useMapScreen({
 
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
   const locateMe = useCallback(() => {
-    void requestPosition().then((pos) => {
-      if (!pos) {
-        showNotice("위치를 가져올 수 없어요");
+    void requestPosition().then((res) => {
+      if (!res.ok) {
+        // 거부는 다시 눌러도 팝업이 안 뜬다 — "다시 시도"로 읽히면 버튼만 계속 누르게 된다
+        showNotice(
+          res.reason === "denied"
+            ? "위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해주세요"
+            : "위치를 가져올 수 없어요",
+        );
         return;
       }
-      setUserLocation(pos);
+      setUserLocation(res.point);
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.morph(pos, USER_ZOOM);
+      mapRef.current.focus(res.point, USER_ZOOM, { screenY: stripCenterY() });
+      setFollowing(true);
     });
-  }, [mapRef, showNotice]);
+  }, [mapRef, showNotice, stripCenterY]);
 
   return {
     // 상태
@@ -607,6 +657,7 @@ export function useMapScreen({
     reportPin,
     reportCandidateId,
     userLocation,
+    following,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
     origin,
     eventDismissed,
@@ -620,8 +671,8 @@ export function useMapScreen({
     areaLabel,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
-    initialCenter: initialPlace ?? (userInSeoul ? userLocation : SEOUL_CENTER),
-    initialZoom: initialPlace || userInSeoul ? USER_ZOOM : INITIAL_ZOOM,
+    initialCenter: initialPlace ?? densestCenter ?? SEOUL_CENTER,
+    initialZoom: initialPlace ? USER_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,
@@ -639,6 +690,7 @@ export function useMapScreen({
     toggleBookmark,
     handleClusterClick,
     handleViewportChange,
+    handleUserPan,
     handleMapError,
     handleMissingConfig,
     dismissEvent,

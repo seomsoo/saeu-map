@@ -60,6 +60,7 @@ const fake = vi.hoisted(() => {
     getZoom: () => 12,
     getCenter: () => new LatLng(37.55, 127.0),
     panTo: vi.fn(),
+    setCenter: vi.fn(),
     morph: vi.fn(),
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
@@ -101,22 +102,29 @@ vi.mock("react-naver-maps", () => ({
     onClick,
     position,
     defaultPosition,
+    clickable,
   }: {
     title: string;
     onClick?: () => void;
     position?: { lat: number; lng: number };
     defaultPosition?: { lat: number; lng: number };
-  }) => (
-    <button
-      type="button"
-      data-testid="marker"
-      data-lat={(position ?? defaultPosition)?.lat}
-      data-lng={(position ?? defaultPosition)?.lng}
-      onClick={onClick}
-    >
-      {title}
-    </button>
-  ),
+    clickable?: boolean;
+  }) => {
+    const box = {
+      "data-testid": "marker",
+      "data-lat": (position ?? defaultPosition)?.lat,
+      "data-lng": (position ?? defaultPosition)?.lng,
+    };
+    // 현위치 마커는 clickable={false}라 실제로도 버튼이 아니다 — 버튼으로 그리면
+    // 현위치 FAB(aria-label "내 위치")과 접근 이름이 겹쳐 쿼리가 모호해진다
+    return clickable === false ? (
+      <span {...box}>{title}</span>
+    ) : (
+      <button type="button" {...box} onClick={onClick}>
+        {title}
+      </button>
+    );
+  },
   useMap: () => fake.map,
   useNavermaps: () => fake.navermaps,
   useListener: (_target: unknown, event: string, handler: (e: unknown) => void) => {
@@ -215,10 +223,17 @@ const listCards = () =>
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_NCP_CLIENT_ID", "test-key");
   fake.map.panTo.mockClear();
+  fake.map.setCenter.mockClear();
   fake.map.morph.mockClear();
   fake.map.fitBounds.mockClear();
   fake.map.setZoom.mockClear();
   fake.navermaps.Service.geocode.mockReset();
+});
+
+// stubGlobal(navigator.geolocation)은 restoreAllMocks로 안 풀린다 — 안 풀면 다음 테스트에서
+// 위치가 잡혀 지도가 한 번 더 움직인다(panTo 호출 수가 어긋남).
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("MapScreen — design 화면 1의 1~8", () => {
@@ -378,6 +393,79 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     fireEvent.click(screen.getByRole("option", { name: "확인 많은 순" }));
     const names = listCards().map((h) => h.textContent);
     expect(names.slice(0, 2)).toEqual(["나라수산", "노량진수산시장 하나수산"]); // 3회, 1회
+  });
+
+  it("위치를 알면 지도에 '내 위치' 마커가 그 좌표에 그려진다 (모르면 없다)", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    expect(screen.queryByText("내 위치", { selector: '[data-testid="marker"]' })).toBeNull();
+
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) => {
+          ok({ coords: { latitude: 37.5665, longitude: 126.978 } });
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    const marker = await screen.findByText("내 위치", { selector: '[data-testid="marker"]' });
+    expect(marker).toHaveAttribute("data-lat", "37.5665");
+    expect(marker).toHaveAttribute("data-lng", "126.978");
+  });
+
+  it("위치 거부(PERMISSION_DENIED)는 '다시 시도'가 아니라 설정 안내 — 거부 뒤엔 팝업이 안 뜬다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (_ok: unknown, fail: (e: { code: number }) => void) => {
+          fail({ code: 1 }); // PERMISSION_DENIED
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해주세요",
+    );
+  });
+
+  it("위치를 못 구하거나 타임아웃(code 2·3)이면 다시 시도할 수 있게 안내", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (_ok: unknown, fail: (e: { code: number }) => void) => {
+          fail({ code: 3 }); // TIMEOUT
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "내 위치" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("위치를 가져올 수 없어요");
+  });
+
+  it("현위치로 이동하면 FAB이 활성, 사용자가 지도를 밀면 풀린다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    const fab = () => screen.getByRole("button", { name: "내 위치" });
+    expect(fab()).toHaveAttribute("aria-pressed", "false");
+
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        getCurrentPosition: (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) => {
+          ok({ coords: { latitude: 37.5665, longitude: 126.978 } });
+        },
+      },
+    });
+    fireEvent.click(fab());
+    await waitFor(() => {
+      expect(fab()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    // dragstart는 손가락이 끌 때만 온다 — 프로그램 이동 창 안이어도 바로 풀려야 한다 (Codex PR #7 #4)
+    act(() => {
+      fake.listeners["dragstart"]?.(undefined);
+    });
+    expect(fab()).toHaveAttribute("aria-pressed", "false");
   });
 
   it("내 위치: geolocation 없음(jsdom) → 안내, 지도는 안 움직임", async () => {
@@ -912,8 +1000,8 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     ).toBeInTheDocument();
   });
 
-  it("마운트 때 보낸 위치 요청이 2단계에서 핀을 옮긴 뒤 늦게 오면 지도를 옮기지 않는다 (Codex PR #6 #5)", async () => {
-    // 권한 프롬프트를 열어 둔 채 제보를 시작한 경우 — 응답 콜백을 잡아 두었다가 나중에 부른다
+  it("2단계 진입에 보낸 위치 요청이 핀을 옮긴 뒤 늦게 오면 지도를 옮기지 않는다 (Codex PR #6 #5)", async () => {
+    // 권한 프롬프트를 열어 둔 채 핀을 맞춘 경우 — 응답 콜백을 잡아 두었다가 나중에 부른다
     const pending: ((pos: { coords: { latitude: number; longitude: number } }) => void)[] = [];
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -929,7 +1017,7 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
       fake.listeners["click"]?.({ coord: new fake.navermaps.LatLng(37.56, 127.01) });
     });
     expect(screen.getByRole("button", { name: "제보 위치" })).toHaveAttribute("data-lat", "37.56");
-    expect(pending.length).toBeGreaterThanOrEqual(2); // 마운트 요청 + 2단계 진입 요청
+    expect(pending.length).toBeGreaterThanOrEqual(1); // 2단계 진입 요청 (마운트 요청은 없앴다)
     fake.map.morph.mockClear();
     const pans = fake.map.panTo.mock.calls.length;
     await act(async () => {

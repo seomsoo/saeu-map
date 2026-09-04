@@ -94,11 +94,13 @@ export default function MapScreen({
               onViewportChange={s.handleViewportChange}
               onPlaceClick={s.selectFromMarker}
               onClusterClick={s.handleClusterClick}
+              userLocation={s.userLocation}
               pin={s.reportStep === 2 ? s.reportPin : null} // 핀은 2단계에만 보인다 (좌표는 단계를 오가도 남는다)
               onPinChange={(point) => {
                 s.moveReportPin(point, "drag");
               }}
               onMapTap={s.reportStep === 2 ? tapReportPin : undefined}
+              onUserPan={s.handleUserPan}
               onAuthFailure={s.handleMapError}
             />
           </NaverMapProvider>
@@ -131,7 +133,7 @@ export default function MapScreen({
       >
         {s.mode !== "report" && (
           <>
-            <div className="bg-bg px-5 pt-safe-top-or-3 pb-3 shadow-float">
+            <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5">
               <SearchBar
                 value={s.query}
                 onChange={s.setQuery}
@@ -140,7 +142,7 @@ export default function MapScreen({
               />
             </div>
             {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
-            <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-5 pb-1">
+            <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5">
               <CategoryDropdown tab={s.tab} onChange={s.setTab} />
               <FilterChips chips={s.chips} onToggle={s.toggleChip} />
             </div>
@@ -206,7 +208,11 @@ export default function MapScreen({
           )
         }
         emptyKind={s.emptyKind}
-        aside={s.mode === "list" ? <FabRow onLocate={s.locateMe} onReport={s.openReport} /> : undefined}
+        aside={
+          s.mode === "list" ? (
+            <FabRow onLocate={s.locateMe} onReport={s.openReport} following={s.following} />
+          ) : undefined
+        }
         onSortChange={s.setSort}
         onSnapChange={s.setSnap}
         onDismissDetail={s.closeDetail}

@@ -24,6 +24,7 @@ import {
   getClusterIcon,
   getPlaceMarkerIcon,
   getReportPinIcon,
+  getUserLocationIcon,
 } from "./marker-icons";
 
 type Navermaps = typeof naver.maps;
@@ -49,8 +50,14 @@ export const GEOCODE_MAX_HITS = 5;
 
 /** 부모가 지도를 움직일 때 쓰는 명령형 핸들. lib에는 naver 객체가 새지 않는다. */
 export interface MapHandle {
-  /** target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙. */
-  panTo(target: LatLng, options?: { screenY?: number | undefined }): void;
+  /**
+   * target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙.
+   * animate:false는 setCenter — 첫 페인트에서 지도가 미끄러지면 안 될 때만.
+   */
+  panTo(
+    target: LatLng,
+    options?: { screenY?: number | undefined; animate?: boolean | undefined },
+  ): void;
   morph(target: LatLng, zoom: number): void;
   /** 줌을 바꾼 뒤(애니메이션 없이) panTo — 제보 2단계가 핀을 시트 위 가시 영역 가운데에 놓을 때 */
   focus(
@@ -79,12 +86,16 @@ export interface MapViewProps {
   onViewportChange: (viewport: Viewport) => void;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
+  /** 내 위치(파란 점). 권한이 없거나 아직 모르면 null — 마커를 안 그린다. */
+  userLocation?: LatLng | null | undefined;
   /** 제보 2단계의 끌 수 있는 핀. null·undefined면 없음. */
   pin?: LatLng | null | undefined;
   /** 핀을 끌어 놓았을 때의 좌표 */
   onPinChange?: ((point: LatLng) => void) | undefined;
   /** 지도 빈 곳 탭(click·tap) — 제보 2단계가 핀을 그 자리로 옮긴다. 없으면 무시 */
   onMapTap?: ((point: LatLng) => void) | undefined;
+  /** 사용자가 지도를 끌기 시작했다. idle과 달리 프로그램 이동과 절대 섞이지 않는다 — 현위치 추적 해제용 */
+  onUserPan?: (() => void) | undefined;
   /**
    * NCP 인증 실패(키 오류·미등록 도메인). 스크립트는 정상 로드되고 SDK가 window.navermap_authFailure를
    * 부를 뿐이라 ErrorBoundary로는 잡히지 않는다 — 여기서 에러 상태로 넘긴다.
@@ -123,8 +134,10 @@ export function MapView({
   onPlaceClick,
   onClusterClick,
   pin,
+  userLocation,
   onPinChange,
   onMapTap,
+  onUserPan,
   onAuthFailure,
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
@@ -152,6 +165,7 @@ export function MapView({
           handleRef={handleRef}
           onViewportChange={onViewportChange}
           onMapTap={onMapTap}
+          onUserPan={onUserPan}
         />
         <PlaceMarkers
           items={items}
@@ -160,9 +174,24 @@ export function MapView({
           onPlaceClick={onPlaceClick}
           onClusterClick={onClusterClick}
         />
+        {userLocation && <UserLocationMarker position={userLocation} />}
         {pin && <ReportPin position={pin} onChange={onPinChange} />}
       </NaverMap>
     </Container>
+  );
+}
+
+/** 내 위치 파란 점. 탭 대상이 아니고(마커 탭은 가게만) 가게 마커보다 아래에 깔린다. */
+function UserLocationMarker({ position }: { position: LatLng }) {
+  const navermaps = useNavermaps();
+  return (
+    <Marker
+      position={position}
+      icon={getUserLocationIcon(navermaps)}
+      title="내 위치"
+      clickable={false}
+      zIndex={5}
+    />
   );
 }
 
@@ -199,10 +228,12 @@ function MapController({
   handleRef,
   onViewportChange,
   onMapTap,
+  onUserPan,
 }: {
   handleRef: Ref<MapHandle>;
   onViewportChange: (viewport: Viewport) => void;
   onMapTap: ((point: LatLng) => void) | undefined;
+  onUserPan: (() => void) | undefined;
 }) {
   const map = useMap();
   const navermaps = useNavermaps();
@@ -214,6 +245,13 @@ function MapController({
 
   // idle은 이동이 끝날 때마다. 초기 상태는 idle이 안 올 수 있어 마운트 시 한 번 직접 보고.
   useListener(map, "idle", report);
+
+  /* dragstart는 손가락이 지도를 끌 때만 온다 — 프로그램 이동(panTo·morph·focus)은 안 낸다.
+     idle로 사용자 조작을 가려내면 시간 창에 기대야 하고, 창 안에서 민 경우를 놓친다 (Codex PR #7 #4). */
+  const handleUserPan = useCallback(() => {
+    onUserPan?.();
+  }, [onUserPan]);
+  useListener(map, "dragstart", handleUserPan);
 
   // 데스크탑은 click, 터치는 tap — 둘 다 같은 좌표라 두 번 와도 무해. 마커 위 탭은 마커가 받는다.
   const handleTap = useCallback(
@@ -233,9 +271,13 @@ function MapController({
   useImperativeHandle(handleRef, () => {
     const panTo: MapHandle["panTo"] = (target, options) => {
       const latlng = new navermaps.LatLng(target.lat, target.lng);
+      const move = (coord: naver.maps.Coord) => {
+        if (options?.animate === false) map.setCenter(coord);
+        else map.panTo(coord);
+      };
       const screenY = options?.screenY;
       if (screenY === undefined) {
-        map.panTo(latlng);
+        move(latlng);
         return;
       }
       // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
@@ -246,7 +288,7 @@ function MapController({
         offset.x,
         size.height / 2 + (offset.y - screenY),
       );
-      map.panTo(projection.fromOffsetToCoord(centerOffset));
+      move(projection.fromOffsetToCoord(centerOffset));
     };
     return {
       panTo,

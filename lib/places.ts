@@ -218,6 +218,37 @@ const WHOLE_CITY_GU_COUNT = 8;
  * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트 안 가게의 구 분포로만 정한다(규칙 2).
  * 0곳 → "이 지역" / 전체의 60%↑ 또는 구 8개↑ → "서울 전체" / 구 1개 → 그 구 / 그 외 → 최다 구 + " 일대"
  */
+/** 첫 지도 중심을 고를 때 세는 반경. 줌 12의 가시 영역(약 11.8×9.4km)에 내접한다. */
+const DENSEST_RADIUS_KM = 5;
+
+/**
+ * 가게가 가장 몰려 있는 지점 — 첫 지도 중심. 반경 5km 안 가게 수가 최대인 가게의 좌표다.
+ * 서울시청 고정보다 첫 화면에 보이는 가게가 많고(목 50곳 기준 12 → 18곳), 평균·중앙값과 달리
+ * 서울 밖 제보 한두 건에 끌려가지 않는다. 데이터가 비면 null (호출자가 서울 중심으로 떨어진다).
+ */
+export function densestPoint(places: readonly Place[]): LatLng | null {
+  const first = places[0];
+  if (!first) return null;
+  // 도시 규모에선 등거리 근사로 충분하다. O(n²)라 haversine의 삼각함수를 피한다.
+  const kmPerLng = 111.32 * Math.cos((first.lat * Math.PI) / 180);
+  const r2 = DENSEST_RADIUS_KM * DENSEST_RADIUS_KM;
+  let best = first;
+  let bestCount = -1;
+  for (const p of places) {
+    let count = 0;
+    for (const q of places) {
+      const dy = (q.lat - p.lat) * 111.32;
+      const dx = (q.lng - p.lng) * kmPerLng;
+      if (dx * dx + dy * dy <= r2) count += 1;
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      best = p;
+    }
+  }
+  return { lat: best.lat, lng: best.lng };
+}
+
 export function areaLabel(visible: readonly Place[], total: number): string {
   if (visible.length === 0) return "이 지역";
   const counts = new Map<string, number>();

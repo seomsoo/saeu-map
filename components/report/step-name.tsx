@@ -23,7 +23,7 @@ interface StepNameProps {
 
 /**
  * 1단계 — 가게 이름 (design 화면 3-1). 입력은 열리자마자 포커스, 두 글자부터 우리 DB를 맞춰 최대 5행
- * "이미 있어요". 매치가 없으면 목록 자리 없이 바로 캡션 + [새로 등록하기].
+ * "이미 있어요". 바닥 CTA [새로 등록하기]는 매치 유무와 무관하게 늘 있다 — 설명 캡션은 두지 않는다.
  */
 export function StepName({
   places,
@@ -65,14 +65,9 @@ export function StepName({
       caption="이미 있는 가게면 바로 알려드려요"
       onBack={onBack}
       footer={
-        <>
-          <p className="mb-3 text-center text-caption-l-regular text-fg-tertiary">
-            찾는 가게가 없나요?
-          </p>
-          <Button variant="brand" size="xl" className="w-full" onClick={submit}>
-            새로 등록하기
-          </Button>
-        </>
+        <Button variant="brand" size="xl" className="w-full" onClick={submit}>
+          새로 등록하기
+        </Button>
       }
     >
       <div className="flex h-12 items-center gap-1.5 rounded-8 bg-bg-sunken px-4">
