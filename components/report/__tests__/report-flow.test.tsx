@@ -494,8 +494,10 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     expect(card).toHaveTextContent("마포구 · 새우구이");
     fireEvent.click(screen.getByRole("button", { name: "내 핀 보러가기" }));
     expect(props.onOpenExisting).toHaveBeenCalledWith("r001");
+    // 리뷰 유도는 상세로 넘어간 뒤 로그인 게이트 → 폼 (Phase 4)
     fireEvent.click(screen.getByRole("button", { name: "리뷰도 남겨볼래요?" }));
-    expect(props.onNotice).toHaveBeenCalledWith("준비 중이에요");
+    expect(props.onOpenExisting).toHaveBeenLastCalledWith("r001", { review: true });
+    expect(props.onNotice).not.toHaveBeenCalledWith("준비 중이에요");
   });
 
   it("완료 카드의 [공유]는 상세와 같은 길 (기기 공유 시트 → 링크 복사)", async () => {

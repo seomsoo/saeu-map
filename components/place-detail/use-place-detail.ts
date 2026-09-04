@@ -1,21 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "@/components/auth/session-provider";
+import type { ReviewSaveResult } from "@/components/review/use-review-form";
 import {
-  checkIn as requestCheckIn,
+  deleteReview as requestDeleteReview,
   getPlaceDetail,
   type PhotoReportReason,
   reportPhoto as requestReportPhoto,
 } from "@/lib/data";
-import { isPhotoHistoryState, type SaeuHistoryState } from "@/lib/history-state";
+import {
+  isPhotoHistoryState,
+  pushOverlayHistoryEntry,
+  type SaeuHistoryState,
+} from "@/lib/history-state";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
+import { sortReviewsNewest } from "@/lib/reviews";
 import { copyText, sharePlace } from "@/lib/share";
 import type { Place, Review } from "@/lib/types";
 import type { ReviewsStatus } from "./review-section";
+import { useCheckIn } from "./use-check-in";
 
-/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·리뷰·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
+export { CHECKIN_FAILED_NOTICE } from "./use-check-in";
+
+/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
 export const COMING_SOON_NOTICE = "준비 중이에요";
-export const CHECKIN_FAILED_NOTICE = "확인을 저장하지 못했어요";
+export const REVIEW_SAVED_NOTICE = "리뷰를 남겼어요";
+export const REVIEW_UPDATED_NOTICE = "리뷰를 고쳤어요";
+export const REVIEW_DELETE_FAILED_NOTICE = "리뷰를 삭제하지 못했어요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
@@ -49,11 +61,9 @@ export function usePlaceDetail({
   onChecked,
   onNotice,
 }: UsePlaceDetailInput) {
-  const [optimistic, setOptimistic] = useState<Place | null>(null);
   const [reviews, setReviews] = useState<Review[]>(initialReviews ?? []);
   const [status, setStatus] = useState<ReviewsStatus>(initialReviews ? "ready" : "loading");
   const [attempt, setAttempt] = useState(0);
-  const pendingRef = useRef(false);
 
   /* ── 리뷰 로드 (컴포넌트는 place.id로 key되어 가게가 바뀌면 처음 상태에서 다시 시작) ── */
   useEffect(() => {
@@ -84,29 +94,12 @@ export function usePlaceDetail({
     setAttempt((n) => n + 1);
   }, []);
 
-  /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 ── */
-  const done = checked || optimistic !== null;
-
-  const checkIn = useCallback(() => {
-    if (done || pendingRef.current) return;
-    pendingRef.current = true;
-    const base = place;
-    setOptimistic({ ...base, checkCount: base.checkCount + 1, lastCheckedAt: now });
-    requestCheckIn(base.id, now)
-      .then(
-        (updated) => {
-          onPatchPlace(updated);
-          onChecked(base.id);
-        },
-        () => {
-          onNotice(CHECKIN_FAILED_NOTICE);
-        },
-      )
-      .finally(() => {
-        pendingRef.current = false;
-        setOptimistic(null);
-      });
-  }, [done, place, now, onPatchPlace, onChecked, onNotice]);
+  /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 (신규 패널 [맞아요]와 같은 훅) ── */
+  const {
+    place: shownPlace,
+    done,
+    checkIn,
+  } = useCheckIn({ place, now, checked, onPatchPlace, onChecked, onNotice });
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
@@ -189,8 +182,80 @@ export function usePlaceDetail({
     onNotice(COMING_SOON_NOTICE);
   }, [onNotice]);
 
+  /* ── 리뷰 쓰기 (화면 5 변형 (b)·(c)): 로그인 게이트 → 폼(오버레이), 본인 수정·낙관 삭제 ── */
+  const { session, requireLogin } = useSession();
+  const [reviewForm, setReviewForm] = useState<{ initial?: Review } | null>(null);
+  // 늦게 온 게이트 결과가 닫힌 상세를 움직이지 않게 (StrictMode 이중 effect: 본문에서 true)
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  /** 이 가게에 쓴 내 리뷰 — 있으면 [리뷰 남기기]가 [리뷰 수정]이 된다(핀당 1개, spec 5 스팸 4겹 2). */
+  const currentUserId = session?.userId ?? null;
+  const myReview = useMemo(
+    () => (currentUserId === null ? undefined : reviews.find((r) => r.authorId === currentUserId)),
+    [reviews, currentUserId],
+  );
+  /** 늦게 온 게이트 결과가 최신 목록을 봐야 한다 — 로그인 직후 리렌더 전에 resolve될 수 있다 */
+  const myReviewRef = useRef(myReview);
+  useEffect(() => {
+    myReviewRef.current = myReview;
+  }, [myReview]);
+
+  /** [리뷰 남기기]·[리뷰 수정] — 익명이면 로그인 시트, 로그인하면(또는 이미면) 폼. 게이트 뒤 폼으로 복귀(spec 5). */
+  const writeReview = useCallback(() => {
+    void requireLogin("review").then((ok) => {
+      if (!ok || !alive.current) return;
+      pushOverlayHistoryEntry();
+      const mine = myReviewRef.current;
+      setReviewForm(mine ? { initial: mine } : {});
+    });
+  }, [requireLogin]);
+
+  const editReview = useCallback((review: Review) => {
+    pushOverlayHistoryEntry();
+    setReviewForm({ initial: review });
+  }, []);
+
+  const closeReviewForm = useCallback(() => {
+    setReviewForm(null);
+  }, []);
+
+  /** 저장 성공 — 새 리뷰는 맨 앞에 + 가게 확인일 갱신, 수정은 제자리 교체. 토스트는 폼이 닫힌 뒤 보인다. */
+  const handleReviewSaved = useCallback(
+    ({ review, place: updated }: ReviewSaveResult) => {
+      setReviews((prev) =>
+        updated
+          ? [review, ...prev.filter((r) => r.id !== review.id)]
+          : prev.map((r) => (r.id === review.id ? review : r)),
+      );
+      if (updated) onPatchPlace(updated);
+      onNotice(updated ? REVIEW_SAVED_NOTICE : REVIEW_UPDATED_NOTICE);
+    },
+    [onPatchPlace, onNotice],
+  );
+
+  /** 본인 리뷰 삭제 — 즉시 빠지고(낙관) 실패하면 제자리(최신순)로 돌아온다 + 토스트 */
+  const deleteReview = useCallback(
+    (id: string) => {
+      const removed = reviews.find((r) => r.id === id);
+      if (!removed) return;
+      setReviews((prev) => prev.filter((r) => r.id !== id));
+      requestDeleteReview(id).catch(() => {
+        if (!alive.current) return;
+        setReviews((prev) => sortReviewsNewest([...prev, removed]));
+        onNotice(REVIEW_DELETE_FAILED_NOTICE);
+      });
+    },
+    [reviews, onNotice],
+  );
+
   return {
-    place: optimistic ?? place,
+    place: shownPlace,
     done,
     reviews,
     status,
@@ -204,5 +269,15 @@ export function usePlaceDetail({
     openPhoto,
     closePhoto,
     reportPhoto,
+    /** 본인 리뷰 판정용 — 세션을 아직 모르면 null(아무 리뷰도 내 것이 아니다) */
+    currentUserId,
+    /** 이 가게에 이미 쓴 내 리뷰 — 기여 블록 버튼이 [리뷰 수정]으로 바뀐다 */
+    hasMyReview: myReview !== undefined,
+    reviewForm,
+    writeReview,
+    editReview,
+    closeReviewForm,
+    handleReviewSaved,
+    deleteReview,
   };
 }

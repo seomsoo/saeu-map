@@ -15,8 +15,9 @@ export type SheetSnap = "collapsed" | "half" | "full";
 /**
  * list = 화면 1 목록(3단, 항상 열림) / detail = 화면 2 상세(요약·전체 2단 + 아래로 스와이프하면 닫힘)
  * report = 화면 3 제보(요약·전체 2단, 닫기는 헤더 ✕뿐 — 입력 중인 값이 스와이프 한 번에 사라지면 안 된다)
+ * me = 화면 5 내 활동(제보와 같은 기하·헤더·no-dismiss. 전체로 열리고 닫기는 ✕·뒤로가기)
  */
-export type SheetMode = "list" | "detail" | "report";
+export type SheetMode = "list" | "detail" | "report" | "me";
 export type SheetRelease = { kind: "snap"; snap: SheetSnap } | { kind: "dismiss" };
 
 /*
@@ -517,7 +518,11 @@ export function BottomSheet({
           <button
             type="button"
             aria-label={dismissLabel}
-            onClick={onDismiss}
+            /* 인자 없이 부른다 — 닫기 함수들은 (source)를 받는데 MouseEvent가 들어가면 "ui" 판정이 깨져
+               히스토리 엔트리가 남는다 (gap-sweeper 2026-09-04) */
+            onClick={() => {
+              onDismiss();
+            }}
             onPointerDown={(e) => {
               e.stopPropagation();
             }}

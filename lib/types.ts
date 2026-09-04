@@ -68,6 +68,8 @@ export interface Place {
   createdAt?: string;
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
+  /** 제보한 세션 userId — 내 활동 > 내 제보(spec 5). 시드는 없다. */
+  reporterId?: string;
 }
 
 export interface Checkin {
@@ -127,14 +129,41 @@ export interface SeasonStats {
 }
 
 export interface Review {
+  /** 목 단계 "rv001"·"rv-local-1". Phase 6에서 DB uuid — 수정·삭제가 이 값을 보낸다. */
+  id: string;
   placeId: string;
+  /** 작성자 세션 userId — 본인 [수정][삭제] 판정(spec 5). 화면에는 안 보인다. */
+  authorId: string;
   rating: number;
   text: string;
   nickname: string;
   at: string;
-  /** 리뷰 사진. 우리 스토리지 경로만(규칙 3). 업로드는 Phase 4 리뷰 폼에서. */
+  /** 수정한 시각(UTC ISO). 화면에는 "수정됨"만 (spec 5). */
+  editedAt?: string;
+  /** 리뷰 사진. 우리 스토리지 경로만(규칙 3). 목 단계 폼은 파일을 버린다(저장소 Phase 6). */
   photoUrl?: string;
 }
+
+/** 내 활동 > 내 리뷰 행 — 리뷰 + 가게명(누르면 그 가게 상세). */
+export interface MyReview extends Review {
+  placeName: string;
+}
+
+export type AuthProvider = "anonymous" | "kakao";
+
+/**
+ * 세션 (spec 5 로그인). 익명이 기본이고 카카오는 선택 — 목 단계는 lib/data.ts 메모리(탭 단위, 규칙 4).
+ * 익명 가능 = 다녀왔어요·제보·찜(기기 한정) / 카카오 필요 = 리뷰·내 활동.
+ */
+export interface Session {
+  userId: string;
+  provider: AuthProvider;
+  /** 카카오 프로필 기본, 수정 가능. 익명은 null. */
+  nickname: string | null;
+}
+
+/** 신규 패널 [정보가 달라요] 사유 — 사유 시트 4행과 1:1 (design 화면 4 변형 (a)). */
+export type PlaceFlagReason = "location" | "menu" | "closed" | "other";
 
 /** 상세 화면 데이터 묶음 — 가게 + 그 가게 리뷰(최신순). */
 export interface PlaceDetail {

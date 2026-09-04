@@ -9,6 +9,8 @@ import {
   useState,
   type RefObject,
 } from "react";
+import type { ActivityTab, LoadStatus } from "@/components/activity/use-activity";
+import { useSession } from "@/components/auth/session-provider";
 import type { MapHandle } from "@/components/map/map-view";
 import { previousReportStep, type ReportStep } from "@/components/report/types";
 import {
@@ -18,9 +20,14 @@ import {
   type SheetSnap,
 } from "@/components/ui/bottom-sheet";
 import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
-import { getGuOfPoint, toggleBookmark as requestToggleBookmark } from "@/lib/data";
+import {
+  getBookmarkedPlaceIds,
+  getGuOfPoint,
+  toggleBookmark as requestToggleBookmark,
+} from "@/lib/data";
 import {
   isDetailHistoryState,
+  isMeHistoryState,
   isReportHistoryState,
   type SaeuHistoryState,
 } from "@/lib/history-state";
@@ -30,6 +37,7 @@ import {
   densestPoint,
   filterPlaces,
   isSideChip,
+  sortByCreatedDesc,
   sortPlaces,
 } from "@/lib/places";
 import type {
@@ -49,6 +57,9 @@ const SEARCH_FIT_MAX_ZOOM = 16;
 /** 서울·근교. 위치가 이 밖이면 거리 정렬에만 쓰고 지도는 옮기지 않는다. */
 const SEOUL_AREA = { north: 37.75, south: 37.35, east: 127.3, west: 126.7 };
 const NOTICE_MS = 2000;
+/** 익명 찜 이 개수째에 로그인 넛지 한 번 (spec 5 "벽은 아님") */
+const BOOKMARK_NUDGE_AT = 3;
+export const BOOKMARK_NUDGE_NOTICE = "로그인하면 찜이 기기가 바뀌어도 남아요";
 /** 프로그램적 이동(카드 탭·위치 이동) 뒤 이 시간 안에 온 idle은 정렬 기준점을 갱신하지 않는다 */
 const PROGRAMMATIC_MOVE_WINDOW_MS = 1500;
 /** id 문자 화이트리스트 — 디코딩이 필요 없고, 이상한 %시퀀스로 popstate가 터지지 않는다 (security-reviewer 2026-09-02) */
@@ -57,8 +68,8 @@ const PLACE_PATH = /^\/place\/([A-Za-z0-9_-]+)\/?$/;
 export type MapStatus = "loading" | "ready" | "error";
 /** runtime = 스크립트 로드/인증 실패, config = 빌드에 지도 Client ID 없음 (개발자 설정 오류) */
 export type MapErrorReason = "runtime" | "config";
-/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 사이드 칩 조건에 맞는 집 없음(필터 해제 유도) */
-export type EmptyKind = "area" | "bookmarks" | "filter";
+/** area = 이 동네에 없음(제보 유도) / bookmarks = 찜 0 / filter = 켜 둔 조건(칩·카테고리·검색어)에 맞는 집 없음(필터 해제 유도) / new = 이번 주 새 제보 없음(화면 4) */
+export type EmptyKind = "area" | "bookmarks" | "filter" | "new";
 
 export function placeIdFromPath(pathname: string): string | null {
   const match = PLACE_PATH.exec(pathname);
@@ -111,9 +122,14 @@ export function useMapScreen({
   mapRef,
   topStackRef,
 }: UseMapScreenInput) {
+  const { session, requireLogin } = useSession();
   // 가게·찜은 서버 초기값에서 시작해 클라이언트 state가 진실이 된다 (다녀왔다면·찜 결과를 카드·칩 필터에 반영)
   const [places, setPlaces] = useState(initialPlaces);
   const [bookmarkedIds, setBookmarkedIds] = useState(initialBookmarkedIds);
+  /** 찜을 어느 세션까지 읽었나 — 상태(로딩·에러)는 이 값과 현재 세션을 비교해 파생한다(effect 안에서 setState 금지) */
+  const [bookmarksLoaded, setBookmarksLoaded] = useState<{ userId: string; ok: boolean } | null>(null);
+  /** 익명 찜 넛지는 세션당 한 번 */
+  const bookmarkNudgedRef = useRef(false);
   const [tab, setTab] = useState<TabKey>("all");
   const [chips, setChips] = useState<ChipKey[]>([]);
   const [query, setQuery] = useState("");
@@ -137,6 +153,13 @@ export function useMapScreen({
   const [reportPin, setReportPin] = useState<LatLng | null>(null);
   /** 2단계에서 탭한 기존 마커 — 패널이 그 가게로 중복 의심 패널을 연다 */
   const [reportCandidateId, setReportCandidateId] = useState<string | null>(null);
+  /** 제보 완료 "리뷰도 남겨볼래요?" — 이 가게 상세가 열리자마자 리뷰 게이트를 세운다(한 번 쓰고 지운다) */
+  const [reviewIntentId, setReviewIntentId] = useState<string | null>(null);
+  /** 내 활동 패널(화면 5). 상세가 그 위에 열려도 true로 남아, 상세를 닫으면 패널로 돌아온다 */
+  const [meOpen, setMeOpen] = useState(false);
+  const [meTab, setMeTab] = useState<ActivityTab>("bookmarks");
+  /** 내 활동 활성 탭의 가게 id — 열린 동안 지도 마커는 이것만 */
+  const [mePlaceIds, setMePlaceIds] = useState<readonly string[]>([]);
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
@@ -150,6 +173,15 @@ export function useMapScreen({
   useEffect(() => {
     reportStepRef.current = reportStep;
   }, [reportStep]);
+  /** popstate가 상세가 열려 있지 않을 때(오버레이 엔트리가 빠질 때 등) 목록 스냅을 건드리지 않게 */
+  const detailIdRef = useRef<string | null>(initialPlaceId ?? null);
+  useEffect(() => {
+    detailIdRef.current = detailId;
+  }, [detailId]);
+  const meOpenRef = useRef(false);
+  useEffect(() => {
+    meOpenRef.current = meOpen;
+  }, [meOpen]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
   /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
@@ -161,6 +193,44 @@ export function useMapScreen({
 
   /* ── 파생 ── */
   const bookmarked = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
+  const bookmarkedPlaces = useMemo(
+    () => places.filter((p) => bookmarked.has(p.id)),
+    [places, bookmarked],
+  );
+
+  // 세션이 바뀌면(첫 로드·로그인 승계·로그아웃·탈퇴) 찜은 그 사용자의 것으로 — 목은 lib/data 메모리라 바로 온다.
+  // 서버가 준 초기값으로 시작하므로 status는 ready에서 출발하고, 세션이 바뀔 때만 다시 읽는다(내 활동 찜 탭의 4상태).
+  const sessionUserId = session?.userId ?? null;
+  useEffect(() => {
+    if (sessionUserId === null || bookmarksLoaded?.userId === sessionUserId) return;
+    let alive = true;
+    getBookmarkedPlaceIds().then(
+      (ids) => {
+        if (!alive) return;
+        setBookmarkedIds(ids);
+        setBookmarksLoaded({ userId: sessionUserId, ok: true });
+      },
+      () => {
+        if (alive) setBookmarksLoaded({ userId: sessionUserId, ok: false });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [sessionUserId, bookmarksLoaded]);
+
+  /** 내 활동 찜 탭의 4상태 — 아직 이 세션의 찜을 못 읽었으면 로딩, 실패면 에러 */
+  const bookmarksStatus: LoadStatus =
+    sessionUserId === null || bookmarksLoaded?.userId === sessionUserId
+      ? bookmarksLoaded?.ok === false
+        ? "error"
+        : "ready"
+      : "loading";
+
+  /** 찜 탭 [다시 시도] — 읽은 표식을 지우면 위 effect가 다시 돈다 */
+  const retryBookmarks = useCallback(() => {
+    setBookmarksLoaded(null);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -171,6 +241,14 @@ export function useMapScreen({
         bookmarkedIds: bookmarked,
       }),
     [places, tab, chips, deferredQuery, bookmarked],
+  );
+
+  /* 화면 4 심판대: [새로 들어온 집] 칩이 켜지면 시트가 패널로 바뀐다 — 뷰포트와 무관하게 필터를 통과한
+     신규 전부를 최신순으로(서너 곳뿐이라 지도 안으로 자르면 늘 비어 보인다, decisions 2026-09-04). 마커는 기존 파이프라인. */
+  const newPanelOpen = chips.includes("new");
+  const newPanel = useMemo(
+    () => (newPanelOpen ? sortByCreatedDesc(filtered) : null),
+    [newPanelOpen, filtered],
   );
 
   // 필터에서 빠진 가게는 선택 해제된 것으로 본다. 단 상세가 열려 있으면 그 핀은 필터와 무관하게 유지 (Codex #4)
@@ -184,15 +262,30 @@ export function useMapScreen({
     () => (detailId ? (places.find((p) => p.id === detailId) ?? null) : null),
     [places, detailId],
   );
-  const mode: SheetMode = detailPlace ? "detail" : reportStep !== null ? "report" : "list";
+  const mode: SheetMode = detailPlace
+    ? "detail"
+    : reportStep !== null
+      ? "report"
+      : meOpen
+        ? "me"
+        : "list";
   useEffect(() => {
     snapRef.current = snap;
     modeRef.current = mode;
   }, [snap, mode]);
 
   // 제보 중엔 칩·탭·검색어와 무관하게 전부 마커로 — 중복 후보가 필터에 걸려 안 보이면 안 된다(design 화면 3 변형 (a)).
-  // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다.
-  const markerPool = reportStep !== null ? places : filtered;
+  // 상단 두 층이 숨어 있어 사용자는 필터를 바꿀 수도 없다. 내 활동이 열려 있으면 활성 탭의 가게만(화면 5).
+  const meMarkerSet = useMemo(() => new Set(mePlaceIds), [mePlaceIds]);
+  const markerPool = useMemo(
+    () =>
+      reportStep !== null
+        ? places
+        : meOpen
+          ? places.filter((p) => meMarkerSet.has(p.id))
+          : filtered,
+    [reportStep, places, meOpen, meMarkerSet, filtered],
+  );
   // 선택된 가게는 클러스터에서 빼서 항상 단독 마커로 보이게
   const index = useMemo(
     () =>
@@ -232,12 +325,19 @@ export function useMapScreen({
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
   );
+  /* 신규 패널에서 0곳인 이유는 둘이다: 이번 주 새 제보가 없거나(new), 켜 둔 다른 조건이 걸러냈거나(filter).
+     후자에 "이번 주 새 제보가 없어요"를 띄우면 신규가 있는데 없다고 말하게 된다 (gap-sweeper 2026-09-04). */
+  const hasAnyNew = useMemo(() => places.some((p) => p.isNew), [places]);
   const emptyKind: EmptyKind =
     chips.includes("bookmarked") && bookmarked.size === 0
       ? "bookmarks"
-      : chips.some(isSideChip)
-        ? "filter"
-        : "area";
+      : newPanelOpen
+        ? hasAnyNew
+          ? "filter"
+          : "new"
+        : chips.some(isSideChip)
+          ? "filter"
+          : "area";
 
   /* ── 지도 이벤트 ── */
   const handleViewportChange = useCallback((next: Viewport) => {
@@ -321,7 +421,8 @@ export function useMapScreen({
       if (detailId === id) return;
       setSelectedId(id);
       const switching = detailId !== null; // 상세가 열린 채 다른 마커를 탭
-      if (!switching && source !== "report") listSnapRef.current = snap; // 목록에서 처음 열 때의 높이를 기억 (제보는 열 때 이미 기억했다)
+      // 목록에서 처음 열 때의 높이를 기억 (제보·내 활동은 열 때 이미 기억했다)
+      if (!switching && source !== "report" && !meOpenRef.current) listSnapRef.current = snap;
       setDetailId(id);
       setSnap("half");
       if (source !== "history") {
@@ -348,7 +449,8 @@ export function useMapScreen({
 
   const closeDetail = useCallback((source: "ui" | "history" = "ui") => {
     setDetailId(null);
-    setSnap(listSnapRef.current);
+    // 내 활동 위에 열린 상세였으면 패널(전체)로 돌아온다
+    setSnap(meOpenRef.current ? "full" : listSnapRef.current);
     if (source === "history") return;
     if (isDetailHistoryState(window.history.state)) {
       window.history.back(); // 우리가 push한 엔트리 → 뒤로. popstate가 다시 closeDetail("history")를 부르지만 멱등.
@@ -385,9 +487,11 @@ export function useMapScreen({
     setQuery("");
   }, []);
 
-  /** 필터 빈 상태의 [필터 해제] — 칩 전부 해제 */
-  const clearChips = useCallback(() => {
-    setChips([]);
+  /** 필터 빈 상태의 [필터 해제] — 칩·카테고리·검색어를 함께 푼다. 신규 패널이면 그 칩은 남긴다(패널이 닫혀 버린다) */
+  const clearFilters = useCallback(() => {
+    setChips((prev) => (prev.includes("new") ? ["new"] : []));
+    setTab("all");
+    setQuery("");
   }, []);
 
   /** 검색 확정(Enter/돋보기): 결과가 다 보이게 지도 이동 */
@@ -544,14 +648,19 @@ export function useMapScreen({
     [reportPin, mapRef],
   );
 
-  /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기] — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
+  /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기]·"리뷰도 남겨볼래요?" — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
   const openDetailFromReport = useCallback(
-    (id: string) => {
+    (id: string, options?: { review: boolean }) => {
       closeReportFlow();
       openDetail(id, "report");
+      if (options?.review) setReviewIntentId(id);
     },
     [closeReportFlow, openDetail],
   );
+
+  const clearReviewIntent = useCallback(() => {
+    setReviewIntentId(null);
+  }, []);
 
   /* ── 상호작용 ── */
   const selectFromMarker = useCallback(
@@ -583,6 +692,75 @@ export function useMapScreen({
     setPlaces((prev) => [...prev, place]);
   }, []);
 
+
+  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts, 세션별). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
+  const toggleBookmark = useCallback(
+    (id: string) => {
+      requestToggleBookmark(id).then(
+        (ids) => {
+          setBookmarkedIds(ids);
+          if (
+            session?.provider === "anonymous" &&
+            ids.length === BOOKMARK_NUDGE_AT &&
+            ids.includes(id) &&
+            !bookmarkNudgedRef.current
+          ) {
+            bookmarkNudgedRef.current = true;
+            showNotice(BOOKMARK_NUDGE_NOTICE);
+          }
+        },
+        () => {
+          showNotice("찜을 저장하지 못했어요");
+        },
+      );
+    },
+    [session, showNotice],
+  );
+
+  /* ── 내 활동 패널 (화면 5): 시트 me 모드, 히스토리 엔트리 하나(URL은 /) ── */
+  /** 검색 바 프로필 버튼 — 익명이면 로그인 시트가 먼저 서고, 로그인하면 바로 열린다 */
+  const openMe = useCallback(() => {
+    void requireLogin("me").then((ok) => {
+      if (!ok || meOpenRef.current) return;
+      const state: SaeuHistoryState = { saeuMe: true };
+      if (detailIdRef.current !== null) {
+        // 상세 위에서 눌렀다: back()을 기다렸다 push하면 순서가 꼬이므로 엔트리를 바꾼다.
+        // 목록에서 연 상세면 그 엔트리를 패널로(뒤로 한 번에 목록), 직접 진입(/place/[id])이면
+        // 목록 엔트리로 만든 뒤 패널을 얹는다 — 안 그러면 닫기의 back()이 이 사이트 밖으로 나간다
+        setDetailId(null);
+        if (isDetailHistoryState(window.history.state)) {
+          window.history.replaceState(state, "", "/");
+        } else {
+          window.history.replaceState(null, "", "/");
+          window.history.pushState(state, "", "/");
+        }
+      } else {
+        listSnapRef.current = snapRef.current;
+        window.history.pushState(state, "", "/");
+      }
+      setMeOpen(true);
+      setSnap("full");
+    });
+  }, [requireLogin]);
+
+  const closeMe = useCallback((source: "ui" | "history" = "ui") => {
+    setMeOpen(false);
+    setMePlaceIds([]);
+    setMeTab("bookmarks"); // 다음에 열 때도 기본은 찜 (design 화면 5-2)
+    setSnap(listSnapRef.current);
+    if (source === "ui" && isMeHistoryState(window.history.state)) window.history.back();
+  }, []);
+
+  /** 로그아웃·탈퇴 — 패널을 닫고 알린다. 찜은 세션 effect가 새 사용자 것으로 바꾼다 */
+  const handleSignedOut = useCallback(() => {
+    closeMe();
+    showNotice("로그아웃했어요");
+  }, [closeMe, showNotice]);
+  const handleAccountDeleted = useCallback(() => {
+    closeMe();
+    showNotice("탈퇴했어요");
+  }, [closeMe, showNotice]);
+
   // 브라우저 뒤로/앞으로. 제보 중이면 한 단계 뒤로 + 엔트리 재장전(1단계·완료에선 닫힘),
   // 아니면 경로를 읽어 상세 열기/닫기. id 출처는 pathname (useParams는 / 트리를 보고한다)
   useEffect(() => {
@@ -599,25 +777,26 @@ export function useMapScreen({
         window.history.pushState(state, "");
         return;
       }
+      const state: unknown = window.history.state;
       const id = placeIdFromPath(window.location.pathname);
-      if (id) openDetail(id, "history");
-      else closeDetail("history");
+      if (id) {
+        openDetail(id, "history");
+        return;
+      }
+      if (detailIdRef.current !== null) closeDetail("history");
+      // 내 활동: 표식 없는 엔트리로 돌아왔으면 닫고(오버레이 엔트리는 표식을 안고 있다), 표식이 있는데 닫혀 있으면 연다(앞으로 가기)
+      if (meOpenRef.current && !isMeHistoryState(state)) {
+        closeMe("history");
+      } else if (!meOpenRef.current && isMeHistoryState(state)) {
+        setMeOpen(true);
+        setSnap("full");
+      }
     };
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
     };
-  }, [openDetail, closeDetail, closeReportFlow, goToReportStep]);
-
-  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts). 확인일은 갱신하지 않는다. */
-  const toggleBookmark = useCallback(
-    (id: string) => {
-      requestToggleBookmark(id).then(setBookmarkedIds, () => {
-        showNotice("찜을 저장하지 못했어요");
-      });
-    },
-    [showNotice],
-  );
+  }, [openDetail, closeDetail, closeReportFlow, goToReportStep, closeMe]);
 
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
   const locateMe = useCallback(() => {
@@ -656,6 +835,10 @@ export function useMapScreen({
     reportStep,
     reportPin,
     reportCandidateId,
+    reviewIntentId,
+    meOpen,
+    meTab,
+    bookmarkedPlaces,
     userLocation,
     following,
     /** 거리 표시·"가까운순" 기준점: 내 위치 → 없으면 지도 중심 (결정 2026-09-02, 플랜 결정 1 갱신) */
@@ -664,11 +847,14 @@ export function useMapScreen({
     status,
     mapErrorReason: mapError,
     emptyKind,
+    bookmarksStatus,
     // 파생
     items,
     sorted,
     inViewCount: inView.length,
     areaLabel,
+    /** 화면 4 패널 목록 — [새로 들어온 집] 칩이 꺼져 있으면 null */
+    newPanel,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
     initialCenter: initialPlace ?? densestCenter ?? SEOUL_CENTER,
@@ -676,7 +862,7 @@ export function useMapScreen({
     // 액션
     setTab,
     toggleChip,
-    clearChips,
+    clearFilters,
     setQuery,
     clearQuery,
     submitSearch,
@@ -696,6 +882,13 @@ export function useMapScreen({
     dismissEvent,
     showNotice,
     locateMe,
+    openMe,
+    closeMe,
+    setMeTab,
+    setMePlaceIds,
+    handleSignedOut,
+    handleAccountDeleted,
+    retryBookmarks,
     openReport,
     cancelReport,
     backReportStep,
@@ -704,6 +897,7 @@ export function useMapScreen({
     clearReportCandidate,
     showReportPair,
     openDetailFromReport,
+    clearReviewIntent,
     addPlace,
   };
 }

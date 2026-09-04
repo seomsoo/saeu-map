@@ -63,6 +63,9 @@
   --color-subway-7: #6e7e31;
   --color-subway-8: #d11d70;
   --color-subway-9: #a49d87;
+  /* 카카오 옐로 — 카카오 로그인 버튼의 브랜드 가이드(사실 표기). 우리 팔레트가 아니라 Semantic 역할을
+     주지 않고 로그인 시트의 그 버튼 한 곳에만 쓴다 — decisions 2026-09-04 */
+  --color-kakao-500: #fee500;
 
   /* ===== Semantic / Color (라이트) ===== */
   --color-bg: var(--color-common-0);
@@ -170,6 +173,7 @@
   /* 절대 위치 요소용 — 절대 오프셋은 containing block의 padding box에서 재므로 부모의
      padding-inline이 밀어주지 않는다. 시트 닫기 ✕가 그 경우 (Codex PR #7 #3). */
   --spacing-safe-right-or-2: max(env(safe-area-inset-right), calc(var(--spacing) * 2));
+  --spacing-safe-left-or-2: max(env(safe-area-inset-left), calc(var(--spacing) * 2));
 }
 
 body {
@@ -439,14 +443,24 @@ body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+/* 전체 화면 오버레이(리뷰 폼): 시트와 같은 기준 — 보이는 창(--vvh) 높이, 키보드 위(--kb)에 앉는다.
+   top: 0이 아니라 bottom 앵커인 이유는 시트와 같다(iOS가 visual viewport를 밀면 위가 잘린다). */
+.saeu-overlay-screen {
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--kb, 0px);
+  height: var(--vvh, 100dvh);
+  max-height: none;
+}
 /* 상세 모드 (design 화면 2): 헤더 = 핸들 + 닫기 ✕(44px), 요약 = 30%(최소 270px = 확인 캡션까지,
    낮은 뷰포트에서도 접지 않음). 특이성 (0,2,0)이라 위 @media의 half=collapsed(0,1,0)를 이긴다. */
 .saeu-sheet[data-mode="detail"] {
   --sheet-half: max(calc(0.3 * var(--sheet-vh)), 270px);
   --sheet-header-h: 44px;
 }
-/* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다 */
-.saeu-sheet[data-mode="report"] {
+/* 제보 모드 (design 화면 3): 헤더는 상세와 같고 요약만 더 높다. 내 활동(화면 5)도 같은 기하 */
+.saeu-sheet[data-mode="report"],
+.saeu-sheet[data-mode="me"] {
   --sheet-half: max(calc(0.4 * var(--sheet-vh)), 330px);
   --sheet-header-h: 44px;
 }

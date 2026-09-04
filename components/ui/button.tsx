@@ -5,6 +5,7 @@ import { cx } from "@/lib/cx";
 /**
  * 버튼 (docs/design.md 공통 블록·화면 2).
  * variant — ink: 잉크 채움 주 버튼(길찾기) / brand: 채운 레드(화면당 한 곳) / outline: 헤어라인 아웃라인 / tint: 레드 틴트(완료·활성)
+ *           kakao: 카카오 옐로 채움(사실 표기 — 로그인 시트 한 곳) / danger: 위험 액션 아웃라인(탈퇴 — 채우지 않고 색으로만 말한다)
  * size — sm 28(라운드 8, [복사]) / md 40(라운드 8) / lg 44(라운드 12, [리뷰 남기기]) / xl 48(라운드 12, 버튼 줄) / pill 36(pill)
  */
 export const buttonVariants = cva(
@@ -16,6 +17,8 @@ export const buttonVariants = cva(
         brand: "border-transparent bg-brand text-fg-on-brand",
         outline: "border-line bg-bg text-fg active:bg-bg-sunken",
         tint: "border-brand-fg bg-brand-tint text-brand-fg",
+        kakao: "border-transparent bg-kakao-500 text-fg",
+        danger: "border-brand-fg bg-bg text-brand-fg active:bg-brand-tint",
       },
       size: {
         sm: "h-7 rounded-8 px-3 text-body-m-semibold text-fg-secondary",

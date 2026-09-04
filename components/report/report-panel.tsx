@@ -1,7 +1,6 @@
 "use client";
 
 import type { AddressHit } from "@/components/map/map-view";
-import { COMING_SOON_NOTICE } from "@/components/place-detail/use-place-detail";
 import { sharePlace } from "@/lib/share";
 import type { LatLng, Place } from "@/lib/types";
 import { StepDone } from "./step-done";
@@ -32,8 +31,8 @@ export interface ReportPanelProps {
   /** 2단계에서 탭한 기존 마커 — 그 가게로 중복 의심 패널을 연다 */
   tappedPlaceId: string | null;
   onClearTapped: () => void;
-  /** 이미 있는 가게로 넘어가기 — 플로우를 닫고 그 가게 상세를 연다 */
-  onOpenExisting: (id: string) => void;
+  /** 이미 있는 가게로 넘어가기 — 플로우를 닫고 그 가게 상세를 연다. review면 상세가 열리자마자 리뷰 게이트(완료 화면 "리뷰도 남겨볼래요?") */
+  onOpenExisting: (id: string, options?: { review: boolean }) => void;
   /** 등록 성공 — 목록·마커에 추가 */
   onCreated: (place: Place) => void;
   onNotice: (message: string) => void;
@@ -180,7 +179,7 @@ export function ReportPanel({
             sharePlace(created, onNotice);
           }}
           onReview={() => {
-            onNotice(COMING_SOON_NOTICE);
+            onOpenExisting(created.id, { review: true });
           }}
         />
       );

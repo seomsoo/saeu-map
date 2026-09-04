@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { ActivityPanel } from "@/components/activity/activity-panel";
+import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
 import { PlaceDetail } from "@/components/place-detail/place-detail";
@@ -18,7 +20,9 @@ import type {
 import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
 import { FilterChips } from "./filter-chips";
+import { NewPlacesPanel } from "./new-places-panel";
 import { PlaceSheet } from "./place-sheet";
+import { ProfileButton } from "./profile-button";
 import { SearchBar } from "./search-bar";
 import { useMapScreen } from "./use-map-screen";
 
@@ -42,8 +46,17 @@ function reloadPage() {
 /**
  * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로,
  * [＋ 제보]를 누르면 화면 3(제보)으로 바뀐다. 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
+ * 세션(익명/카카오)과 로그인 시트는 SessionProvider가 갖고, 화면 훅은 `useSession()`으로 읽는다(화면 5).
  */
-export default function MapScreen({
+export default function MapScreen(props: MapScreenProps) {
+  return (
+    <SessionProvider>
+      <MapScreenBody {...props} />
+    </SessionProvider>
+  );
+}
+
+function MapScreenBody({
   now,
   places,
   stats,
@@ -54,6 +67,7 @@ export default function MapScreen({
 }: MapScreenProps) {
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
+  const { session } = useSession();
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
@@ -126,12 +140,13 @@ export default function MapScreen({
       </div>
 
       {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
-          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3) */}
+          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
+          내 활동 패널이 열린 동안도 숨긴다(화면 5) */}
       <div
         ref={topStackRef}
         className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto"
       >
-        {s.mode !== "report" && (
+        {s.mode !== "report" && s.mode !== "me" && (
           <>
             <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5">
               <SearchBar
@@ -139,6 +154,7 @@ export default function MapScreen({
                 onChange={s.setQuery}
                 onClear={s.clearQuery}
                 onSubmit={s.submitSearch}
+                trailing={<ProfileButton session={session} onClick={s.openMe} />}
               />
             </div>
             {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
@@ -176,6 +192,8 @@ export default function MapScreen({
               initialReviews={
                 initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
               }
+              autoReview={s.reviewIntentId === detailPlace.id}
+              onAutoReviewConsumed={s.clearReviewIntent}
               onPatchPlace={s.patchPlace}
               onChecked={s.markChecked}
               onToggleBookmark={() => {
@@ -207,6 +225,43 @@ export default function MapScreen({
             />
           )
         }
+        me={
+          s.mode === "me" && (
+            <ActivityPanel
+              now={now}
+              tab={s.meTab}
+              onTabChange={s.setMeTab}
+              bookmarkedPlaces={s.bookmarkedPlaces}
+              bookmarksStatus={s.bookmarksStatus}
+              onRetryBookmarks={s.retryBookmarks}
+              origin={s.origin}
+              onOpenPlace={s.selectFromCard}
+              onToggleBookmark={s.toggleBookmark}
+              onPlaceIdsChange={s.setMePlaceIds}
+              onSignedOut={s.handleSignedOut}
+              onAccountDeleted={s.handleAccountDeleted}
+              onNotice={s.showNotice}
+            />
+          )
+        }
+        newPanel={
+          s.newPanel
+            ? {
+                count: s.newPanel.length,
+                content: (
+                  <NewPlacesPanel
+                    places={s.newPanel}
+                    now={now}
+                    checkedIds={s.checkedIds}
+                    onOpen={s.selectFromCard}
+                    onPatchPlace={s.patchPlace}
+                    onChecked={s.markChecked}
+                    onNotice={s.showNotice}
+                  />
+                ),
+              }
+            : null
+        }
         emptyKind={s.emptyKind}
         aside={
           s.mode === "list" ? (
@@ -217,9 +272,10 @@ export default function MapScreen({
         onSnapChange={s.setSnap}
         onDismissDetail={s.closeDetail}
         onDismissReport={s.cancelReport}
+        onDismissMe={s.closeMe}
         onSelect={s.selectFromCard}
         onDismissEvent={s.dismissEvent}
-        onClearChips={s.clearChips}
+        onClearFilters={s.clearFilters}
         onReport={s.openReport}
         onRetry={reloadPage}
       />

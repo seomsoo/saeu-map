@@ -374,3 +374,19 @@ describe("BottomSheet 제보 모드", () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 });
+
+describe("내 활동 모드 (design 화면 5): 제보와 같은 기하 — half/full, 닫힘 없음", () => {
+  it("sheetSnaps·sheetVisiblePx는 report와 같다", () => {
+    expect(sheetSnaps("me")).toEqual(["half", "full"]);
+    expect(sheetVisiblePx("half", 844, "me")).toBe(sheetVisiblePx("half", 844, "report"));
+    expect(sheetVisiblePx("full", 844, "me")).toBe(776);
+    expect(nextSnapOnTap("full", 844, "me")).toBe("half");
+  });
+
+  it("resolveRelease: 아래로 튕겨도 요약에 머문다 (닫기는 ✕·뒤로가기뿐)", () => {
+    const halfPx = sheetVisiblePx("half", 844, "me");
+    expect(
+      resolveRelease({ mode: "me", snap: "half", visible: halfPx - 200, velocity: 1.2, viewportHeight: 844 }),
+    ).toEqual({ kind: "snap", snap: "half" });
+  });
+});
