@@ -100,3 +100,22 @@ describe("PlaceCard", () => {
     );
   });
 });
+
+describe("PlaceCard trailing — 카드 오른쪽 액션(내 활동 찜 탭의 하트)", () => {
+  it("trailing은 카드 버튼의 형제라 눌러도 onSelect가 불리지 않는다", () => {
+    const onToggle = vi.fn();
+    const { onSelect } = renderCard({
+      trailing: (
+        <button type="button" aria-label="찜 해제" onClick={onToggle}>
+          ♥
+        </button>
+      ),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "찜 해제" }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
+    // 카드 버튼 안에 버튼이 들어가지 않는다 (a11y: 중첩 인터랙티브 금지)
+    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+    expect(card.querySelector("button")).toBeNull();
+  });
+});

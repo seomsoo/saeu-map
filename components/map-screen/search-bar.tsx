@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type KeyboardEvent } from "react";
+import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 
 interface SearchBarProps {
@@ -9,11 +9,14 @@ interface SearchBarProps {
   onClear: () => void;
   /** Enter/돋보기 — 결과가 다 보이게 지도 이동 */
   onSubmit: () => void;
+  /** 오른쪽 끝 슬롯(프로필 버튼). 검색어가 있으면 그 자리는 지우기 ✕라 렌더하지 않는다. */
+  trailing?: ReactNode;
 }
 
 /** 1. 검색바 — 우리 데이터 내 가게명·동네. 입력 즉시 필터, 확정 시 지도 이동.
- *  지도 위에 떠 있는 pill(칩과 같은 층·문법) — 불투명 블록으로 지도를 덮지 않는다 (decisions 2026-09-04). */
-export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps) {
+ *  지도 위에 떠 있는 pill(칩과 같은 층·문법) — 불투명 블록으로 지도를 덮지 않는다 (decisions 2026-09-04).
+ *  오른쪽 끝은 내 활동 입구(프로필 버튼) — 지도 위에 층을 더하지 않는 카카오맵·네이버지도 문법 (design 화면 5). */
+export function SearchBar({ value, onChange, onClear, onSubmit, trailing }: SearchBarProps) {
   const composing = useRef(false);
 
   const handleSubmit = (e: { preventDefault(): void }) => {
@@ -62,7 +65,7 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
         enterKeyHint="search"
         className="h-full min-w-0 flex-1 bg-transparent text-body-l-medium text-fg outline-none placeholder:font-normal placeholder:text-fg-placeholder [&::-webkit-search-cancel-button]:appearance-none"
       />
-      {value && (
+      {value ? (
         <button
           type="button"
           onClick={onClear}
@@ -76,6 +79,8 @@ export function SearchBar({ value, onChange, onClear, onSubmit }: SearchBarProps
             <span className="icon-[ci--close-sm] size-3.5" />
           </span>
         </button>
+      ) : (
+        trailing
       )}
     </form>
   );

@@ -2,10 +2,12 @@ import { ChipButton } from "@/components/ui/chip";
 import { SIDE_KEYS, SIDE_LABELS } from "@/lib/places";
 import type { ChipKey } from "@/lib/types";
 
-/** 칩 5개 = spec 4.1 상한. 사이드가 앞(로그인 없이 바로 쓰는 필터), 6개째부터는 사이드를 드롭다운으로 접는다(decisions 2026-09-02). */
+/**
+ * 칩 4개 — 사이드 3종 + 찜한 곳. 전부 "목록을 좁히는 필터"라 성격이 같다.
+ * [새로 들어온 집]은 필터가 아니라 시트를 다른 화면으로 바꾸는 입구였어서 뺐다(2026-09-05).
+ */
 const CHIPS: readonly { key: ChipKey; label: string }[] = [
   ...SIDE_KEYS.map((key) => ({ key, label: SIDE_LABELS[key] })),
-  { key: "new", label: "새로 들어온 집" },
   { key: "bookmarked", label: "찜한 곳" },
 ];
 

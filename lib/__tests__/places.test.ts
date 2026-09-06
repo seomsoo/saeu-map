@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu as menu, makePlace } from "./fixtures";
+import type { Menu } from "../types";
 import {
   SIDE_LABELS,
   areaLabel,
@@ -9,6 +10,7 @@ import {
   sideChips,
   sortPlaces,
   unitChipLabel,
+  primaryMenuLine,
 } from "../places";
 
 const noChips = { chips: [], query: "", bookmarkedIds: new Set<string>() };
@@ -34,11 +36,6 @@ describe("filterPlaces — 칩", () => {
   const fresh = makePlace({ isNew: true });
   const old = makePlace({ isNew: false });
 
-  it("새로 들어온 집", () => {
-    expect(
-      filterPlaces([fresh, old], { tab: "all", ...noChips, chips: ["new"] }),
-    ).toEqual([fresh]);
-  });
   it("찜한 곳은 북마크 집합 기준, 비어 있으면 0곳", () => {
     expect(
       filterPlaces([fresh, old], { tab: "all", ...noChips, chips: ["bookmarked"] }),
@@ -57,7 +54,7 @@ describe("filterPlaces — 칩", () => {
       filterPlaces([fresh, old], {
         tab: "all",
         ...noChips,
-        chips: ["new", "bookmarked"],
+        chips: ["ramen", "bookmarked"],
         bookmarkedIds: new Set([old.id]),
       }),
     ).toEqual([]);
@@ -83,11 +80,15 @@ describe("filterPlaces — 사이드 칩", () => {
       }),
     ).toEqual([both]);
   });
-  it("사이드 칩과 새로 들어온 집도 AND", () => {
-    const freshRamen = makePlace({ isNew: true, sides: { headButter: false, ramen: true, friedRice: false } });
+  it("사이드 칩과 찜한 곳도 AND", () => {
     expect(
-      filterPlaces([freshRamen, ramenOnly], { tab: "all", ...noChips, chips: ["ramen", "new"] }),
-    ).toEqual([freshRamen]);
+      filterPlaces([both, ramenOnly], {
+        tab: "all",
+        ...noChips,
+        chips: ["ramen", "bookmarked"],
+        bookmarkedIds: new Set([both.id]),
+      }),
+    ).toEqual([both]);
   });
   it("카드 미니칩 라벨과 필터 라벨은 같은 출처", () => {
     expect(sideChips({ headButter: true, ramen: true, friedRice: true }).map((c) => c.label)).toEqual([
@@ -220,5 +221,18 @@ describe("areaLabel — 시트 제목의 지역", () => {
   it("구가 8개 이상 섞여도 '서울 전체'", () => {
     const many = ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구"].flatMap((g) => gu(g, 1));
     expect(areaLabel(many, 500)).toBe("서울 전체");
+  });
+});
+
+describe("primaryMenuLine — 대표 메뉴 한 줄 (제보 완료 카드·신규 패널 행)", () => {
+  it("이름 + 단위 + 가격, 단위가 이름에 이미 있으면 한 번만", () => {
+    const line = (overrides: Partial<Menu>) => primaryMenuLine(makePlace({ menus: [menu(overrides)] }));
+    expect(line({ name: "왕새우 소금구이", price: 35000, unit: "kg", unit_raw: "1" })).toBe("왕새우 소금구이 1kg 35,000원");
+    expect(line({ name: "생새우대하구이 한판", price: 42000, unit: "pan", unit_raw: "한판" })).toBe("생새우대하구이 한판 42,000원");
+    expect(line({ name: "왕새우 소금구이 1kg (계절메뉴)", price: 65000, unit: "kg", unit_raw: "1" })).toBe(
+      "왕새우 소금구이 1kg (계절메뉴) 65,000원",
+    );
+    expect(line({ name: "새우 머리구이", price: null, unit: "none", unit_raw: null })).toBe("새우 머리구이");
+    expect(primaryMenuLine(makePlace({ menus: [] }))).toBeNull();
   });
 });

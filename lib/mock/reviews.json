@@ -1,20 +1,26 @@
 [
   {
+    "id": "rv001",
     "placeId": "p162",
+    "authorId": "u-kakao-1",
     "rating": 5,
     "text": "대하 크기가 실했어요. 머리 버터구이 꼭 시키세요.",
     "nickname": "새우헌터",
     "at": "2026-08-27T21:00:00+09:00"
   },
   {
+    "id": "rv002",
     "placeId": "p162",
+    "authorId": "anon-1002",
     "rating": 4,
     "text": "회 반반 추천. 웨이팅 있음.",
     "nickname": "을지로사람",
     "at": "2026-08-26T20:00:00+09:00"
   },
   {
+    "id": "rv003",
     "placeId": "p018",
+    "authorId": "anon-1003",
     "rating": 5,
     "text": "새우가 실하고 머리버터구이는 꼭 시키세요.",
     "nickname": "성수사람",
@@ -22,21 +28,27 @@
     "photoUrl": "/mock/thumb-1.svg"
   },
   {
+    "id": "rv004",
     "placeId": "p018",
+    "authorId": "u-kakao-1",
     "rating": 4,
     "text": "가을 한정 생새우회 좋았어요. 웨이팅 30분.",
     "nickname": "새우헌터",
     "at": "2026-08-26T19:30:00+09:00"
   },
   {
+    "id": "rv005",
     "placeId": "p018",
+    "authorId": "anon-1005",
     "rating": 5,
     "text": "포장도 돼요. 양 넉넉함.",
     "nickname": "뚝섬러버",
     "at": "2026-08-24T21:00:00+09:00"
   },
   {
+    "id": "rv006",
     "placeId": "p019",
+    "authorId": "anon-1006",
     "rating": 4,
     "text": "새로 생긴 곳. 깔끔하고 친절해요.",
     "nickname": "성수부두단골",

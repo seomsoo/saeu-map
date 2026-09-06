@@ -5,21 +5,46 @@ import {
   MOCK_WRITE_DELAY_MS,
   STATION_NEARBY_MAX_M,
   checkIn,
+  deleteAccount,
+  deleteReview,
+  flagPlace,
   getBookmarkedPlaceIds,
   getCheckins,
   getEventCard,
   getGuOfPoint,
+  getMyReports,
+  getMyReviews,
   getPlaceById,
   getPlaceDetail,
   getPlaces,
   getReviews,
   getSeasonStats,
+  getSession,
   reportPhoto,
+  signInWithKakao,
+  signOut,
   submitReport,
+  submitReview,
   toggleBookmark,
+  updateNickname,
+  updateReview,
   type ReportInput,
+  type ReviewInput,
 } from "../data";
+import { ratingSummary } from "../reviews";
 import { isInactive, kstDayIndex } from "../time";
+import type { Place } from "../types";
+
+/** 목 쓰기(400ms) 완료까지 가짜 타이머를 돌린다. 거부는 핸들러를 먼저 붙인 뒤 돌린다(unhandled rejection 방지). */
+async function settle<T>(pending: Promise<T>): Promise<T> {
+  await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+  return pending;
+}
+async function settleReject(pending: Promise<unknown>, message?: string): Promise<void> {
+  const assertion = message ? expect(pending).rejects.toThrow(message) : expect(pending).rejects.toThrow();
+  await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
+  await assertion;
+}
 
 // 목 날짜는 now 기준으로 이동되므로, 어떤 now를 넣어도 같은 성질이 유지되어야 한다.
 const NOWS = ["2026-09-01T12:00:00+09:00", "2027-03-15T09:30:00+09:00"];
@@ -269,6 +294,9 @@ describe("toggleBookmark", () => {
     expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
     expect(await toggleBookmark("p018")).toEqual([]);
     await expect(toggleBookmark("")).rejects.toThrow();
+    // 없는 가게·검수 대기 가게는 거부 — 찜 Set에 가짜 id가 쌓이지 않는다
+    await expect(toggleBookmark("nonexistent")).rejects.toThrow("place not found");
+    await expect(toggleBookmark("p108")).rejects.toThrow("place not found");
   });
 });
 
@@ -398,5 +426,315 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
     await expect(submitReport({ ...input(), lat: 36.0, lng: 125.0 }, NOW)).rejects.toThrow(
       "outside korea",
     );
+  });
+});
+
+/* ── Phase 4: 세션·찜(사용자별)·리뷰 쓰기·달라요. 세션은 모듈 상태라 각 테스트 끝에 로그아웃한다. ── */
+
+const reportInput = (): ReportInput => ({
+  name: "내가 제보한 집",
+  lat: 37.5571,
+  lng: 126.9245,
+  menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+  sides: { headButter: false, ramen: false, friedRice: false },
+  hoursNote: "",
+  photos: [],
+  duplicateOf: null,
+});
+
+describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·닉네임", () => {
+  const NOW = "2030-02-02T12:00:00+09:00";
+
+  beforeAll(async () => {
+    await getGuOfPoint({ lat: 37.5571, lng: 126.9245 });
+  });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("기본은 익명 — 닉네임 없음, 찜 없음", async () => {
+    const session = await getSession();
+    expect(session.provider).toBe("anonymous");
+    expect(session.nickname).toBeNull();
+    expect(session.userId).toMatch(/^anon-local-/);
+    expect(await getBookmarkedPlaceIds()).toEqual([]);
+  });
+
+  it("카카오 로그인: 익명의 찜·제보·확인이 카카오 id로 넘어온다 (linkIdentity)", async () => {
+    const anonymous = await getSession();
+    await toggleBookmark("p018");
+    await settle(checkIn("p041", NOW));
+    const created = await settle(submitReport(reportInput(), NOW));
+    expect(created.reporterId).toBe(anonymous.userId);
+
+    const session = await settle(signInWithKakao());
+    expect(session).toEqual({ userId: "u-kakao-1", provider: "kakao", nickname: "새우헌터" });
+    expect(await getSession()).toBe(session);
+    expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
+    expect((await getMyReports(NOW)).map((p) => p.id)).toEqual([created.id]);
+    expect((await getPlaceById(created.id, NOW))?.reporterId).toBe("u-kakao-1");
+    const mine = (await getCheckins("p041", NOW)).filter((c) => c.actor === "u-kakao-1");
+    expect(mine).toHaveLength(1);
+    // 목 리뷰 2건의 작성자라 내 리뷰가 바로 보인다
+    const reviews = await getMyReviews(NOW);
+    expect(reviews.map((r) => r.nickname)).toEqual(["새우헌터", "새우헌터"]);
+    expect(reviews[0]?.placeName).toBeTruthy();
+    // 이미 카카오면 지연 없이 같은 세션
+    expect(await signInWithKakao()).toBe(session);
+  });
+
+  it("로그인 실패(10%)면 익명 그대로, 찜도 그대로", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.05);
+    await toggleBookmark("p018");
+    const before = await getSession();
+    await settleReject(signInWithKakao());
+    expect(await getSession()).toBe(before);
+    expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
+  });
+
+  it("로그아웃은 새 익명 — 찜은 기기 한정이라 비고, 다시 로그인하면 카카오 찜이 돌아온다", async () => {
+    await settle(signInWithKakao());
+    await toggleBookmark("p041");
+    const anonymous = await signOut();
+    expect(anonymous.provider).toBe("anonymous");
+    expect(await getBookmarkedPlaceIds()).toEqual([]);
+    expect(await getMyReviews(NOW)).toEqual([]);
+    await settle(signInWithKakao());
+    expect(await getBookmarkedPlaceIds()).toContain("p041");
+    await toggleBookmark("p041"); // 다음 테스트를 위해 되돌린다
+  });
+
+  it("닉네임: 2~12자, 카카오만, 이미 쓴 리뷰의 표시 이름도 바뀌고 재로그인해도 남는다", async () => {
+    await expect(updateNickname("새우왕")).rejects.toThrow("login required");
+    await settle(signInWithKakao());
+    await expect(updateNickname(" 새 ")).rejects.toThrow();
+    await expect(updateNickname("열세글자가넘는닉네임입니다요")).rejects.toThrow();
+    // 폭 없는 공백·방향 제어문자·기호는 거부, 전각은 NFKC로 반각이 된다
+    await expect(updateNickname("\u200b\u200b")).rejects.toThrow();
+    await expect(updateNickname("새우헌터\u202e")).rejects.toThrow();
+    await expect(updateNickname("새우<b>")).rejects.toThrow();
+    expect((await settle(updateNickname("ｓｈｒｉｍｐ"))).nickname).toBe("shrimp");
+    const session = await settle(updateNickname(" 새우왕 "));
+    expect(session.nickname).toBe("새우왕");
+    expect((await getMyReviews(NOW)).every((r) => r.nickname === "새우왕")).toBe(true);
+    await signOut();
+    expect((await settle(signInWithKakao())).nickname).toBe("새우왕");
+    await settle(updateNickname("새우헌터"));
+  });
+});
+
+describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·삭제(소프트)", () => {
+  const NOW = "2030-03-03T12:00:00+09:00";
+  const input = (overrides: Partial<ReviewInput> = {}): ReviewInput => ({
+    placeId: "p004",
+    rating: 4,
+    text: " 새우가 실했어요 ",
+    photo: null,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("익명은 등록·수정·삭제 전부 거부 (지연 없이)", async () => {
+    await expect(submitReview(input(), NOW)).rejects.toThrow("login required");
+    await expect(updateReview("rv001", { rating: 3, text: "" }, NOW)).rejects.toThrow("forbidden");
+    await expect(deleteReview("rv001")).rejects.toThrow("forbidden");
+  });
+
+  it("등록: 리뷰가 상세 맨 앞에, 확인일 = now·확인 +1·checkin, 사진은 버린다", async () => {
+    await settle(signInWithKakao());
+    const before = await getPlaceById("p004", NOW);
+    if (!before) throw new Error("no place");
+    const { review, place } = await settle(
+      submitReview(input({ photo: new File(["x"], "a.jpg", { type: "image/jpeg" }) }), NOW),
+    );
+    const at = new Date(Date.parse(NOW)).toISOString();
+    expect(review).toMatchObject({
+      placeId: "p004",
+      authorId: "u-kakao-1",
+      rating: 4,
+      text: "새우가 실했어요",
+      nickname: "새우헌터",
+      at,
+    });
+    expect(review.id).toMatch(/^rv-local-\d+$/);
+    expect("photoUrl" in review).toBe(false);
+    expect(place).toMatchObject({ checkCount: before.checkCount + 1, lastCheckedAt: at });
+    expect(await getPlaceById("p004", NOW)).toBe(place);
+    expect((await getPlaceDetail("p004", NOW))?.reviews[0]).toBe(review);
+    expect((await getCheckins("p004", NOW)).at(-1)).toMatchObject({ actor: "u-kakao-1", at });
+    expect((await getMyReviews(NOW))[0]).toMatchObject({ id: review.id, placeName: before.name });
+  });
+
+  it("검증: 별점 0·6·소수, 501자, 이미지 아닌 파일, 없는 가게", async () => {
+    await settle(signInWithKakao());
+    for (const bad of [
+      input({ rating: 0 }),
+      input({ rating: 6 }),
+      input({ rating: 4.5 }),
+      input({ text: "가".repeat(501) }),
+      input({ photo: new File(["x"], "a.txt", { type: "text/plain" }) }),
+    ]) {
+      await expect(submitReview(bad, NOW)).rejects.toThrow();
+    }
+    await settleReject(submitReview(input({ placeId: "nonexistent" }), NOW), "place not found");
+  });
+
+  it("실패(10%): 등록되지 않고 가게도 그대로", async () => {
+    await settle(signInWithKakao());
+    vi.spyOn(Math, "random").mockReturnValue(0.05);
+    const before = await getPlaceById("p004", NOW);
+    const count = (await getReviews("p004", NOW)).length;
+    await settleReject(submitReview(input(), NOW));
+    expect(await getPlaceById("p004", NOW)).toBe(before);
+    expect(await getReviews("p004", NOW)).toHaveLength(count);
+  });
+
+  it("수정: 본인만, editedAt 기록, 남의 리뷰는 forbidden", async () => {
+    await settle(signInWithKakao());
+    // 등록 테스트가 이미 p004에 남겼다 — 핀당 1개라 다른 가게에 쓴다
+    const { review } = await settle(submitReview(input({ placeId: "p041" }), NOW));
+    const updated = await settle(updateReview(review.id, { rating: 5, text: " 고쳤어요 " }, NOW));
+    expect(updated).toMatchObject({ id: review.id, rating: 5, text: "고쳤어요" });
+    expect(updated.editedAt).toBe(new Date(Date.parse(NOW)).toISOString());
+    expect((await getPlaceDetail("p041", NOW))?.reviews.find((r) => r.id === review.id)).toBe(updated);
+    // 남의 리뷰(rv003 성수사람)
+    await expect(updateReview("rv003", { rating: 1, text: "" }, NOW)).rejects.toThrow("forbidden");
+    await expect(updateReview(review.id, { rating: 9, text: "" }, NOW)).rejects.toThrow();
+  });
+
+  it("삭제: 소프트 — 상세·목록·내 리뷰·평균에서 빠지고 확인 기록은 남는다, 두 번 삭제·남의 리뷰는 거부", async () => {
+    await settle(signInWithKakao());
+    // 목 카카오 유저가 p018에 이미 가진 리뷰(rv004) — 핀당 1개라 새로 쓰지 않고 그걸 지운다
+    const review = { id: "rv004" };
+    const withMine = ratingSummary((await getPlaceDetail("p018", NOW))?.reviews ?? []);
+    const checkins = (await getCheckins("p018", NOW)).length;
+    await settle(deleteReview(review.id));
+    const detail = await getPlaceDetail("p018", NOW);
+    expect(detail?.reviews.some((r) => r.id === review.id)).toBe(false);
+    expect((await getReviews("p018", NOW)).some((r) => r.id === review.id)).toBe(false);
+    expect((await getMyReviews(NOW)).some((r) => r.id === review.id)).toBe(false);
+    expect(ratingSummary(detail?.reviews ?? []).average).not.toBe(withMine.average);
+    expect(await getCheckins("p018", NOW)).toHaveLength(checkins);
+    await expect(deleteReview(review.id)).rejects.toThrow("forbidden");
+    await expect(deleteReview("rv003")).rejects.toThrow("forbidden");
+  });
+});
+
+describe("리뷰는 핀당 1개 (spec 5 스팸 4겹 2 — 두 번째는 수정)", () => {
+  const NOW = "2030-03-04T12:00:00+09:00";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("이미 내 리뷰가 있는 가게면 지연 없이 거부하고, 그 리뷰를 지우면 다시 쓸 수 있다", async () => {
+    await settle(signInWithKakao());
+    const input = { placeId: "p162", rating: 4, text: "", photo: null };
+    // 목 카카오 유저는 p162에 이미 리뷰가 있다(rv001)
+    await expect(submitReview(input, NOW)).rejects.toThrow("already reviewed");
+    await settle(deleteReview("rv001"));
+    const { review } = await settle(submitReview(input, NOW));
+    expect(review.placeId).toBe("p162");
+    // 두 번째는 다시 거부
+    await expect(submitReview(input, NOW)).rejects.toThrow("already reviewed");
+    await settle(deleteReview(review.id));
+  });
+
+  it("남이 쓴 리뷰는 상관없다 (같은 가게에 남의 리뷰만 있으면 쓸 수 있다)", async () => {
+    await settle(signInWithKakao());
+    // p019에는 남의 리뷰(성수부두단골)만 있다 — 내 리뷰만 판정에 쓰인다
+    const { review } = await settle(
+      submitReview({ placeId: "p019", rating: 5, text: "", photo: null }, NOW),
+    );
+    expect(review.authorId).toBe("u-kakao-1");
+    await settle(deleteReview(review.id));
+  });
+});
+
+describe("flagPlace — [정보가 달라요] (목 쓰기)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("성공은 400ms 뒤 resolve, 실패는 reject, 검증 실패는 지연 없이 거부", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await expect(settle(flagPlace({ placeId: "p019", reason: "closed" }))).resolves.toBeUndefined();
+    vi.spyOn(Math, "random").mockReturnValue(0.05);
+    await settleReject(flagPlace({ placeId: "p019", reason: "menu" }));
+    await expect(flagPlace({ placeId: "", reason: "other" })).rejects.toThrow();
+    await expect(flagPlace({ placeId: "p019", reason: "nope" as never })).rejects.toThrow();
+  });
+});
+
+/* 탈퇴는 목 카카오 유저의 리뷰를 영구히 지우므로 이 파일의 맨 마지막이다. */
+describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명", () => {
+  const NOW = "2030-04-04T12:00:00+09:00";
+
+  beforeAll(async () => {
+    await getGuOfPoint({ lat: 37.5571, lng: 126.9245 });
+  });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("익명은 탈퇴할 수 없다", async () => {
+    await expect(deleteAccount()).rejects.toThrow("login required");
+  });
+
+  it("탈퇴 뒤에는 내 리뷰가 화면에서 빠지고 찜은 비고 제보는 남되 작성자가 없다", async () => {
+    await settle(signInWithKakao());
+    await toggleBookmark("p018");
+    await settle(checkIn("p041", NOW));
+    const created: Place = await settle(submitReport(reportInput(), NOW));
+    // 앞 테스트들이 목 리뷰를 지웠을 수 있다 — 지울 내 리뷰를 여기서 직접 만든다
+    await settle(submitReview({ placeId: "p045", rating: 4, text: "", photo: null }, NOW));
+    const mineBefore = await getMyReviews(NOW);
+    expect(mineBefore.length).toBeGreaterThan(0);
+
+    const session = await settle(deleteAccount());
+    expect(session.provider).toBe("anonymous");
+    expect(await getMyReviews(NOW)).toEqual([]);
+    for (const r of mineBefore) {
+      expect((await getReviews(r.placeId, NOW)).some((x) => x.id === r.id)).toBe(false);
+    }
+    const kept = await getPlaceById(created.id, NOW);
+    expect(kept).toBeDefined();
+    expect(kept && "reporterId" in kept).toBe(false);
+    // 확인 이벤트는 집계에 남되 개인 식별자는 뗀다
+    expect((await getCheckins(undefined, NOW)).some((c) => c.actor === "u-kakao-1")).toBe(false);
+    await settle(signInWithKakao());
+    expect(await getBookmarkedPlaceIds()).toEqual([]);
+    expect(await getMyReviews(NOW)).toEqual([]);
   });
 });

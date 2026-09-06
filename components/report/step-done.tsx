@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { TAG_LABELS, formatPrice, primaryMenu, unitChipLabel } from "@/lib/places";
+import { TAG_LABELS, primaryMenuLine } from "@/lib/places";
 import type { Place } from "@/lib/types";
 import { StepFrame } from "./step-frame";
 
@@ -12,18 +12,9 @@ interface StepDoneProps {
   onReview: () => void;
 }
 
-/** 대표 메뉴 한 줄 — "왕새우 소금구이 1kg 35,000원" */
-function menuLine(place: Place): string | null {
-  const menu = primaryMenu(place);
-  if (!menu) return null;
-  return [menu.name, unitChipLabel(menu), menu.price !== null ? `${formatPrice(menu.price)}원` : null]
-    .filter(Boolean)
-    .join(" ");
-}
-
-/** 완료 (design 화면 3-5): 요약 카드 + [공유] 아이콘, CTA [내 핀 보러가기], 리뷰 유도 링크(Phase 4까지 준비 중). */
+/** 완료 (design 화면 3-5): 요약 카드 + [공유] 아이콘, CTA [내 핀 보러가기], 리뷰 유도 링크(상세로 넘어간 뒤 로그인 게이트 → 리뷰 폼). */
 export function StepDone({ place, onOpen, onShare, onReview }: StepDoneProps) {
-  const menu = menuLine(place);
+  const menu = primaryMenuLine(place);
   return (
     <StepFrame
       step="done"
