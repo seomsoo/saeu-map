@@ -77,7 +77,8 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 - **삭제를 제안하기 전에 tests/ 포함 전체 트리를 grep한다.** 테스트만 쓰는 심볼도 쓰이는 것이다.
 
 ## 작업 방식
-- 기능 시작 전 docs/plans/<기능>.md에 계획(변경 파일·검증 방법) 먼저. 승인 후 실행.
+- 기능 시작 전 docs/plans/<기능>.md에 계획(변경 파일·검증 방법) 먼저. 승인 후 실행. **Phase가 끝나면 같은 파일 맨 아래에 "## 결과"를 쓴다** — 갭 스윕 수치·테스트 수·계획에서 바뀐 것. roadmap의 결과 줄은 이 파일을 가리킨다(Phase 3에서 빠뜨려 "수치 미상"이 남았고 Phase 4에서 또 빠뜨릴 뻔했다, 2026-09-06).
+- **산출물의 형식을 정해 둔 파일을 먼저 연다.** PR을 쓰기 전 `.github/pull_request_template.md`, 플랜·결과를 쓰기 전 이전 Phase의 같은 문서. 형식을 기억으로 지어내지 않는다(PR #8을 임의 구조로 썼다가 다시 씀, 2026-09-06).
 - 작업 끝날 때마다: pnpm typecheck && pnpm lint && pnpm test
 - Phase 완료 선언 전 갭 스윕: gap-sweeper 에이전트로 spec·design 항목을 전수 대조. 미구현 0건이 완료 조건 (roadmap의 "갭 스윕 0건"이 이것).
 - 결정이 바뀌면(호스팅·SDK·버전 등) 한 작업 단위로: decisions.md 기록 + 옛 용어를 docs/·CLAUDE.md·AGENTS.md에서 grep해 잔재 정정. 문서 정정 없는 결정 변경 커밋 금지.
