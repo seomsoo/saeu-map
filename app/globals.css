@@ -158,6 +158,8 @@
   --shadow-marker-selected: 0 2px 10px 0 rgb(0 0 0 / 0.24);
   --shadow-fab: 0 0 5px 0 rgb(0 0 0 / 0.29);
   --shadow-card: 0 2px 20px 0 rgb(0 0 0 / 0.1);
+  /* 지도 위에 떠 있는 좌측 패널(데스크탑 화면 6~9 v3) — 지도와 분리돼 보이려면 card보다 넓고 깊다 */
+  --shadow-panel: 0 4px 32px 0 rgb(0 0 0 / 0.14);
 
   /* ===== Primitive / Spacing (safe-area) ===== */
   --spacing-safe-top: env(safe-area-inset-top);
@@ -188,6 +190,16 @@ body {
 html,
 body {
   overscroll-behavior: none;
+}
+
+/* Tailwind v4 Preflight는 버튼 커서를 브라우저 기본(default)으로 둔다 — 우리 앱은 버튼이
+ * 대부분의 조작(칩·카드·정렬·줌·닫기)이라 전부 손 모양이 아니었다(2026-09-08 실측).
+ * v4 업그레이드 가이드가 주는 복구 규칙 그대로. utilities가 덮을 수 있게 base 레이어에 둔다. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* ---------------------------------------------------------------------------
