@@ -161,7 +161,7 @@ roadmap 규칙대로 **design 화면 6~9(v1 초안)를 v2 언어로 먼저 재�
 | 갭 스윕 | **미구현 0건** / 부분 1건(같은 날 수정 5292fbd) · 모호 1건(같은 날 확정 — 제보 CTA 색) · 범위 밖 2건(서치어드바이저·테스트 결과 카드 = Phase 7) |
 | 테스트 | 377 → **407개** (28 파일) |
 | 보안 리뷰 | 1차(03f54ce) SITE_URL 런타임 도달·http(s)만·프리뷰 robots disallow·persist-credentials 4건 + OG CPU 10ms 1건(aac0f74) 반영, 2차(구 슬러그 라우트 diff) 취약점 0·낮음 1 반영(4e9f2ce) |
-| Lighthouse(로컬 workerd 3회 중앙값) | `/` LCP 8.1~8.7s · `/place/p018` 4.2s(첫 사진 priority 전 8.0s) → 예산 LCP error 12s + performance warn 0.5 |
+| Lighthouse(로컬 workerd 3회 중앙값) | `/` LCP 8.1~8.7s · `/place/p018` 4.2s(첫 사진 priority 전 8.0s) → 예산 LCP error 12s + performance warn 0.5. CI 첫 발화: LCP 통과, `/` perf 0.47 warn. 리포트 아티팩트는 숨김 경로 제외로 비어 있어 `include-hidden-files` 추가(decisions) |
 | 워커 크기 | handler.mjs gzip **1.62MB**(Free 상한 3MB, 예상 2.0~2.3MB보다 작음 — 폰트는 번들 밖 `public/fonts/og/`) |
 | OG 카드 | 75장(가게 49 + 구 25 + 루트 1) 빌드 시 생성, workerd 정적 서빙 ~5ms, 모르는 id·슬러그 404 |
 | 확인 뷰포트 | Playwright 1440×900 · 1280×800 · 1024×768 · 1023(경계) + 390×702 · 320×480, workerd(:8787) 스모크 한 바퀴(CI와 같은 절차) |

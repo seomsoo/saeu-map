@@ -479,6 +479,7 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **실측(2026-09-07, 로컬 workerd, dummy 키, 3회 중앙값)**: `/` LCP **8.1~8.7s**(3회 8.2·8.7·12.8 — 편차 큼), `/place/p018` **4.2s**, performance 0.40~0.71. `/`의 LCP 요소는 지도 에러 상태의 안내 문장이고 Render Delay가 7~12s — 4× CPU 스로틀에서 앱 청크 부트업 1.9s·하이드레이션·SDK 초기화가 다 끝나야 그려진다. 네트워크는 스크립트 387KB·폰트 14조각 360KB·지도 타일 826KB(dummy 키여도 타일은 내려온다).
 - **예산**: `largest-contentful-paint` **error 12,000ms**(측정 중앙값의 약 1.4배 — 새 500KB 스크립트 같은 큰 회귀만 막는 가드) + `categories:performance` **warn 0.5**. web.dev "good"(2.5s)은 지금 셸로는 목표가 아니라 백로그다(아래). 3회 중앙값(`aggregationMethod: median`)이라 한 번 튄 값엔 안 흔들린다.
 - **같은 실측이 잡은 개선 1건**: 상세 첫 사진이 `loading="lazy"`인데 LCP 요소였다 — 하이드레이션 뒤에야 요청돼 Load Delay 1~3.6s. 첫 장만 `priority` → `/place/p018` LCP 중앙값 **8.0s → 4.2s**.
+- **CI 첫 발화(PR #9)**: `/` performance 0.47 중앙값(warn 0.5 아래 — 경고만), LCP 예산 통과. 리포트 아티팩트는 `actions/upload-artifact`가 숨김 경로 `.lighthouseci`를 기본 제외해(`include-hidden-files` 기본 false, v4.4~) **비어 있었다** — `if-no-files-found: ignore`가 그걸 조용히 통과시켰다. 옵션을 켜고 `error`로 바꿈. 하네스는 파일 생성이 아니라 발화 검증이 완료 조건이라는 규칙의 사례 하나 더.
 - **백로그(집는 시점: 런칭 전 실기기 LCP가 4s를 넘으면)**: 앱 청크 분할(지도 SDK·supercluster 지연 로드), Pretendard CSS preload, 폰트 조각 수. 목표 warn 4000ms를 error로 내리는 건 그때.
 
 ## 커스텀 에셋 필요 목록

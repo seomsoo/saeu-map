@@ -105,7 +105,10 @@ jobs:
         with:
           name: lighthouse
           path: .lighthouseci
-          if-no-files-found: ignore
+          # 숨김 경로(.lighthouseci)는 v4.4부터 기본 제외 — 첫 발화에서 "No files were found"로 빈 채 통과했다(PR #9).
+          # 없으면 error: 리포트가 안 남는 걸 조용히 넘기지 않는다 (하네스 발화 검증 규칙)
+          include-hidden-files: true
+          if-no-files-found: error
 
   # PR → 프리뷰 버전 업로드 (배포 아님). 고정 별칭 preview → https://preview-saeu-map.saeu-map.workers.dev
   # 시크릿이 없으면 실패 대신 건너뛴다 (decisions.md 2026-09-01 자동 배포).
