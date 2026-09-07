@@ -26,6 +26,6 @@ describe("ShareCard — 공유 카드 3종의 텍스트", () => {
     expect(empty.replaceAll("<!-- -->", "")).toContain("새우구이 0곳");
   });
   it("루트: 새우맵 · 가게 N곳", () => {
-    expect(renderToStaticMarkup(<ShareCard variant="root" count={41} />).replaceAll("<!-- -->", "")).toContain("가게 41곳");
+    expect(renderToStaticMarkup(<ShareCard variant="root" count={41} art="data:image/png;base64,iVBORw0KGgo=" />).replaceAll("<!-- -->", "")).toContain("가게 41곳");
   });
 });
