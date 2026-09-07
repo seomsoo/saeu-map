@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import { REPORT_STEP_COUNT, type ReportStep } from "./types";
@@ -56,8 +57,14 @@ export function StepFrame({ step, title, caption, onBack, footer, children }: St
             </button>
           </div>
         )}
-        <h2 className={cx("text-title-m-bold text-fg", !onBack && "pt-4")}>{title}</h2>
-        <p className="mt-1 text-body-m-regular text-fg-secondary">{caption}</p>
+        {/* 완료에만 새우 하나 — 제보를 끝낸 순간이 이 앱에서 유일하게 축하할 자리다.
+            중립 새우다(냄비는 구이 편향이라 생새우회 가게 제보에 안 맞는다). 크기는 64로 묶는다:
+            무드가 담백한 정보형이라 히어로 일러스트로 키우지 않는다(design 공통 블록). */}
+        {step === "done" && (
+          <Image src="/og-shrimp-pot.png" alt="" width={168} height={160} aria-hidden="true" className="saeu-pop mx-auto mt-8 mb-5" />
+        )}
+        <h2 className={cx("text-title-m-bold text-fg", step === "done" ? "text-center" : !onBack && "pt-4")}>{title}</h2>
+        <p className={cx("mt-1 text-body-m-regular text-fg-secondary", step === "done" && "text-center")}>{caption}</p>
         {children && <div className="mt-5 pb-6">{children}</div>}
       </div>
       <div className="relative shrink-0 px-5 pt-3 pb-safe-bottom-or-3">

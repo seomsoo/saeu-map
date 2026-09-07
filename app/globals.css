@@ -372,11 +372,41 @@ body {
     background-position: 0 0;
   }
 }
+/* 별점 한 칸 — shrimp.webp의 알파를 마스크로 써서 currentColor로 칠한다.
+   별과 같이 색 하나로 채움·빔이 갈린다(컬러 아트로는 안 갈린다). */
+.shrimp-mask {
+  display: inline-block;
+  background: currentColor;
+  mask: url("/shrimp.webp") center / contain no-repeat;
+}
+
+/* 제보 완료의 새우 등장 — 축하할 자리라 "한 번만" 튄다(반복 없음). 살짝 오버슈트하는 이징이
+   생동감을 내고, both로 시작 프레임을 잡아 첫 페인트에 큰 새우가 번쩍이지 않는다. */
+.saeu-pop {
+  animation: saeu-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes saeu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .press:active {
     transform: none;
   }
   .skeleton {
+    animation: none;
+  }
+  .saeu-pop {
     animation: none;
   }
 }
