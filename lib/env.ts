@@ -17,4 +17,6 @@ export const env = createEnv({
     SITE_URL: process.env["SITE_URL"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
   },
+  // `.env.example`의 `SITE_URL=`(빈 값)을 그대로 두면 ""가 들어와 z.url()이 거부하고 앱이 안 뜬다 — 빈 문자열은 없는 것으로 (Codex PR #9 P1)
+  emptyStringAsUndefined: true,
 });
