@@ -56,7 +56,7 @@
 
 ## Phase 5 — 데스크탑 그릇 · 라우트 (design 화면 6~9)
 - [ ] 1024px: 좌측 패널 400px + 지도, 상세 패널 전환, 플로우 모달 480px, 호버 동기화
-- [ ] /place/[id] SSR 메타·진짜 404(proxy) · /gu/[name] SSR, next/og 공유 카드 (얕은 /place/[id]·공유 딥링크는 Phase 2에서 선행)
+- [ ] /place/[id] SSR 메타·진짜 404(~~proxy~~ → 로딩 경계 제거, decisions 2026-09-07) · /gu/[name] SSR, next/og 공유 카드 (얕은 /place/[id]·공유 딥링크는 Phase 2에서 선행)
 - [ ] Lighthouse CI 예산 추가 (모바일 LCP)
 - 완료: 같은 컴포넌트가 두 그릇에서 렌더(중복 구현 없음), 데스크탑서 카드→상세→지도 동기화 동작
 

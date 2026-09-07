@@ -440,6 +440,36 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **#3 내 활동 마커에 옛 선택이 남았다.** `markerPool`은 활성 탭으로 걸렀는데 `items`가 `selectedPlace`를 조건 없이 덧붙였다 — 찜하지 않은 가게를 열었다 닫고 내 활동을 열면 그 마커가 남는다. `markerSelection` 파생을 두고 **내 활동에서는 마커 풀에 있을 때만** 덧붙인다. 상세가 열린 동안 필터와 무관하게 선택 핀을 유지하는 규칙(Codex PR #4)은 그대로다. 갭 스윕이 "스펙 외 구현"으로 기록했던 동작인데 버그가 맞았다.
 - 셋 다 회귀 테스트를 붙였다(세션 게이트 재사용, 삭제 중 탭 왕복, 내 활동 마커). 테스트 373 → 377.
 
+## 2026-09-07 — Phase 5 데스크탑 그릇(화면 6~9 v2): 단일 DOM + CSS 전환, 제보는 패널
+- **맥락**: roadmap Phase 5. design 화면 6~9는 v1 초안(중앙 480 모달 + 240px 내장 지도, 패널 푸터 링크, 찜 핀 하트 뱃지, 새로 들어온 집 패널)이었다. 착수 규칙대로 v2로 재작성했다(플랜 docs/plans/phase5-desktop.md).
+- **그릇은 CSS다**: 1024px(Tailwind `lg`, 64rem)부터 왼쪽 패널 400(`w-100`) + 오른쪽 전체 지도. DOM은 하나 — 모바일의 상단 스택(검색·칩)과 바텀시트를 `display: contents` 래퍼로 감싸고 lg에서만 그 래퍼가 flex 컬럼 패널이 된다. `.saeu-sheet`는 unlayered CSS라 유틸이 못 덮으므로 lg 재정의도 globals.css `@variant lg` 블록에 둔다(position static·transform none·flex 1). 데스크탑에만 있는 요소(브랜드 행 [＋ 제보]·줌 컨트롤·마커 툴팁)는 `useMediaQuery`(useSyncExternalStore, 서버 스냅샷 false)로 하이드레이션 뒤 붙고, 지도 기하(중심 y·fitBounds 마진·시트 드래그 무시)는 핸들러 안에서 `isDesktopViewport()`로 즉시 판정한다. 상수는 `lib/layout.ts` 한 곳.
+- **제보는 모달이 아니라 패널**(사용자 선택): 2단계가 본 지도에서 핀을 찍는다. 중앙 모달이면 지도가 딤에 가리거나 두 번째 지도 인스턴스(핀·탭·중복 후보 배선을 모달 지도로 돌리는 비용)가 필요하다. 카카오맵 PC "장소 제안"·구글맵 "장소 추가"도 패널 + 본 지도다. **중앙 480 모달은 지도가 필요 없는 오버레이만**(로그인·리뷰 폼·사유·사진 신고·탈퇴) — `ModalSheet`·리뷰 폼 dialog에 lg 스타일만 더한다(라운드 16 토큰의 첫 용도). CLAUDE.md UI 완성 기준의 "플로우는 중앙 모달 480px"은 이렇게 정정.
+- **호버 동기화**: 카드 hover → 마커 확대(`saeu-marker--hovered`), 마커 hover → 툴팁(상호 / 대표 메뉴 두 줄, React가 그린다 — 마커 innerHTML에는 여전히 이름을 넣지 않는다). `pointerType === "mouse"`만(터치 탭이 내는 에뮬레이션 hover 무시). 툴팁은 mouseout·dragstart·idle에 닫힌다.
+- **추가·삭제**: 우하단 줌 [+][−] 추가(design 6 v1 항목, `MapHandle.zoomBy`), 현위치는 모바일 FAB과 같은 `LocateButton`. 패널 푸터 "새우맵 소개 · 사장님이신가요?"는 **뺐다**(라우트가 spec에 없다 — Phase 7 재검토). 찜 핀 하트 뱃지는 하지 않는다(Phase 4의 "활성 탭 가게만" 유지, 재검토 종결). 검색·칩은 상세에서도 보인다(네이버지도·카카오맵 PC 문법, 모바일과 같은 규칙).
+- **재검토 조건**: 태블릿(768~1023) 전용 배치는 요청이 오면. 패널 폭 400은 카드·상세가 좁아 보인다는 피드백 시.
+
+## 2026-09-07 — 진짜 404는 proxy가 아니라 로딩 경계 제거로
+- **맥락**: roadmap Phase 5 항목이 "진짜 404(proxy)"였고 Next 문서(loading.md "Status Codes")도 proxy를 권한다. 200이 나오던 원인은 루트 `app/loading.tsx`(Suspense)가 스트리밍을 시작해 `notFound()` 뒤에 상태 코드를 못 바꾸기 때문이다(decisions 2026-09-02).
+- **결정(사용자 선택)**: 홈만 route group `app/(home)/`으로 옮겨 `loading.tsx`를 그 안에 두고, `/place/[id]`(기존 `loading.tsx` 삭제)·`/gu/[name]`에는 Suspense 경계를 두지 않는다 → `notFound()`가 스트리밍 전에 던져져 **HTTP 404**. 근거: OpenNext Cloudflare가 Node 런타임 `proxy.ts`를 "실험적·미지원"으로 명시한다(`@opennextjs/cloudflare` `bundle-node-middleware.ts`). 대가는 직접 진입 스켈레톤이 사라지는 것 — 목 데이터라 수 ms, Phase 6 Supabase에서도 한 쿼리다. 매치 안 되는 경로(`/test` 등)는 루트 `app/not-found.tsx`가 우리 빈 상태로 받는다.
+- **재검토 조건**: OpenNext가 Node middleware를 정식 지원하고 스켈레톤 부재가 체감될 때.
+
+## 2026-09-07 — `/gu/[name]`은 같은 지도 화면 + SSR 목록, 서울 25구만
+- **결정(사용자 선택)**: 별도 랜딩이 아니라 `MapScreen`에 `initialGu`를 줘 그 구 가게로 지도를 맞춘다(0곳이면 구 중심·줌 13). 목록은 서버가 그 구 가게를 미리 채워 HTML에 상호가 들어간다(크롤러용) — 지도가 첫 idle을 보고하면 뷰포트 기준으로 자연히 전환된다. 헤더 "마포구 7곳"은 `areaLabel`이 만든다.
+- **이름**: `lib/gu.ts`의 `SEOUL_GU` 25개(문자열 상수, `gu-boundaries.json` 이름과 일치하는지 테스트가 지킨다). 그 밖(김포시 등 비서울·오타)은 404. URL은 한글 그대로(`/gu/마포구`, 인코딩은 브라우저가 한다). 구 중심은 경계 링 좌표 평균(서버에서만, 60KB 동적 import).
+- **메타**: `lib/seo.ts` 순수 함수 — 제목 "마포구 새우구이 7곳", 설명 "마포구의 새우구이·생새우회 가게 7곳. 나라수산, …(3곳)". sitemap에 25구 전부(0곳 구 포함 — 런칭 글 "구별 카드 25장"의 자리).
+
+## 2026-09-07 — OG 카드는 next/og, 폰트는 Pretendard subset woff를 ASSETS 바인딩으로
+- **결정**: `opengraph-image.tsx` 파일 컨벤션 3종(루트·핀·구), 1200×630, 흰 바탕·잉크·좌하단 레드 점 + "새우맵", 카테고리색 마커 모티프. 사진은 넣지 않는다(외부 fetch 없음, 로고 에셋 대기). OpenNext 1.20이 `@vercel/og`를 edge 빌드로 재배선하고 `resvg.wasm`(1.4MB)을 동봉한다(`bundle-server.js`).
+- **폰트**: satori는 woff2를 못 읽고 Pretendard 전체 otf는 1.5MB다. `pretendard` 패키지의 **KS X 1001 subset woff**(Bold·Regular 각 350KB, SIL OFL)를 `public/fonts/og/`에 두고, 런타임에 `getCloudflareContext().env.ASSETS.fetch("http://assets.local/…")`(OpenNext 내부 정적 캐시와 같은 패턴)으로 읽는다. 컨텍스트가 없으면(`next build` 프리렌더·`next dev`) `fs.readFile(public/…)` 폴백. 모듈 캐시로 한 번만. 폰트가 워커 번들에 들어가지 않아 500KB 번들 제한·3MB 워커 상한과 무관하다.
+- **워커 크기**: 빌드 뒤 gzip 총량을 플랜 결과에 기록한다(Workers Free 상한 3MB, 이전 1.34MB). 넘으면 정적 PNG 카드로 후퇴.
+
+## 2026-09-07 — 사이트 URL은 서버 전용 `SITE_URL`
+- **결정**: metadataBase·sitemap·robots가 쓰는 절대 URL은 t3-env `server`의 `SITE_URL`(없으면 `https://saeu-map.saeu-map.workers.dev`). `NEXT_PUBLIC_` 접두사를 쓰지 않는다 — 규칙 7 허용 목록(지도 Client ID·Supabase anon·카카오 JS 키) 밖이고 클라이언트가 필요하지 않다. CI preview 잡은 프리뷰 URL을 준다. 도메인(saeumap.kr)은 Phase 7에 값만 바꾼다.
+
+## 2026-09-07 — Lighthouse CI 예산은 모바일 LCP, workerd 스모크 뒤에
+- **결정**: CI `check` 잡의 스모크가 띄운 `wrangler dev :8787`에 `npx @lhci/cli@0.15.1 autorun`(의존성 아님, 2025-06 릴리스) + `lighthouserc.json`. URL `/`·`/place/p018`, 3회 중앙값, 모바일 에뮬레이션(Lighthouse 기본). CI엔 NCP 키가 dummy라 지도는 에러 상태 — 우리 셸(HTML·CSS·JS)의 LCP를 재는 것이고 지도 SDK는 측정 밖이다.
+- **예산**: 로컬 workerd 실측 뒤 확정해 이 항목에 기록한다(초안: LCP error 4000ms / warn 2500ms, performance warn 0.8 — web.dev "poor" 경계를 error, "good" 경계를 warn).
+
 ## 커스텀 에셋 필요 목록
 - 새우 마커·카드 썸네일 플레이스홀더 아이콘 — 36px 원·64px 타일 안, 사진 없는 가게용 (그 전까지 카테고리 색점)
 - 현위치 표적(크로스헤어) 아이콘 — coolicons에 없어 `components/ui/icons/crosshair-icon.tsx` 인라인 SVG로 임시 대체
