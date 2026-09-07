@@ -55,10 +55,11 @@
   - 실기기 미확인 1건: 리뷰 폼 textarea 위 CTA의 키보드 동작(시트와 같은 `--vvh`/`--kb` 기준으로 두었음).
 
 ## Phase 5 — 데스크탑 그릇 · 라우트 (design 화면 6~9)
-- [ ] 1024px: 좌측 패널 400px + 지도, 상세 패널 전환, 플로우 모달 480px, 호버 동기화
-- [ ] /place/[id] SSR 메타·진짜 404(~~proxy~~ → 로딩 경계 제거, decisions 2026-09-07) · /gu/[name] SSR, next/og 공유 카드 (얕은 /place/[id]·공유 딥링크는 Phase 2에서 선행)
-- [ ] Lighthouse CI 예산 추가 (모바일 LCP)
+- [x] 1024px: 좌측 패널 400px + 지도, 상세 패널 전환, 플로우 모달 480px, 호버 동기화
+- [x] /place/[id] SSR 메타·진짜 404(~~proxy~~ → 로딩 경계 제거, decisions 2026-09-07) · /gu/[name] SSR, next/og 공유 카드 (얕은 /place/[id]·공유 딥링크는 Phase 2에서 선행)
+- [x] Lighthouse CI 예산 추가 (모바일 LCP)
 - 완료: 같은 컴포넌트가 두 그릇에서 렌더(중복 구현 없음), 데스크탑서 카드→상세→지도 동기화 동작
+- 결과: ✅ 2026-09-07 — 갭 스윕 미구현 0(부분 1건·모호 1건 같은 날 수정·확정, 범위 밖 2건은 Phase 7), Playwright 1440×900·1280×800·1024×768 + 390×702·320×480, workerd 스모크(OG 75장 빌드 시 생성·정적 서빙, 진짜 404), security-reviewer 2회(반영 6건, 취약점 0), Lighthouse 실측 뒤 예산 확정(LCP error 12s), 워커 gzip 1.62MB, 테스트 407개. 상세는 docs/plans/phase5-desktop.md 결과.
 
 ## Phase 6 — 백엔드 교체
 - [ ] 스키마 확정 (checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제)
