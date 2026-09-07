@@ -56,9 +56,10 @@ export function ReviewForm({ placeId, placeName, now, initial, onSaved, onClose 
       ref={dialogRef}
       aria-label={title}
       onClose={close}
-      className="saeu-overlay-screen m-0 w-full max-w-none bg-bg p-0 text-fg backdrop:bg-bg"
+      className="saeu-overlay-screen m-0 w-full max-w-none bg-bg p-0 text-fg backdrop:bg-bg lg:border lg:border-line-hairline lg:shadow-card lg:backdrop:bg-common-100/40"
     >
-      <div className="flex h-full flex-col">
+      {/* lg: dialog가 max-height 90dvh의 flex 컬럼이 되므로 이 래퍼가 줄어들 수 있어야(min-h-0) 본문만 스크롤된다 */}
+      <div className="flex h-full flex-col lg:min-h-0">
         <div className="relative flex h-11 shrink-0 items-center justify-center pt-safe-top">
           <button
             type="button"

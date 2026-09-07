@@ -498,4 +498,16 @@ body {
     flex: 1 1 0;
     min-height: 0;
   }
+  /* 전체 화면 오버레이(리뷰 폼) → 딤 위 중앙 480 카드 (design 화면 9 프레임 2). 라운드 16은 이 용도의 토큰 */
+  .saeu-overlay-screen {
+    inset: 0;
+    margin: auto;
+    width: 480px;
+    /* fit-content: inset 0 + height auto는 절대 위치 박스를 위아래로 꽉 채운다(90dvh로 늘어남). 내용 높이만큼만, 넘치면 본문 스크롤 */
+    height: fit-content;
+    max-height: 90dvh;
+    border-radius: var(--radius-16);
+    display: flex;
+    flex-direction: column;
+  }
 }

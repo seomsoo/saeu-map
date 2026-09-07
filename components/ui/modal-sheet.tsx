@@ -17,6 +17,8 @@ interface ModalSheetProps {
  * fixed가 시트 기준이 되고, top layer가 z 경쟁·포커스 트랩·Escape·포커스 복원을 공짜로 준다).
  * 닫는 경로는 하나: `dialog.close()` → `close` 이벤트 → `onClose`. 딤 탭·Escape·부모의 ✕가 전부 이 길로 간다.
  * 호출자: 로그인 시트 · 달라요 사유 시트 · 탈퇴 확인.
+ * **데스크탑(lg)은 같은 컴포넌트가 딤 위 중앙 480 카드**(라운드 16 — design 화면 9 프레임 2). 딤 버튼이 뒤에 깔리고
+ * 내용은 모바일 `mt-auto`(바닥) / 데스크탑 `m-auto`(중앙)로 자리만 바뀐다.
  */
 export function ModalSheet({ label, onClose, children }: ModalSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -37,15 +39,17 @@ export function ModalSheet({ label, onClose, children }: ModalSheetProps) {
       onClose={onClose}
       className="fixed inset-0 m-0 size-full max-h-none max-w-none bg-transparent p-0 text-fg backdrop:bg-common-100/40"
     >
-      <div className="flex h-full flex-col">
+      <div className="relative flex h-full flex-col">
         {/* 딤 자리 — 눌러서 닫는 표적. 시각은 backdrop이 맡고 이 버튼은 투명하다 */}
         <button
           type="button"
           aria-label="닫기"
           onClick={requestClose}
-          className="min-h-0 w-full flex-1 cursor-default"
+          className="absolute inset-0 cursor-default"
         />
-        <div className="w-full rounded-t-20 bg-bg pb-safe-bottom-or-3 shadow-upper">{children}</div>
+        <div className="relative mt-auto w-full rounded-t-20 bg-bg pb-safe-bottom-or-3 shadow-upper lg:m-auto lg:w-120 lg:rounded-16 lg:border lg:border-line-hairline lg:pb-5 lg:shadow-card">
+          {children}
+        </div>
       </div>
     </dialog>,
     document.body,

@@ -1299,6 +1299,34 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     expect(fake.map.setZoom).toHaveBeenLastCalledWith(11, true);
   });
 
+  it("데스크탑: 카드 탭의 지도 이동은 오프셋 없이 핀을 컨테이너 중앙에 (가리는 시트가 없다)", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    const target = fake.map.panTo.mock.lastCall?.[0] as { lat(): number; lng(): number };
+    expect([target.lat(), target.lng()]).toEqual([37.54, 126.95]);
+  });
+
+  it("데스크탑: 검색 Enter의 fitBounds는 네 변 24 대칭 (모바일은 상단 스택·시트만큼 비운다)", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    fireEvent.change(screen.getByRole("searchbox", { name: "가게·동네 검색" }), {
+      target: { value: "수산" },
+    });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), {
+      top: 24,
+      bottom: 24,
+      left: 24,
+      right: 24,
+      maxZoom: 16,
+    });
+  });
+
   it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
     desktop();
     renderScreen();

@@ -32,6 +32,7 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
+import { isDesktopViewport } from "@/lib/layout";
 import {
   areaLabel as computeAreaLabel,
   densestPoint,
@@ -353,9 +354,11 @@ export function useMapScreen({
     setMapError("config");
   }, []);
 
-  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표) ── */
+  /* ── 상단 스택 ~ 시트 사이 가시 영역의 세로 중앙 (카드·마커 탭 시 지도 이동 목표).
+     데스크탑은 지도가 패널 옆 컬럼 전체라 가려지는 띠가 없다 — undefined = 컨테이너 중앙 (design 화면 6) ── */
   const visibleStripCenterY = useCallback(
-    (sheetSnap: SheetSnap, sheetMode: SheetMode) => {
+    (sheetSnap: SheetSnap, sheetMode: SheetMode): number | undefined => {
+      if (isDesktopViewport()) return undefined;
       const top = topStackRef.current?.getBoundingClientRect().bottom ?? 0;
       const vh = sheetViewportHeight();
       const bottom = vh - sheetVisiblePx(sheetSnap, vh, sheetMode);
@@ -384,6 +387,11 @@ export function useMapScreen({
   const initialPanDone = useRef(false);
   useEffect(() => {
     if (initialPanDone.current || !viewport || !mapRef.current) return;
+    // 데스크탑: SDK가 defaultCenter를 컨테이너 중앙에 놓는데 그게 곧 보이는 지도의 중앙이다 — 옮길 게 없다
+    if (isDesktopViewport()) {
+      initialPanDone.current = true;
+      return;
+    }
     if (initialPlaceId) {
       const place = places.find((p) => p.id === initialPlaceId);
       if (!place) return;
@@ -494,8 +502,10 @@ export function useMapScreen({
     });
     const bounds = boundsOf(matches);
     if (!bounds || !mapRef.current) return;
-    const top = (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-    const bottom = sheetVisiblePx(snap, sheetViewportHeight(), mode) + 16;
+    // 모바일은 상단 스택·시트가 가리는 만큼 비운다. 데스크탑은 가리는 게 없어 네 변 대칭
+    const desktop = isDesktopViewport();
+    const top = desktop ? 24 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
+    const bottom = desktop ? 24 : sheetVisiblePx(snap, sheetViewportHeight(), mode) + 16;
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
@@ -627,9 +637,10 @@ export function useMapScreen({
       const bounds = boundsOf([reportPin, candidate]);
       if (!bounds) return;
       programmaticMoveAt.current = performance.now();
+      const desktop = isDesktopViewport();
       mapRef.current.fitBounds(bounds, {
-        top: 72,
-        bottom: sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
+        top: desktop ? 40 : 72,
+        bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
         left: 40,
         right: 40,
         maxZoom: REPORT_ZOOM,
