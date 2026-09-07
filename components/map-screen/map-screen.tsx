@@ -191,8 +191,12 @@ function MapScreenBody({
                   trailing={<ProfileButton session={session} onClick={s.openMe} />}
                 />
               </div>
-              {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다. 데스크탑은 패널 안이라 두 줄로 랩 */}
-              <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5 lg:flex-wrap lg:overflow-visible lg:pb-2">
+              {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다.
+                  **데스크탑은 지도 위 한 층**(design 화면 6 v3): DOM은 패널 안에 두고 `lg:fixed`로 지도 위로 올린다.
+                  fixed는 조상 overflow에 잘리지 않으므로 패널의 overflow-hidden을 통과한다 —
+                  단 패널에 transform이 생기면 기준이 패널로 바뀐다(그래서 패널은 transform을 갖지 않는다).
+                  left는 PANEL_OCCLUSION(436) + 20 = 456 = lg:left-114 */}
+              <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5 lg:fixed lg:top-5 lg:left-114 lg:z-20 lg:max-w-160 lg:flex-wrap lg:gap-2 lg:overflow-visible lg:p-0 lg:[&_button]:shadow-float">
                 <CategoryDropdown tab={s.tab} onChange={s.setTab} />
                 <FilterChips chips={s.chips} onToggle={s.toggleChip} />
               </div>
