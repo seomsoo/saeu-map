@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useEffect, useRef, type ReactNode } from "react";
+import { memo, useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TAG_LABELS, distanceKm, markerCategory, sideChips } from "@/lib/places";
@@ -19,6 +19,8 @@ interface PlaceCardProps {
   onSelect: (id: string) => void;
   /** 카드 오른쪽 세로 중앙에 얹히는 액션(내 활동 찜 탭의 하트). 카드 버튼의 형제라 버튼 안에 버튼이 생기지 않는다. */
   trailing?: ReactNode;
+  /** 데스크탑 hover ↔ 마커 확대 (design 화면 6). 마우스만 — 터치 탭이 내는 에뮬레이션 hover는 무시. null = 떠남 */
+  onHoverChange?: ((id: string | null) => void) | undefined;
 }
 
 const DOT_CLASS: Record<PlaceTag, string> = {
@@ -62,8 +64,12 @@ export const PlaceCard = memo(function PlaceCard({
   selected,
   onSelect,
   trailing,
+  onHoverChange,
 }: PlaceCardProps) {
   const ref = useRef<HTMLLIElement | null>(null);
+  const hover = (id: string | null) => (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === "mouse") onHoverChange?.(id);
+  };
 
   useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -82,9 +88,11 @@ export const PlaceCard = memo(function PlaceCard({
         }}
         aria-current={selected ? "true" : undefined}
         aria-label={`${place.name}, ${place.gu}`}
+        onPointerEnter={onHoverChange && hover(place.id)}
+        onPointerLeave={onHoverChange && hover(null)}
         className={cx(
           "flex w-full gap-3 px-5 py-3 text-left transition-colors",
-          selected ? "bg-bg-sunken" : "active:bg-bg-dim",
+          selected ? "bg-bg-sunken" : "hover:bg-bg-dim active:bg-bg-dim",
           trailing !== undefined && "pr-16",
         )}
       >

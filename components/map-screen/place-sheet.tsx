@@ -56,6 +56,8 @@ interface PlaceSheetProps {
   /** 내 활동 헤더 ✕ */
   onDismissMe?: (() => void) | undefined;
   onSelect: (id: string) => void;
+  /** 데스크탑 카드 hover → 마커 확대 */
+  onHover: (id: string | null) => void;
   onDismissEvent: () => void;
   onClearFilters: () => void;
   onReport: () => void;
@@ -128,6 +130,7 @@ export function PlaceSheet({
   onDismissReport,
   onDismissMe,
   onSelect,
+  onHover,
   onDismissEvent,
   onClearFilters,
   onReport,
@@ -215,6 +218,7 @@ export function PlaceSheet({
                 origin={origin}
                 selected={place.id === selectedId}
                 onSelect={onSelect}
+                onHoverChange={onHover}
               />
             ))}
           </ul>

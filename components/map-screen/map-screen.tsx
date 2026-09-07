@@ -107,6 +107,7 @@ function MapScreenBody({
             <MapView
               items={s.items}
               selectedId={s.selectedId}
+              hoveredId={s.hoveredId}
               now={now}
               initialCenter={s.initialCenter}
               initialZoom={s.initialZoom}
@@ -289,6 +290,7 @@ function MapScreenBody({
           onDismissReport={s.cancelReport}
           onDismissMe={s.closeMe}
           onSelect={s.selectFromCard}
+          onHover={s.hoverPlace}
           onDismissEvent={s.dismissEvent}
           onClearFilters={s.clearFilters}
           onReport={s.openReport}

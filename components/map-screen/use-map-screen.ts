@@ -160,6 +160,8 @@ export function useMapScreen({
   const [meTab, setMeTab] = useState<ActivityTab>("bookmarks");
   /** 내 활동 활성 탭의 가게 id — 열린 동안 지도 마커는 이것만 */
   const [mePlaceIds, setMePlaceIds] = useState<readonly string[]>([]);
+  /** 데스크탑: 목록에서 마우스가 올라간 카드 — 그 마커만 확대 (design 화면 6). 목록이 아닌 모드에선 무시 */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   /** 마지막 프로그램적 이동 시각. 그 직후 idle은 사용자 조작이 아니므로 정렬 기준점(지도 중심)을 갱신하지 않는다. */
   const programmaticMoveAt = useRef(0);
@@ -688,6 +690,11 @@ export function useMapScreen({
     [openDetail],
   );
 
+  /** 카드 hover(마우스만) — 카드가 hidden으로 바뀌면 leave가 안 오므로 마커 쪽은 목록 모드에서만 읽는다 */
+  const hoverPlace = useCallback((id: string | null) => {
+    setHoveredId(id);
+  }, []);
+
   /** 제보 성공으로 생긴 가게를 목록·마커에 추가 */
   const addPlace = useCallback((place: Place) => {
     setPlaces((prev) => [...prev, place]);
@@ -832,6 +839,7 @@ export function useMapScreen({
   return {
     // 상태
     places,
+    hoveredId: mode === "list" ? hoveredId : null,
     tab,
     chips,
     query,
@@ -879,6 +887,7 @@ export function useMapScreen({
     setSnap,
     selectFromMarker,
     selectFromCard,
+    hoverPlace,
     closeDetail,
     patchPlace,
     markChecked,

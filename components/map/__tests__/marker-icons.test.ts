@@ -98,3 +98,14 @@ describe("getReportPinIcon — 제보 핀", () => {
     expect(getReportPinIcon(navermaps)).toBe(icon);
   });
 });
+
+describe("hovered (데스크탑 카드 hover ↔ 마커)", () => {
+  it("hovered 클래스가 붙고 캐시 키가 갈린다 — 같은 모양은 같은 객체", () => {
+    const plain = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: null });
+    const hovered = getPlaceMarkerIcon(navermaps, { ...base, hovered: true, thumbnailUrl: null });
+    expect(hovered).not.toBe(plain);
+    expect(hovered.content).toContain("saeu-marker--hovered");
+    expect(plain.content).not.toContain("saeu-marker--hovered");
+    expect(getPlaceMarkerIcon(navermaps, { ...base, hovered: true, thumbnailUrl: null })).toBe(hovered);
+  });
+});

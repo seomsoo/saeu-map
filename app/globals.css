@@ -240,6 +240,10 @@ body {
 .saeu-marker--inactive {
   opacity: 0.45;
 }
+/* 호버(데스크탑, 카드 hover ↔ 마커): 링 없이 확대만. 선택이 뒤에 와서 둘 다면 선택이 이긴다 */
+.saeu-marker--hovered {
+  transform: scale(1.15);
+}
 /* 선택: 크게 + 바깥 잉크 링 */
 .saeu-marker--selected {
   transform: scale(1.2);

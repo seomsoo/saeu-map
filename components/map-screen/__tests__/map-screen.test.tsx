@@ -128,27 +128,41 @@ vi.mock("react-naver-maps", () => ({
   Marker: ({
     title,
     onClick,
+    onMouseover,
+    onMouseout,
     position,
     defaultPosition,
     clickable,
+    icon,
   }: {
     title: string;
     onClick?: () => void;
+    onMouseover?: () => void;
+    onMouseout?: () => void;
     position?: { lat: number; lng: number };
     defaultPosition?: { lat: number; lng: number };
     clickable?: boolean;
+    icon?: { content?: string };
   }) => {
     const box = {
       "data-testid": "marker",
       "data-lat": (position ?? defaultPosition)?.lat,
       "data-lng": (position ?? defaultPosition)?.lng,
+      // HtmlIcon의 클래스 문자열 — 선택·호버 상태를 여기서 읽는다
+      "data-icon": icon?.content,
     };
     // 현위치 마커는 clickable={false}라 실제로도 버튼이 아니다 — 버튼으로 그리면
     // 현위치 FAB(aria-label "내 위치")과 접근 이름이 겹쳐 쿼리가 모호해진다
     return clickable === false ? (
       <span {...box}>{title}</span>
     ) : (
-      <button type="button" {...box} onClick={onClick}>
+      <button
+        type="button"
+        {...box}
+        onClick={onClick}
+        onMouseEnter={onMouseover}
+        onMouseLeave={onMouseout}
+      >
         {title}
       </button>
     );
@@ -1325,6 +1339,27 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
       right: 24,
       maxZoom: 16,
     });
+  });
+
+  it("카드 hover → 그 마커만 확대(hovered), 떠나면 원복. 마커 hover → 상호/대표 메뉴 툴팁, 떠나면 닫힘", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    const marker = () => screen.getByText("나라수산", { selector: '[data-testid="marker"]' });
+    const other = () => screen.getByText("365활새우 창우수산", { selector: '[data-testid="marker"]' });
+    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+
+    fireEvent.pointerEnter(card, { pointerType: "mouse" });
+    expect(marker().getAttribute("data-icon")).toContain("saeu-marker--hovered");
+    expect(other().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
+    fireEvent.pointerLeave(card, { pointerType: "mouse" });
+    expect(marker().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
+
+    fireEvent.mouseEnter(marker());
+    const tooltip = screen.getByRole("tooltip");
+    expect(within(tooltip).getByText("나라수산")).toBeInTheDocument();
+    expect(within(tooltip).getByText("생새우소금구이 1kg 60,000원")).toBeInTheDocument();
+    fireEvent.mouseLeave(marker());
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
