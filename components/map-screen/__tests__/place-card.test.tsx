@@ -71,19 +71,19 @@ describe("PlaceCard", () => {
     expect(screen.queryByText("어제 확인")).not.toBeInTheDocument();
   });
 
-  it("썸네일: 있으면 img, 없으면 플레이스홀더(카테고리 색점)", () => {
+  it("썸네일: 있으면 사진, 없으면 새우 플레이스홀더", () => {
     const { unmount } = renderCard();
-    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("shrimp.webp");
     unmount();
 
-    const place = makePlace({ thumbnailUrl: "/mock/thumb-1.svg" });
+    const place = makePlace({ thumbnailUrl: "/mock/thumb-1.webp" });
     const { container } = render(
       <ul>
         <PlaceCard place={place} now={NOW} origin={null} selected={false} onSelect={vi.fn()} />
       </ul>,
     );
     const img = container.querySelector("img");
-    expect(img).toHaveAttribute("src", "/mock/thumb-1.svg");
+    expect(img?.getAttribute("src")).toContain("thumb-1.webp");
     expect(img).toHaveAttribute("alt", "");
   });
 

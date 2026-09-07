@@ -225,12 +225,11 @@ body {
   height: 100%;
   object-fit: cover;
 }
-/* 썸네일 없음 — 새우 아이콘 에셋 전까지 카테고리 색점 */
+/* 썸네일 없음 — 새우 플레이스홀더. 카테고리는 바깥 링(--marker-color)이 말하므로 그림은 한 벌이다 */
 .saeu-marker__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-max);
-  background: var(--marker-color);
+  width: 26px;
+  height: 26px;
+  background: url("/shrimp.webp") center / contain no-repeat;
 }
 /* 신규(7일 이내): 점선 링 */
 .saeu-marker--new {

@@ -28,7 +28,7 @@ const base = { category: "grill" as const, isNew: false, inactive: false, select
 
 describe("safeThumbnailUrl — innerHTML에 넣어도 되는 우리 경로만", () => {
   it("루트 상대 경로는 통과", () => {
-    expect(safeThumbnailUrl("/mock/thumb-1.svg")).toBe("/mock/thumb-1.svg");
+    expect(safeThumbnailUrl("/mock/thumb-1.webp")).toBe("/mock/thumb-1.webp");
     expect(safeThumbnailUrl("/photos/p018/thumb_80.webp")).toBe("/photos/p018/thumb_80.webp");
   });
   it("외부·프로토콜 상대·상위 경로·따옴표·null은 거른다", () => {
@@ -43,8 +43,8 @@ describe("safeThumbnailUrl — innerHTML에 넣어도 되는 우리 경로만", 
 
 describe("getPlaceMarkerIcon", () => {
   it("썸네일이 있으면 img, 없으면 색점 플레이스홀더", () => {
-    const withThumb = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.svg" });
-    expect(withThumb.content).toContain('<img class="saeu-marker__img" src="/mock/thumb-1.svg"');
+    const withThumb = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.webp" });
+    expect(withThumb.content).toContain('<img class="saeu-marker__img" src="/mock/thumb-1.webp"');
     const noThumb = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: null });
     expect(noThumb.content).toContain('<span class="saeu-marker__dot">');
     expect(noThumb.content).not.toContain("<img");
@@ -70,9 +70,9 @@ describe("getPlaceMarkerIcon", () => {
     expect(icon.anchor).toEqual(new Point(PLACE_MARKER_SIZE / 2, PLACE_MARKER_SIZE / 2));
   });
   it("같은 모양(썸네일 포함)은 같은 객체를 돌려준다 — 다르면 다른 객체", () => {
-    const a = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.svg" });
-    const b = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.svg" });
-    const c = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-2.svg" });
+    const a = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.webp" });
+    const b = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.webp" });
+    const c = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-2.webp" });
     expect(a).toBe(b);
     expect(a).not.toBe(c);
   });

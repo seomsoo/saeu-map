@@ -4,10 +4,10 @@ import Image from "next/image";
 import { memo, useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TAG_LABELS, distanceKm, markerCategory, sideChips } from "@/lib/places";
+import { TAG_LABELS, distanceKm, sideChips } from "@/lib/places";
 import { formatDistance } from "@/lib/geo";
 import { relativeCheckLabel } from "@/lib/time";
-import type { LatLng, Place, PlaceTag } from "@/lib/types";
+import type { LatLng, Place } from "@/lib/types";
 import { cx } from "@/lib/cx";
 
 interface PlaceCardProps {
@@ -23,12 +23,7 @@ interface PlaceCardProps {
   onHoverChange?: ((id: string | null) => void) | undefined;
 }
 
-const DOT_CLASS: Record<PlaceTag, string> = {
-  grill: "bg-coral-500",
-  raw: "bg-teal-500",
-};
-
-/** 썸네일 타일 64px — 사진이 없으면 마커 플레이스홀더와 같은 톤(가라앉은 배경 + 카테고리 색점). 카드·신규 패널 행이 같이 쓴다. */
+/** 썸네일 타일 64px — 사진이 없으면 마커 플레이스홀더와 같은 톤(가라앉은 배경 + 새우 아이콘). 카드·신규 패널 행이 같이 쓴다. */
 export function PlaceThumbnail({ place }: { place: Place }) {
   return (
     <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-12 bg-bg-sunken">
@@ -43,10 +38,8 @@ export function PlaceThumbnail({ place }: { place: Place }) {
           className="size-full object-cover"
         />
       ) : (
-        <span
-          className={cx("size-2 rounded-max", DOT_CLASS[markerCategory(place.tags)])}
-          aria-hidden="true"
-        />
+        // 사진 없음 — 새우 플레이스홀더. 카테고리는 카드 메타 줄이, 마커에선 바깥 링이 말한다
+        <Image src="/shrimp.webp" alt="" width={40} height={40} draggable={false} aria-hidden="true" />
       )}
     </div>
   );

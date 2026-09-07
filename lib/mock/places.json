@@ -125,9 +125,9 @@
     "checkCount": 0,
     "isNew": false,
     "photos": [
-      { "url": "/mock/photo-1.svg", "at": "2026-08-22" },
-      { "url": "/mock/photo-3.svg", "at": "2026-08-25" },
-      { "url": "/mock/photo-4.svg", "at": "2026-08-27" }
+      { "url": "/mock/photo-1.webp", "at": "2026-08-22" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-25" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-27" }
     ]
   },
   {
@@ -188,8 +188,8 @@
     "isNew": true,
     "createdAt": "2026-08-27",
     "photos": [
-      { "url": "/mock/photo-2.svg", "at": "2026-08-26" },
-      { "url": "/mock/photo-3.svg", "at": "2026-08-28" }
+      { "url": "/mock/photo-1.webp", "at": "2026-08-26" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-28" }
     ]
   },
   {
@@ -262,16 +262,16 @@
     "checkCount": 3,
     "isNew": false,
     "photos": [
-      { "url": "/mock/photo-1.svg", "at": "2026-08-18" },
-      { "url": "/mock/photo-2.svg", "at": "2026-08-19" },
-      { "url": "/mock/photo-3.svg", "at": "2026-08-20" },
-      { "url": "/mock/photo-4.svg", "at": "2026-08-21" },
-      { "url": "/mock/photo-1.svg", "at": "2026-08-22" },
-      { "url": "/mock/photo-2.svg", "at": "2026-08-23" },
-      { "url": "/mock/photo-3.svg", "at": "2026-08-24" },
-      { "url": "/mock/photo-4.svg", "at": "2026-08-25" },
-      { "url": "/mock/photo-1.svg", "at": "2026-08-26" },
-      { "url": "/mock/photo-2.svg", "at": "2026-08-27" }
+      { "url": "/mock/photo-2.webp", "at": "2026-08-18" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-19" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-20" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-21" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-22" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-23" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-24" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-25" },
+      { "url": "/mock/photo-2.webp", "at": "2026-08-26" },
+      { "url": "/mock/photo-1.webp", "at": "2026-08-27" }
     ]
   },
   {
