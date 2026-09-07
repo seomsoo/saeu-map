@@ -131,6 +131,8 @@ export interface SeasonStats {
   todayCheckinCount: number;
   /** 이번 주 최다 확인 가게 (없으면 null) */
   topPlace: { id: string; name: string; count: number } | null;
+  /** 등록 7일 이내(= isNew) 가게 수 — 데스크탑 카운터 캡션의 셋째 조각 (design 화면 6 v3) */
+  newPlaceCount: number;
 }
 
 export interface Review {

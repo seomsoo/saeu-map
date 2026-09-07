@@ -54,8 +54,8 @@ function reloadPage() {
  * 세션(익명/카카오)과 로그인 시트는 SessionProvider가 갖고, 화면 훅은 `useSession()`으로 읽는다(화면 5).
  *
  * **데스크탑(1024~, 화면 6~9)은 같은 DOM의 그릇만 CSS로 바꾼다**: 상단 스택 + 시트를 감싼 래퍼가 모바일에선
- * `display: contents`(있는 듯 없는 듯), lg에선 왼쪽 400px 패널이 되고 지도는 나머지를 채운다. 시트의 fixed·transform은
- * globals.css 데스크탑 블록이 지운다. JS(`isDesktop`)는 데스크탑에만 있는 요소 셋(브랜드 행 [＋ 제보]·줌 컨트롤·툴팁)만 가른다.
+ * `display: contents`(있는 듯 없는 듯), lg에선 지도 위에 떠 있는 420px 패널이 되고 지도는 두 그릇 모두 풀블리드다. 시트의 fixed·transform은
+ * globals.css 데스크탑 블록이 지운다. JS(`isDesktop`)는 데스크탑에만 있는 요소(브랜드 줄 [＋ 제보]·줌 컨트롤·토스트 자리)만 가른다.
  */
 export default function MapScreen(props: MapScreenProps) {
   return (
@@ -159,7 +159,7 @@ function MapScreenBody({
       </div>
 
       {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로).
-          데스크탑: 지도 위에 떠 있는 카드(여백 16·폭 420·라운드 20·shadow-panel). 접으면 왼쪽으로 빠진다.
+          데스크탑: 지도 위에 떠 있는 카드(여백 16·폭 420·라운드 20·shadow-panel).
           폭·여백은 lib/layout.ts의 PANEL_* 상수와 같아야 한다 — 지도 기하가 그 값으로 보정한다 */}
       <div className="contents lg:absolute lg:inset-y-4 lg:left-4 lg:z-10 lg:flex lg:w-105 lg:flex-col lg:overflow-hidden lg:rounded-20 lg:bg-bg lg:shadow-panel">
         {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.

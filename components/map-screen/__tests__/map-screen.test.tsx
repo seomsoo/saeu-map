@@ -240,7 +240,13 @@ const stats = {
   weekPlaceCount: 47,
   todayCheckinCount: 12,
   topPlace: { id: "nara", name: "나라수산", count: 3 },
+  newPlaceCount: 2,
 };
+/** SSR HTML을 사람이 읽는 문장으로 — 태그와 React가 넣는 <!-- --> 구분자를 지운다 */
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, "");
+}
+
 const eventCard = {
   id: "ev",
   title: "새우 까주기 테스트",
@@ -1406,19 +1412,23 @@ describe("/gu/[name] — 같은 지도 화면을 그 구에 맞춰 (decisions 20
     seed().map((p) => (p.gu === "마포구" ? p : { ...p, addressRoad: null, addressJibun: null }));
 
   it("SSR: 지도가 뜨기 전에도 그 구 가게 목록과 헤더 '마포구 1곳'이 HTML에 들어간다 (크롤러용)", () => {
-    // React가 텍스트 사이에 넣는 <!-- --> 구분자를 지우고 사람이 읽는 문장으로 비교한다
-    const html = renderToString(
-      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
-    ).replaceAll("<!-- -->", "");
+    // 태그·주석을 지우고 사람이 읽는 문장으로 비교한다 (헤드라인의 숫자는 색 때문에 span으로 갈라져 있다)
+    const html = stripTags(
+      renderToString(
+        <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
+      ),
+    );
     expect(html).toContain("마포구 1곳");
     expect(html).toContain("나라수산");
     expect(html).not.toContain("365활새우 창우수산");
   });
 
   it("SSR: 가게 0곳인 구는 헤더 '서초구 0곳' + 빈 상태(제보 유도)", () => {
-    const html = renderToString(
-      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
-    ).replaceAll("<!-- -->", "");
+    const html = stripTags(
+      renderToString(
+        <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
+      ),
+    );
     expect(html).toContain("서초구 0곳");
     expect(html).toContain("이 동네엔 아직 없어요");
   });

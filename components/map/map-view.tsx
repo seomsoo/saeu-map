@@ -191,8 +191,15 @@ export function MapView({
     leaveTimer.current = null;
   }, []);
 
+  // 렌더 중 ref 쓰기 금지(react-hooks/refs) — effect로 동기화한다. 리포의 다른 훅과 같은 문법이다
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const handleMarkerHover = useCallback(
     (place: Place, offset: { x: number; y: number } | null) => {
+      // 선택된 핀은 패널이 이미 상세다 — 프리뷰를 겹쳐 그리지 않는다 (design 화면 7)
+      if (offset && place.id === selectedIdRef.current) return;
       if (offset) {
         if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
         if (enterTimer.current !== null) window.clearTimeout(enterTimer.current);

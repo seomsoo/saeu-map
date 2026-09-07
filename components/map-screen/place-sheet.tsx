@@ -154,7 +154,9 @@ export function PlaceSheet({
         {status === "ready" ? (
           // 데스크탑은 폭이 남아 헤드라인을 한 단 키운다 (design 화면 6 v3)
           <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums lg:text-title-m-bold">
-            {areaLabel} {count}곳
+            {areaLabel}{" "}
+            {/* 숫자만 브랜드색 — 헤드라인에서 눈이 먼저 가야 하는 값이다 (design 화면 6 v3) */}
+            <span className="text-brand-fg">{count}곳</span>
           </h2>
         ) : (
           <Skeleton className="h-7 w-32" />

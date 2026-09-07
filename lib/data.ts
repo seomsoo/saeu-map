@@ -274,9 +274,11 @@ export function getPlaceDetail(
   const { places, reviews } = dataset(now);
   const place = places.find((p) => p.id === id);
   if (!place) return Promise.resolve(undefined);
+  const visible = visibleReviews(reviews);
   return Promise.resolve({
-    place,
-    reviews: sortReviewsNewest(visibleReviews(reviews).filter((r) => r.placeId === id)),
+    // 목록·상세가 같은 계약을 갖게 평점을 얹는다(상세 화면은 자기 리뷰로 다시 세지만, 이 값이 카드·마커로도 흐른다)
+    place: withRating(place, ratingsByPlace(visible)),
+    reviews: sortReviewsNewest(visible.filter((r) => r.placeId === id)),
   });
 }
 
@@ -347,6 +349,7 @@ export function getSeasonStats(
     weekPlaceCount: counts.size,
     todayCheckinCount,
     topPlace,
+    newPlaceCount: places.filter((p) => p.isNew).length,
   });
 }
 

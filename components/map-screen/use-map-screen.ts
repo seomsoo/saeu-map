@@ -201,6 +201,8 @@ export function useMapScreen({
   }, [meOpen]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
+  /** 늦게 온 쓰기 응답이 "아직 그 세션인가"를 볼 수 있게 (CLAUDE.md 비동기 결과 규칙) */
+  const sessionRef = useRef<string | null>(null);
   /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
   const snapRef = useRef<SheetSnap>("half");
   const modeRef = useRef<SheetMode>("list");
@@ -218,6 +220,9 @@ export function useMapScreen({
   // 세션이 바뀌면(첫 로드·로그인 승계·로그아웃·탈퇴) 찜은 그 사용자의 것으로 — 목은 lib/data 메모리라 바로 온다.
   // 서버가 준 초기값으로 시작하므로 status는 ready에서 출발하고, 세션이 바뀔 때만 다시 읽는다(내 활동 찜 탭의 4상태).
   const sessionUserId = session?.userId ?? null;
+  useEffect(() => {
+    sessionRef.current = sessionUserId;
+  }, [sessionUserId]);
   useEffect(() => {
     if (sessionUserId === null || bookmarksLoaded?.userId === sessionUserId) return;
     let alive = true;
@@ -775,8 +780,12 @@ export function useMapScreen({
   /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts, 세션별). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
   const toggleBookmark = useCallback(
     (id: string) => {
+      // 요청 시점의 세션을 기억한다 — 토글 중 로그아웃·승계·탈퇴가 끼면 늦게 온 이전 사용자의 목록이
+      // 새 세션 화면에 앉는다(목은 마이크로태스크라 창이 0에 가깝지만 Phase 6 왕복에선 실제 창이다).
+      const requestedFor = session?.userId ?? null;
       requestToggleBookmark(id).then(
         (ids) => {
+          if (requestedFor !== null && requestedFor !== sessionRef.current) return;
           setBookmarkedIds(ids);
           if (
             session?.provider === "anonymous" &&
@@ -789,6 +798,7 @@ export function useMapScreen({
           }
         },
         () => {
+          if (requestedFor !== null && requestedFor !== sessionRef.current) return;
           showNotice("찜을 저장하지 못했어요");
         },
       );
