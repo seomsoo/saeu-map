@@ -155,6 +155,7 @@
   --shadow-float: 0 2px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-upper: 0 -4px 12px 0 rgb(0 0 0 / 0.06);
   --shadow-marker: 0 0 16px 0 rgb(0 0 0 / 0.06);
+  --shadow-marker-selected: 0 2px 10px 0 rgb(0 0 0 / 0.24);
   --shadow-fab: 0 0 5px 0 rgb(0 0 0 / 0.29);
   --shadow-card: 0 2px 20px 0 rgb(0 0 0 / 0.1);
 
@@ -243,13 +244,14 @@ body {
 .saeu-marker--hovered {
   transform: scale(1.15);
 }
-/* 선택: 크게 + 바깥 잉크 링 */
+/* 선택: 크게 + 흰 링 + 진한 그림자. 잉크 링은 카테고리 링을 죽여서 뺐다 —
+   지도 위 요소의 문법은 그림자이고(design 공통 블록), 흰색은 팔레트 충돌이 없는 유일한 색이다
+   (레드 = 클러스터, 코랄·틸 = 카테고리 링). */
 .saeu-marker--selected {
   transform: scale(1.2);
   box-shadow:
-    0 0 0 1.5px var(--color-common-0),
-    0 0 0 3.5px var(--color-fg),
-    var(--shadow-marker);
+    0 0 0 3.5px var(--color-common-0),
+    var(--shadow-marker-selected);
 }
 
 /* 클러스터 44px: 브랜드 레드 원 + 가게 수 */
