@@ -61,16 +61,44 @@ jobs:
             echo "::error::smoke failed — worker did not serve /"; tail -50 wrangler.log; exit 1
           fi
           echo "smoke ok: $(wc -c < smoke.html) bytes"
-          # Phase 2: 얕은 /place/[id] — 있는 가게는 상호, 없는 id는 not-found 카피 (스트리밍이라 둘 다 200, decisions 2026-09-02)
+          # Phase 2·5: /place/[id] — 있는 가게는 상호 + og:title, 없는 id는 HTTP 404 + not-found 카피 (decisions 2026-09-07)
           curl -sf http://localhost:8787/place/p018 -o smoke-place.html
-          if ! grep -q "뚝섬포구" smoke-place.html 2>/dev/null; then
-            echo "::error::smoke failed — /place/p018 did not render the place"; tail -50 wrangler.log; exit 1
+          if ! grep -q "뚝섬포구" smoke-place.html 2>/dev/null || ! grep -q 'property="og:title" content="뚝섬포구"' smoke-place.html; then
+            echo "::error::smoke failed — /place/p018 did not render the place + og:title"; tail -50 wrangler.log; exit 1
           fi
-          curl -s http://localhost:8787/place/nope -o smoke-404.html
-          if ! grep -q "가게를 찾을 수 없어요" smoke-404.html 2>/dev/null; then
-            echo "::error::smoke failed — /place/nope did not render not-found"; tail -50 wrangler.log; exit 1
+          code=$(curl -s -o smoke-404.html -w '%{http_code}' http://localhost:8787/place/nope)
+          if [ "$code" != "404" ] || ! grep -q "가게를 찾을 수 없어요" smoke-404.html 2>/dev/null; then
+            echo "::error::smoke failed — /place/nope expected 404 + not-found copy, got $code"; tail -50 wrangler.log; exit 1
           fi
-          echo "smoke ok: /place/p018 + /place/nope"
+          # Phase 5: /gu/[name] SSR(상호가 HTML에), 비서울은 404, sitemap·robots
+          curl -sf "http://localhost:8787/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC" -o smoke-gu.html
+          if ! grep -q "마포구 새우구이" smoke-gu.html 2>/dev/null || ! grep -q "서담해물" smoke-gu.html; then
+            echo "::error::smoke failed — /gu/마포구 did not SSR the gu list"; tail -50 wrangler.log; exit 1
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/gu/nope)
+          [ "$code" = "404" ] || { echo "::error::smoke failed — /gu/nope expected 404, got $code"; exit 1; }
+          curl -sf http://localhost:8787/sitemap.xml | grep -q "/gu/" || { echo "::error::smoke failed — sitemap.xml missing gu entries"; exit 1; }
+          curl -sf http://localhost:8787/robots.txt | grep -q "sitemap.xml" || { echo "::error::smoke failed — robots.txt missing sitemap"; exit 1; }
+          # Phase 5: next/og 카드 — 동적 세그먼트의 이미지 URL은 해시 쿼리가 붙으므로 페이지의 og:image에서 읽는다
+          for page in / /place/p018 "/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC"; do
+            og=$(curl -s "http://localhost:8787$page" | grep -o 'property="og:image" content="[^"]*"' | head -1 | sed 's/.*content="//; s/"$//' | sed -E 's|^https?://[^/]+||')
+            type=$(curl -s -o /dev/null -w '%{content_type}' "http://localhost:8787$og")
+            case "$type" in image/png*) ;; *) echo "::error::smoke failed — og:image for $page ($og) returned $type"; tail -50 wrangler.log; exit 1;; esac
+          done
+          echo "smoke ok: /place/p018(+og) · /place/nope 404 · /gu/마포구 · /gu/nope 404 · sitemap · robots · og 3종"
+
+      # Phase 5: 모바일 LCP 예산 (roadmap). 같은 workerd(:8787)에 Lighthouse. NCP 키가 dummy라 지도는 에러 상태 — 우리 셸의 LCP를 잰다.
+      # 수치는 로컬 workerd 실측으로 정했다 (decisions 2026-09-07). @lhci/cli는 의존성이 아니라 npx로.
+      - name: Lighthouse (mobile LCP budget)
+        run: npx --yes @lhci/cli@0.15.1 autorun --config=lighthouserc.json
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse
+          path: .lighthouseci
+          if-no-files-found: ignore
 
   # PR → 프리뷰 버전 업로드 (배포 아님). 고정 별칭 preview → https://preview-saeu-map.saeu-map.workers.dev
   # 시크릿이 없으면 실패 대신 건너뛴다 (decisions.md 2026-09-01 자동 배포).
@@ -119,6 +147,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
+          # 프리뷰의 metadataBase·sitemap·og:image가 프리뷰 URL을 가리키게 (서버 전용, decisions 2026-09-07)
+          SITE_URL: https://preview-saeu-map.saeu-map.workers.dev
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지

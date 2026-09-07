@@ -90,6 +90,8 @@ export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps)
               width={176}
               height={128}
               draggable={false}
+              // 첫 장은 상세의 LCP 요소다(Lighthouse 실측 2026-09-07) — lazy면 하이드레이션 뒤에야 요청돼 1~3.6s를 잃는다
+              priority={i === 0}
               className={`${PHOTO_TILE} object-cover`}
             />
           </button>
