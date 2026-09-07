@@ -32,7 +32,7 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { isDesktopViewport } from "@/lib/layout";
+import { isDesktopViewport, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import {
   areaLabel as computeAreaLabel,
   densestPoint,
@@ -396,6 +396,19 @@ export function useMapScreen({
     [visibleStripCenterY],
   );
 
+  /* ── 데스크탑은 떠 있는 패널이 지도 왼쪽을 덮는다 — 가시 영역의 가로 중앙은 그만큼 오른쪽이다.
+     모바일은 패널이 없으니 undefined = 컨테이너 중앙 (design 화면 6 v3) ── */
+  const stripCenterX = useCallback((): number | undefined => {
+    if (!isDesktopViewport()) return undefined;
+    return (PANEL_OCCLUSION_PX + window.innerWidth) / 2;
+  }, []);
+
+  /** fitBounds 왼쪽 마진 — 패널이 가리는 만큼 더 준다 */
+  const panelFitLeft = useCallback((base: number): number => {
+    if (!isDesktopViewport()) return base;
+    return PANEL_OCCLUSION_PX + base;
+  }, []);
+
   /*
    * 첫 로드에 위치를 묻지 않는다 — 맥락 없이 뜬 권한 팝업은 반사적으로 거부되고, 거부는 되돌리기가
    * 브라우저마다 다른 미로다. 현위치 FAB을 누를 때만 묻는다(그때의 거부는 의도적 선택이다).
@@ -420,38 +433,50 @@ export function useMapScreen({
         mapRef.current.fitBounds(bounds, {
           top: desktop ? 40 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 24,
           bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "list") + 24,
-          left: 40,
+          left: panelFitLeft(40),
           right: 40,
           maxZoom: GU_FIT_MAX_ZOOM,
         });
       } else {
         mapRef.current.focus(initialGu.center, GU_ZOOM, {
+          screenX: stripCenterX(),
           screenY: visibleStripCenterY("half", "list"),
         });
       }
       return;
     }
-    // 데스크탑: SDK가 defaultCenter를 컨테이너 중앙에 놓는데 그게 곧 보이는 지도의 중앙이다 — 옮길 게 없다
-    if (isDesktopViewport()) {
-      initialPanDone.current = true;
-      return;
-    }
+    // 데스크탑도 옮긴다 — v2(붙은 패널)에선 지도 컬럼 중앙이 곧 가시 중앙이었지만,
+    // v3의 떠 있는 패널은 지도 위를 덮으므로 가로를 그만큼 밀어야 한다 (design 화면 6 v3)
     if (initialPlaceId) {
       const place = places.find((p) => p.id === initialPlaceId);
       if (!place) return;
       initialPanDone.current = true;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+      mapRef.current.panTo(place, {
+        screenX: stripCenterX(),
+        screenY: visibleStripCenterY("half", "detail"),
+      });
       return;
     }
     initialPanDone.current = true;
     programmaticMoveAt.current = performance.now();
     // 첫 페인트라 애니메이션 없이 — 지도가 뜨자마자 미끄러지면 안 된다
     mapRef.current.panTo(viewport.center, {
+      screenX: stripCenterX(),
       screenY: visibleStripCenterY("half", "list"),
       animate: false,
     });
-  }, [initialPlaceId, initialGu, viewport, places, mapRef, topStackRef, visibleStripCenterY]);
+  }, [
+    initialPlaceId,
+    initialGu,
+    viewport,
+    places,
+    mapRef,
+    topStackRef,
+    visibleStripCenterY,
+    stripCenterX,
+    panelFitLeft,
+  ]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
   const openDetail = useCallback(
@@ -483,10 +508,13 @@ export function useMapScreen({
       }
       if (mapRef.current) {
         programmaticMoveAt.current = performance.now();
-        mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+        mapRef.current.panTo(place, {
+          screenX: stripCenterX(),
+          screenY: visibleStripCenterY("half", "detail"),
+        });
       }
     },
-    [places, snap, detailId, mapRef, visibleStripCenterY],
+    [places, snap, detailId, mapRef, visibleStripCenterY, stripCenterX],
   );
 
   const closeDetail = useCallback((source: "ui" | "history" = "ui") => {
@@ -514,9 +542,9 @@ export function useMapScreen({
     (clusterId: number, center: LatLng) => {
       if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
-      mapRef.current?.focus(center, zoom, { screenY: stripCenterY() });
+      mapRef.current?.focus(center, zoom, { screenX: stripCenterX(), screenY: stripCenterY() });
     },
-    [index, mapRef, stripCenterY],
+    [index, mapRef, stripCenterY, stripCenterX],
   );
 
   const toggleChip = useCallback((chip: ChipKey) => {
@@ -553,11 +581,11 @@ export function useMapScreen({
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
-      left: 24,
+      left: panelFitLeft(24),
       right: 24,
       maxZoom: SEARCH_FIT_MAX_ZOOM,
     });
-  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef]);
+  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef, panelFitLeft]);
 
   const dismissEvent = useCallback(() => {
     setEventDismissed(true);
@@ -584,10 +612,11 @@ export function useMapScreen({
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
       mapRef.current.focus(point, REPORT_ZOOM, {
+        screenX: stripCenterX(),
         screenY: visibleStripCenterY("half", "report"),
       });
     },
-    [mapRef, visibleStripCenterY],
+    [mapRef, visibleStripCenterY, stripCenterX],
   );
 
   /** 단계 이동 + 스냅(2단계만 요약). 2단계 첫 진입에 핀을 세운다: 현 위치 → 보던 지도 중심 → 서울 중심 */
@@ -685,12 +714,12 @@ export function useMapScreen({
       mapRef.current.fitBounds(bounds, {
         top: desktop ? 40 : 72,
         bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
-        left: 40,
+        left: panelFitLeft(40),
         right: 40,
         maxZoom: REPORT_ZOOM,
       });
     },
-    [reportPin, mapRef],
+    [reportPin, mapRef, panelFitLeft],
   );
 
   /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기]·"리뷰도 남겨볼래요?" — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
@@ -873,10 +902,13 @@ export function useMapScreen({
       setUserLocation(res.point);
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.focus(res.point, USER_ZOOM, { screenY: stripCenterY() });
+      mapRef.current.focus(res.point, USER_ZOOM, {
+        screenX: stripCenterX(),
+        screenY: stripCenterY(),
+      });
       setFollowing(true);
     });
-  }, [mapRef, showNotice, stripCenterY]);
+  }, [mapRef, showNotice, stripCenterY, stripCenterX]);
 
   return {
     // 상태

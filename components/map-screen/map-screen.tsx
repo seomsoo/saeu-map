@@ -98,13 +98,13 @@ function MapScreenBody({
   );
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim lg:flex">
+    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
       {/* 8. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
           에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
           라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현).
           z-0: 스태킹 컨텍스트를 만들어 SDK의 로고·컨트롤(높은 z-index)이 시트 위로 새지 않게 한다.
-          데스크탑: 패널 오른쪽 나머지(order-last — DOM은 지도가 먼저, 화면은 패널이 왼쪽). */}
-      <div className="absolute inset-0 z-0 lg:relative lg:order-last lg:min-w-0 lg:flex-1">
+          데스크탑도 같은 풀블리드다 — 패널이 그 위에 떠 있다 (design 화면 6 v3, decisions 2026-09-08). */}
+      <div className="absolute inset-0 z-0">
         <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
           <NaverMapProvider onMissingConfig={s.handleMissingConfig}>
             <MapView
@@ -158,8 +158,10 @@ function MapScreenBody({
         )}
       </div>
 
-      {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로). 데스크탑: 왼쪽 400px 컬럼 */}
-      <div className="contents lg:flex lg:h-full lg:w-100 lg:shrink-0 lg:flex-col lg:border-r lg:border-line-hairline lg:bg-bg">
+      {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로).
+          데스크탑: 지도 위에 떠 있는 카드(여백 16·폭 420·라운드 20·shadow-panel). 접으면 왼쪽으로 빠진다.
+          폭·여백은 lib/layout.ts의 PANEL_* 상수와 같아야 한다 — 지도 기하가 그 값으로 보정한다 */}
+      <div className="contents lg:absolute lg:inset-y-4 lg:left-4 lg:z-10 lg:flex lg:w-105 lg:flex-col lg:overflow-hidden lg:rounded-20 lg:bg-bg lg:shadow-panel">
         {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
             제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
             내 활동 패널이 열린 동안도 숨긴다(화면 5). 데스크탑에선 패널 안 정적 블록이다 */}
@@ -196,12 +198,10 @@ function MapScreenBody({
               </div>
             </>
           )}
-          {/* 토스트: 모바일은 스택 마지막 층, 데스크탑은 화면 아래 가운데(패널 안에서 내용을 밀지 않게). 없을 땐 래퍼도 없다 — 빈 래퍼가 gap을 먹는다 */}
-          {s.notice && (
-            <div className="lg:pointer-events-none lg:absolute lg:inset-x-0 lg:bottom-8 lg:z-30">
-              <Toast message={s.notice} />
-            </div>
-          )}
+          {/* 토스트(모바일) — 스택 마지막 층. 없을 땐 래퍼도 없다: 빈 래퍼가 gap을 먹는다.
+              데스크탑 토스트는 셸 루트에 따로 단다 — 떠 있는 패널이 absolute라 그 안에 두면
+              "화면 아래 가운데"가 패널 기준이 되어 패널 안에 뜬다 */}
+          {!isDesktop && s.notice && <Toast message={s.notice} />}
         </div>
 
         {/* 3~7. 바텀시트 (+ FAB 줄). 상세·제보가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
@@ -300,6 +300,13 @@ function MapScreenBody({
           onRetry={reloadPage}
         />
       </div>
+
+      {/* 토스트(데스크탑) — 화면 아래 가운데 */}
+      {isDesktop && s.notice && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-30">
+          <Toast message={s.notice} />
+        </div>
+      )}
     </div>
   );
 }

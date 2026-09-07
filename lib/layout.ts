@@ -7,6 +7,16 @@
 export const DESKTOP_MIN_WIDTH_PX = 1024;
 export const DESKTOP_MEDIA_QUERY = `(min-width: ${DESKTOP_MIN_WIDTH_PX}px)`;
 
+/**
+ * 데스크탑 떠 있는 패널 (design 화면 6 v3) — CSS(`lg:left-4`·`lg:w-105`)와 **같은 값이어야 한다**.
+ * 패널이 지도 위에 겹치므로 지도 이동(panTo·fitBounds)은 이만큼 오른쪽을 가시 영역으로 봐야 한다 —
+ * 안 하면 선택한 마커가 패널 뒤로 숨는다 (decisions 2026-09-08).
+ */
+export const PANEL_INSET_PX = 16;
+export const PANEL_WIDTH_PX = 420;
+/** 패널이 가리는 가로 폭(왼쪽 여백 포함) */
+export const PANEL_OCCLUSION_PX = PANEL_INSET_PX + PANEL_WIDTH_PX;
+
 /** 핸들러·effect 안에서 즉시 판정. 서버·jsdom(matchMedia 스텁 false)에서는 false. */
 export function isDesktopViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia(DESKTOP_MEDIA_QUERY).matches;

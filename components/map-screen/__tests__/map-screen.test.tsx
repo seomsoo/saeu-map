@@ -5,11 +5,14 @@ import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { MyReview, Place, Session } from "@/lib/types";
 import type { ReportInput } from "@/lib/data";
-import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
+import { DESKTOP_MEDIA_QUERY, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import { BOOKMARK_NUDGE_NOTICE } from "../use-map-screen";
 import MapScreen from "../map-screen";
 
 /* ── react-naver-maps 전체를 가짜로. 지도 SDK 없이 화면 동작만 검증한다. ── */
+/** 가짜 투영의 배율 — 테스트가 픽셀 보정을 도(degree)로 되짚을 때 쓴다 */
+const PX_PER_DEG = 100;
+
 const fake = vi.hoisted(() => {
   class LatLng {
     constructor(
@@ -68,9 +71,11 @@ const fake = vi.hoisted(() => {
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
     getSize: () => new Size(390, 844),
+    /* 선형 투영(1도 = PX_PER_DEG px) — 상수 투영이면 screenX·screenY 보정이 좌표에 안 남아
+       "패널만큼 밀었나"를 검증할 수 없다 (data:2026-09-08 데스크탑 리디자인) */
     getProjection: () => ({
-      fromCoordToOffset: () => new Point(195, 400),
-      fromOffsetToCoord: (p: Point) => new LatLng(p.y, p.x),
+      fromCoordToOffset: (c: LatLng) => new Point(c.lng() * PX_PER_DEG, c.lat() * PX_PER_DEG),
+      fromOffsetToCoord: (p: Point) => new LatLng(p.y / PX_PER_DEG, p.x / PX_PER_DEG),
     }),
   };
   return { navermaps, map, listeners };
@@ -1314,7 +1319,14 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     expect(fake.map.setZoom).toHaveBeenLastCalledWith(11, true);
   });
 
-  it("데스크탑: 카드 탭의 지도 이동은 오프셋 없이 핀을 컨테이너 중앙에 (가리는 시트가 없다)", async () => {
+  /** 떠 있는 패널이 가리는 만큼 가로 중앙이 오른쪽으로 밀린다 → 지도 중심은 그만큼 왼쪽으로 (design 화면 6 v3) */
+  function expectedCenterLng(placeLng: number): number {
+    const screenX = (PANEL_OCCLUSION_PX + window.innerWidth) / 2;
+    const mapWidth = 390; // 가짜 map.getSize()
+    return placeLng - (screenX - mapWidth / 2) / PX_PER_DEG;
+  }
+
+  it("데스크탑: 카드 탭은 떠 있는 패널만큼 가로를 보정한다 (안 하면 선택 마커가 패널 뒤로 숨는다)", async () => {
     desktop();
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
@@ -1322,10 +1334,12 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
     const target = fake.map.panTo.mock.lastCall?.[0] as { lat(): number; lng(): number };
-    expect([target.lat(), target.lng()]).toEqual([37.54, 126.95]);
+    // 세로는 가리는 게 없어 그대로(핀의 위도), 가로만 패널 폭의 절반만큼 왼쪽으로
+    expect(target.lat()).toBeCloseTo(37.54, 6);
+    expect(target.lng()).toBeCloseTo(expectedCenterLng(126.95), 6);
   });
 
-  it("데스크탑: 검색 Enter의 fitBounds는 네 변 24 대칭 (모바일은 상단 스택·시트만큼 비운다)", async () => {
+  it("데스크탑: 검색 Enter의 fitBounds는 왼쪽만 패널만큼 더 준다 (모바일은 상단 스택·시트만큼 비운다)", async () => {
     desktop();
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
@@ -1336,7 +1350,7 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), {
       top: 24,
       bottom: 24,
-      left: 24,
+      left: PANEL_OCCLUSION_PX + 24,
       right: 24,
       maxZoom: 16,
     });

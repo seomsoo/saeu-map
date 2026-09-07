@@ -53,19 +53,24 @@ export const GEOCODE_MAX_HITS = 5;
 /** 부모가 지도를 움직일 때 쓰는 명령형 핸들. lib에는 naver 객체가 새지 않는다. */
 export interface MapHandle {
   /**
-   * target을 컨테이너 y=screenY 픽셀(가로는 중앙)에 오도록 이동. 없으면 중앙.
+   * target을 컨테이너 (screenX, screenY) 픽셀에 오도록 이동. 준 축만 보정하고 나머지는 중앙이다 —
+   * 모바일은 시트에 가려 screenY만, 데스크탑은 떠 있는 패널에 가려 screenX만 준다 (design 화면 6 v3).
    * animate:false는 setCenter — 첫 페인트에서 지도가 미끄러지면 안 될 때만.
    */
   panTo(
     target: LatLng,
-    options?: { screenY?: number | undefined; animate?: boolean | undefined },
+    options?: {
+      screenX?: number | undefined;
+      screenY?: number | undefined;
+      animate?: boolean | undefined;
+    },
   ): void;
   morph(target: LatLng, zoom: number): void;
   /** 줌을 바꾼 뒤(애니메이션 없이) panTo — 제보 2단계가 핀을 시트 위 가시 영역 가운데에 놓을 때 */
   focus(
     target: LatLng,
     zoom: number,
-    options?: { screenY?: number | undefined },
+    options?: { screenX?: number | undefined; screenY?: number | undefined },
   ): void;
   fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
   /** 줌 한 단계(데스크탑 [+][−]). 애니메이션, min/max 안에서 */
@@ -329,18 +334,18 @@ function MapController({
         if (options?.animate === false) map.setCenter(coord);
         else map.panTo(coord);
       };
-      const screenY = options?.screenY;
-      if (screenY === undefined) {
+      const { screenX, screenY } = options ?? {};
+      if (screenX === undefined && screenY === undefined) {
         move(latlng);
         return;
       }
-      // target이 (width/2, screenY)에 오도록 중심을 계산해 이동
+      // target이 (screenX ?? 가로중앙, screenY ?? 세로중앙)에 오도록 중심을 계산해 이동
       const projection = map.getProjection();
       const size = map.getSize();
       const offset = projection.fromCoordToOffset(latlng);
       const centerOffset = new navermaps.Point(
-        offset.x,
-        size.height / 2 + (offset.y - screenY),
+        screenX === undefined ? offset.x : size.width / 2 + (offset.x - screenX),
+        screenY === undefined ? offset.y : size.height / 2 + (offset.y - screenY),
       );
       move(projection.fromOffsetToCoord(centerOffset));
     };
