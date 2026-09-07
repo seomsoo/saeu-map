@@ -18,7 +18,8 @@ interface PhotoReportSheetProps {
 }
 
 /**
- * 사진 신고 사유 패널 — 뷰어 하단에서 올라온다(design 화면 2 변형 (e)).
+ * 사진 신고 사유 패널 — 뷰어 하단에서 올라온다(design 화면 2 변형 (e)). 데스크탑(1024~)은 뷰어 위 딤 40% + 중앙 480
+ * (design 공통 데스크탑 문단 "지도가 필요 없는 오버레이") — 자리는 부모(photo-viewer)가, 겉모습은 여기 lg 유틸이 맡는다.
  * **탭이 곧 제출**이라 확인 버튼이 없다: 고르고도 안 낸 상태를 만들지 않는다.
  * 표시만 하고 쓰기는 부모(뷰어 → use-place-detail)가 한다.
  */
@@ -27,7 +28,7 @@ export function PhotoReportSheet({ pending, onSelect, onClose }: PhotoReportShee
   return (
     <section
       aria-label="사진 신고"
-      className="rounded-t-20 bg-bg pb-safe-bottom-or-3 text-fg shadow-upper"
+      className="rounded-t-20 bg-bg pb-safe-bottom-or-3 text-fg shadow-upper lg:relative lg:w-120 lg:rounded-16 lg:border lg:border-line-hairline lg:pb-5 lg:shadow-card"
     >
       <div className="flex items-center justify-between pr-2 pl-5">
         <h2 className="text-body-m-medium">신고 사유를 골라주세요</h2>
