@@ -51,6 +51,10 @@ describe("SEOUL_GU — /gu/[name] 화이트리스트", () => {
     expect(guFromSlug("mapo")).toBe("마포구");
     expect(guSlug("김포시(경기)")).toBeNull();
     expect(guFromSlug("seoul")).toBeNull();
+    // 상속 키는 자기 키가 아니다 — 객체/함수가 슬러그로 새면 안 된다
+    expect(guSlug("__proto__")).toBeNull();
+    expect(guSlug("constructor")).toBeNull();
+    expect(guFromSlug("__proto__")).toBeNull();
   });
   it("guCenter: 경계 박스 중심은 그 구 안에 있고, 모르는 이름은 null", async () => {
     const center = await guCenter("마포구");

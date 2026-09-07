@@ -61,7 +61,8 @@ export const GU_SLUGS: Readonly<Record<string, string>> = {
 };
 
 export function guSlug(name: string): string | null {
-  return GU_SLUGS[name] ?? null;
+  // 자기 키만 — `__proto__`·`constructor` 같은 상속 키가 객체를 돌려주지 않게 (security-reviewer aac0f74)
+  return Object.hasOwn(GU_SLUGS, name) ? (GU_SLUGS[name] ?? null) : null;
 }
 
 export function guFromSlug(slug: string): string | null {
