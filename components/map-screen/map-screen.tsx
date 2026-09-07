@@ -169,12 +169,13 @@ function MapScreenBody({
           ref={topStackRef}
           className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto lg:static lg:shrink-0"
         >
-          {/* 브랜드 행 (design 화면 6): 모바일에선 sr-only h1만(워드마크는 화면에서 뺐다), 데스크탑에선 워드마크 + [＋ 제보]
-              (화면 유일 채운 레드 — 목록 모드에만. 상세는 [길찾기], 제보 2단계는 [여기가 맞아요]가 그 자리) */}
-          <div className="sr-only lg:not-sr-only lg:flex lg:h-14 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
+          {/* 브랜드 줄 (design 화면 6 v3): 모바일에선 sr-only h1만(워드마크는 화면에서 뺐다),
+              데스크탑에선 워드마크 + [＋ 제보] **아웃라인**. 채운 레드는 목록 끝 CTA 한 곳이다 —
+              워드마크와 레드 버튼이 한 줄에서 경쟁하지 않게 (decisions 2026-09-08) */}
+          <div className="sr-only lg:not-sr-only lg:flex lg:h-13 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
             <h1 className="text-title-s-semibold text-fg">새우맵</h1>
             {isDesktop && s.mode === "list" && (
-              <Button variant="brand" size="pill" onClick={s.openReport}>
+              <Button variant="outline" size="pill" onClick={s.openReport}>
                 <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
                 제보
               </Button>
