@@ -255,7 +255,9 @@ describe("checkIn — 목 쓰기 (400ms 지연, 10% 실패)", () => {
     expect(updated.checkCount).toBe(before.checkCount + 1);
     expect(updated.lastCheckedAt).toBe(new Date(Date.parse(NOW)).toISOString());
     expect(updated).not.toBe(before);
-    expect(await getPlaceById("p018", NOW)).toBe(updated);
+    // 평점은 리뷰에서 읽을 때마다 집계해 붙이므로 매번 새 객체다 — 값이 같은지로 본다
+    expect(await getPlaceById("p018", NOW)).toEqual(updated);
+    expect(updated.rating).toEqual(before.rating);
     const visited = (await getCheckins("p018", NOW)).filter((c) => c.type === "visited");
     expect(visited.at(-1)?.at).toBe(updated.lastCheckedAt);
   });

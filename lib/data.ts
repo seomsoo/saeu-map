@@ -33,7 +33,7 @@ import {
   toMs,
 } from "./time";
 import { matchesQuery, normalizeQuery } from "./places";
-import { sortReviewsNewest } from "./reviews";
+import { ratingSummary, sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
 import { guCenter, guOfPoint } from "./gu";
 
@@ -213,19 +213,47 @@ export interface PlaceFilter {
   query?: string;
 }
 
+/**
+ * 핀별 평점 — 리뷰 3개 미만은 아예 넣지 않는다(spec 4.2-9). 삭제된 리뷰는 이미 걸러진 목록이 온다.
+ * Phase 6에서 이 함수만 SQL 집계(뷰·집계 컬럼)로 바뀐다.
+ */
+function ratingsByPlace(reviews: readonly Review[]): Map<string, { count: number; average: number }> {
+  const byPlace = new Map<string, Review[]>();
+  for (const r of reviews) {
+    const list = byPlace.get(r.placeId);
+    if (list) list.push(r);
+    else byPlace.set(r.placeId, [r]);
+  }
+  const out = new Map<string, { count: number; average: number }>();
+  for (const [placeId, list] of byPlace) {
+    const summary = ratingSummary(list);
+    if (summary.average !== null) out.set(placeId, { count: summary.count, average: summary.average });
+  }
+  return out;
+}
+
+/** 평점이 있는 핀에만 얹는다 — 없는 핀은 원본 그대로(카드가 그 줄을 안 그린다) */
+function withRating(place: Place, ratings: Map<string, { count: number; average: number }>): Place {
+  const rating = ratings.get(place.id);
+  return rating ? { ...place, rating } : place;
+}
+
 export function getPlaces(
   filter: PlaceFilter = {},
   now: DateInput = Date.now(),
 ): Promise<Place[]> {
-  const { places } = dataset(now);
+  const { places, reviews } = dataset(now);
   const q = normalizeQuery(filter.query ?? "");
+  const ratings = ratingsByPlace(visibleReviews(reviews));
   return Promise.resolve(
-    places.filter((p) => {
-      if (filter.tag && !p.tags.includes(filter.tag)) return false;
-      if (filter.gu && p.gu !== filter.gu) return false;
-      if (filter.isNew !== undefined && p.isNew !== filter.isNew) return false;
-      return matchesQuery(p, q);
-    }),
+    places
+      .filter((p) => {
+        if (filter.tag && !p.tags.includes(filter.tag)) return false;
+        if (filter.gu && p.gu !== filter.gu) return false;
+        if (filter.isNew !== undefined && p.isNew !== filter.isNew) return false;
+        return matchesQuery(p, q);
+      })
+      .map((p) => withRating(p, ratings)),
   );
 }
 
@@ -233,7 +261,9 @@ export function getPlaceById(
   id: string,
   now: DateInput = Date.now(),
 ): Promise<Place | undefined> {
-  return Promise.resolve(dataset(now).places.find((p) => p.id === id));
+  const { places, reviews } = dataset(now);
+  const place = places.find((p) => p.id === id);
+  return Promise.resolve(place && withRating(place, ratingsByPlace(visibleReviews(reviews))));
 }
 
 /** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id는 undefined. `now`는 서버가 내려준 값. */
@@ -372,7 +402,8 @@ export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
     ...data.checkins,
     { placeId: id, type: "visited", at, actor: currentSession.userId },
   ];
-  return updated;
+  // 평점은 읽을 때 붙이므로 쓰기 응답에도 같이 붙인다 — 낙관 갱신(patchPlace)이 카드의 평점을 지우면 안 된다
+  return withRating(updated, ratingsByPlace(visibleReviews(data.reviews)));
 }
 
 /** 사진 신고 사유 — 뷰어 신고 시트의 4행과 1:1 (design 화면 2 변형 (e)). */

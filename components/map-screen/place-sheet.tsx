@@ -37,6 +37,8 @@ interface PlaceSheetProps {
   /** 거리 기준점 — 내 위치 또는 지도 중심. null이면 거리 숨김 */
   origin: LatLng | null;
   selectedId: string | null;
+  /** 찜한 가게 id — 카드 하트 상태 */
+  bookmarkedIds: readonly string[];
   sort: SortKey;
   snap: SheetSnap;
   /** list = 목록 / detail = 상세(화면 2) / report = 제보(화면 3). 목록 본문은 그동안 hidden으로 유지된다(스크롤·스냅 복원). */
@@ -58,6 +60,8 @@ interface PlaceSheetProps {
   /** 내 활동 헤더 ✕ */
   onDismissMe?: (() => void) | undefined;
   onSelect: (id: string) => void;
+  /** 카드 하트 — 익명도 토글된다 */
+  onToggleBookmark: (id: string) => void;
   /** 데스크탑 카드 hover → 마커 확대 */
   onHover: (id: string | null) => void;
   onDismissEvent: () => void;
@@ -118,6 +122,7 @@ export function PlaceSheet({
   now,
   origin,
   selectedId,
+  bookmarkedIds,
   sort,
   snap,
   mode,
@@ -132,6 +137,7 @@ export function PlaceSheet({
   onDismissReport,
   onDismissMe,
   onSelect,
+  onToggleBookmark,
   onHover,
   onDismissEvent,
   onClearFilters,
@@ -233,6 +239,8 @@ export function PlaceSheet({
                   selected={place.id === selectedId}
                   onSelect={onSelect}
                   onHoverChange={onHover}
+                  bookmarked={bookmarkedIds.includes(place.id)}
+                  onToggleBookmark={onToggleBookmark}
                 />
               ))}
             </ul>

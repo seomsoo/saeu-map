@@ -220,6 +220,7 @@ function MapScreenBody({
           now={now}
           origin={s.origin}
           selectedId={s.selectedId}
+          bookmarkedIds={s.bookmarkedIds}
           sort={s.sort}
           snap={s.snap}
           mode={s.mode}
@@ -298,6 +299,7 @@ function MapScreenBody({
           onDismissReport={s.cancelReport}
           onDismissMe={s.closeMe}
           onSelect={s.selectFromCard}
+          onToggleBookmark={s.toggleBookmark}
           onHover={s.hoverPlace}
           onDismissEvent={s.dismissEvent}
           onClearFilters={s.clearFilters}

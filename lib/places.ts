@@ -192,6 +192,22 @@ export function primaryMenuLine(place: Place): string | null {
     .join(" ");
 }
 
+/**
+ * 카드용 대표 메뉴 — **가격을 앞세우고 이름은 보조로** 나눠 준다(한 줄 문자열로는 가격만 강조할 수 없다).
+ * 가격 미상이면 null: 카드에서 그 줄 자체가 사라진다.
+ */
+export function primaryMenuParts(place: Place): { price: string; name: string } | null {
+  const menu = primaryMenu(place);
+  if (!menu || menu.price === null) return null;
+  const unit = unitChipLabel(menu);
+  const unitDuplicated =
+    unit !== null && menu.name.replace(/\s+/g, "").includes(unit.replace(/\s+/g, ""));
+  return {
+    price: `${formatPrice(menu.price)}원`,
+    name: [menu.name, unitDuplicated ? null : unit].filter(Boolean).join(" "),
+  };
+}
+
 /** 마커·색점 색: 구이 우선 코랄, 회만이면 틸. */
 export function markerCategory(tags: readonly PlaceTag[]): PlaceTag {
   return tags.includes("grill") ? "grill" : "raw";
