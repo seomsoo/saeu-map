@@ -154,7 +154,7 @@ roadmap 규칙대로 **design 화면 6~9(v1 초안)를 v2 언어로 먼저 재�
 
 ## 결과 (2026-09-07)
 
-**완료.** 브랜치 `feat/phase5-desktop`, PR은 push 뒤 번호 기입.
+**완료.** PR [#9](https://github.com/seomsoo/saeu-map/pull/9), 브랜치 `feat/phase5-desktop`.
 
 | 항목 | 결과 |
 | --- | --- |
