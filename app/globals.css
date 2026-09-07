@@ -299,12 +299,14 @@ body {
     0 0 0 2px var(--color-common-0),
     var(--shadow-marker);
 }
+/* 머리 안 흰 새우 — 핀 모양(바닥 끝 = 좌표)은 그대로 두고 안쪽만 바꾼다.
+   shrimp.webp의 알파가 곧 실루엣이라 마스크로 쓴다(아이콘 유틸과 같은 방식). */
 .saeu-report-pin__head::after {
   content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-max);
+  width: 18px;
+  height: 18px;
   background: var(--color-common-0);
+  mask: url("/shrimp.webp") center / contain no-repeat;
 }
 /* 내 위치 — 파란 점 + 흰 링. 새우 모양 에셋이 나오면 교체한다 (decisions 2026-09-04 커스텀 에셋 목록) */
 .saeu-locator {
