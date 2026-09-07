@@ -3,13 +3,17 @@
 import { useCallback, useRef } from "react";
 import { ActivityPanel } from "@/components/activity/activity-panel";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
+import { MapControls } from "@/components/map/map-controls";
 import { MapView, type MapHandle } from "@/components/map/map-view";
 import NaverMapProvider from "@/components/map/naver-map-provider";
 import { PlaceDetail } from "@/components/place-detail/place-detail";
 import { ReportPanel } from "@/components/report/report-panel";
+import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorState } from "@/components/ui/error-state";
 import { Toast } from "@/components/ui/toast";
+import { useMediaQuery } from "@/components/ui/use-media-query";
+import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
 import type {
   EventCard as EventCardData,
   LatLng,
@@ -46,6 +50,10 @@ function reloadPage() {
  * 화면 1 — 풀스크린 지도 + 지도 위 두 층(검색 블록·칩 행) + 바텀시트. 카드·마커를 탭하면 같은 시트가 화면 2(상세)로,
  * [＋ 제보]를 누르면 화면 3(제보)으로 바뀐다. 로고·제보·카운터·이벤트는 지도 위에 두지 않는다 (docs/design.md 화면 1, 2026-09-02 리디자인).
  * 세션(익명/카카오)과 로그인 시트는 SessionProvider가 갖고, 화면 훅은 `useSession()`으로 읽는다(화면 5).
+ *
+ * **데스크탑(1024~, 화면 6~9)은 같은 DOM의 그릇만 CSS로 바꾼다**: 상단 스택 + 시트를 감싼 래퍼가 모바일에선
+ * `display: contents`(있는 듯 없는 듯), lg에선 왼쪽 400px 패널이 되고 지도는 나머지를 채운다. 시트의 fixed·transform은
+ * globals.css 데스크탑 블록이 지운다. JS(`isDesktop`)는 데스크탑에만 있는 요소 셋(브랜드 행 [＋ 제보]·줌 컨트롤·툴팁)만 가른다.
  */
 export default function MapScreen(props: MapScreenProps) {
   return (
@@ -67,6 +75,7 @@ function MapScreenBody({
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
   const { session } = useSession();
+  const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
   const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
@@ -86,15 +95,13 @@ function MapScreenBody({
   );
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
-      {/* 워드마크는 화면에서 뺐다 — 문서 제목·접근성용으로만 */}
-      <h1 className="sr-only">새우맵</h1>
-
+    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim lg:flex">
       {/* 8. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
           에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
           라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현).
-          z-0: 스태킹 컨텍스트를 만들어 SDK의 로고·컨트롤(높은 z-index)이 시트 위로 새지 않게 한다. */}
-      <div className="absolute inset-0 z-0">
+          z-0: 스태킹 컨텍스트를 만들어 SDK의 로고·컨트롤(높은 z-index)이 시트 위로 새지 않게 한다.
+          데스크탑: 패널 오른쪽 나머지(order-last — DOM은 지도가 먼저, 화면은 패널이 왼쪽). */}
+      <div className="absolute inset-0 z-0 lg:relative lg:order-last lg:min-w-0 lg:flex-1">
         <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
           <NaverMapProvider onMissingConfig={s.handleMissingConfig}>
             <MapView
@@ -136,130 +143,158 @@ function MapScreenBody({
             )}
           </div>
         )}
-      </div>
-
-      {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
-          제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
-          내 활동 패널이 열린 동안도 숨긴다(화면 5) */}
-      <div
-        ref={topStackRef}
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto"
-      >
-        {s.mode !== "report" && s.mode !== "me" && (
-          <>
-            <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5">
-              <SearchBar
-                value={s.query}
-                onChange={s.setQuery}
-                onClear={s.clearQuery}
-                onSubmit={s.submitSearch}
-                trailing={<ProfileButton session={session} onClick={s.openMe} />}
-              />
-            </div>
-            {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다 */}
-            <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5">
-              <CategoryDropdown tab={s.tab} onChange={s.setTab} />
-              <FilterChips chips={s.chips} onToggle={s.toggleChip} />
-            </div>
-          </>
+        {/* 데스크탑 지도 컨트롤 (design 화면 6): 줌 ± + 현위치. 모바일은 FAB 줄·핀치가 대신한다 */}
+        {isDesktop && s.status !== "error" && (
+          <MapControls
+            onZoomIn={s.zoomIn}
+            onZoomOut={s.zoomOut}
+            onLocate={s.locateMe}
+            following={s.following}
+          />
         )}
-        <Toast message={s.notice} />
       </div>
 
-      {/* 3~7. 바텀시트 (+ FAB 줄). 상세·제보가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
-      <PlaceSheet
-        status={s.status}
-        places={s.sorted}
-        count={s.inViewCount}
-        areaLabel={s.areaLabel}
-        stats={stats}
-        eventCard={eventCard && !s.eventDismissed ? eventCard : null}
-        now={now}
-        origin={s.origin}
-        selectedId={s.selectedId}
-        sort={s.sort}
-        snap={s.snap}
-        mode={s.mode}
-        detail={
-          detailPlace && (
-            <PlaceDetail
-              key={detailPlace.id}
-              place={detailPlace}
-              now={now}
-              bookmarked={s.bookmarkedIds.includes(detailPlace.id)}
-              checked={s.checkedIds.has(detailPlace.id)}
-              initialReviews={
-                initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
-              }
-              autoReview={s.reviewIntentId === detailPlace.id}
-              onAutoReviewConsumed={s.clearReviewIntent}
-              onPatchPlace={s.patchPlace}
-              onChecked={s.markChecked}
-              onToggleBookmark={() => {
-                s.toggleBookmark(detailPlace.id);
-              }}
-              onNotice={s.showNotice}
-            />
-          )
-        }
-        report={
-          s.reportStep !== null && (
-            <ReportPanel
-              step={s.reportStep}
-              places={s.places}
-              now={now}
-              pin={s.reportPin}
-              geocode={geocode}
-              onBack={s.backReportStep}
-              onStepChange={s.goToReportStep}
-              onPinChange={(point) => {
-                s.moveReportPin(point, "search");
-              }}
-              onShowCandidate={s.showReportPair}
-              tappedPlaceId={s.reportCandidateId}
-              onClearTapped={s.clearReportCandidate}
-              onOpenExisting={s.openDetailFromReport}
-              onCreated={s.addPlace}
-              onNotice={s.showNotice}
-            />
-          )
-        }
-        me={
-          s.mode === "me" && (
-            <ActivityPanel
-              now={now}
-              tab={s.meTab}
-              onTabChange={s.setMeTab}
-              bookmarkedPlaces={s.bookmarkedPlaces}
-              bookmarksStatus={s.bookmarksStatus}
-              onRetryBookmarks={s.retryBookmarks}
-              origin={s.origin}
-              onOpenPlace={s.selectFromCard}
-              onToggleBookmark={s.toggleBookmark}
-              onPlaceIdsChange={s.setMePlaceIds}
-              onSignedOut={s.handleSignedOut}
-              onAccountDeleted={s.handleAccountDeleted}
-              onNotice={s.showNotice}
-            />
-          )
-        }
-        emptyKind={s.emptyKind}
-        aside={
-          s.mode === "list" ? (
-            <FabRow onLocate={s.locateMe} onReport={s.openReport} following={s.following} />
-          ) : undefined
-        }
-        onSortChange={s.setSort}
-        onSnapChange={s.setSnap}
-        onDismissDetail={s.closeDetail}
-        onDismissReport={s.cancelReport}
-        onDismissMe={s.closeMe}
-        onSelect={s.selectFromCard}
-        onDismissEvent={s.dismissEvent}
-        onClearFilters={s.clearFilters}
-        onReport={s.openReport}
-        onRetry={reloadPage}
-      />
+      {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로). 데스크탑: 왼쪽 400px 컬럼 */}
+      <div className="contents lg:flex lg:h-full lg:w-100 lg:shrink-0 lg:flex-col lg:border-r lg:border-line-hairline lg:bg-bg">
+        {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
+            제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
+            내 활동 패널이 열린 동안도 숨긴다(화면 5). 데스크탑에선 패널 안 정적 블록이다 */}
+        <div
+          ref={topStackRef}
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto lg:static lg:shrink-0"
+        >
+          {/* 브랜드 행 (design 화면 6): 모바일에선 sr-only h1만(워드마크는 화면에서 뺐다), 데스크탑에선 워드마크 + [＋ 제보]
+              (화면 유일 채운 레드 — 목록 모드에만. 상세는 [길찾기], 제보 2단계는 [여기가 맞아요]가 그 자리) */}
+          <div className="sr-only lg:not-sr-only lg:flex lg:h-14 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
+            <h1 className="text-title-s-semibold text-fg">새우맵</h1>
+            {isDesktop && s.mode === "list" && (
+              <Button variant="brand" size="pill" onClick={s.openReport}>
+                <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
+                제보
+              </Button>
+            )}
+          </div>
+          {s.mode !== "report" && s.mode !== "me" && (
+            <>
+              <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5 lg:pt-0">
+                <SearchBar
+                  value={s.query}
+                  onChange={s.setQuery}
+                  onClear={s.clearQuery}
+                  onSubmit={s.submitSearch}
+                  trailing={<ProfileButton session={session} onClick={s.openMe} />}
+                />
+              </div>
+              {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다. 데스크탑은 패널 안이라 두 줄로 랩 */}
+              <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5 lg:flex-wrap lg:overflow-visible lg:pb-2">
+                <CategoryDropdown tab={s.tab} onChange={s.setTab} />
+                <FilterChips chips={s.chips} onToggle={s.toggleChip} />
+              </div>
+            </>
+          )}
+          {/* 토스트: 모바일은 스택 마지막 층, 데스크탑은 화면 아래 가운데(패널 안에서 내용을 밀지 않게). 없을 땐 래퍼도 없다 — 빈 래퍼가 gap을 먹는다 */}
+          {s.notice && (
+            <div className="lg:pointer-events-none lg:absolute lg:inset-x-0 lg:bottom-8 lg:z-30">
+              <Toast message={s.notice} />
+            </div>
+          )}
+        </div>
+
+        {/* 3~7. 바텀시트 (+ FAB 줄). 상세·제보가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
+        <PlaceSheet
+          status={s.status}
+          places={s.sorted}
+          count={s.inViewCount}
+          areaLabel={s.areaLabel}
+          stats={stats}
+          eventCard={eventCard && !s.eventDismissed ? eventCard : null}
+          now={now}
+          origin={s.origin}
+          selectedId={s.selectedId}
+          sort={s.sort}
+          snap={s.snap}
+          mode={s.mode}
+          detail={
+            detailPlace && (
+              <PlaceDetail
+                key={detailPlace.id}
+                place={detailPlace}
+                now={now}
+                bookmarked={s.bookmarkedIds.includes(detailPlace.id)}
+                checked={s.checkedIds.has(detailPlace.id)}
+                initialReviews={
+                  initialDetail?.place.id === detailPlace.id ? initialDetail.reviews : undefined
+                }
+                autoReview={s.reviewIntentId === detailPlace.id}
+                onAutoReviewConsumed={s.clearReviewIntent}
+                onPatchPlace={s.patchPlace}
+                onChecked={s.markChecked}
+                onToggleBookmark={() => {
+                  s.toggleBookmark(detailPlace.id);
+                }}
+                onNotice={s.showNotice}
+              />
+            )
+          }
+          report={
+            s.reportStep !== null && (
+              <ReportPanel
+                step={s.reportStep}
+                places={s.places}
+                now={now}
+                pin={s.reportPin}
+                geocode={geocode}
+                onBack={s.backReportStep}
+                onStepChange={s.goToReportStep}
+                onPinChange={(point) => {
+                  s.moveReportPin(point, "search");
+                }}
+                onShowCandidate={s.showReportPair}
+                tappedPlaceId={s.reportCandidateId}
+                onClearTapped={s.clearReportCandidate}
+                onOpenExisting={s.openDetailFromReport}
+                onCreated={s.addPlace}
+                onNotice={s.showNotice}
+              />
+            )
+          }
+          me={
+            s.mode === "me" && (
+              <ActivityPanel
+                now={now}
+                tab={s.meTab}
+                onTabChange={s.setMeTab}
+                bookmarkedPlaces={s.bookmarkedPlaces}
+                bookmarksStatus={s.bookmarksStatus}
+                onRetryBookmarks={s.retryBookmarks}
+                origin={s.origin}
+                onOpenPlace={s.selectFromCard}
+                onToggleBookmark={s.toggleBookmark}
+                onPlaceIdsChange={s.setMePlaceIds}
+                onSignedOut={s.handleSignedOut}
+                onAccountDeleted={s.handleAccountDeleted}
+                onNotice={s.showNotice}
+              />
+            )
+          }
+          emptyKind={s.emptyKind}
+          aside={
+            s.mode === "list" && !isDesktop ? (
+              <FabRow onLocate={s.locateMe} onReport={s.openReport} following={s.following} />
+            ) : undefined
+          }
+          onSortChange={s.setSort}
+          onSnapChange={s.setSnap}
+          onDismissDetail={s.closeDetail}
+          onDismissReport={s.cancelReport}
+          onDismissMe={s.closeMe}
+          onSelect={s.selectFromCard}
+          onDismissEvent={s.dismissEvent}
+          onClearFilters={s.clearFilters}
+          onReport={s.openReport}
+          onRetry={reloadPage}
+        />
+      </div>
     </div>
   );
 }

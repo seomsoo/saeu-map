@@ -33,7 +33,7 @@ export function SearchBar({ value, onChange, onClear, onSubmit, trailing }: Sear
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="flex h-12 w-full items-center gap-0.5 rounded-max border border-line bg-bg px-4 shadow-float"
+      className="flex h-12 w-full items-center gap-0.5 rounded-max border border-line bg-bg px-4 shadow-float lg:shadow-none"
     >
       {/* 히트 영역 40px, 시각은 24px 아이콘 — 음수 마진으로 아이콘 위치는 그대로 (Codex #3 P2) */}
       <button

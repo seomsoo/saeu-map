@@ -149,7 +149,7 @@ export function DropdownChip<K extends string>({
             ? "press hit-44 inline-flex items-center gap-0.5 text-body-m-medium text-fg-secondary"
             : cx(
                 chipVariants({ size: "md", tone: isActive ? "active" : "outline" }),
-                "press hit-44 pr-2 shadow-float",
+                "press hit-44 pr-2 shadow-float lg:shadow-none",
               )
         }
       >

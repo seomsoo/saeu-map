@@ -788,6 +788,16 @@ export function useMapScreen({
     };
   }, [openDetail, closeDetail, closeReportFlow, goToReportStep, closeMe]);
 
+  /** 데스크탑 줌 컨트롤 (design 화면 6). 프로그램 이동으로 표시해 정렬 기준점을 흔들지 않는다 */
+  const zoomIn = useCallback(() => {
+    programmaticMoveAt.current = performance.now();
+    mapRef.current?.zoomBy(1);
+  }, [mapRef]);
+  const zoomOut = useCallback(() => {
+    programmaticMoveAt.current = performance.now();
+    mapRef.current?.zoomBy(-1);
+  }, [mapRef]);
+
   /** 현위치 버튼: 명시적 요청이라 서울 밖이어도 그 위치로 간다. 실패는 안내만. */
   const locateMe = useCallback(() => {
     void requestPosition().then((res) => {
@@ -870,6 +880,8 @@ export function useMapScreen({
     dismissEvent,
     showNotice,
     locateMe,
+    zoomIn,
+    zoomOut,
     openMe,
     closeMe,
     setMeTab,

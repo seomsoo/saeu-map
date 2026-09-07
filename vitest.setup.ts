@@ -10,7 +10,9 @@ afterEach(() => {
 /* jsdom 30에 없는 브라우저 API 스텁. 동작 검증이 필요한 테스트는 개별로 vi.spyOn한다. */
 
 function stub(target: object, key: string, value: unknown): void {
-  if (key in target) return;
+  // `key in target`로 검사하면 안 된다: vitest의 jsdom 환경은 window의 모든 키를 globalThis에 접근자로 복사해
+  // 없는 API(matchMedia)도 `in`이 true인 채 undefined를 돌려준다 — 그래서 matchMedia 스텁이 조용히 죽어 있었다(2026-09-07 발견).
+  if ((target as Record<string, unknown>)[key] !== undefined) return;
   Object.defineProperty(target, key, {
     value,
     configurable: true,

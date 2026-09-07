@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { MyReview, Place, Session } from "@/lib/types";
 import type { ReportInput } from "@/lib/data";
+import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
 import { BOOKMARK_NUDGE_NOTICE } from "../use-map-screen";
 import MapScreen from "../map-screen";
 
@@ -1256,4 +1257,59 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     expect(within(reopened).getByRole("tab", { name: "찜" })).toHaveAttribute("aria-selected", "true");
   });
 
+});
+
+describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스크탑 전용 요소 셋만 다르다)", () => {
+  /** lg 미디어 쿼리만 참으로 — 그릇은 CSS라 jsdom엔 없고, JS가 가르는 요소만 검증한다 */
+  function desktop() {
+    return vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query: string) => ({
+        matches: query === DESKTOP_MEDIA_QUERY,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList);
+  }
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("모바일: 브랜드 행 [＋ 제보]·줌 컨트롤이 없고 FAB 줄만 있다", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(screen.getAllByRole("button", { name: "제보" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "확대" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "새우맵" })).toBeInTheDocument();
+  });
+
+  it("데스크탑: [＋ 제보]는 브랜드 행 하나(FAB 줄 없음), 줌 ±가 지도를 한 단계씩 움직이고 현위치는 그대로 하나다", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(screen.getAllByRole("button", { name: "제보" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "내 위치" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "확대" }));
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(13, true);
+    fireEvent.click(screen.getByRole("button", { name: "축소" }));
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(11, true);
+  });
+
+  it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    expect(await screen.findByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("article", { name: "나라수산 상세" })).toBeNull();
+    });
+    expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
+  });
 });

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { cx } from "@/lib/cx";
+import { isDesktopViewport } from "@/lib/layout";
 import { useKeyboardInset } from "./use-keyboard-inset";
 
 export type SheetSnap = "collapsed" | "half" | "full";
@@ -320,7 +321,8 @@ export function BottomSheet({
   };
 
   const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || dragRef.current) return;
+    // 데스크탑(패널)에서는 시트가 움직이지 않는다 — 헤더는 그냥 헤더다
+    if (e.button !== 0 || dragRef.current || isDesktopViewport()) return;
     const target = e.target as Element;
     // 헤더 안의 컨트롤(정렬 메뉴 등)을 누른 건 드래그가 아니다. 핸들 버튼만 예외.
     const fromHandle = target.closest("[data-sheet-handle]") !== null;
@@ -335,7 +337,7 @@ export function BottomSheet({
 
   /** 상세 본문: 요약에선 항상, 전체에선 스크롤이 맨 위일 때만 드래그 후보. 버튼 위에서 시작해도 된다(탭이면 click이 그대로 간다). */
   const onBodyPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || dragRef.current || !detail) return;
+    if (e.button !== 0 || dragRef.current || !detail || isDesktopViewport()) return;
     if (snap === "full" && e.currentTarget.scrollTop > 0) return;
     beginDrag(e, "body", false);
   };
@@ -481,7 +483,7 @@ export function BottomSheet({
       {aside && (
         <div
           className={cx(
-            "absolute inset-x-0 -top-13 flex items-center justify-between pl-safe-left-or-5 pr-safe-right-or-5",
+            "absolute inset-x-0 -top-13 flex items-center justify-between pl-safe-left-or-5 pr-safe-right-or-5 lg:hidden",
             snap === "full" && "hidden",
           )}
         >
@@ -504,7 +506,7 @@ export function BottomSheet({
           aria-label={handleLabel}
           onClick={onHandleClick}
           className={cx(
-            "flex w-full shrink-0 items-center justify-center",
+            "flex w-full shrink-0 items-center justify-center lg:hidden",
             panel ? "h-11" : "h-6.5",
           )}
         >
@@ -526,13 +528,32 @@ export function BottomSheet({
             onPointerDown={(e) => {
               e.stopPropagation();
             }}
-            className="absolute top-0 right-safe-right-or-2 flex size-11 items-center justify-center text-fg-tertiary"
+            className={cx(
+              "absolute top-0 right-safe-right-or-2 flex size-11 items-center justify-center text-fg-tertiary",
+              // 데스크탑 상세는 ✕ 대신 왼쪽 [‹ 목록] (design 화면 7). 제보·내 활동은 ✕ 그대로
+              detail && "lg:hidden",
+            )}
           >
             <span className="icon-[ci--close-md] size-5" aria-hidden="true" />
           </button>
         )}
+        {detail && onDismiss && (
+          <button
+            type="button"
+            onClick={() => {
+              onDismiss();
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            className="press absolute top-0 left-3 hidden h-11 items-center gap-0.5 pr-2 text-body-m-medium text-fg lg:flex"
+          >
+            <span className="icon-[ci--chevron-left] size-5" aria-hidden="true" />
+            목록
+          </button>
+        )}
         {!panel && (
-          <div className="flex min-h-0 flex-1 items-center px-5 pb-4">{header}</div>
+          <div className="flex min-h-0 flex-1 items-center px-5 pb-4 lg:pt-3">{header}</div>
         )}
       </div>
       {/* 높이는 CSS(.saeu-sheet__body)가 스냅별로 정한다 — flex-1을 주면 92dvh 전체로 늘어나 스크롤 영역이 화면 밖까지 이어진다 */}

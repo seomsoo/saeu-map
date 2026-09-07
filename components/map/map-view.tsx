@@ -66,6 +66,8 @@ export interface MapHandle {
     options?: { screenY?: number | undefined },
   ): void;
   fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
+  /** 줌 한 단계(데스크탑 [+][−]). 애니메이션, min/max 안에서 */
+  zoomBy(delta: 1 | -1): void;
   getViewport(): Viewport | null;
   /**
    * 도로명 주소 검색(네이버 지오코더 서브모듈). 지도 중심 근처를 우선한 결과 최대 GEOCODE_MAX_HITS건.
@@ -313,6 +315,9 @@ function MapController({
           ...(margin?.maxZoom !== undefined && { maxZoom: margin.maxZoom }),
         };
         map.fitBounds(latLngBounds, options);
+      },
+      zoomBy(delta) {
+        map.setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, map.getZoom() + delta)), true);
       },
       getViewport() {
         return readViewport(navermaps, map);
