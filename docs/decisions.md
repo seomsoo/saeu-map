@@ -480,6 +480,7 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **예산**: `largest-contentful-paint` **error 12,000ms**(측정 중앙값의 약 1.4배 — 새 500KB 스크립트 같은 큰 회귀만 막는 가드) + `categories:performance` **warn 0.5**. web.dev "good"(2.5s)은 지금 셸로는 목표가 아니라 백로그다(아래). 3회 중앙값(`aggregationMethod: median`)이라 한 번 튄 값엔 안 흔들린다.
 - **같은 실측이 잡은 개선 1건**: 상세 첫 사진이 `loading="lazy"`인데 LCP 요소였다 — 하이드레이션 뒤에야 요청돼 Load Delay 1~3.6s. 첫 장만 `priority` → `/place/p018` LCP 중앙값 **8.0s → 4.2s**.
 - **CI 첫 발화(PR #9)**: `/` performance 0.47 중앙값(warn 0.5 아래 — 경고만), LCP 예산 통과. 리포트 아티팩트는 `actions/upload-artifact`가 숨김 경로 `.lighthouseci`를 기본 제외해(`include-hidden-files` 기본 false, v4.4~) **비어 있었다** — `if-no-files-found: ignore`가 그걸 조용히 통과시켰다. 옵션을 켜고 `error`로 바꿈. 하네스는 파일 생성이 아니라 발화 검증이 완료 조건이라는 규칙의 사례 하나 더.
+- **점수를 PR에서 바로 보기 — CI가 PR 코멘트를 남기는 방식으로, 다음 코드 PR에서(2026-09-07 사용자 결정)**: 지금은 점수가 아티팩트(리포트 HTML/JSON)와 잡 로그에만 있어 내려받아야 보인다. 세 가지 중 ① Lighthouse 스텝 뒤에 `.lighthouseci/manifest.json`·리포트 JSON을 jq로 읽어 URL별 performance·LCP 표를 `gh pr comment`로 올리고 재실행 땐 같은 코멘트를 갱신(GITHUB_TOKEN + `pull-requests: write`, 새 패키지 없음, 셸 15줄)을 택했다. ② LHCI 공식 상태 체크는 `filesystem` 타깃에서 동작하지 않고(문서 명시) `temporary-public-storage`로 바꿔야 해 리포트가 공개 스토리지에 올라간다. ③ `GITHUB_STEP_SUMMARY`는 PR 화면이 아니라 런 페이지다. Phase 5 PR #9에는 넣지 않는다(roadmap 백로그).
 - **백로그(집는 시점: 런칭 전 실기기 LCP가 4s를 넘으면)**: 앱 청크 분할(지도 SDK·supercluster 지연 로드), Pretendard CSS preload, 폰트 조각 수. 목표 warn 4000ms를 error로 내리는 건 그때.
 
 ## 커스텀 에셋 필요 목록
@@ -491,3 +492,8 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - 채운 별 아이콘 — coolicons `star`는 라인 별뿐이라 채움/빔이 구분되지 않아(Playwright 확인) `components/ui/icons/star-icon.tsx` 인라인 SVG로 임시 대체
 - 제보 핀 — 화면 3의 끌 수 있는 위치 핀(레드 머리 + 흰 점 + 줄기). 그 전까지 `.saeu-report-pin` CSS 도형으로 임시 대체
 - 카카오 심볼(말풍선) — 로그인 시트 [카카오로 시작하기] 안 16px. 그 전까지 coolicons `ci--chat` 근접 대체
+
+## 2026-09-07 — Codex PR #9 코멘트 2건: P1 반영, P2 보류(실측으로 판단)
+- **P1 `lib/env.ts` 반영**: `.env.example`의 `SITE_URL=`을 빈 채로 복사하면 `""`가 들어와 `z.url().optional()`이 거부하고 앱이 안 뜬다. t3-env `emptyStringAsUndefined: true`(문서가 새 프로젝트에 권하는 옵션) 한 줄 + `lib/__tests__/env.test.ts` 3건(빈 값=없음·있으면 그대로·`javascript:` 거부). 테스트는 jsdom에 window가 있어 t3-env가 클라이언트로 보므로 `vi.stubGlobal("window", undefined)`로 서버로 읽힌다.
+- **P2 `use-map-screen.ts` 보류**: "1024 경계를 넘겨 리사이즈·회전하면 첫 위치 맞추기가 한 번뿐이라 지도가 옛 그릇 기준으로 남는다"는 지적은 사실이다(`initialPanDone`). 그러나 Playwright 실측(상세 열린 채 1023×768 ↔ 1200×768): 모바일→데스크탑은 SDK autoResize가 가로 중앙을 다시 잡고 선택 마커는 지도 컬럼 중앙보다 **80px 위**에 보이며, 데스크탑→모바일은 마커 y=304 < 시트 상단 498로 **시트 위에 남는다**. 가려지는 건 `/gu/[name]` 직접 진입 뒤 상호작용 없이 데스크탑→모바일로 넘긴 fitBounds의 아래쪽 핀뿐. 고치려면 매체 쿼리 변화에 `panTo(선택 가게 | 지금 중심, { screenY })`를 SDK 리사이즈 **뒤에** 걸어야 하는데 그 타이밍이 SDK 내부(throttle)라 지연 상수가 필요하다 — 값이 작은 데 비해 다음 리뷰 지적감이다. **집는 시점**: 태블릿 전용 배치를 들일 때(Phase 5 항목 "재검토 조건")와 같이 — 회전이 일상인 기기가 대상이 되면 그때 리사이즈 완료 신호(`map.getSize()`가 컨테이너와 같아질 때)를 기준으로 넣는다.
+
