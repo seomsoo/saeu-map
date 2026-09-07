@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEOUL_GU, guCenter, guOfPoint, isSeoulGu } from "../gu";
+import { GU_SLUGS, SEOUL_GU, guCenter, guFromSlug, guOfPoint, guSlug, isSeoulGu } from "../gu";
 import boundaries from "../gu-boundaries.json";
 
 describe("guOfPoint — 서울 25구(정밀) + 전국 시군구(단순화본) 경계 판정", () => {
@@ -41,6 +41,16 @@ describe("SEOUL_GU — /gu/[name] 화이트리스트", () => {
     expect(isSeoulGu("김포시(경기)")).toBe(false);
     expect(isSeoulGu("마포")).toBe(false);
     expect(isSeoulGu("")).toBe(false);
+  });
+  it("슬러그: 25구 전부 고유한 ASCII 슬러그가 있고 왕복된다 (구별 OG 카드 경로)", () => {
+    expect(Object.keys(GU_SLUGS).sort()).toEqual([...SEOUL_GU].sort());
+    const slugs = Object.values(GU_SLUGS);
+    expect(new Set(slugs).size).toBe(25);
+    expect(slugs.every((s) => /^[a-z]+$/.test(s))).toBe(true);
+    expect(guSlug("마포구")).toBe("mapo");
+    expect(guFromSlug("mapo")).toBe("마포구");
+    expect(guSlug("김포시(경기)")).toBeNull();
+    expect(guFromSlug("seoul")).toBeNull();
   });
   it("guCenter: 경계 박스 중심은 그 구 안에 있고, 모르는 이름은 null", async () => {
     const center = await guCenter("마포구");

@@ -50,7 +50,10 @@ describe("구 페이지 메타", () => {
     expect(guDescription("마포구", places)).toBe(
       "마포구의 새우구이·생새우회 가게 4곳. 가나수산, 나라수산, 마바수산",
     );
-    expect(guMeta("마포구", places).alternates?.canonical).toBe("/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC");
+    const meta = guMeta("마포구", places);
+    expect(meta.alternates?.canonical).toBe("/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC");
+    // 구 카드는 파일 컨벤션이 아니라 ASCII 슬러그 라우트 — 한글 세그먼트의 정적 이미지가 404였다
+    expect(meta.openGraph).toMatchObject({ images: [{ url: "/og/gu/mapo", width: 1200, height: 630 }] });
   });
   it("0곳인 구는 제보 유도 한 줄", () => {
     expect(guDescription("서초구", [])).toContain("아직 등록된 새우구이 가게가 없어요");

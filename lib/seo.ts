@@ -1,5 +1,5 @@
 import type { Metadata, MetadataRoute } from "next";
-import { SEOUL_GU } from "./gu";
+import { guSlug, SEOUL_GU } from "./gu";
 import { primaryMenuLine, TAG_LABELS } from "./places";
 import { relativeCheckLabel } from "./time";
 import type { Place } from "./types";
@@ -71,15 +71,29 @@ export function guDescription(name: string, places: readonly Place[]): string {
   return `${name}의 새우구이·생새우회 가게 ${places.length}곳. ${top}`;
 }
 
+/** 구별 OG 카드 경로 — ASCII 슬러그 라우트(app/og/gu/[slug]/route.tsx). 모르는 구면 null */
+export function guOgImagePath(name: string): string | null {
+  const slug = guSlug(name);
+  return slug ? `/og/gu/${slug}` : null;
+}
+
 export function guMeta(name: string, places: readonly Place[]): Metadata {
   const title = guTitle(name, places.length);
   const description = guDescription(name, places);
   const path = guPath(name);
+  const image = guOgImagePath(name);
   return {
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title, description, url: path, type: "website" },
+    openGraph: {
+      title,
+      description,
+      url: path,
+      type: "website",
+      // 파일 컨벤션 대신 명시 — 한글 세그먼트의 프리렌더 이미지가 정적 서빙에서 404였다 (decisions 2026-09-07)
+      ...(image && { images: [{ url: image, width: 1200, height: 630, alt: `${name} 새우구이 공유 카드` }] }),
+    },
   };
 }
 

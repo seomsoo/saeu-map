@@ -22,14 +22,12 @@ export type ShareCardProps =
       name: string;
       /** "마포구 · 새우구이 · 생새우회" */
       meta: string;
-      /** "생새우소금구이 1kg 60,000원" (없으면 null) */
+      /** "생새우소금구이 1kg 60,000원" (없으면 null). 상대 시간("어제 확인")은 넣지 않는다 — 카드는 배포 시점에 굽힌다 */
       menu: string | null;
-      /** "어제 확인 · 확인 4회" */
-      freshness: string;
       category: keyof typeof CATEGORY_COLOR;
     }
   | { variant: "gu"; name: string; count: number; /** 상호 최대 3곳, 없으면 null */ names: string | null }
-  | { variant: "root"; count: number };
+  | { variant: "root"; /** 배포 시점의 가게 수 */ count: number };
 
 const root: CSSProperties = {
   width: "100%",
@@ -129,7 +127,6 @@ export function ShareCard(props: ShareCardProps) {
           <Text size={28} color={GRAY_600}>{props.meta}</Text>
           <Text size={76} weight={700} style={oneLine}>{props.name}</Text>
           {props.menu && <Text size={36} color={INK} style={oneLine}>{props.menu}</Text>}
-          <Text size={28} color={GRAY_500}>{props.freshness}</Text>
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <Brand caption="서울 새우구이 지도" />
@@ -163,7 +160,7 @@ export function ShareCard(props: ShareCardProps) {
         <Text size={36} color={GRAY_600}>다녀온 사람들의 확인과 제보로 갱신돼요</Text>
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-        <Brand caption={`지금 ${props.count}곳`} />
+        <Brand caption={`가게 ${props.count}곳`} />
         <ClusterMotif count={props.count} />
       </div>
     </div>

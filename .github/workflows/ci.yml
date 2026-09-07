@@ -49,6 +49,11 @@ jobs:
         env:
           NEXT_PUBLIC_NCP_CLIENT_ID: dummy-for-build
 
+      # 프리렌더 결과(OG 카드 75장 등)를 정적 에셋 캐시로 복사 — build는 안 하고 preview/upload/deploy만 한다.
+      # 스모크가 실제 배포와 같은 길(정적 서빙, satori 재실행 없음)을 타게 한다 (decisions 2026-09-07 OG 빌드 시 생성)
+      - name: Populate static assets cache
+        run: npx opennextjs-cloudflare populateCache local
+
       # 스모크 = 빌드된 워커가 workerd에서 실제로 기동하고 /가 200 + "새우맵"을 돌려주는지 (decisions.md 2026-09-01 스모크 정의)
       - name: Smoke (workerd boots and serves /)
         env:

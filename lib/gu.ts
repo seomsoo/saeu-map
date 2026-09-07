@@ -48,6 +48,26 @@ export function isSeoulGu(name: string): boolean {
   return SEOUL_GU.includes(name);
 }
 
+/**
+ * 구별 OG 카드의 ASCII 슬러그(`/og/gu/mapo`). 파일 컨벤션 `gu/[name]/opengraph-image`는 프리렌더 키가 디코딩된 한글이고
+ * 요청 경로는 퍼센트 인코딩이라 정적 서빙에서 매칭이 깨져 404가 났다(decisions 2026-09-07). 국립국어원 로마자 표기.
+ */
+export const GU_SLUGS: Readonly<Record<string, string>> = {
+  강남구: "gangnam", 강동구: "gangdong", 강북구: "gangbuk", 강서구: "gangseo", 관악구: "gwanak",
+  광진구: "gwangjin", 구로구: "guro", 금천구: "geumcheon", 노원구: "nowon", 도봉구: "dobong",
+  동대문구: "dongdaemun", 동작구: "dongjak", 마포구: "mapo", 서대문구: "seodaemun", 서초구: "seocho",
+  성동구: "seongdong", 성북구: "seongbuk", 송파구: "songpa", 양천구: "yangcheon", 영등포구: "yeongdeungpo",
+  용산구: "yongsan", 은평구: "eunpyeong", 종로구: "jongno", 중구: "jung", 중랑구: "jungnang",
+};
+
+export function guSlug(name: string): string | null {
+  return GU_SLUGS[name] ?? null;
+}
+
+export function guFromSlug(slug: string): string | null {
+  return Object.entries(GU_SLUGS).find(([, s]) => s === slug)?.[0] ?? null;
+}
+
 /** 구 경계의 바운딩 박스 중심 — `/gu/[name]`에 가게가 없을 때 지도를 그 구로 옮기는 기준. 서울 밖·모르는 이름은 null. */
 export async function guCenter(name: string): Promise<LatLng | null> {
   const district = (await loadSeoul()).districts.find((d) => d.name === name);
