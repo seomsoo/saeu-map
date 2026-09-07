@@ -17,6 +17,11 @@ export function siteUrl(envUrl: string | undefined): URL {
   return new URL(envUrl ?? DEFAULT_SITE_URL);
 }
 
+/** 프리뷰 배포(`preview-*.workers.dev`)는 색인되면 안 된다 — robots가 전부 막는다 (security-reviewer 2026-09-07) */
+export function isPreviewHost(url: URL): boolean {
+  return url.hostname.startsWith("preview-");
+}
+
 export function placePath(place: Pick<Place, "id">): string {
   return `/place/${encodeURIComponent(place.id)}`;
 }

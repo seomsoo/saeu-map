@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          # 이 잡은 push하지 않는다 — npx로 받는 Lighthouse 전이 의존성이 .git/config의 토큰을 읽을 길을 닫는다 (security-reviewer 2026-09-07)
+          persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
@@ -151,8 +153,9 @@ jobs:
           SITE_URL: https://preview-saeu-map.saeu-map.workers.dev
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지
-          pnpm run upload --preview-alias preview --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
+          # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지.
+          # --var: 런타임 SITE_URL은 셸 env가 아니라 워커 변수에서 읽힌다(OpenNext populateProcessEnv) — env는 빌드 시 정적 robots.txt용
+          pnpm run upload --preview-alias preview --var SITE_URL:https://preview-saeu-map.saeu-map.workers.dev --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
           # wrangler가 별칭 URL을 찍지 않았으면 업로드가 안 된 것 — 여기서 확실히 실패시킨다
           grep -q "Version Preview Alias URL" upload.log || { echo "::error::preview upload did not produce an alias URL"; exit 1; }
 

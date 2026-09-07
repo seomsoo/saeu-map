@@ -4,6 +4,7 @@ import { SEOUL_GU } from "../gu";
 import {
   DEFAULT_SITE_URL,
   guDescription,
+  isPreviewHost,
   guMeta,
   guTitle,
   placeDescription,
@@ -71,5 +72,10 @@ describe("sitemap · 사이트 URL", () => {
   it("SITE_URL이 없으면 프로덕션 워커 URL", () => {
     expect(siteUrl(undefined).toString()).toBe(`${DEFAULT_SITE_URL}/`);
     expect(siteUrl("https://saeumap.kr").host).toBe("saeumap.kr");
+  });
+  it("프리뷰 호스트(preview-*)만 색인 금지 대상", () => {
+    expect(isPreviewHost(new URL("https://preview-saeu-map.saeu-map.workers.dev"))).toBe(true);
+    expect(isPreviewHost(siteUrl(undefined))).toBe(false);
+    expect(isPreviewHost(new URL("https://saeumap.kr"))).toBe(false);
   });
 });

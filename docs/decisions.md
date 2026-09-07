@@ -469,7 +469,8 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **결정**: 판정을 `target[key] !== undefined`로. 하네스 요소(훅·CI·스텁)는 "파일이 있다"가 아니라 **실제 입력으로 발화를 확인**한 뒤에만 완료로 치는 규칙(CLAUDE.md 작업 방식)의 또 한 사례 — 스텁을 쓰는 테스트가 하나는 있어야 한다(`lib/__tests__/layout.test.ts`가 그 역할).
 
 ## 2026-09-07 — 사이트 URL은 서버 전용 `SITE_URL`
-- **결정**: metadataBase·sitemap·robots가 쓰는 절대 URL은 t3-env `server`의 `SITE_URL`(없으면 `https://saeu-map.saeu-map.workers.dev`). `NEXT_PUBLIC_` 접두사를 쓰지 않는다 — 규칙 7 허용 목록(지도 Client ID·Supabase anon·카카오 JS 키) 밖이고 클라이언트가 필요하지 않다. CI preview 잡은 프리뷰 URL을 준다. 도메인(saeumap.kr)은 Phase 7에 값만 바꾼다.
+- **결정**: metadataBase·sitemap·robots가 쓰는 절대 URL은 t3-env `server`의 `SITE_URL`(없으면 `https://saeu-map.saeu-map.workers.dev`, http(s) 스킴만). `NEXT_PUBLIC_` 접두사를 쓰지 않는다 — 규칙 7 허용 목록(지도 Client ID·Supabase anon·카카오 JS 키) 밖이고 클라이언트가 필요하지 않다. 도메인(saeumap.kr)은 Phase 7에 값만 바꾼다.
+- **런타임에 닿는 길(security-reviewer가 잡음)**: OpenNext 워커의 `process.env`는 Cloudflare 바인딩(wrangler `vars`·secrets)과 `.env*`에서만 채워진다 — CI 셸 env는 **빌드 때만** 보인다. 그래서 프로덕션은 `wrangler.jsonc` `vars.SITE_URL`, 프리뷰는 `pnpm run upload --var SITE_URL:https://preview-…`로 버전에 심는다. 정적으로 빌드되는 `robots.txt`만 빌드 env를 읽는데, 프리뷰 호스트(`preview-*`)면 `disallow: /` — 프리뷰가 프로덕션과 중복 색인되지 않게.
 
 ## 2026-09-07 — Lighthouse CI 예산은 모바일 LCP, workerd 스모크 뒤에
 - **결정**: CI `check` 잡의 스모크가 띄운 `wrangler dev :8787`에 `npx @lhci/cli@0.15.1 autorun`(의존성 아님, 2025-06 릴리스) + `lighthouserc.json`. URL `/`·`/place/p018`, 3회 중앙값, 모바일 에뮬레이션(Lighthouse 기본). CI엔 NCP 키가 dummy라 지도는 에러 상태 — 우리 셸(HTML·CSS·JS)의 LCP를 재는 것이고 지도 SDK는 측정 밖이다.

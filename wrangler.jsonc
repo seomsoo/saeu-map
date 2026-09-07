@@ -7,6 +7,10 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	// 서버 전용 절대 URL(metadataBase·sitemap·og:url). 프리뷰 버전은 ci.yml이 `--var SITE_URL:…`로 덮는다 (decisions 2026-09-07)
+	"vars": {
+		"SITE_URL": "https://saeu-map.saeu-map.workers.dev"
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
