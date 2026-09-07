@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type Ref,
 } from "react";
@@ -20,7 +21,11 @@ import type { ClusterItem } from "@/lib/cluster";
 import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
 import { isInactive } from "@/lib/time";
 import { markerCategory, primaryMenuLine } from "@/lib/places";
+import Image from "next/image";
+import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatRating } from "@/lib/reviews";
+import { cx } from "@/lib/cx";
 import {
   PLACE_MARKER_SIZE,
   getClusterIcon,
@@ -89,6 +94,8 @@ interface MarkerTooltipState {
   place: Place;
   x: number;
   y: number;
+  /** hover 시점의 지도 컨테이너 폭 — 사진 카드가 가장자리에서 잘리지 않게 물리는 데 쓴다 */
+  containerWidth: number;
 }
 
 export interface MapViewProps {
@@ -141,6 +148,17 @@ function useNaverAuthFailure(onAuthFailure: () => void): void {
 const MIN_ZOOM = 10;
 const MAX_ZOOM = 19;
 
+/* 마커 hover 프리뷰 (design 화면 6 v3) — 진입은 지연, 이탈은 유예. 지연이 없으면 지도를 가로지르는 동안
+   프리뷰가 줄줄이 번쩍이고, 유예가 없으면 마커 사이를 옮길 때마다 깜빡인다. */
+const HOVER_ENTER_MS = 150;
+const HOVER_LEAVE_MS = 300;
+/** 프리뷰 카드 폭·사진 높이 — 가장자리 플립 계산에 쓰므로 CSS(w-62·h-27.5)와 같아야 한다 */
+const PREVIEW_WIDTH = 248;
+const PREVIEW_HEIGHT = 176;
+/** 사진 없는 집의 2줄 텍스트 툴팁 높이(대략) */
+const TOOLTIP_HEIGHT = 56;
+const PREVIEW_GAP = 8;
+
 export function MapView({
   items,
   selectedId,
@@ -161,20 +179,50 @@ export function MapView({
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
 
-  // 마커 hover 툴팁 (마우스만 — 터치는 mouseover가 안 온다). 지도를 끌기 시작하면 닫힌다.
+  // 마커 hover 프리뷰 (마우스만 — 터치는 mouseover가 안 온다). 지도를 끌거나 줌하면 닫힌다.
   const [tooltip, setTooltip] = useState<MarkerTooltipState | null>(null);
-  const handleMarkerHover = useCallback((place: Place, offset: { x: number; y: number } | null) => {
-    // 닫기는 "그 가게의 툴팁일 때만" — 마커가 리클러스터로 사라지며 부르는 정리가 다른 툴팁을 지우지 않게
-    setTooltip((prev) =>
-      offset ? { place, x: offset.x, y: offset.y } : prev?.place.id === place.id ? null : prev,
-    );
-  }, []);
-  const clearTooltip = useCallback(() => {
-    setTooltip(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const enterTimer = useRef<number | null>(null);
+  const leaveTimer = useRef<number | null>(null);
+  const clearTimers = useCallback(() => {
+    if (enterTimer.current !== null) window.clearTimeout(enterTimer.current);
+    if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+    enterTimer.current = null;
+    leaveTimer.current = null;
   }, []);
 
+  const handleMarkerHover = useCallback(
+    (place: Place, offset: { x: number; y: number } | null) => {
+      if (offset) {
+        if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+        if (enterTimer.current !== null) window.clearTimeout(enterTimer.current);
+        enterTimer.current = window.setTimeout(() => {
+          setTooltip({
+            place,
+            x: offset.x,
+            y: offset.y,
+            containerWidth: wrapperRef.current?.clientWidth ?? 0,
+          });
+        }, HOVER_ENTER_MS);
+        return;
+      }
+      if (enterTimer.current !== null) window.clearTimeout(enterTimer.current);
+      if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = window.setTimeout(() => {
+        // 닫기는 "그 가게의 프리뷰일 때만" — 마커가 리클러스터로 사라지며 부르는 정리가 다른 프리뷰를 지우지 않게
+        setTooltip((prev) => (prev?.place.id === place.id ? null : prev));
+      }, HOVER_LEAVE_MS);
+    },
+    [],
+  );
+  const clearTooltip = useCallback(() => {
+    clearTimers();
+    setTooltip(null);
+  }, [clearTimers]);
+  useEffect(() => clearTimers, [clearTimers]);
+
   return (
-    <div className="relative h-full w-full">
+    <div ref={wrapperRef} className="relative h-full w-full">
       <Container
         style={{ position: "relative", width: "100%", height: "100%" }}
         fallback={
@@ -213,25 +261,62 @@ export function MapView({
           {pin && <ReportPin position={pin} onChange={onPinChange} />}
         </NaverMap>
       </Container>
-      {tooltip && <MarkerTooltip {...tooltip} />}
+      {tooltip && <MarkerPreview {...tooltip} />}
     </div>
   );
 }
 
 /**
- * 마커 위 툴팁 (design 화면 6): 흰 카드, 상호 / 대표 메뉴 두 줄. 마커 위 8px, 가로 중앙.
+ * 마커 위 프리뷰 (design 화면 6 v3): **사진 있는 집은 사진 카드**(폭 248, 사진 110), 없으면 2줄 텍스트 툴팁.
+ * 마커 위 8px에 뜨고, 위가 좁으면 아래로 뒤집는다. 사진 카드는 좌우가 잘리지 않게 컨테이너 안으로 물린다.
  * React가 그린다 — 마커 innerHTML(marker-icons)에는 여전히 이름을 넣지 않는다(XSS 가드 유지).
+ * 포인터는 통과시킨다: 프리뷰는 읽는 것이고 클릭 대상은 마커·카드다.
  */
-function MarkerTooltip({ place, x, y }: MarkerTooltipState) {
+function MarkerPreview({ place, x, y, containerWidth }: MarkerTooltipState) {
   const menu = primaryMenuLine(place);
+  const photo = place.thumbnailUrl;
+  const height = photo ? PREVIEW_HEIGHT : TOOLTIP_HEIGHT;
+  const anchor = PLACE_MARKER_SIZE / 2 + PREVIEW_GAP;
+  const above = y - anchor - height >= 0;
+  // 사진 카드는 폭을 알기에 가장자리에서 물린다. 텍스트 툴팁은 내용 폭이라 마커 중앙에 그대로 둔다.
+  const left = photo
+    ? Math.min(Math.max(x, PREVIEW_WIDTH / 2 + PREVIEW_GAP), containerWidth - PREVIEW_WIDTH / 2 - PREVIEW_GAP)
+    : x;
+
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-8 border border-line-hairline bg-bg px-3 py-2 shadow-card"
-      style={{ left: x, top: y - PLACE_MARKER_SIZE / 2 - 8 }}
+      className={cx(
+        "pointer-events-none absolute z-10 -translate-x-1/2 overflow-hidden rounded-12 border border-line-hairline bg-bg shadow-card",
+        above ? "-translate-y-full" : "translate-y-0",
+        photo ? "w-62" : "whitespace-nowrap rounded-8 px-3 py-2",
+      )}
+      style={{ left, top: above ? y - anchor : y + anchor }}
     >
-      <p className="text-body-m-semibold text-fg">{place.name}</p>
-      {menu && <p className="text-caption-l-regular text-fg-secondary tabular-nums">{menu}</p>}
+      {photo && (
+        <Image
+          src={photo}
+          alt=""
+          width={248}
+          height={110}
+          draggable={false}
+          className="h-27.5 w-full object-cover"
+        />
+      )}
+      <div className={cx(photo && "px-3 py-2.5")}>
+        <p className="truncate text-body-m-semibold text-fg">{place.name}</p>
+        <div className="flex items-center gap-1.5">
+          {menu && (
+            <p className="truncate text-caption-l-regular text-fg-secondary tabular-nums">{menu}</p>
+          )}
+          {place.rating && (
+            <span className="flex shrink-0 items-center gap-0.5 text-caption-l-semibold text-fg tabular-nums">
+              <ShrimpIcon className="size-3 translate-y-px text-brand-fg" />
+              {formatRating(place.rating.average)}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -311,6 +396,8 @@ function MapController({
     onMoveStart();
   }, [onUserPan, onMoveStart]);
   useListener(map, "dragstart", handleUserPan);
+  // 줌이 바뀌면 마커가 옮겨 앉으므로 프리뷰도 닫는다(위치가 어긋난 채 남지 않게)
+  useListener(map, "zoom_changed", onMoveStart);
 
   // 데스크탑은 click, 터치는 tap — 둘 다 같은 좌표라 두 번 와도 무해. 마커 위 탭은 마커가 받는다.
   const handleTap = useCallback(

@@ -1369,12 +1369,18 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     fireEvent.pointerLeave(card, { pointerType: "mouse" });
     expect(marker().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
 
+    // 프리뷰는 150ms 지연 뒤에 뜬다 — 지도를 가로지르는 동안 줄줄이 번쩍이지 않게 (design 화면 6 v3)
     fireEvent.mouseEnter(marker());
-    const tooltip = screen.getByRole("tooltip");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    const tooltip = await screen.findByRole("tooltip");
     expect(within(tooltip).getByText("나라수산")).toBeInTheDocument();
     expect(within(tooltip).getByText("생새우소금구이 1kg 60,000원")).toBeInTheDocument();
+    // 이탈은 300ms 유예 — 마커 사이를 옮길 때 깜빡이지 않게
     fireEvent.mouseLeave(marker());
-    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
   });
 
   it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
