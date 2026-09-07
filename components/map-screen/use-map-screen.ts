@@ -145,7 +145,9 @@ export function useMapScreen({
   const bookmarkNudgedRef = useRef(false);
   const [tab, setTab] = useState<TabKey>("all");
   const [chips, setChips] = useState<ChipKey[]>([]);
-  const [query, setQuery] = useState("");
+  // /gu/[name]는 검색어를 그 구로 시작한다 — 목록·마커가 그 구로 좁혀지고, 검색 바에 이유가 보이며 ✕ 한 번으로 풀린다
+  // (사용자가 "마포구"를 쳐서 얻는 화면과 같다. 지도가 넓은 데스크탑에서 헤더가 "서울 전체"로 새지 않는다)
+  const [query, setQuery] = useState(initialGu?.name ?? "");
   const deferredQuery = useDeferredValue(query);
   const [sort, setSort] = useState<SortKey>("distance");
   const [selectedId, setSelectedId] = useState<string | null>(initialPlaceId ?? null);
@@ -319,8 +321,8 @@ export function useMapScreen({
 
   const inView = useMemo(() => {
     if (viewport) return filtered.filter((p) => inBounds(p, viewport.bounds));
-    // /gu/[name]: 지도가 첫 idle을 보고하기 전엔 그 구 가게가 목록이다 — SSR HTML에 상호가 들어간다(크롤러용)
-    return initialGu ? filtered.filter((p) => p.gu === initialGu.name) : [];
+    // /gu/[name]: 지도가 첫 idle을 보고하기 전엔 검색어(= 그 구)로 걸러진 가게가 목록이다 — SSR HTML에 상호가 들어간다(크롤러용)
+    return initialGu ? filtered : [];
   }, [filtered, viewport, initialGu]);
 
   const areaLabel = useMemo(
