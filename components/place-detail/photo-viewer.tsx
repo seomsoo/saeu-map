@@ -76,6 +76,10 @@ export function PhotoViewer({
     dialogRef.current?.close();
   }, []);
 
+  const closeReport = useCallback(() => {
+    setReportOpen(false);
+  }, []);
+
   useEffect(
     () => () => {
       if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
@@ -187,13 +191,17 @@ export function PhotoViewer({
           <Toast message={notice} />
         </div>
         {reportOpen && (
-          <PhotoReportSheet
-            pending={pending}
-            onSelect={submitReport}
-            onClose={() => {
-              setReportOpen(false);
-            }}
-          />
+          /* 데스크탑(1024~)은 뷰어 위 딤 40% + 중앙 480 — 지도가 필요 없는 오버레이 규칙(design 공통 데스크탑 문단).
+             모바일은 뷰어 하단 시트 그대로. ModalSheet와 같은 딤 버튼 패턴이다 */
+          <div className="lg:fixed lg:inset-0 lg:flex lg:items-center lg:justify-center lg:bg-common-100/40">
+            <button
+              type="button"
+              aria-label="닫기"
+              onClick={closeReport}
+              className="hidden lg:absolute lg:inset-0 lg:block lg:cursor-default"
+            />
+            <PhotoReportSheet pending={pending} onSelect={submitReport} onClose={closeReport} />
+          </div>
         )}
       </div>
     </dialog>,

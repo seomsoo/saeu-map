@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useState,
   type Ref,
 } from "react";
 import {
@@ -18,9 +19,10 @@ import {
 import type { ClusterItem } from "@/lib/cluster";
 import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
 import { isInactive } from "@/lib/time";
-import { markerCategory } from "@/lib/places";
+import { markerCategory, primaryMenuLine } from "@/lib/places";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  PLACE_MARKER_SIZE,
   getClusterIcon,
   getPlaceMarkerIcon,
   getReportPinIcon,
@@ -66,6 +68,8 @@ export interface MapHandle {
     options?: { screenY?: number | undefined },
   ): void;
   fitBounds(bounds: BoundsLiteral, margin?: FitMargin): void;
+  /** 줌 한 단계(데스크탑 [+][−]). 애니메이션, min/max 안에서 */
+  zoomBy(delta: 1 | -1): void;
   getViewport(): Viewport | null;
   /**
    * 도로명 주소 검색(네이버 지오코더 서브모듈). 지도 중심 근처를 우선한 결과 최대 GEOCODE_MAX_HITS건.
@@ -75,9 +79,18 @@ export interface MapHandle {
   geocode(query: string): Promise<AddressHit[]>;
 }
 
+/** 마커 hover 툴팁 — 가게 + 컨테이너 픽셀 위치 (design 화면 6). 마우스가 마커에 있는 동안만 산다 */
+interface MarkerTooltipState {
+  place: Place;
+  x: number;
+  y: number;
+}
+
 export interface MapViewProps {
   items: ClusterItem[];
   selectedId: string | null;
+  /** 데스크탑: 목록에서 hover 중인 가게 — 그 마커만 확대. null이면 없음 */
+  hoveredId?: string | null | undefined;
   /** 서버가 내려준 기준 시각(ISO). 6개월 무활동 판정용 — 렌더 중 new Date() 금지. */
   now: string;
   initialCenter: LatLng;
@@ -126,6 +139,7 @@ const MAX_ZOOM = 19;
 export function MapView({
   items,
   selectedId,
+  hoveredId = null,
   now,
   initialCenter,
   initialZoom,
@@ -142,42 +156,78 @@ export function MapView({
 }: MapViewProps) {
   useNaverAuthFailure(onAuthFailure);
 
+  // 마커 hover 툴팁 (마우스만 — 터치는 mouseover가 안 온다). 지도를 끌기 시작하면 닫힌다.
+  const [tooltip, setTooltip] = useState<MarkerTooltipState | null>(null);
+  const handleMarkerHover = useCallback((place: Place, offset: { x: number; y: number } | null) => {
+    // 닫기는 "그 가게의 툴팁일 때만" — 마커가 리클러스터로 사라지며 부르는 정리가 다른 툴팁을 지우지 않게
+    setTooltip((prev) =>
+      offset ? { place, x: offset.x, y: offset.y } : prev?.place.id === place.id ? null : prev,
+    );
+  }, []);
+  const clearTooltip = useCallback(() => {
+    setTooltip(null);
+  }, []);
+
   return (
-    <Container
-      style={{ position: "relative", width: "100%", height: "100%" }}
-      fallback={
-        <Skeleton
-          className="h-full w-full rounded-none"
-          data-testid="map-skeleton"
-        />
-      }
-    >
-      <NaverMap
-        defaultCenter={initialCenter}
-        defaultZoom={initialZoom}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        zoomControl={false}
-        scaleControl={false}
-        mapDataControl={false}
+    <div className="relative h-full w-full">
+      <Container
+        style={{ position: "relative", width: "100%", height: "100%" }}
+        fallback={
+          <Skeleton
+            className="h-full w-full rounded-none"
+            data-testid="map-skeleton"
+          />
+        }
       >
-        <MapController
-          handleRef={handleRef}
-          onViewportChange={onViewportChange}
-          onMapTap={onMapTap}
-          onUserPan={onUserPan}
-        />
-        <PlaceMarkers
-          items={items}
-          selectedId={selectedId}
-          now={now}
-          onPlaceClick={onPlaceClick}
-          onClusterClick={onClusterClick}
-        />
-        {userLocation && <UserLocationMarker position={userLocation} />}
-        {pin && <ReportPin position={pin} onChange={onPinChange} />}
-      </NaverMap>
-    </Container>
+        <NaverMap
+          defaultCenter={initialCenter}
+          defaultZoom={initialZoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          zoomControl={false}
+          scaleControl={false}
+          mapDataControl={false}
+        >
+          <MapController
+            handleRef={handleRef}
+            onViewportChange={onViewportChange}
+            onMapTap={onMapTap}
+            onUserPan={onUserPan}
+            onMoveStart={clearTooltip}
+          />
+          <PlaceMarkers
+            items={items}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            now={now}
+            onPlaceClick={onPlaceClick}
+            onClusterClick={onClusterClick}
+            onPlaceHover={handleMarkerHover}
+          />
+          {userLocation && <UserLocationMarker position={userLocation} />}
+          {pin && <ReportPin position={pin} onChange={onPinChange} />}
+        </NaverMap>
+      </Container>
+      {tooltip && <MarkerTooltip {...tooltip} />}
+    </div>
+  );
+}
+
+/**
+ * 마커 위 툴팁 (design 화면 6): 흰 카드, 상호 / 대표 메뉴 두 줄. 마커 위 8px, 가로 중앙.
+ * React가 그린다 — 마커 innerHTML(marker-icons)에는 여전히 이름을 넣지 않는다(XSS 가드 유지).
+ */
+function MarkerTooltip({ place, x, y }: MarkerTooltipState) {
+  const menu = primaryMenuLine(place);
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-8 border border-line-hairline bg-bg px-3 py-2 shadow-card"
+      style={{ left: x, top: y - PLACE_MARKER_SIZE / 2 - 8 }}
+    >
+      <p className="text-body-m-semibold text-fg">{place.name}</p>
+      {menu && <p className="text-caption-l-regular text-fg-secondary tabular-nums">{menu}</p>}
+    </div>
   );
 }
 
@@ -229,11 +279,14 @@ function MapController({
   onViewportChange,
   onMapTap,
   onUserPan,
+  onMoveStart,
 }: {
   handleRef: Ref<MapHandle>;
   onViewportChange: (viewport: Viewport) => void;
   onMapTap: ((point: LatLng) => void) | undefined;
   onUserPan: (() => void) | undefined;
+  /** 지도가 움직이기 시작할 때(끌기) — 마커 툴팁을 닫는다 */
+  onMoveStart: () => void;
 }) {
   const map = useMap();
   const navermaps = useNavermaps();
@@ -250,7 +303,8 @@ function MapController({
      idle로 사용자 조작을 가려내면 시간 창에 기대야 하고, 창 안에서 민 경우를 놓친다 (Codex PR #7 #4). */
   const handleUserPan = useCallback(() => {
     onUserPan?.();
-  }, [onUserPan]);
+    onMoveStart();
+  }, [onUserPan, onMoveStart]);
   useListener(map, "dragstart", handleUserPan);
 
   // 데스크탑은 click, 터치는 tap — 둘 다 같은 좌표라 두 번 와도 무해. 마커 위 탭은 마커가 받는다.
@@ -314,6 +368,9 @@ function MapController({
         };
         map.fitBounds(latLngBounds, options);
       },
+      zoomBy(delta) {
+        map.setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, map.getZoom() + delta)), true);
+      },
       getViewport() {
         return readViewport(navermaps, map);
       },
@@ -371,15 +428,19 @@ function MapController({
 const PlaceMarkers = memo(function PlaceMarkers({
   items,
   selectedId,
+  hoveredId,
   now,
   onPlaceClick,
   onClusterClick,
+  onPlaceHover,
 }: {
   items: ClusterItem[];
   selectedId: string | null;
+  hoveredId: string | null;
   now: string;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
+  onPlaceHover: (place: Place, offset: { x: number; y: number } | null) => void;
 }) {
   return (
     <>
@@ -399,8 +460,10 @@ const PlaceMarkers = memo(function PlaceMarkers({
             key={item.place.id}
             place={item.place}
             selected={item.place.id === selectedId}
+            hovered={item.place.id === hoveredId}
             inactive={isInactive(item.place.lastCheckedAt, now)}
             onSelect={onPlaceClick}
+            onHover={onPlaceHover}
           />
         ),
       )}
@@ -411,33 +474,58 @@ const PlaceMarkers = memo(function PlaceMarkers({
 const PlaceMarker = memo(function PlaceMarker({
   place,
   selected,
+  hovered,
   inactive,
   onSelect,
+  onHover,
 }: {
   place: Place;
   selected: boolean;
+  hovered: boolean;
   inactive: boolean;
   onSelect: (placeId: string) => void;
+  onHover: (place: Place, offset: { x: number; y: number } | null) => void;
 }) {
   const navermaps = useNavermaps();
+  const map = useMap();
   const icon = getPlaceMarkerIcon(navermaps, {
     category: markerCategory(place.tags),
     isNew: place.isNew,
     inactive,
     selected,
+    hovered,
     thumbnailUrl: place.thumbnailUrl,
   });
   const handleClick = useCallback(() => {
     onSelect(place.id);
   }, [onSelect, place.id]);
+  // 툴팁 위치는 마커 좌표를 컨테이너 픽셀로 (panTo와 같은 투영). 마우스 위치가 아니라 마커 위에 고정
+  const handleMouseover = useCallback(() => {
+    const offset = map
+      .getProjection()
+      .fromCoordToOffset(new navermaps.LatLng(place.lat, place.lng));
+    onHover(place, { x: offset.x, y: offset.y });
+  }, [map, navermaps, place, onHover]);
+  const handleMouseout = useCallback(() => {
+    onHover(place, null);
+  }, [place, onHover]);
+  // 리클러스터로 마커가 사라지면 mouseout이 안 온다 — 내 툴팁이면 정리
+  useEffect(
+    () => () => {
+      onHover(place, null);
+    },
+    [place, onHover],
+  );
 
   return (
     <Marker
       defaultPosition={{ lat: place.lat, lng: place.lng }}
       icon={icon}
       title={place.name}
-      zIndex={selected ? 300 : inactive ? 10 : 100}
+      zIndex={selected ? 300 : hovered ? 250 : inactive ? 10 : 100}
       onClick={handleClick}
+      onMouseover={handleMouseover}
+      onMouseout={handleMouseout}
     />
   );
 });

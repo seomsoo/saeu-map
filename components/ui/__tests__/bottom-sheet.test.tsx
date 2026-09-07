@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
 import {
   BottomSheet,
   neighborSnap,
@@ -97,6 +98,42 @@ describe("BottomSheet", () => {
     vi.advanceTimersByTime(1);
     fireEvent.pointerUp(dragArea, { pointerId: 2, clientY: 440 });
     expect(onSnapChange).toHaveBeenLastCalledWith("full");
+  });
+
+  it("데스크탑(lg)에서는 헤더를 끌어도 시트가 움직이지 않는다 — 패널의 헤더일 뿐이다 (design 화면 6)", () => {
+    const desktop = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query: string) => ({ matches: query === DESKTOP_MEDIA_QUERY }) as MediaQueryList);
+    const { onSnapChange, dragArea } = renderSheet();
+    vi.advanceTimersByTime(1000);
+    fireEvent.pointerDown(dragArea, { pointerId: 9, button: 0, clientY: 500 });
+    vi.advanceTimersByTime(40);
+    fireEvent.pointerMove(dragArea, { pointerId: 9, clientY: 300 });
+    fireEvent.pointerUp(dragArea, { pointerId: 9, clientY: 300 });
+    expect(onSnapChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("region", { name: "가게 목록" })).toHaveAttribute("data-dragging", "false");
+    desktop.mockRestore();
+  });
+
+  it("상세 모드: 데스크탑용 [목록]과 ✕가 같은 닫기를 부른다 (화면 7 — CSS가 뷰포트별로 하나만 보인다)", () => {
+    const onDismiss = vi.fn();
+    render(
+      <BottomSheet
+        mode="detail"
+        snap="half"
+        onSnapChange={vi.fn()}
+        onDismiss={onDismiss}
+        label="가게 상세"
+        dismissLabel="상세 닫기"
+      >
+        <p>내용</p>
+      </BottomSheet>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
+    fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
+    expect(onDismiss).toHaveBeenCalledTimes(2);
+    // 인자 없이 — 닫기 함수는 (source)를 받는데 MouseEvent가 들어가면 히스토리 판정이 깨진다
+    expect(onDismiss.mock.calls.every((call) => call.length === 0)).toBe(true);
   });
 
   it("헤더 안의 다른 버튼을 눌러도 드래그가 시작되지 않는다", () => {

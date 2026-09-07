@@ -119,3 +119,18 @@ describe("PlaceCard trailing — 카드 오른쪽 액션(내 활동 찜 탭의 �
     expect(card.querySelector("button")).toBeNull();
   });
 });
+
+describe("hover (design 화면 6 — 데스크탑 카드 ↔ 마커)", () => {
+  it("마우스가 올라가면 onHoverChange(id), 떠나면 null. 터치 포인터는 무시", () => {
+    const onHoverChange = vi.fn();
+    const { place } = renderCard({ onHoverChange });
+    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+    fireEvent.pointerEnter(card, { pointerType: "mouse" });
+    expect(onHoverChange).toHaveBeenLastCalledWith(place.id);
+    fireEvent.pointerLeave(card, { pointerType: "mouse" });
+    expect(onHoverChange).toHaveBeenLastCalledWith(null);
+    onHoverChange.mockClear();
+    fireEvent.pointerEnter(card, { pointerType: "touch" });
+    expect(onHoverChange).not.toHaveBeenCalled();
+  });
+});

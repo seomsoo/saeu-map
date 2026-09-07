@@ -18,6 +18,8 @@ export interface PlaceMarkerStyle {
   isNew: boolean;
   inactive: boolean;
   selected: boolean;
+  /** 데스크탑 카드 hover ↔ 마커 확대 (design 화면 6). 선택과 겹치면 선택 링이 이긴다 */
+  hovered?: boolean | undefined;
   /** 우리 스토리지 경로(/…)만. 그 외·null은 플레이스홀더(카테고리 색점). */
   thumbnailUrl: string | null;
 }
@@ -48,6 +50,7 @@ export function getPlaceMarkerIcon(
     style.isNew ? 1 : 0,
     style.inactive ? 1 : 0,
     style.selected ? 1 : 0,
+    style.hovered ? 1 : 0,
     thumb ?? "",
   ].join("|");
   const cached = placeIconCache.get(key);
@@ -59,6 +62,7 @@ export function getPlaceMarkerIcon(
     style.isNew && "saeu-marker--new",
     style.inactive && "saeu-marker--inactive",
     style.selected && "saeu-marker--selected",
+    style.hovered && "saeu-marker--hovered",
   ]
     .filter(Boolean)
     .join(" ");

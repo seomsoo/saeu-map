@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { guOfPoint } from "../gu";
+import { GU_SLUGS, SEOUL_GU, guCenter, guFromSlug, guOfPoint, guSlug, isSeoulGu } from "../gu";
+import boundaries from "../gu-boundaries.json";
 
 describe("guOfPoint — 서울 25구(정밀) + 전국 시군구(단순화본) 경계 판정", () => {
   it.each([
@@ -26,5 +27,39 @@ describe("guOfPoint — 서울 25구(정밀) + 전국 시군구(단순화본) �
   it("한국 밖(서해 바다·독도 동쪽)은 null", async () => {
     expect(await guOfPoint({ lat: 36.0, lng: 125.0 })).toBeNull();
     expect(await guOfPoint({ lat: 37.24, lng: 132.0 })).toBeNull();
+  });
+});
+
+describe("SEOUL_GU — /gu/[name] 화이트리스트", () => {
+  it("경계 파일의 25구 이름과 정확히 같다 (상수가 파일과 어긋나면 여기서 잡힌다)", () => {
+    const fromFile = (boundaries as { districts: { name: string }[] }).districts.map((d) => d.name).sort();
+    expect([...SEOUL_GU].sort()).toEqual(fromFile);
+    expect(SEOUL_GU).toHaveLength(25);
+  });
+  it("isSeoulGu: 서울 구만 true — 비서울 표기·오타·빈 문자열은 false", () => {
+    expect(isSeoulGu("마포구")).toBe(true);
+    expect(isSeoulGu("김포시(경기)")).toBe(false);
+    expect(isSeoulGu("마포")).toBe(false);
+    expect(isSeoulGu("")).toBe(false);
+  });
+  it("슬러그: 25구 전부 고유한 ASCII 슬러그가 있고 왕복된다 (구별 OG 카드 경로)", () => {
+    expect(Object.keys(GU_SLUGS).sort()).toEqual([...SEOUL_GU].sort());
+    const slugs = Object.values(GU_SLUGS);
+    expect(new Set(slugs).size).toBe(25);
+    expect(slugs.every((s) => /^[a-z]+$/.test(s))).toBe(true);
+    expect(guSlug("마포구")).toBe("mapo");
+    expect(guFromSlug("mapo")).toBe("마포구");
+    expect(guSlug("김포시(경기)")).toBeNull();
+    expect(guFromSlug("seoul")).toBeNull();
+    // 상속 키는 자기 키가 아니다 — 객체/함수가 슬러그로 새면 안 된다
+    expect(guSlug("__proto__")).toBeNull();
+    expect(guSlug("constructor")).toBeNull();
+    expect(guFromSlug("__proto__")).toBeNull();
+  });
+  it("guCenter: 경계 박스 중심은 그 구 안에 있고, 모르는 이름은 null", async () => {
+    const center = await guCenter("마포구");
+    expect(center).not.toBeNull();
+    if (center) expect(await guOfPoint(center)).toBe("마포구");
+    expect(await guCenter("김포시(경기)")).toBeNull();
   });
 });

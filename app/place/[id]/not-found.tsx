@@ -2,7 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
-/** /place/[id]에 없는 id — 잘못된 공유 링크. 스트리밍이라 상태 코드는 200 + noindex(진짜 404는 Phase 5). */
+/** /place/[id]에 없는 id — 잘못된 공유 링크. 이 세그먼트엔 Suspense 경계가 없어 HTTP 404로 나간다 (decisions 2026-09-07). */
 export default function PlaceNotFound() {
   return (
     <main className="flex h-dvh items-center justify-center bg-bg">

@@ -240,6 +240,10 @@ body {
 .saeu-marker--inactive {
   opacity: 0.45;
 }
+/* 호버(데스크탑, 카드 hover ↔ 마커): 링 없이 확대만. 선택이 뒤에 와서 둘 다면 선택이 이긴다 */
+.saeu-marker--hovered {
+  transform: scale(1.15);
+}
 /* 선택: 크게 + 바깥 잉크 링 */
 .saeu-marker--selected {
   transform: scale(1.2);
@@ -470,4 +474,44 @@ body {
    (touch-action은 스크롤 컨테이너 자신에 줘야 먹는다) */
 .saeu-sheet[data-mode="detail"] .saeu-sheet__body {
   touch-action: pan-y;
+}
+
+/* ---------------------------------------------------------------------------
+ * 데스크탑 그릇 (1024px~ = --breakpoint-lg, design 공통 블록 "데스크탑 그릇", decisions 2026-09-07).
+ * 시트는 fixed 바텀시트가 아니라 왼쪽 패널(400px flex 컬럼)의 마지막 flex 자식이 된다.
+ * 유틸(lg:static 등)로는 못 덮는다 — .saeu-sheet가 unlayered라 @layer utilities보다 우선하므로 여기서 재정의.
+ * JS 쪽 판정(lib/layout.ts DESKTOP_MIN_WIDTH_PX)과 같은 폭이어야 한다.
+ * ------------------------------------------------------------------------- */
+@media (width >= theme(--breakpoint-lg)) {
+  .saeu-sheet {
+    position: static;
+    transform: none;
+    transition: none;
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  /* 목록 헤더는 핸들이 없어 내용 높이만큼. 상세·제보·내 활동 헤더는 44(‹ 목록 / ✕ 한 줄) 그대로 */
+  .saeu-sheet[data-mode="list"] .saeu-sheet__header {
+    height: auto;
+  }
+  .saeu-sheet__body {
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  /* 전체 화면 오버레이(리뷰 폼) → 딤 위 중앙 480 카드 (design 화면 9 프레임 2). 라운드 16은 이 용도의 토큰 */
+  .saeu-overlay-screen {
+    inset: 0;
+    margin: auto;
+    width: 480px;
+    /* fit-content: inset 0 + height auto는 절대 위치 박스를 위아래로 꽉 채운다(90dvh로 늘어남). 내용 높이만큼만, 넘치면 본문 스크롤 */
+    height: fit-content;
+    max-height: 90dvh;
+    border-radius: var(--radius-16);
+    display: flex;
+    flex-direction: column;
+  }
 }

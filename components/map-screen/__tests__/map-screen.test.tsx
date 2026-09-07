@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { MyReview, Place, Session } from "@/lib/types";
 import type { ReportInput } from "@/lib/data";
+import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
 import { BOOKMARK_NUDGE_NOTICE } from "../use-map-screen";
 import MapScreen from "../map-screen";
 
@@ -127,27 +129,41 @@ vi.mock("react-naver-maps", () => ({
   Marker: ({
     title,
     onClick,
+    onMouseover,
+    onMouseout,
     position,
     defaultPosition,
     clickable,
+    icon,
   }: {
     title: string;
     onClick?: () => void;
+    onMouseover?: () => void;
+    onMouseout?: () => void;
     position?: { lat: number; lng: number };
     defaultPosition?: { lat: number; lng: number };
     clickable?: boolean;
+    icon?: { content?: string };
   }) => {
     const box = {
       "data-testid": "marker",
       "data-lat": (position ?? defaultPosition)?.lat,
       "data-lng": (position ?? defaultPosition)?.lng,
+      // HtmlIcon의 클래스 문자열 — 선택·호버 상태를 여기서 읽는다
+      "data-icon": icon?.content,
     };
     // 현위치 마커는 clickable={false}라 실제로도 버튼이 아니다 — 버튼으로 그리면
     // 현위치 FAB(aria-label "내 위치")과 접근 이름이 겹쳐 쿼리가 모호해진다
     return clickable === false ? (
       <span {...box}>{title}</span>
     ) : (
-      <button type="button" {...box} onClick={onClick}>
+      <button
+        type="button"
+        {...box}
+        onClick={onClick}
+        onMouseEnter={onMouseover}
+        onMouseLeave={onMouseout}
+      >
         {title}
       </button>
     );
@@ -1256,4 +1272,153 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     expect(within(reopened).getByRole("tab", { name: "찜" })).toHaveAttribute("aria-selected", "true");
   });
 
+});
+
+describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스크탑 전용 요소 셋만 다르다)", () => {
+  /** lg 미디어 쿼리만 참으로 — 그릇은 CSS라 jsdom엔 없고, JS가 가르는 요소만 검증한다 */
+  function desktop() {
+    return vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query: string) => ({
+        matches: query === DESKTOP_MEDIA_QUERY,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList);
+  }
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("모바일: 브랜드 행 [＋ 제보]·줌 컨트롤이 없고 FAB 줄만 있다", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(screen.getAllByRole("button", { name: "제보" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "확대" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "새우맵" })).toBeInTheDocument();
+  });
+
+  it("데스크탑: [＋ 제보]는 브랜드 행 하나(FAB 줄 없음), 줌 ±가 지도를 한 단계씩 움직이고 현위치는 그대로 하나다", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(screen.getAllByRole("button", { name: "제보" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "내 위치" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "확대" }));
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(13, true);
+    fireEvent.click(screen.getByRole("button", { name: "축소" }));
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(11, true);
+  });
+
+  it("데스크탑: 카드 탭의 지도 이동은 오프셋 없이 핀을 컨테이너 중앙에 (가리는 시트가 없다)", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    const target = fake.map.panTo.mock.lastCall?.[0] as { lat(): number; lng(): number };
+    expect([target.lat(), target.lng()]).toEqual([37.54, 126.95]);
+  });
+
+  it("데스크탑: 검색 Enter의 fitBounds는 네 변 24 대칭 (모바일은 상단 스택·시트만큼 비운다)", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    fireEvent.change(screen.getByRole("searchbox", { name: "가게·동네 검색" }), {
+      target: { value: "수산" },
+    });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), {
+      top: 24,
+      bottom: 24,
+      left: 24,
+      right: 24,
+      maxZoom: 16,
+    });
+  });
+
+  it("카드 hover → 그 마커만 확대(hovered), 떠나면 원복. 마커 hover → 상호/대표 메뉴 툴팁, 떠나면 닫힘", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    const marker = () => screen.getByText("나라수산", { selector: '[data-testid="marker"]' });
+    const other = () => screen.getByText("365활새우 창우수산", { selector: '[data-testid="marker"]' });
+    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+
+    fireEvent.pointerEnter(card, { pointerType: "mouse" });
+    expect(marker().getAttribute("data-icon")).toContain("saeu-marker--hovered");
+    expect(other().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
+    fireEvent.pointerLeave(card, { pointerType: "mouse" });
+    expect(marker().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
+
+    fireEvent.mouseEnter(marker());
+    const tooltip = screen.getByRole("tooltip");
+    expect(within(tooltip).getByText("나라수산")).toBeInTheDocument();
+    expect(within(tooltip).getByText("생새우소금구이 1kg 60,000원")).toBeInTheDocument();
+    fireEvent.mouseLeave(marker());
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
+    desktop();
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    expect(await screen.findByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("article", { name: "나라수산 상세" })).toBeNull();
+    });
+    expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
+  });
+});
+
+describe("/gu/[name] — 같은 지도 화면을 그 구에 맞춰 (decisions 2026-09-07)", () => {
+  const MAPO = { name: "마포구", center: { lat: 37.556, lng: 126.91 } };
+  const SEOCHO = { name: "서초구", center: { lat: 37.48, lng: 127.03 } };
+  /** 픽스처 기본 주소가 "서울 마포구 …"라 검색어 "마포구"에 전부 걸린다 — 마포구 밖 가게는 주소를 비운다 */
+  const guSeed = () =>
+    seed().map((p) => (p.gu === "마포구" ? p : { ...p, addressRoad: null, addressJibun: null }));
+
+  it("SSR: 지도가 뜨기 전에도 그 구 가게 목록과 헤더 '마포구 1곳'이 HTML에 들어간다 (크롤러용)", () => {
+    // React가 텍스트 사이에 넣는 <!-- --> 구분자를 지우고 사람이 읽는 문장으로 비교한다
+    const html = renderToString(
+      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
+    ).replaceAll("<!-- -->", "");
+    expect(html).toContain("마포구 1곳");
+    expect(html).toContain("나라수산");
+    expect(html).not.toContain("365활새우 창우수산");
+  });
+
+  it("SSR: 가게 0곳인 구는 헤더 '서초구 0곳' + 빈 상태(제보 유도)", () => {
+    const html = renderToString(
+      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
+    ).replaceAll("<!-- -->", "");
+    expect(html).toContain("서초구 0곳");
+    expect(html).toContain("이 동네엔 아직 없어요");
+  });
+
+  it("지도가 뜨면 그 구 가게가 다 보이게 fitBounds(최대 줌 15) — 첫 화면 panTo는 하지 않는다. 검색어가 그 구라 목록·헤더가 그 구로 좁혀진다", async () => {
+    renderScreen({ places: guSeed(), initialGu: MAPO });
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(screen.getByRole("searchbox", { name: "가게·동네 검색" })).toHaveValue("마포구");
+    expect(screen.getByRole("heading", { name: "마포구 1곳" })).toBeInTheDocument();
+    expect(listCards().map((h) => h.textContent)).toEqual(["나라수산"]);
+    expect(fake.map.fitBounds).toHaveBeenCalledTimes(1);
+    expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 15 }));
+    expect(fake.map.panTo).not.toHaveBeenCalled();
+  });
+
+  it("가게 0곳인 구는 구 중심으로 focus(줌 13)", async () => {
+    renderScreen({ places: guSeed(), initialGu: SEOCHO });
+    await screen.findByRole("heading", { level: 2 });
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(13, false);
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    expect(fake.map.fitBounds).not.toHaveBeenCalled();
+  });
 });

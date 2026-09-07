@@ -28,7 +28,7 @@ export function FilterChips({
           onClick={() => {
             onToggle(key);
           }}
-          className="shadow-float"
+          className="shadow-float lg:shadow-none"
         >
           {label}
         </ChipButton>

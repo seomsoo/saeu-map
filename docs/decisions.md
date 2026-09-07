@@ -440,6 +440,49 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **#3 내 활동 마커에 옛 선택이 남았다.** `markerPool`은 활성 탭으로 걸렀는데 `items`가 `selectedPlace`를 조건 없이 덧붙였다 — 찜하지 않은 가게를 열었다 닫고 내 활동을 열면 그 마커가 남는다. `markerSelection` 파생을 두고 **내 활동에서는 마커 풀에 있을 때만** 덧붙인다. 상세가 열린 동안 필터와 무관하게 선택 핀을 유지하는 규칙(Codex PR #4)은 그대로다. 갭 스윕이 "스펙 외 구현"으로 기록했던 동작인데 버그가 맞았다.
 - 셋 다 회귀 테스트를 붙였다(세션 게이트 재사용, 삭제 중 탭 왕복, 내 활동 마커). 테스트 373 → 377.
 
+## 2026-09-07 — Phase 5 데스크탑 그릇(화면 6~9 v2): 단일 DOM + CSS 전환, 제보는 패널
+- **맥락**: roadmap Phase 5. design 화면 6~9는 v1 초안(중앙 480 모달 + 240px 내장 지도, 패널 푸터 링크, 찜 핀 하트 뱃지, 새로 들어온 집 패널)이었다. 착수 규칙대로 v2로 재작성했다(플랜 docs/plans/phase5-desktop.md).
+- **그릇은 CSS다**: 1024px(Tailwind `lg`, 64rem)부터 왼쪽 패널 400(`w-100`) + 오른쪽 전체 지도. DOM은 하나 — 모바일의 상단 스택(검색·칩)과 바텀시트를 `display: contents` 래퍼로 감싸고 lg에서만 그 래퍼가 flex 컬럼 패널이 된다. `.saeu-sheet`는 unlayered CSS라 유틸이 못 덮으므로 lg 재정의도 globals.css `@variant lg` 블록에 둔다(position static·transform none·flex 1). 데스크탑에만 있는 요소(브랜드 행 [＋ 제보]·줌 컨트롤·마커 툴팁)는 `useMediaQuery`(useSyncExternalStore, 서버 스냅샷 false)로 하이드레이션 뒤 붙고, 지도 기하(중심 y·fitBounds 마진·시트 드래그 무시)는 핸들러 안에서 `isDesktopViewport()`로 즉시 판정한다. 상수는 `lib/layout.ts` 한 곳.
+- **제보는 모달이 아니라 패널**(사용자 선택): 2단계가 본 지도에서 핀을 찍는다. 중앙 모달이면 지도가 딤에 가리거나 두 번째 지도 인스턴스(핀·탭·중복 후보 배선을 모달 지도로 돌리는 비용)가 필요하다. 카카오맵 PC "장소 제안"·구글맵 "장소 추가"도 패널 + 본 지도다. **중앙 480 모달은 지도가 필요 없는 오버레이만**(로그인·리뷰 폼·사유·사진 신고·탈퇴) — `ModalSheet`·리뷰 폼 dialog에 lg 스타일만 더한다(라운드 16 토큰의 첫 용도). CLAUDE.md UI 완성 기준의 "플로우는 중앙 모달 480px"은 이렇게 정정.
+- **호버 동기화**: 카드 hover → 마커 확대(`saeu-marker--hovered`), 마커 hover → 툴팁(상호 / 대표 메뉴 두 줄, React가 그린다 — 마커 innerHTML에는 여전히 이름을 넣지 않는다). `pointerType === "mouse"`만(터치 탭이 내는 에뮬레이션 hover 무시). 툴팁은 mouseout·dragstart·idle에 닫힌다.
+- **추가·삭제**: 우하단 줌 [+][−] 추가(design 6 v1 항목, `MapHandle.zoomBy`), 현위치는 모바일 FAB과 같은 `LocateButton`. 패널 푸터 "새우맵 소개 · 사장님이신가요?"는 **뺐다**(라우트가 spec에 없다 — Phase 7 재검토). 찜 핀 하트 뱃지는 하지 않는다(Phase 4의 "활성 탭 가게만" 유지, 재검토 종결). 검색·칩은 상세에서도 보인다(네이버지도·카카오맵 PC 문법, 모바일과 같은 규칙).
+- **재검토 조건**: 태블릿(768~1023) 전용 배치는 요청이 오면. 패널 폭 400은 카드·상세가 좁아 보인다는 피드백 시.
+- **제보 CTA 색은 화면 3대로 단계마다 하나**(갭 스윕 모호 1건, 사용자 결정 같은 날): 화면 8 v2와 공통 블록에 썼던 "2단계 [여기가 맞아요]만 채운 레드, 나머지 잉크"는 오기다 — 단계가 곧 화면이라 각 단계의 바닥 CTA가 그 화면의 유일한 채운 레드이고, 같은 StepFrame 컴포넌트가 뷰포트별로 색이 달라지지 않는다. 코드는 그대로(`variant="brand"`), 문서만 정정.
+
+## 2026-09-07 — 진짜 404는 proxy가 아니라 로딩 경계 제거로
+- **맥락**: roadmap Phase 5 항목이 "진짜 404(proxy)"였고 Next 문서(loading.md "Status Codes")도 proxy를 권한다. 200이 나오던 원인은 루트 `app/loading.tsx`(Suspense)가 스트리밍을 시작해 `notFound()` 뒤에 상태 코드를 못 바꾸기 때문이다(decisions 2026-09-02).
+- **결정(사용자 선택)**: 홈만 route group `app/(home)/`으로 옮겨 `loading.tsx`를 그 안에 두고, `/place/[id]`(기존 `loading.tsx` 삭제)·`/gu/[name]`에는 Suspense 경계를 두지 않는다 → `notFound()`가 스트리밍 전에 던져져 **HTTP 404**. 근거: OpenNext Cloudflare가 Node 런타임 `proxy.ts`를 "실험적·미지원"으로 명시한다(`@opennextjs/cloudflare` `bundle-node-middleware.ts`). 대가는 직접 진입 스켈레톤이 사라지는 것 — 목 데이터라 수 ms, Phase 6 Supabase에서도 한 쿼리다. 매치 안 되는 경로(`/test` 등)는 루트 `app/not-found.tsx`가 우리 빈 상태로 받는다.
+- **재검토 조건**: OpenNext가 Node middleware를 정식 지원하고 스켈레톤 부재가 체감될 때.
+
+## 2026-09-07 — `/gu/[name]`은 같은 지도 화면 + SSR 목록, 서울 25구만
+- **결정(사용자 선택)**: 별도 랜딩이 아니라 `MapScreen`에 `initialGu`를 줘 그 구 가게로 지도를 맞춘다(0곳이면 구 중심·줌 13). 목록은 서버가 그 구 가게를 미리 채워 HTML에 상호가 들어간다(크롤러용) — 지도가 첫 idle을 보고하면 뷰포트 기준으로 자연히 전환된다. 헤더 "마포구 7곳"은 `areaLabel`이 만든다.
+- **이름**: `lib/gu.ts`의 `SEOUL_GU` 25개(문자열 상수, `gu-boundaries.json` 이름과 일치하는지 테스트가 지킨다). 그 밖(김포시 등 비서울·오타)은 404. URL은 한글 그대로(`/gu/마포구`, 인코딩은 브라우저가 한다). 구 중심은 경계 박스 중앙(서버에서만, 60KB 동적 import).
+- **구현 중 보정: 검색어를 그 구로 시작한다.** fitBounds만 하면 데스크탑의 넓은 지도(1040×900, 줌 13)에 이웃 구가 8개 넘게 들어와 헤더가 "서울 전체 23곳"으로 새고 목록도 마포구 밖 가게로 찬다. 검색어 = 구 이름이면 사용자가 "마포구"를 쳐서 얻는 화면과 같다 — 목록·마커가 그 구로 좁혀지고, 검색 바에 이유가 보이고, ✕ 한 번으로 풀린다. 새 상태·모드 없이 기존 필터 하나로 해결.
+- **메타**: `lib/seo.ts` 순수 함수 — 제목 "마포구 새우구이 7곳", 설명 "마포구의 새우구이·생새우회 가게 7곳. 나라수산, …(3곳)". sitemap에 25구 전부(0곳 구 포함 — 런칭 글 "구별 카드 25장"의 자리).
+
+## 2026-09-07 — OG 카드는 next/og로 **빌드 시 생성**, 폰트는 Pretendard subset woff
+- **결정**: `opengraph-image.tsx` 파일 컨벤션 3종(루트·핀·구), 1200×630, 흰 바탕·잉크·좌하단 레드 점 + "새우맵", 카테고리색 마커 모티프. 사진은 넣지 않는다(외부 fetch 없음, 로고 에셋 대기). OpenNext 1.20이 `@vercel/og`를 edge 빌드로 재배선하고 `resvg.wasm`(1.4MB)을 동봉한다(`bundle-server.js`).
+- **요청 시 렌더 → 빌드 시 생성으로 정정(같은 날, security-reviewer가 잡음)**: Workers **Free는 요청당 CPU 10ms**(초과 = Error 1102)인데 satori+resvg 한 장은 그보다 훨씬 길다. `generateStaticParams`(가게 전부 + 25구) + `dynamicParams = false`로 75장(가게 49 + 구 25 + 루트 1)을 빌드에 굽고, `open-next.config.ts`에 `staticAssetsIncrementalCache`(읽기 전용, 정적 에셋 `cdn-cgi/_next_cache/`)를 켠다 — 기본 dummy 캐시는 프리렌더 결과를 버려 요청마다 다시 그린다. 캐시 채우기(`.open-next/cache` → `assets/cdn-cgi/_next_cache`)는 `preview`·`upload`·`deploy` 명령이 하고 **`build`는 안 한다** — CI 스모크는 `populateCache local`을 한 번 더 부른다. 대가: 카드가 배포 시점 값이다 → **상대 시간("어제 확인")은 카드에서 뺐다**(배포 뒤 거짓이 된다), 가게 수·상호는 배포마다 갱신. **구 카드만 파일 컨벤션을 못 쓴다**: `gu/[name]/opengraph-image`의 프리렌더 키는 디코딩된 `/gu/강남구/…`인데 요청 경로는 퍼센트 인코딩이라 정적 서빙(workerd 실측)에서 not-found로 떨어졌다(핀 카드는 ASCII id라 정상). 그래서 `app/og/gu/[slug]/route.tsx`(로마자 슬러그 25개, `lib/gu.ts GU_SLUGS`)로 굽고 `guMeta`가 `openGraph.images`로 가리킨다. 재검증은 없다(지금 앱은 전부 요청 시 렌더라 필요 없음) — Phase 6에 ISR을 들이면 R2 캐시로.
+- **폰트**: satori는 woff2를 못 읽고 Pretendard 전체 otf는 1.5MB다. `pretendard` 패키지의 **KS X 1001 subset woff**(Bold·Regular 각 350KB, SIL OFL)를 `public/fonts/og/`에 두고 `lib/og/font.ts`가 읽는다 — 빌드 프리렌더·`next dev`에선 `fs.readFile(public/…)`, 워커 컨텍스트가 있으면 `getCloudflareContext().env.ASSETS.fetch("http://assets.local/…")`(빌드 시 생성으로 바꾼 뒤엔 사실상 fs 경로만 탄다; ASSETS 경로는 요청 시 렌더 시절 workerd 실측으로 동작을 확인했다). 모듈 캐시로 한 번만. 폰트가 워커 번들에 들어가지 않아 500KB 번들 제한·3MB 워커 상한과 무관하다.
+- **워커 크기**: 빌드 뒤 gzip 총량을 플랜 결과에 기록한다(Workers Free 상한 3MB, 이전 1.34MB). 넘으면 정적 PNG 카드로 후퇴.
+
+## 2026-09-07 — vitest.setup의 matchMedia 스텁이 죽어 있었다 (하네스 발화 검증 규칙의 사례)
+- **맥락**: `useMediaQuery`·`isDesktopViewport()`를 처음 쓰자 모든 화면 테스트가 `window.matchMedia is not a function`으로 죽었다. `vitest.setup.ts`의 `stub()`이 `key in target`으로 존재를 판정했는데, vitest의 jsdom 환경은 window의 모든 키를 globalThis에 **접근자**로 복사해 없는 API(matchMedia)도 `in`은 true인 채 undefined를 돌려준다. 스텁은 조용히 건너뛰어졌고, 그동안 아무 코드도 matchMedia를 부르지 않아 드러나지 않았다.
+- **결정**: 판정을 `target[key] !== undefined`로. 하네스 요소(훅·CI·스텁)는 "파일이 있다"가 아니라 **실제 입력으로 발화를 확인**한 뒤에만 완료로 치는 규칙(CLAUDE.md 작업 방식)의 또 한 사례 — 스텁을 쓰는 테스트가 하나는 있어야 한다(`lib/__tests__/layout.test.ts`가 그 역할).
+
+## 2026-09-07 — 사이트 URL은 서버 전용 `SITE_URL`
+- **결정**: metadataBase·sitemap·robots가 쓰는 절대 URL은 t3-env `server`의 `SITE_URL`(없으면 `https://saeu-map.saeu-map.workers.dev`, http(s) 스킴만). `NEXT_PUBLIC_` 접두사를 쓰지 않는다 — 규칙 7 허용 목록(지도 Client ID·Supabase anon·카카오 JS 키) 밖이고 클라이언트가 필요하지 않다. 도메인(saeumap.kr)은 Phase 7에 값만 바꾼다.
+- **런타임에 닿는 길(security-reviewer가 잡음)**: OpenNext 워커의 `process.env`는 Cloudflare 바인딩(wrangler `vars`·secrets)과 `.env*`에서만 채워진다 — CI 셸 env는 **빌드 때만** 보인다. 그래서 프로덕션은 `wrangler.jsonc` `vars.SITE_URL`, 프리뷰는 `pnpm run upload --var SITE_URL:https://preview-…`로 버전에 심는다. 정적으로 빌드되는 `robots.txt`만 빌드 env를 읽는데, 프리뷰 호스트(`preview-*`)면 `disallow: /` — 프리뷰가 프로덕션과 중복 색인되지 않게.
+
+## 2026-09-07 — Lighthouse CI 예산은 모바일 LCP, workerd 스모크 뒤에
+- **결정**: CI `check` 잡의 스모크가 띄운 `wrangler dev :8787`에 `npx @lhci/cli@0.15.1 autorun`(의존성 아님, 2025-06 릴리스) + `lighthouserc.json`. URL `/`·`/place/p018`, 3회 중앙값, 모바일 에뮬레이션(Lighthouse 기본). CI엔 NCP 키가 dummy라 지도는 에러 상태 — 우리 셸(HTML·CSS·JS)의 LCP를 재는 것이고 지도 SDK는 측정 밖이다.
+- **실측(2026-09-07, 로컬 workerd, dummy 키, 3회 중앙값)**: `/` LCP **8.1~8.7s**(3회 8.2·8.7·12.8 — 편차 큼), `/place/p018` **4.2s**, performance 0.40~0.71. `/`의 LCP 요소는 지도 에러 상태의 안내 문장이고 Render Delay가 7~12s — 4× CPU 스로틀에서 앱 청크 부트업 1.9s·하이드레이션·SDK 초기화가 다 끝나야 그려진다. 네트워크는 스크립트 387KB·폰트 14조각 360KB·지도 타일 826KB(dummy 키여도 타일은 내려온다).
+- **예산**: `largest-contentful-paint` **error 12,000ms**(측정 중앙값의 약 1.4배 — 새 500KB 스크립트 같은 큰 회귀만 막는 가드) + `categories:performance` **warn 0.5**. web.dev "good"(2.5s)은 지금 셸로는 목표가 아니라 백로그다(아래). 3회 중앙값(`aggregationMethod: median`)이라 한 번 튄 값엔 안 흔들린다.
+- **같은 실측이 잡은 개선 1건**: 상세 첫 사진이 `loading="lazy"`인데 LCP 요소였다 — 하이드레이션 뒤에야 요청돼 Load Delay 1~3.6s. 첫 장만 `priority` → `/place/p018` LCP 중앙값 **8.0s → 4.2s**.
+- **CI 첫 발화(PR #9)**: `/` performance 0.47 중앙값(warn 0.5 아래 — 경고만), LCP 예산 통과. 리포트 아티팩트는 `actions/upload-artifact`가 숨김 경로 `.lighthouseci`를 기본 제외해(`include-hidden-files` 기본 false, v4.4~) **비어 있었다** — `if-no-files-found: ignore`가 그걸 조용히 통과시켰다. 옵션을 켜고 `error`로 바꿈. 하네스는 파일 생성이 아니라 발화 검증이 완료 조건이라는 규칙의 사례 하나 더.
+- **점수를 PR에서 바로 보기 — CI가 PR 코멘트를 남기는 방식으로, 다음 코드 PR에서(2026-09-07 사용자 결정)**: 지금은 점수가 아티팩트(리포트 HTML/JSON)와 잡 로그에만 있어 내려받아야 보인다. 세 가지 중 ① Lighthouse 스텝 뒤에 `.lighthouseci/manifest.json`·리포트 JSON을 jq로 읽어 URL별 performance·LCP 표를 `gh pr comment`로 올리고 재실행 땐 같은 코멘트를 갱신(GITHUB_TOKEN + `pull-requests: write`, 새 패키지 없음, 셸 15줄)을 택했다. ② LHCI 공식 상태 체크는 `filesystem` 타깃에서 동작하지 않고(문서 명시) `temporary-public-storage`로 바꿔야 해 리포트가 공개 스토리지에 올라간다. ③ `GITHUB_STEP_SUMMARY`는 PR 화면이 아니라 런 페이지다. Phase 5 PR #9에는 넣지 않는다(roadmap 백로그).
+- **백로그(집는 시점: 런칭 전 실기기 LCP가 4s를 넘으면)**: 앱 청크 분할(지도 SDK·supercluster 지연 로드), Pretendard CSS preload, 폰트 조각 수. 목표 warn 4000ms를 error로 내리는 건 그때.
+
 ## 커스텀 에셋 필요 목록
 - 새우 마커·카드 썸네일 플레이스홀더 아이콘 — 36px 원·64px 타일 안, 사진 없는 가게용 (그 전까지 카테고리 색점)
 - 현위치 표적(크로스헤어) 아이콘 — coolicons에 없어 `components/ui/icons/crosshair-icon.tsx` 인라인 SVG로 임시 대체
@@ -449,3 +492,8 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - 채운 별 아이콘 — coolicons `star`는 라인 별뿐이라 채움/빔이 구분되지 않아(Playwright 확인) `components/ui/icons/star-icon.tsx` 인라인 SVG로 임시 대체
 - 제보 핀 — 화면 3의 끌 수 있는 위치 핀(레드 머리 + 흰 점 + 줄기). 그 전까지 `.saeu-report-pin` CSS 도형으로 임시 대체
 - 카카오 심볼(말풍선) — 로그인 시트 [카카오로 시작하기] 안 16px. 그 전까지 coolicons `ci--chat` 근접 대체
+
+## 2026-09-07 — Codex PR #9 코멘트 2건: P1 반영, P2 보류(실측으로 판단)
+- **P1 `lib/env.ts` 반영**: `.env.example`의 `SITE_URL=`을 빈 채로 복사하면 `""`가 들어와 `z.url().optional()`이 거부하고 앱이 안 뜬다. t3-env `emptyStringAsUndefined: true`(문서가 새 프로젝트에 권하는 옵션) 한 줄 + `lib/__tests__/env.test.ts` 3건(빈 값=없음·있으면 그대로·`javascript:` 거부). 테스트는 jsdom에 window가 있어 t3-env가 클라이언트로 보므로 `vi.stubGlobal("window", undefined)`로 서버로 읽힌다.
+- **P2 `use-map-screen.ts` 보류**: "1024 경계를 넘겨 리사이즈·회전하면 첫 위치 맞추기가 한 번뿐이라 지도가 옛 그릇 기준으로 남는다"는 지적은 사실이다(`initialPanDone`). 그러나 Playwright 실측(상세 열린 채 1023×768 ↔ 1200×768): 모바일→데스크탑은 SDK autoResize가 가로 중앙을 다시 잡고 선택 마커는 지도 컬럼 중앙보다 **80px 위**에 보이며, 데스크탑→모바일은 마커 y=304 < 시트 상단 498로 **시트 위에 남는다**. 가려지는 건 `/gu/[name]` 직접 진입 뒤 상호작용 없이 데스크탑→모바일로 넘긴 fitBounds의 아래쪽 핀뿐. 고치려면 매체 쿼리 변화에 `panTo(선택 가게 | 지금 중심, { screenY })`를 SDK 리사이즈 **뒤에** 걸어야 하는데 그 타이밍이 SDK 내부(throttle)라 지연 상수가 필요하다 — 값이 작은 데 비해 다음 리뷰 지적감이다. **집는 시점**: 태블릿 전용 배치를 들일 때(Phase 5 항목 "재검토 조건")와 같이 — 회전이 일상인 기기가 대상이 되면 그때 리사이즈 완료 신호(`map.getSize()`가 컨테이너와 같아질 때)를 기준으로 넣는다.
+
