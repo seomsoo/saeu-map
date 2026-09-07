@@ -51,6 +51,9 @@ import type {
 
 export const INITIAL_ZOOM = 12;
 const USER_ZOOM = 14;
+/** /gu/[name]: 가게가 없는 구는 구 중심을 이 줌으로(구 하나가 화면에 든다). 가게가 있으면 fitBounds(최대 15) */
+const GU_ZOOM = 13;
+const GU_FIT_MAX_ZOOM = 15;
 /** 제보 2단계: 핀을 맞추는 줌 (건물 단위) */
 const REPORT_ZOOM = 17;
 const SEARCH_FIT_MAX_ZOOM = 16;
@@ -76,11 +79,20 @@ export function placeIdFromPath(pathname: string): string | null {
   return match?.[1] ?? null;
 }
 
+/** /gu/[name] 진입 — 그 구 가게로 지도를 맞추고, 지도가 뜨기 전엔 그 구 가게가 목록(SSR)이다 */
+export interface InitialGu {
+  name: string;
+  /** 구 경계 박스 중심 — 가게가 0곳일 때 지도를 여기로 */
+  center: LatLng;
+}
+
 interface UseMapScreenInput {
   places: Place[];
   bookmarkedIds: string[];
   /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
   initialPlaceId?: string | undefined;
+  /** /gu/[name]로 들어왔을 때 (decisions 2026-09-07) */
+  initialGu?: InitialGu | undefined;
   /** 지도 명령 핸들 — 화면 컴포넌트가 만들어 MapView에 꽂고, 훅은 핸들러 안에서만 읽는다 */
   mapRef: RefObject<MapHandle | null>;
   /** 상단 스택 DOM — 가시 영역 계산용 */
@@ -119,6 +131,7 @@ export function useMapScreen({
   places: initialPlaces,
   bookmarkedIds: initialBookmarkedIds,
   initialPlaceId,
+  initialGu,
   mapRef,
   topStackRef,
 }: UseMapScreenInput) {
@@ -304,14 +317,19 @@ export function useMapScreen({
     return list;
   }, [index, viewport, markerSelection]);
 
-  const inView = useMemo(
-    () => (viewport ? filtered.filter((p) => inBounds(p, viewport.bounds)) : []),
-    [filtered, viewport],
-  );
+  const inView = useMemo(() => {
+    if (viewport) return filtered.filter((p) => inBounds(p, viewport.bounds));
+    // /gu/[name]: 지도가 첫 idle을 보고하기 전엔 그 구 가게가 목록이다 — SSR HTML에 상호가 들어간다(크롤러용)
+    return initialGu ? filtered.filter((p) => p.gu === initialGu.name) : [];
+  }, [filtered, viewport, initialGu]);
 
   const areaLabel = useMemo(
-    () => computeAreaLabel(inView, places.length),
-    [inView, places.length],
+    () =>
+      // 가게 0곳인 구의 SSR 헤더는 "이 지역"이 아니라 그 구 이름으로
+      !viewport && initialGu && inView.length === 0
+        ? initialGu.name
+        : computeAreaLabel(inView, places.length),
+    [inView, places.length, viewport, initialGu],
   );
 
   const origin = userLocation ?? sortOrigin ?? viewport?.center ?? null;
@@ -320,7 +338,8 @@ export function useMapScreen({
     [inView, sort, origin],
   );
 
-  const status: MapStatus = mapError ? "error" : viewport ? "ready" : "loading";
+  // /gu/[name]는 서버가 목록을 채우므로 지도 전에도 ready(스켈레톤이 아니라 상호가 보여야 한다)
+  const status: MapStatus = mapError ? "error" : viewport || initialGu ? "ready" : "loading";
   const initialPlace = useMemo(
     () => (initialPlaceId ? (initialPlaces.find((p) => p.id === initialPlaceId) ?? null) : null),
     [initialPlaces, initialPlaceId],
@@ -389,6 +408,27 @@ export function useMapScreen({
   const initialPanDone = useRef(false);
   useEffect(() => {
     if (initialPanDone.current || !viewport || !mapRef.current) return;
+    // /gu/[name]: 그 구 가게가 다 보이게(모바일은 상단 스택·요약 시트만큼 비운다), 0곳이면 구 중심
+    if (initialGu) {
+      initialPanDone.current = true;
+      programmaticMoveAt.current = performance.now();
+      const desktop = isDesktopViewport();
+      const bounds = boundsOf(places.filter((p) => p.gu === initialGu.name));
+      if (bounds) {
+        mapRef.current.fitBounds(bounds, {
+          top: desktop ? 40 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 24,
+          bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "list") + 24,
+          left: 40,
+          right: 40,
+          maxZoom: GU_FIT_MAX_ZOOM,
+        });
+      } else {
+        mapRef.current.focus(initialGu.center, GU_ZOOM, {
+          screenY: visibleStripCenterY("half", "list"),
+        });
+      }
+      return;
+    }
     // 데스크탑: SDK가 defaultCenter를 컨테이너 중앙에 놓는데 그게 곧 보이는 지도의 중앙이다 — 옮길 게 없다
     if (isDesktopViewport()) {
       initialPanDone.current = true;
@@ -409,7 +449,7 @@ export function useMapScreen({
       screenY: visibleStripCenterY("half", "list"),
       animate: false,
     });
-  }, [initialPlaceId, viewport, places, mapRef, visibleStripCenterY]);
+  }, [initialPlaceId, initialGu, viewport, places, mapRef, topStackRef, visibleStripCenterY]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
   const openDetail = useCallback(
@@ -874,8 +914,8 @@ export function useMapScreen({
     areaLabel,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
-    initialCenter: initialPlace ?? densestCenter ?? SEOUL_CENTER,
-    initialZoom: initialPlace ? USER_ZOOM : INITIAL_ZOOM,
+    initialCenter: initialPlace ?? initialGu?.center ?? densestCenter ?? SEOUL_CENTER,
+    initialZoom: initialPlace ? USER_ZOOM : initialGu ? GU_ZOOM : INITIAL_ZOOM,
     // 액션
     setTab,
     toggleChip,

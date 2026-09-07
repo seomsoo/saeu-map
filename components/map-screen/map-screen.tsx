@@ -27,7 +27,7 @@ import { FilterChips } from "./filter-chips";
 import { PlaceSheet } from "./place-sheet";
 import { ProfileButton } from "./profile-button";
 import { SearchBar } from "./search-bar";
-import { useMapScreen } from "./use-map-screen";
+import { useMapScreen, type InitialGu } from "./use-map-screen";
 
 export interface MapScreenProps {
   /** 서버 렌더 시각(ISO). 모든 상대 시간 계산의 기준 — 클라이언트에서 new Date() 금지. */
@@ -40,6 +40,8 @@ export interface MapScreenProps {
   initialPlaceId?: string | undefined;
   /** 서버가 함께 내려준 상세(리뷰 포함) — SSR HTML에 상세가 들어가고 클라이언트 재요청이 없다 */
   initialDetail?: PlaceDetailData | undefined;
+  /** /gu/[name]로 들어왔을 때 — 그 구 가게로 지도를 맞추고 목록을 서버에서 채운다 */
+  initialGu?: InitialGu | undefined;
 }
 
 function reloadPage() {
@@ -71,12 +73,13 @@ function MapScreenBody({
   bookmarkedIds,
   initialPlaceId,
   initialDetail,
+  initialGu,
 }: MapScreenProps) {
   const mapRef = useRef<MapHandle | null>(null);
   const topStackRef = useRef<HTMLDivElement | null>(null);
   const { session } = useSession();
   const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
-  const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, mapRef, topStackRef });
+  const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, initialGu, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
   /** 제보 2단계: 지도 빈 곳 탭 = 핀 이동 (드래그는 미세 조정). 다른 단계에선 무시 */

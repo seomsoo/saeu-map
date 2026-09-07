@@ -35,7 +35,7 @@ import {
 import { matchesQuery, normalizeQuery } from "./places";
 import { sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
-import { guOfPoint } from "./gu";
+import { guCenter, guOfPoint } from "./gu";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -338,6 +338,11 @@ export function getBookmarkedPlaceIds(): Promise<string[]> {
 /** 좌표가 속한 시군구 라벨("마포구", "김포시(경기)"). 한국 밖이면 null — 제보 2단계가 핀 확정 때 검사한다(decisions 2026-09-04). */
 export function getGuOfPoint(point: LatLng): Promise<string | null> {
   return guOfPoint(point);
+}
+
+/** 서울 구의 지도 중심(경계 박스 중앙) — `/gu/[name]`이 가게 0곳일 때 지도를 그 구로 옮긴다. 서울 밖이면 null. */
+export function getGuCenter(name: string): Promise<LatLng | null> {
+  return guCenter(name);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

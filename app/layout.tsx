@@ -1,9 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { env } from "@/lib/env";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/seo";
 import "./globals.css";
 
+/** 사이트 공통 메타 (spec 4.6). 라우트별 제목은 "%s | 새우맵", OG 이미지는 각 세그먼트의 opengraph-image.tsx가 붙인다 */
 export const metadata: Metadata = {
-  title: "새우맵",
-  description: "서울 새우구이 지도",
+  metadataBase: siteUrl(env.SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: { siteName: SITE_NAME, type: "website", locale: "ko_KR" },
 };
 
 export const viewport: Viewport = {

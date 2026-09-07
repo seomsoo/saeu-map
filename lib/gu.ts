@@ -33,3 +33,31 @@ function findDistrict(point: LatLng, { districts }: GuBoundaries): string | null
 export async function guOfPoint(point: LatLng): Promise<string | null> {
   return findDistrict(point, await loadSeoul()) ?? findDistrict(point, await loadKorea());
 }
+
+/**
+ * 서울 25구 — `/gu/[name]` 화이트리스트(spec 4.6 "구별 25페이지"). 경계 파일(gu-boundaries.json)의 이름과
+ * 같아야 한다(테스트가 지킨다). 상수인 이유: 라우트 판정마다 60KB 경계 파일을 읽지 않기 위해.
+ */
+export const SEOUL_GU: readonly string[] = [
+  "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구", "노원구", "도봉구",
+  "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구", "성북구", "송파구", "양천구", "영등포구",
+  "용산구", "은평구", "종로구", "중구", "중랑구",
+];
+
+export function isSeoulGu(name: string): boolean {
+  return SEOUL_GU.includes(name);
+}
+
+/** 구 경계의 바운딩 박스 중심 — `/gu/[name]`에 가게가 없을 때 지도를 그 구로 옮기는 기준. 서울 밖·모르는 이름은 null. */
+export async function guCenter(name: string): Promise<LatLng | null> {
+  const district = (await loadSeoul()).districts.find((d) => d.name === name);
+  if (!district) return null;
+  let north = -Infinity, south = Infinity, east = -Infinity, west = Infinity;
+  for (const ring of district.rings) {
+    for (const [lng = 0, lat = 0] of ring) {
+      north = Math.max(north, lat); south = Math.min(south, lat);
+      east = Math.max(east, lng); west = Math.min(west, lng);
+    }
+  }
+  return { lat: (north + south) / 2, lng: (east + west) / 2 };
+}

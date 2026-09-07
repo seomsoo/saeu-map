@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { MyReview, Place, Session } from "@/lib/types";
@@ -1374,5 +1375,44 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
       expect(screen.queryByRole("article", { name: "나라수산 상세" })).toBeNull();
     });
     expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
+  });
+});
+
+describe("/gu/[name] — 같은 지도 화면을 그 구에 맞춰 (decisions 2026-09-07)", () => {
+  const MAPO = { name: "마포구", center: { lat: 37.556, lng: 126.91 } };
+  const SEOCHO = { name: "서초구", center: { lat: 37.48, lng: 127.03 } };
+
+  it("SSR: 지도가 뜨기 전에도 그 구 가게 목록과 헤더 '마포구 1곳'이 HTML에 들어간다 (크롤러용)", () => {
+    // React가 텍스트 사이에 넣는 <!-- --> 구분자를 지우고 사람이 읽는 문장으로 비교한다
+    const html = renderToString(
+      <MapScreen now={NOW} places={seed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
+    ).replaceAll("<!-- -->", "");
+    expect(html).toContain("마포구 1곳");
+    expect(html).toContain("나라수산");
+    expect(html).not.toContain("365활새우 창우수산");
+  });
+
+  it("SSR: 가게 0곳인 구는 헤더 '서초구 0곳' + 빈 상태(제보 유도)", () => {
+    const html = renderToString(
+      <MapScreen now={NOW} places={seed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
+    ).replaceAll("<!-- -->", "");
+    expect(html).toContain("서초구 0곳");
+    expect(html).toContain("이 동네엔 아직 없어요");
+  });
+
+  it("지도가 뜨면 그 구 가게가 다 보이게 fitBounds(최대 줌 15) — 첫 화면 panTo는 하지 않는다", async () => {
+    renderScreen({ initialGu: MAPO });
+    await screen.findByRole("list", { name: "가게 목록" });
+    expect(fake.map.fitBounds).toHaveBeenCalledTimes(1);
+    expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 15 }));
+    expect(fake.map.panTo).not.toHaveBeenCalled();
+  });
+
+  it("가게 0곳인 구는 구 중심으로 focus(줌 13)", async () => {
+    renderScreen({ initialGu: SEOCHO });
+    await screen.findByRole("heading", { level: 2 });
+    expect(fake.map.setZoom).toHaveBeenLastCalledWith(13, false);
+    expect(fake.map.panTo).toHaveBeenCalledTimes(1);
+    expect(fake.map.fitBounds).not.toHaveBeenCalled();
   });
 });

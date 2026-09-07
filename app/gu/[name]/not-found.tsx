@@ -2,13 +2,13 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
-/** /place/[id]에 없는 id — 잘못된 공유 링크. 이 세그먼트엔 Suspense 경계가 없어 HTTP 404로 나간다 (decisions 2026-09-07). */
-export default function PlaceNotFound() {
+/** /gu/[name]에 서울 25구가 아닌 이름 — HTTP 404 (Suspense 경계 없음, decisions 2026-09-07). */
+export default function GuNotFound() {
   return (
     <main className="flex h-dvh items-center justify-center bg-bg">
       <EmptyState
-        title="가게를 찾을 수 없어요"
-        description="링크가 잘못됐거나 지도에서 내려간 가게예요"
+        title="찾을 수 없는 지역이에요"
+        description="구별 페이지는 서울 25개 구만 있어요"
         action={
           <Link href="/" className={buttonVariants({ variant: "outline", size: "md" })}>
             지도로 돌아가기
