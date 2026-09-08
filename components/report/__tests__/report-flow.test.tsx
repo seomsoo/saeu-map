@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AddressHit } from "@/components/map/map-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
@@ -15,6 +15,16 @@ vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
   return { ...original, submitReport: dataMocks.submitReport, getGuOfPoint: dataMocks.getGuOfPoint };
+});
+
+/**
+ * 구 경계 파일(서울 60KB + 전국 180KB)은 **첫 사용 때 동적 import**된다. 그 비용이 `findBy`의 기본
+ * 1초 창 안에 들어오면 부하가 걸린 머신에서 깜빡인다(Stop 훅에서 발화 — 2026-09-08).
+ * 검사할 것은 판정 결과지 모듈 로딩이 아니므로 스위트 시작 전에 한 번 데워 둔다(모듈 캐시라 한 번뿐).
+ */
+beforeAll(async () => {
+  await dataMocks.getGuOfPoint({ lat: 37.5571, lng: 126.9245 }); // 서울 파일
+  await dataMocks.getGuOfPoint({ lat: 34.0, lng: 125.0 }); // 전국 파일(한국 밖 판정 경로)
 });
 
 const NOW = "2026-09-04T12:00:00+09:00";
