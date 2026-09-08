@@ -3,7 +3,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
-import { ADMIN_PAGE_SIZE, getPlacesForAdmin, getReports, resolveReport, setPlaceHidden } from "@/lib/data";
+import {
+  ADMIN_PAGE_SIZE,
+  deletePlacePhoto,
+  getPlacesForAdmin,
+  getReports,
+  resolveReport,
+  setPlaceHidden,
+} from "@/lib/data";
 import { copyText } from "@/lib/share";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Report, ReportKind } from "@/lib/types";
@@ -28,6 +35,7 @@ export const RESTORED_NOTICE = "복구했어요";
 export const RESOLVED_NOTICE = "처리했어요";
 export const DISMISSED_NOTICE = "무시했어요";
 export const CONTACT_COPIED_NOTICE = "연락처를 복사했어요";
+export const PHOTO_DELETED_NOTICE = "사진을 내렸어요";
 export const ACTION_FAILED_NOTICE = "처리하지 못했어요";
 
 const KIND_LABEL: Record<ReportKind, string> = {
@@ -119,7 +127,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
     );
   };
 
-  const state = AdminListState({ status, onRetry: retry });
+  const state = AdminListState({ status, onRetry: retry, columns: COLUMNS });
 
   return (
     <div>
@@ -168,6 +176,32 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                   </AdminCell>
                   <AdminCell align="right">
                     <AdminActions>
+                      {/* 어느 종류든 그 가게를 바로 열어 볼 수 있어야 판단이 된다 (design 화면 10-2) */}
+                      {place !== undefined && (
+                        <a
+                          href={`/place/${place.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="press inline-flex h-8 items-center rounded-8 border border-line px-3 text-caption-l-medium text-fg-secondary"
+                        >
+                          가게 열기 ↗
+                        </a>
+                      )}
+                      {report.kind === "photo_report" && place !== undefined && report.photoId !== undefined && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            run(report.id, PHOTO_DELETED_NOTICE, async () => {
+                              await deletePlacePhoto(place.id, report.photoId ?? "", now);
+                              await resolveReport(report.id, "done");
+                            });
+                          }}
+                        >
+                          사진 내리기
+                        </Button>
+                      )}
                       {report.kind === "owner_request" && report.contact !== undefined && (
                         <Button
                           variant="outline"

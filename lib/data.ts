@@ -1326,6 +1326,22 @@ export async function setPlaceHidden(
 }
 
 /**
+ * 신고된 사진 내리기 — 신고 처리의 핵심 동작이라 [무시]와 짝이다(design 화면 10-2).
+ * 사진만 빼고 가게는 그대로 둔다. 대표 썸네일이 그 장이었으면 다음 장으로 내려온다.
+ */
+export async function deletePlacePhoto(placeId: string, photoId: string, now: DateInput): Promise<Place> {
+  await requireAdmin();
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === placeId);
+  if (!current) throw new Error("place not found");
+  const photos = current.photos.filter((photo) => photo.id !== photoId);
+  const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  return place;
+}
+
+/**
  * 검색 탭의 삭제 — **소프트다**. spec 5가 "재제보 시 관리자에게 경고 표시"를 요구하므로 기록이 남아야 한다.
  * 사장님 요청으로 내린 것은 `removedByOwner`가 붙어 재제보 때 구분된다.
  * 권한은 `setPlaceHidden`이 세운다(여기서 또 세우면 같은 검사가 두 번이다).

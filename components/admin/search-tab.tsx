@@ -64,7 +64,7 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
     );
   };
 
-  const state = AdminListState({ status, onRetry: retry });
+  const state = AdminListState({ status, onRetry: retry, columns: COLUMNS });
 
   return (
     <div>
@@ -124,6 +124,14 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
                     </AdminCell>
                     <AdminCell align="right">
                       <AdminActions>
+                        <a
+                          href={`/place/${place.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="press inline-flex h-8 items-center rounded-8 border border-line px-3 text-caption-l-medium text-fg-secondary"
+                        >
+                          가게 열기 ↗
+                        </a>
                         <Button
                           variant="outline"
                           size="sm"
@@ -168,7 +176,9 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
           }}
           onConfirm={(place) => {
             setRemoving(null);
-            run(place, SEARCH_DELETED_NOTICE, () => deletePlace(place.id, now, true));
+            // 관리자가 직접 내린 것은 **사장님 요청이 아니다** — byOwner를 붙이면 재제보 경고가
+            // 엉뚱하게 뜬다(갭 스윕 2026-09-08). 사장님 요청은 신고·요청 탭에서 처리한다
+            run(place, SEARCH_DELETED_NOTICE, () => deletePlace(place.id, now, false));
           }}
         />
       )}
@@ -195,7 +205,7 @@ function DeleteConfirm({
       <div className="px-5 pt-6">
         <h2 className="text-title-s-semibold text-fg">{place.name}을(를) 내릴까요?</h2>
         <p className="mt-1 text-body-m-regular text-fg-secondary">
-          지도에서 사라지지만 기록은 남아요. 재제보되면 경고가 뜨고, 검색 탭에서 복구할 수 있어요.
+          지도에서 사라지지만 기록은 남아요. 언제든 이 탭에서 복구할 수 있어요.
         </p>
         <Button
           variant="danger"

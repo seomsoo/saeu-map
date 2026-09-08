@@ -70,7 +70,7 @@ export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string)
     );
   };
 
-  const state = AdminListState({ status, onRetry: retry });
+  const state = AdminListState({ status, onRetry: retry, columns: COLUMNS });
   const chips = <AdminPeriodChips value={period} onChange={setPeriod} />;
   if (state !== null)
     return (

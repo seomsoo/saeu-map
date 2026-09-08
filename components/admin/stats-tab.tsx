@@ -13,6 +13,11 @@ import {
 } from "./admin-table";
 import { useAdminList } from "./use-admin-list";
 
+/** 참여자 비율 — 0명이면 나눗셈이 아니라 "—"다 */
+function share(value: number, total: number): string {
+  return total === 0 ? "—" : `${String(Math.round((value / total) * 100))}%`;
+}
+
 const DAILY_COLUMNS = [
   { key: "date", label: "날짜" },
   { key: "reports", label: "제보", align: "right" as const },
@@ -41,6 +46,7 @@ export function StatsTab({ now }: { now: string }) {
   const stats = rows[0];
   if (!stats) return null;
 
+  const total = stats.participants.anonymous + stats.participants.kakao;
   const week = stats.daily.slice(-7);
   const sum = (pick: (d: AdminStats["daily"][number]) => number) =>
     week.reduce((acc, d) => acc + pick(d), 0);
@@ -72,9 +78,18 @@ export function StatsTab({ now }: { now: string }) {
 
       <div>
         <AdminCount>참여한 사람</AdminCount>
+        {/* 절대수만 두면 "많나?"를 못 판단한다 — 비율을 같이 놓는다 (design 화면 10-5) */}
         <div className="grid grid-cols-2 gap-3 lg:w-1/2">
-          <AdminStat label="익명" value={stats.participants.anonymous} />
-          <AdminStat label="카카오" value={stats.participants.kakao} />
+          <AdminStat
+            label="익명"
+            value={stats.participants.anonymous}
+            sub={share(stats.participants.anonymous, total)}
+          />
+          <AdminStat
+            label="카카오"
+            value={stats.participants.kakao}
+            sub={share(stats.participants.kakao, total)}
+          />
         </div>
       </div>
 

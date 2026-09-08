@@ -89,7 +89,7 @@ describe("검색 탭 — 비상용 직접 조작 (design 화면 10-4)", () => {
     expect(data.deletePlace).not.toHaveBeenCalled();
   });
 
-  it("[내리기]는 소프트 삭제로 — 사장님 기록이 붙는다", async () => {
+  it("[내리기]는 소프트 삭제 — **사장님 기록은 안 붙는다**(관리자가 직접 내린 것이다)", async () => {
     data.searchPlacesForAdmin.mockResolvedValue([nara]);
     data.deletePlace.mockResolvedValue({ ...nara, hiddenAt: NOW, removedByOwner: true });
     const { onNotice } = renderTab();
@@ -101,7 +101,8 @@ describe("검색 탭 — 비상용 직접 조작 (design 화면 10-4)", () => {
     await waitFor(() => {
       expect(onNotice).toHaveBeenCalledWith("내렸어요");
     });
-    expect(data.deletePlace).toHaveBeenCalledWith("nara", NOW, true);
+    // byOwner=true를 붙이면 재제보 경고가 엉뚱하게 뜬다 (갭 스윕 2026-09-08)
+    expect(data.deletePlace).toHaveBeenCalledWith("nara", NOW, false);
   });
 
   it("결과 없음·에러", async () => {

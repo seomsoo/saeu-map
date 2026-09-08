@@ -40,6 +40,8 @@ function AdminShell({ now }: { now: string }) {
   const { session } = useSession();
   const [tab, setTab] = useState<AdminTab>("pending");
   const [stats, setStats] = useState<AdminStats | null>(null);
+  /** 숙제 수를 다시 읽는 신호 — 탭에서 [확인]·[처리함]을 누르면 배지가 그대로면 안 된다 */
+  const [statsSeq, setStatsSeq] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const admin = session?.isAdmin === true;
@@ -74,7 +76,16 @@ function AdminShell({ now }: { now: string }) {
     return () => {
       alive = false;
     };
-  }, [admin, now]);
+  }, [admin, now, statsSeq]);
+
+  /** 탭이 무언가를 처리했다 — 토스트를 내고 **배지를 다시 센다**(안 그러면 [확인] 뒤에도 숫자가 그대로다) */
+  const handleChanged = useCallback(
+    (message: string) => {
+      showNotice(message);
+      setStatsSeq((n) => n + 1);
+    },
+    [showNotice],
+  );
 
   // 세션을 아직 모르는 동안은 아무것도 알리지 않는다 (관리자 화면의 존재를 깜빡이지 않게)
   if (session === null) return <div className="h-dvh bg-bg" aria-busy="true" />;
@@ -118,10 +129,10 @@ function AdminShell({ now }: { now: string }) {
           />
         </div>
         <div className="pt-4">
-          {tab === "pending" && <PendingTab now={now} onNotice={showNotice} />}
-          {tab === "reports" && <ReportsTab now={now} onNotice={showNotice} />}
-          {tab === "edits" && <EditsTab now={now} onNotice={showNotice} />}
-          {tab === "search" && <SearchTab now={now} onNotice={showNotice} />}
+          {tab === "pending" && <PendingTab now={now} onNotice={handleChanged} />}
+          {tab === "reports" && <ReportsTab now={now} onNotice={handleChanged} />}
+          {tab === "edits" && <EditsTab now={now} onNotice={handleChanged} />}
+          {tab === "search" && <SearchTab now={now} onNotice={handleChanged} />}
           {tab === "stats" && <StatsTab now={now} />}
         </div>
       </div>

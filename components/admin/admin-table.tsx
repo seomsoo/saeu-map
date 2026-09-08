@@ -32,7 +32,10 @@ export function AdminTable({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto">
+    /* `overflow-x-auto`를 주면 **overflow-y도 auto가 되어** thead의 sticky가 이 상자 안에 갇힌다(실측).
+       표를 쓰는 건 데스크탑이므로 lg부터는 가로 스크롤 상자를 걷어 페이지가 스크롤러가 되게 한다 —
+       그래야 헤더가 화면 위에 붙는다. 좁은 화면에서는 그대로 가로로 넘어간다. */
+    <div className="overflow-x-auto lg:overflow-x-visible">
       <table aria-label={label} className="w-full min-w-160 border-collapse text-body-m-regular">
         <thead className="sticky top-0 z-1 bg-bg">
           <tr className="border-b border-line">
@@ -217,20 +220,43 @@ export function AdminMore({ shown, limit, onMore }: { shown: number; limit: numb
 
 /**
  * 로딩·에러를 표 대신 그린다. **정상·빈 상태는 호출자가 그린다** — 빈 상태의 문구가 탭마다 다르다.
+ * `columns`를 주면 **로딩에도 표 헤더가 남는다**(design 화면 10 변형 (b)) — 탭을 바꿀 때 열 이름이
+ * 사라졌다 다시 나타나면 화면이 뛴다.
  */
 export function AdminListState({
   status,
   onRetry,
+  columns,
 }: {
   status: LoadStatus;
   onRetry: () => void;
+  columns?: readonly AdminColumn[];
 }): ReactNode {
   if (status === "loading") {
-    return (
+    const rows = (
       <div className="space-y-1.5 pt-2" aria-busy="true">
         {[0, 1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-11" />
         ))}
+      </div>
+    );
+    if (!columns) return rows;
+    return (
+      <div aria-busy="true">
+        <div className="flex border-b border-line pb-2">
+          {columns.map((c) => (
+            <span
+              key={c.key}
+              className={cx(
+                "flex-1 px-3 text-caption-l-medium text-fg-tertiary",
+                c.align === "right" ? "text-right" : "",
+              )}
+            >
+              {c.label}
+            </span>
+          ))}
+        </div>
+        {rows}
       </div>
     );
   }

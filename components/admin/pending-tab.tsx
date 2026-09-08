@@ -80,7 +80,7 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
     );
   };
 
-  const state = AdminListState({ status, onRetry: retry });
+  const state = AdminListState({ status, onRetry: retry, columns: COLUMNS });
   if (state !== null) return state;
   if (rows.length === 0) return <AdminEmpty title="확인할 새 제보가 없어요" />;
 
