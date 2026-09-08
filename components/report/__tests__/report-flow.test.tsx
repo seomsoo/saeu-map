@@ -416,7 +416,8 @@ function renderStep4(overrides: Partial<ReportPanelProps> = {}) {
 const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
 
 describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
-  // jsdom에는 createObjectURL이 없다 — 미리보기 URL 생성·해제를 셀 수 있게 가짜로
+  // jsdom에도 createObjectURL은 있다(2026-09-08 확인) — 다만 값이 무작위라
+  // 생성·해제 횟수와 어떤 파일이 어디로 갔는지를 세려고 가짜로 바꾼다
   const createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
   const revokeObjectURL = vi.fn();
 
