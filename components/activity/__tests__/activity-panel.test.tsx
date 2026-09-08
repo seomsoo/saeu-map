@@ -122,7 +122,10 @@ describe("ActivityPanel — 화면 5: 프로필·3탭·로그아웃·탈퇴", ()
     expect(within(list).getByText("수정됨")).toBeInTheDocument();
     fireEvent.click(within(list).getByRole("button", { name: "나라수산" }));
     expect(props.onOpenPlace).toHaveBeenCalledWith("nara");
-    expect(props.onPlaceIdsChange).toHaveBeenLastCalledWith(["nara"]);
+    // 목록이 뜬 뒤 부모 통지는 passive effect라 findByRole(DOM 변경)보다 늦게 돈다 — 동기 단언은 간헐 실패
+    await waitFor(() => {
+      expect(props.onPlaceIdsChange).toHaveBeenLastCalledWith(["nara"]);
+    });
 
     fireEvent.click(within(list).getByRole("button", { name: "리뷰 수정" }));
     const form = await screen.findByRole("dialog", { name: "리뷰 수정" });
