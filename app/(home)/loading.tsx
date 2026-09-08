@@ -24,7 +24,7 @@ export default function Loading() {
           </div>
           {/* 칩 행은 데스크탑에서 패널 밖 지도 위 한 층 — 실제 화면과 같은 lg:fixed 자리 */}
           <div
-            className="flex gap-1.5 pl-safe-left-or-5 pr-safe-right-or-5 lg:fixed lg:top-5 lg:left-114 lg:z-20 lg:flex-wrap lg:gap-2 lg:p-0"
+            className="flex gap-1.5 pl-safe-left-or-5 pr-safe-right-or-5 lg:fixed lg:top-5 lg:left-114 lg:z-20 lg:max-w-160 lg:flex-wrap lg:gap-2 lg:p-0"
             aria-hidden="true"
           >
             <Skeleton className="h-9 w-14 rounded-max" />

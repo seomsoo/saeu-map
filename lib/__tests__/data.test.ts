@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MAX_PHOTO_BYTES,
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
   MOCK_WRITE_DELAY_MS,
@@ -890,6 +891,13 @@ describe("사진 보관 — 상세 업로드·제보·리뷰", () => {
     await settleReject(addPlacePhotos(target.id, [image("z.jpg")], NOW), "photo limit reached");
   });
 
+  it("10MB를 넘는 사진은 지연 없이 거부한다 (blob을 revoke하지 않고 들고 있어서다)", async () => {
+    const big = image("big.jpg");
+    // 실제로 10MB를 만들면 테스트가 느려진다 — 크기만 크게 속인다
+    Object.defineProperty(big, "size", { value: MAX_PHOTO_BYTES + 1 });
+    await expect(addPlacePhotos("p019", [big], NOW)).rejects.toThrow();
+  });
+
   it("검증: 이미지가 아니거나 빈 목록·11장·없는 가게는 거부한다", async () => {
     await expect(
       addPlacePhotos("p019", [new File(["x"], "a.txt", { type: "text/plain" })], NOW),
@@ -954,6 +962,25 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
 
   it("익명은 탈퇴할 수 없다", async () => {
     await expect(deleteAccount()).rejects.toThrow("login required");
+  });
+
+  it("올린 사진은 남고 업로더만 떨어진다 (제보 가게의 reporterId와 같은 규칙)", async () => {
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mine.jpg");
+    await settle(signInWithKakao());
+    const target = (await getPlaces({}, NOW)).find((p) => p.photos.length < MAX_PLACE_PHOTOS);
+    if (!target) throw new Error("no place with room");
+    const uploaded = await settle(
+      addPlacePhotos(target.id, [new File(["x"], "mine.jpg", { type: "image/jpeg" })], NOW),
+    );
+    const mine = uploaded.photos.at(-1);
+    expect(mine?.uploaderId).toBe("u-kakao-1");
+
+    await settle(deleteAccount());
+    const after = await getPlaceById(target.id, NOW);
+    const same = after?.photos.find((photo) => photo.id === mine?.id);
+    // 사진은 가게 정보라 남는다 — 개인 식별자만 뗀다
+    expect(same?.url).toBe(mine?.url);
+    expect("uploaderId" in (same ?? {})).toBe(false);
   });
 
   it("탈퇴 뒤에는 내 리뷰가 화면에서 빠지고 찜은 비고 제보는 남되 작성자가 없다", async () => {

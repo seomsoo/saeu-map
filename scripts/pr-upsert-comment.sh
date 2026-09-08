@@ -15,9 +15,10 @@ case "$marker" in
   *) echo "::error::본문 첫 줄이 표식(<!-- ... -->)이 아니다: $marker"; exit 1 ;;
 esac
 
-# head -1을 파이프로 물리면 pipefail + SIGPIPE로 잡이 죽는다 — 변수에 받아 자른다
-ids=$(gh api "repos/$REPO/issues/$pr/comments" --paginate \
-  --jq ".[] | select(.body | startswith(\"$marker\")) | .id") || ids=""
+# 표식은 jq 프로그램에 보간하지 않고 env로 넘긴다 — 본문 첫 줄에 따옴표가 섞이면 표현식이 깨진다
+# (security-reviewer 2026-09-08). head -1을 파이프로 물리면 pipefail + SIGPIPE로 잡이 죽어 변수에 받아 자른다.
+ids=$(MARKER="$marker" gh api "repos/$REPO/issues/$pr/comments" --paginate \
+  --jq '.[] | select(.body | startswith(env.MARKER)) | .id') || ids=""
 id=$(printf '%s\n' "$ids" | head -1)
 
 if [ -n "$id" ]; then

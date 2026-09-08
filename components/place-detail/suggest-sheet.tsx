@@ -126,7 +126,10 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
     );
   };
 
-  /** 값이 있던 자리는 [보내기], 비어 있던 자리는 [알려주기] — 입구 카피와 같은 말을 쓴다 */
+  /**
+   * 값이 있던 자리는 [보내기], 비어 있던 자리는 [알려주기] — 입구 카피와 같은 말을 쓴다.
+   * 사이드는 boolean 셋이라 "없는 상태"가 없다(전부 꺼짐도 값이다) → 늘 [보내기]다.
+   */
   const hadValue =
     field === "hours"
       ? place.hoursNote !== null

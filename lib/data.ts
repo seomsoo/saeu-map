@@ -94,6 +94,12 @@ const MOCK_LATEST_DAY = Math.max(...rawCheckins.map((c) => kstDayIndex(c.at)));
 
 /** 쓰기 시뮬레이션 — roadmap Phase 2 "목: delay 400ms, 10% 실패". */
 export const MOCK_WRITE_DELAY_MS = 400;
+/**
+ * 업로드 한 장 상한 (security-reviewer 2026-09-08). 목 단계에도 필요한 이유: blob을 일부러 revoke하지 않고
+ * 들고 있으므로 상한이 없으면 탭 메모리가 고른 파일 크기만큼 그대로 눌러앉는다. 업로드 시 1200px webp
+ * 리사이즈(spec 6)를 하면 실제 저장본은 이보다 훨씬 작다 — 이건 "말도 안 되는 파일"을 막는 문이다.
+ */
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MOCK_FAILURE_RATE = 0.1;
 
 interface Dataset {
@@ -466,7 +472,12 @@ export const reportInputSchema = z.object({
   hoursNote: z.string().trim().max(80),
   /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */
   photos: z
-    .array(z.instanceof(File).refine((f) => f.type.startsWith("image/"), "이미지 파일만"))
+    .array(
+      z
+        .instanceof(File)
+        .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+        .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지"),
+    )
     .max(MAX_PLACE_PHOTOS),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
   duplicateOf: idSchema.nullable(),
@@ -500,13 +511,13 @@ function retainPhotoUrl(file: File): string | null {
 }
 
 /** 고른 파일을 `Photo[]`로. URL을 못 만드는 환경(서버)에서는 그 장을 조용히 버린다. */
-function toPhotos(placeId: string, files: readonly File[], uploadedAt: string): Photo[] {
+function toPhotos(placeId: string, files: readonly File[], uploadedAt: string, uploaderId: string): Photo[] {
   const photos: Photo[] = [];
   for (const file of files) {
     const url = retainPhotoUrl(file);
     if (url === null) continue;
     photoSeq += 1;
-    photos.push({ id: `${placeId}-u${String(photoSeq)}`, url, uploadedAt });
+    photos.push({ id: `${placeId}-u${String(photoSeq)}`, url, uploadedAt, uploaderId });
   }
   return photos;
 }
@@ -518,6 +529,8 @@ function toPhotos(placeId: string, files: readonly File[], uploadedAt: string): 
  */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const report = reportInputSchema.parse(input);
+  // 행위자는 지연 전에 잡는다 — await 뒤에 읽으면 그 사이 바뀐 사용자의 것으로 기록된다(CLAUDE.md 쓰기 규칙)
+  const actor = currentSession.userId;
   const gu = await guOfPoint(report);
   if (gu === null) throw new Error("outside korea");
   await simulateWrite();
@@ -526,7 +539,7 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
   reportSeq += 1;
   const id = `r${String(reportSeq).padStart(3, "0")}`;
   // 고른 사진을 버리지 않는다(2026-09-08) — 등록 직후 상세가 "아직 사진이 없어요"로 뜨던 자리다
-  const photos = toPhotos(id, report.photos, createdAt);
+  const photos = toPhotos(id, report.photos, createdAt, actor);
   const tags: PlaceTag[] = ["grill"];
   if (report.menus.some((m) => m.raw)) tags.push("raw");
   const place: Place = {
@@ -559,7 +572,7 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     isNew: true,
     createdAt,
     ...(report.duplicateOf !== null && { duplicateSuspectOf: report.duplicateOf }),
-    reporterId: currentSession.userId,
+    reporterId: actor,
   };
   data.places = [...data.places, place];
   return place;
@@ -651,6 +664,20 @@ export async function deleteAccount(): Promise<Session> {
       delete rest.reporterId;
       return rest;
     });
+    // 올린 사진은 가게 정보라 남기고 업로더만 뗀다 — 제보 가게(reporterId)와 같은 규칙 (security-reviewer 2026-09-08)
+    data.places = data.places.map((p) =>
+      p.photos.some((photo) => photo.uploaderId === me)
+        ? {
+            ...p,
+            photos: p.photos.map((photo) => {
+              if (photo.uploaderId !== me) return photo;
+              const rest: Photo = { ...photo };
+              delete rest.uploaderId;
+              return rest;
+            }),
+          }
+        : p,
+    );
     // 확인 이벤트는 집계(시즌 카운터·확인 N회)에 남되 개인 식별자는 뗀다 — Phase 6: actor nullable + ON DELETE SET NULL
     data.checkins = data.checkins.map((c) => (c.actor === me ? { ...c, actor: DELETED_ACTOR } : c));
   }
@@ -701,6 +728,7 @@ export const reviewInputSchema = z.object({
   photo: z
     .instanceof(File)
     .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+    .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지")
     .nullable(),
 });
 export type ReviewInput = z.infer<typeof reviewInputSchema>;
@@ -878,6 +906,7 @@ const placeReportSchema = z.object({
  * 가게 신고 접수 (spec 5 "신고 3회 → 자동 숨김", 스팸 4겹 2 "신고 일 10").
  * 사유에 "문 닫았어요"가 없는 건 그게 `flagPlace`(정보 수정 제안)의 사유이기 때문이다 —
  * 신고는 "이 등록 자체가 잘못됐다", 수정 제안은 "값이 틀렸다"로 갈린다(decisions 2026-09-08).
+ * 익명도 보낼 수 있다(spec 5). 속도 제한 자리: 일 10 — Phase 6 Upstash(spec 스팸 4겹 2).
  */
 export async function reportPlace(input: {
   placeId: string;
@@ -891,11 +920,19 @@ export async function reportPlace(input: {
  * 사장님 정보 수정·게재 삭제 요청 (spec 4.2-9 "연락 창구 상시 노출", spec 5 "1회 요청으로 즉시 처리").
  * **연락처가 필수**인 이유: "24시간 내 처리"는 회신할 곳이 있어야 성립한다(decisions 2026-09-08).
  * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·텔레그램 알림은 Phase 6.
+ * 익명도 보낼 수 있다(사장님이 우리 계정을 가질 이유가 없다). 속도 제한 자리: 핀당 일 N — Phase 6 Upstash.
  */
 export const ownerRequestSchema = z.object({
   placeId: idSchema,
   kind: z.enum(["edit", "remove"]),
-  contact: z.string().trim().min(5).max(60),
+  /**
+   * 연락처는 Phase 6에서 텔레그램 알림 본문에 들어간다 — 개행·제어문자로 본문을 조작하지 못하게
+   * NFKC 정규화 + 제어문자 제거를 먼저 한다(`nicknameSchema`와 같은 문법, security-reviewer 2026-09-08).
+   */
+  contact: z
+    .string()
+    .transform((v) => v.normalize("NFKC").replaceAll(/[\u0000-\u001f\u007f]/gu, " ").trim())
+    .pipe(z.string().min(5).max(60)),
   message: z.string().trim().max(300),
 });
 export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
@@ -908,7 +945,12 @@ export async function submitOwnerRequest(input: OwnerRequestInput): Promise<void
 const photoUploadSchema = z.object({
   placeId: idSchema,
   files: z
-    .array(z.instanceof(File).refine((f) => f.type.startsWith("image/"), "이미지 파일만"))
+    .array(
+      z
+        .instanceof(File)
+        .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+        .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지"),
+    )
     .min(1)
     .max(MAX_PLACE_PHOTOS),
 });
@@ -926,6 +968,8 @@ export async function addPlacePhotos(
   now: DateInput,
 ): Promise<Place> {
   const parsed = photoUploadSchema.parse({ placeId, files: [...files] });
+  // 행위자는 지연 전에 (CLAUDE.md 쓰기 규칙). 속도 제한 자리: 가게당 시간 N장 — Phase 6 Upstash
+  const actor = currentSession.userId;
   await simulateWrite();
   const data = dataset(now);
   const current = data.places.find((p) => p.id === parsed.placeId);
@@ -933,7 +977,7 @@ export async function addPlacePhotos(
   const room = MAX_PLACE_PHOTOS - current.photos.length;
   if (room <= 0) throw new Error("photo limit reached");
   const uploadedAt = new Date(toMs(now)).toISOString();
-  const photos = [...current.photos, ...toPhotos(parsed.placeId, parsed.files.slice(0, room), uploadedAt)];
+  const photos = [...current.photos, ...toPhotos(parsed.placeId, parsed.files.slice(0, room), uploadedAt, actor)];
   // 대표 = photos[0].url — 첫 장이 올라간 가게는 카드·마커 썸네일도 이때 생긴다
   const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
   data.places = data.places.map((p) => (p.id === place.id ? place : p));

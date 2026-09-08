@@ -114,6 +114,8 @@ jobs:
   # 지금까지는 아티팩트를 내려받아야 점수가 보였다. check 잡과 나누는 이유는 권한이다: 그 잡은 npx로
   # Lighthouse 전이 의존성을 받으므로 쓰기 토큰을 같은 환경에 두지 않는다(persist-credentials: false와 같은 이유).
   # 예산에 걸려 check가 실패했을 때가 점수를 가장 보고 싶은 때라 always()로 돈다.
+  # **트리거는 pull_request여야 한다** — pull_request_target으로 바꾸면 포크 PR의 코드를
+  # 쓰기 토큰과 함께 실행하게 된다 (security-reviewer 2026-09-08).
   lighthouse-comment:
     if: always() && github.event_name == 'pull_request'
     needs: check
