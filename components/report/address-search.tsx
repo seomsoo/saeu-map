@@ -4,7 +4,11 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import type { AddressHit } from "@/components/map/map-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const ADDRESS_EMPTY_MESSAGE = "검색 결과가 없어요";
+/**
+ * 지오코더는 자동완성이 아니라 "주소 → 좌표" 변환기다 — 실측(2026-09-08)으로 "마포대로" 0건,
+ * "마포대로 3" 1건. 그래서 빈 결과에 **어떻게 쳐야 하는지**를 같이 준다(그냥 "없어요"면 사용자는 같은 걸 또 친다).
+ */
+export const ADDRESS_EMPTY_MESSAGE = "검색 결과가 없어요. 건물번호까지 넣어보세요 (예: 마포대로 3)";
 export const ADDRESS_ERROR_MESSAGE = "주소를 찾지 못했어요";
 
 type SearchState =
@@ -88,7 +92,7 @@ export function AddressSearch({ geocode, onPick }: AddressSearchProps) {
           onCompositionEnd={() => {
             composing.current = false;
           }}
-          placeholder="도로명 주소로 찾기"
+          placeholder="도로명 + 건물번호 (예: 마포대로 3)"
           aria-label="도로명 주소"
           autoComplete="off"
           enterKeyHint="search"

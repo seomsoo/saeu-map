@@ -84,10 +84,13 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(screen.getByRole("button", { name: "새로 등록하기" })).toBeInTheDocument();
   });
 
-  it("두 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
+  it("한 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
     renderPanel();
     const input = screen.getByRole("textbox", { name: "가게 이름" });
+    // 한 글자부터 뜬다 (2026-09-08) — 빈 입력에서만 목록이 없다
     fireEvent.change(input, { target: { value: "새" } });
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "" } });
     expect(screen.queryByRole("list", { name: "이미 있는 가게" })).toBeNull();
     fireEvent.change(input, { target: { value: "새우집" } });
     expect(within(screen.getByRole("list", { name: "이미 있는 가게" })).getAllByRole("listitem")).toHaveLength(5);

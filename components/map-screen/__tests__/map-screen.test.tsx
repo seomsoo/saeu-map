@@ -818,11 +818,11 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
   });
 
-  it("1단계: 두 글자부터 '이미 있어요' 매치, 탭하면 플로우가 닫히고 그 상세로 (제보 엔트리를 상세로 교체)", async () => {
+  it("1단계: 한 글자부터 '이미 있어요' 매치, 탭하면 플로우가 닫히고 그 상세로 (제보 엔트리를 상세로 교체)", async () => {
     await openReport();
     const input = screen.getByRole("textbox", { name: "가게 이름" });
     fireEvent.change(input, { target: { value: "나" } });
-    expect(screen.queryByRole("list", { name: "이미 있는 가게" })).toBeNull();
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "나라" } });
     const row = within(screen.getByRole("list", { name: "이미 있는 가게" })).getByRole("button", {
       name: /나라수산/,

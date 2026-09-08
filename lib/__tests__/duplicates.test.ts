@@ -111,13 +111,35 @@ describe("findNameMatches", () => {
     makePlace({ name: "청춘조개포차" }),
   ];
 
-  it("두 글자부터 맞추고 닮은 순으로, 동률은 원래 순서", () => {
-    expect(findNameMatches("나", places)).toEqual([]);
+  it("한 글자부터 맞추고 닮은 순으로, 동률은 원래 순서", () => {
+    // 자동완성은 한 글자부터 뜬다 — 다른 지도 앱과 같은 기대치 (2026-09-08)
+    expect(findNameMatches("나", places).map((p) => p.name)).toEqual([
+      "나라수산",
+      "나라수산 본점",
+      "우리나라새우",
+    ]);
     expect(findNameMatches("나라", places).map((p) => p.name)).toEqual([
       "나라수산",
       "나라수산 본점",
       "우리나라새우",
     ]);
+    expect(findNameMatches("", places)).toEqual([]);
+  });
+
+  it("띄어쓴 토큰은 순서를 안 따진다 — '수산 나라'도 '나라수산'을 찾는다", () => {
+    expect(findNameMatches("수산 나라", places).map((p) => p.name)).toEqual([
+      "나라수산",
+      "나라수산 본점",
+    ]);
+  });
+
+  it("초성만 치면 초성으로 찾는다 ('ㄴㄹㅅㅅ' → 나라수산)", () => {
+    expect(findNameMatches("ㄴㄹㅅㅅ", places).map((p) => p.name)).toEqual([
+      "나라수산",
+      "나라수산 본점",
+    ]);
+    // 초성이 아닌 토큰은 그대로 글자 매칭 — 초성 인덱스로 오검색을 늘리지 않는다
+    expect(findNameMatches("나ㄹ", places)).toEqual([]);
   });
 
   it("질의도 정규화한다 (공백·기호 무시)", () => {
