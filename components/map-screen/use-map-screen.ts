@@ -23,7 +23,7 @@ import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import {
   getBookmarkedPlaceIds,
   getGuOfPoint,
-  toggleBookmark as requestToggleBookmark,
+  setBookmark as requestSetBookmark,
 } from "@/lib/data";
 import {
   isDetailHistoryState,
@@ -210,6 +210,8 @@ export function useMapScreen({
    * 지우지 않게 결과에 덮어씌운다 — 성공·실패 **양쪽에서** 표식을 지운다 (CLAUDE.md 낙관 업데이트 규칙).
    */
   const pendingBookmarksRef = useRef(new Map<string, boolean>());
+  /** 가게별 요청 순번 — 연타로 겹친 요청 중 **마지막 것의 응답만** 화면에 앉힌다 (Codex PR #10 #2) */
+  const bookmarkSeqRef = useRef(new Map<string, number>());
   /** 서버 목록에 진행 중인 낙관 상태를 얹는다 */
   const withPendingBookmarks = useCallback((ids: readonly string[]): string[] => {
     const next = new Set(ids);
@@ -815,12 +817,18 @@ export function useMapScreen({
       const now = pendingBookmarksRef.current.get(id) ?? bookmarkedIdsRef.current.includes(id);
       const wanted = !now;
       pendingBookmarksRef.current.set(id, wanted);
+      const seq = (bookmarkSeqRef.current.get(id) ?? 0) + 1;
+      bookmarkSeqRef.current.set(id, seq);
+      /** 더 최신 클릭이 있으면 이 응답은 버린다 — 중간 상태를 앉히거나 남의 표식을 지우지 않게 */
+      const stale = () => bookmarkSeqRef.current.get(id) !== seq;
       // 낙관 업데이트 — 하트는 누르는 즉시 바뀐다(쓰기는 상태 변화까지, UI 완성 기준)
       setBookmarkedIds((prev) =>
         wanted ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((x) => x !== id),
       );
-      requestToggleBookmark(id).then(
+      // 토글이 아니라 **원하는 상태**를 보낸다(멱등) — 겹쳐도 마지막 의도가 이긴다
+      requestSetBookmark(id, wanted).then(
         (ids) => {
+          if (stale()) return;
           pendingBookmarksRef.current.delete(id);
           if (requestedFor !== null && requestedFor !== sessionRef.current) return;
           setBookmarkedIds(withPendingBookmarks(ids));
@@ -835,6 +843,7 @@ export function useMapScreen({
           }
         },
         () => {
+          if (stale()) return;
           pendingBookmarksRef.current.delete(id);
           if (requestedFor !== null && requestedFor !== sessionRef.current) return;
           // 롤백 — 되돌릴 때 이미 들어와 있는지 보고 중복을 만들지 않는다

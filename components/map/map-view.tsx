@@ -196,6 +196,7 @@ export function MapView({
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
   const handleMarkerHover = useCallback(
     (place: Place, offset: { x: number; y: number } | null) => {
       // 선택된 핀은 패널이 이미 상세다 — 프리뷰를 겹쳐 그리지 않는다 (design 화면 7)
@@ -226,6 +227,18 @@ export function MapView({
     clearTimers();
     setTooltip(null);
   }, [clearTimers]);
+  /**
+   * 마커를 누르면 **이미 떠 있는 프리뷰도 닫는다**. hover 가드는 앞으로의 진입만 막는데, 마우스를 안 움직인 채
+   * 클릭하면 mouseout이 없고 `panTo`는 drag·zoom 이벤트를 내지 않아 프리뷰가 상세 위에 남는다 (Codex PR #10 #3).
+   * effect가 아니라 클릭에 붙인다 — 트리거는 선택 상태가 아니라 사용자의 행동이다(effect 안 setState 금지).
+   */
+  const handlePlaceClick = useCallback(
+    (placeId: string) => {
+      clearTooltip();
+      onPlaceClick(placeId);
+    },
+    [clearTooltip, onPlaceClick],
+  );
   useEffect(() => clearTimers, [clearTimers]);
 
   return (
@@ -260,7 +273,7 @@ export function MapView({
             selectedId={selectedId}
             hoveredId={hoveredId}
             now={now}
-            onPlaceClick={onPlaceClick}
+            onPlaceClick={handlePlaceClick}
             onClusterClick={onClusterClick}
             onPlaceHover={handleMarkerHover}
           />

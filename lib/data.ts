@@ -538,17 +538,23 @@ function placeExists(id: string): boolean {
 
 /** 찜 토글 (spec 5 "찜") — 현재 세션 기준. 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
 /**
- * 찜 토글 — 다른 쓰기와 같은 계약(지연 400ms · 10% 실패)이라 화면이 낙관 업데이트와 롤백을 다 보여준다.
+ * 찜 설정 — **토글이 아니라 원하는 상태를 받는다**(멱등). 연타가 겹쳐도 마지막 의도가 이긴다:
+ * 토글은 "지금 상태의 반대"라 요청 두 개가 겹치면 서버가 사용자의 마지막 의도와 반대로 끝날 수 있다
+ * (Codex PR #10 #2). Phase 6의 insert/delete와도 같은 모양이다.
+ * 다른 쓰기와 같은 계약(지연 400ms · 10% 실패)이라 화면이 낙관 업데이트와 롤백을 다 보여준다.
  * 속도 제한 자리: 사용자당 초당 N — Phase 6 Upstash(spec 스팸 4겹 2).
  */
-export async function toggleBookmark(placeId: string): Promise<string[]> {
+export async function setBookmark(placeId: string, bookmarked: boolean): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
   const id = idSchema.parse(placeId);
   if (!placeExists(id)) throw new Error("place not found");
+  // 행위자는 **지연 전에** 잡는다 — await 뒤에 읽으면 그 사이 바뀐 세션의 찜을 건드린다.
+  // 훅의 세션 가드는 응답만 버릴 뿐 이미 일어난 쓰기는 못 되돌린다 (Codex PR #10 #1).
+  const userId = currentSession.userId;
   await simulateWrite();
-  const mine = bookmarksOf(currentSession.userId);
-  if (mine.has(id)) mine.delete(id);
-  else mine.add(id);
+  const mine = bookmarksOf(userId);
+  if (bookmarked) mine.add(id);
+  else mine.delete(id);
   return [...mine];
 }
 

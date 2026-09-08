@@ -95,15 +95,15 @@ const dataMocks = vi.hoisted(() => ({
   getMyReports: vi.fn<(now: string) => Promise<Place[]>>(),
   /** 찜은 메모리 Set 가짜 — 진짜는 존재하는 가게만 받는데 시드(nara 등)는 목 JSON에 없다 */
   bookmarks: new Set<string>(),
-  toggleBookmark: vi.fn<(id: string) => Promise<string[]>>(),
+  setBookmark: vi.fn<(id: string, bookmarked: boolean) => Promise<string[]>>(),
   getBookmarkedPlaceIds: vi.fn<() => Promise<string[]>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
-  dataMocks.toggleBookmark.mockImplementation((id) => {
-    if (dataMocks.bookmarks.has(id)) dataMocks.bookmarks.delete(id);
-    else dataMocks.bookmarks.add(id);
+  dataMocks.setBookmark.mockImplementation((id, bookmarked) => {
+    if (bookmarked) dataMocks.bookmarks.add(id);
+    else dataMocks.bookmarks.delete(id);
     return Promise.resolve([...dataMocks.bookmarks]);
   });
   dataMocks.getBookmarkedPlaceIds.mockImplementation(() => Promise.resolve([...dataMocks.bookmarks]));
@@ -117,7 +117,7 @@ vi.mock("@/lib/data", async (importOriginal) => {
     signOut: dataMocks.signOut,
     getMyReviews: dataMocks.getMyReviews,
     getMyReports: dataMocks.getMyReports,
-    toggleBookmark: dataMocks.toggleBookmark,
+    setBookmark: dataMocks.setBookmark,
     getBookmarkedPlaceIds: dataMocks.getBookmarkedPlaceIds,
   };
 });
@@ -720,7 +720,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
     // 낙관: 응답을 기다리지 않고 지금 바뀐다 (UI 완성 기준 "쓰기는 상태 변화까지")
     let resolveToggle: ((ids: string[]) => void) | undefined;
-    dataMocks.toggleBookmark.mockImplementationOnce(
+    dataMocks.setBookmark.mockImplementationOnce(
       () => new Promise<string[]>((resolve) => (resolveToggle = resolve)),
     );
     fireEvent.click(heart());
@@ -733,11 +733,41 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     });
 
     // 실패: 하트가 되돌아오고 토스트가 뜬다
-    dataMocks.toggleBookmark.mockImplementationOnce(() => Promise.reject(new Error("mock write failed")));
+    dataMocks.setBookmark.mockImplementationOnce(() => Promise.reject(new Error("mock write failed")));
     fireEvent.click(heart());
     expect(heart()).toHaveAttribute("aria-pressed", "false"); // 낙관적으로 해제
     expect(await screen.findByText("찜을 저장하지 못했어요")).toBeInTheDocument();
     expect(heart()).toHaveAttribute("aria-pressed", "true"); // 롤백
+  });
+
+  it("하트 연타: 늦게 온 첫 응답이 마지막 의도를 뒤집지 않는다 (Codex PR #10 #2)", async () => {
+    renderScreen({
+      places: seed().map((p) => (p.id === "nara" ? { ...p, thumbnailUrl: "/mock/thumb-1.webp" } : p)),
+    });
+    await screen.findByRole("list", { name: "가게 목록" });
+    const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
+
+    // 첫 클릭은 응답을 붙잡아 둔다
+    let resolveFirst: ((ids: string[]) => void) | undefined;
+    dataMocks.setBookmark.mockImplementationOnce(
+      () => new Promise<string[]>((resolve) => (resolveFirst = resolve)),
+    );
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "true");
+
+    // 두 번째 클릭 — 마지막 의도는 "해제"다. 토글이 아니라 원하는 상태를 보낸다(멱등)
+    dataMocks.setBookmark.mockImplementationOnce(() => Promise.resolve([]));
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "false");
+    expect(dataMocks.setBookmark).toHaveBeenLastCalledWith("nara", false);
+
+    // 이제 첫 요청이 늦게 성공한다 — 순번이 지났으므로 화면을 되돌리면 안 된다
+    act(() => {
+      resolveFirst?.(["nara"]);
+    });
+    await waitFor(() => {
+      expect(heart()).toHaveAttribute("aria-pressed", "false");
+    });
   });
 
   it("다녀왔다면 성공 → 닫은 뒤 카드도 '오늘 확인'·확인 수 반영", async () => {
@@ -1149,9 +1179,9 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
 
   it("익명: 프로필 → 로그인 시트 → 카카오 → 패널(상단 두 층·FAB 숨김, 찜 탭, 마커는 찜한 곳만) → ✕로 닫힘", async () => {
     // 찜 2곳은 세션과 무관한 진짜 목(클라이언트 메모리)에 둔다
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
-    await toggleBookmark("hana");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
+    await setBookmark("hana", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const profile = screen.getByRole("button", { name: "내 활동" });
@@ -1180,13 +1210,13 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     fireEvent.click(screen.getByRole("button", { name: "내 활동 닫기" }));
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
-    await toggleBookmark("hana"); // 되돌린다
+    await setBookmark("hana", false); // 되돌린다
   });
 
   it("패널의 찜 카드 탭 → 상세(/place) → 뒤로가기 → 패널로 복귀, 한 번 더 → 목록", async () => {
     dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 세션이 카카오로 로드된 뒤 눌러야 시트 없이 바로 열린다
@@ -1209,7 +1239,7 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     });
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     expect(back).not.toHaveBeenCalled();
-    await toggleBookmark("nara");
+    await setBookmark("nara", true);
   });
 
   it("로그아웃 → 패널 닫힘 + 토스트 + 프로필은 익명 아이콘", async () => {
@@ -1244,8 +1274,8 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     expect(screen.queryByRole("status")).toBeNull();
     await bookmarkIn(/노량진수산시장 하나수산, 동작구/);
     expect(screen.getByRole("status")).toHaveTextContent(BOOKMARK_NUDGE_NOTICE);
-    const { toggleBookmark } = await import("@/lib/data");
-    for (const id of ["nara", "changwoo", "hana"]) await toggleBookmark(id);
+    const { setBookmark } = await import("@/lib/data");
+    for (const id of ["nara", "changwoo", "hana"]) await setBookmark(id, true);
   });
 });
 
@@ -1274,8 +1304,8 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
   };
 
   it("내 활동에서는 활성 탭의 가게만 마커로 — 옛 선택은 끼워 넣지 않는다 (Codex PR #8 #3)", async () => {
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 찜하지 않은 가게를 열었다 닫으면 selectedId만 남는다
@@ -1286,7 +1316,7 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     await waitFor(() => {
       expect(screen.getAllByTestId("marker").map((m) => m.textContent)).toEqual(["나라수산"]);
     });
-    await toggleBookmark("nara");
+    await setBookmark("nara", true);
   });
 
   it("내 활동 ✕는 우리 엔트리를 빼고 닫는다 — 클릭 이벤트가 source로 새면 엔트리가 남는다", async () => {
@@ -1413,6 +1443,21 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     // 이탈은 300ms 유예 — 마커 사이를 옮길 때 깜빡이지 않게
     fireEvent.mouseLeave(marker());
     expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+  });
+
+  it("마커를 눌러 선택하면 이미 떠 있던 프리뷰도 닫힌다 (Codex PR #10 #3)", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    const marker = () => screen.getByText("나라수산", { selector: '[data-testid="marker"]' });
+
+    fireEvent.mouseEnter(marker());
+    await screen.findByRole("tooltip");
+    // 마우스를 안 움직인 채 클릭 — mouseout이 없고 panTo는 drag·zoom 이벤트를 내지 않는다
+    fireEvent.click(marker());
     await waitFor(() => {
       expect(screen.queryByRole("tooltip")).toBeNull();
     });
