@@ -22,11 +22,10 @@ import type { Place, Review, SuggestField } from "@/lib/types";
 import type { ReasonKind } from "./reason-sheet";
 import type { ReviewsStatus } from "./review-section";
 import { useCheckIn } from "./use-check-in";
+import { usePhotoUpload } from "./use-photo-upload";
 
 export { CHECKIN_FAILED_NOTICE } from "./use-check-in";
 
-/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
-export const COMING_SOON_NOTICE = "준비 중이에요";
 export const REVIEW_SAVED_NOTICE = "리뷰를 남겼어요";
 export const REVIEW_UPDATED_NOTICE = "리뷰를 고쳤어요";
 export const REVIEW_DELETE_FAILED_NOTICE = "리뷰를 삭제하지 못했어요";
@@ -103,10 +102,18 @@ export function usePlaceDetail({
 
   /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 (신규 패널 [맞아요]와 같은 훅) ── */
   const {
-    place: shownPlace,
+    place: checkedPlace,
     done,
     checkIn,
   } = useCheckIn({ place, now, checked, onPatchPlace, onChecked, onNotice });
+
+  /* ── 사진 올리기: 고른 즉시 스트립에 → 성공 시 부모 확정, 실패 시 빠지고 토스트 (spec 4.2 "사진은 즉시") ── */
+  const { place: shownPlace, uploadPhotos } = usePhotoUpload({
+    place: checkedPlace,
+    now,
+    onPatchPlace,
+    onNotice,
+  });
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
@@ -184,10 +191,6 @@ export function usePlaceDetail({
     },
     [place.id, closePhoto, onNotice],
   );
-
-  const comingSoon = useCallback(() => {
-    onNotice(COMING_SOON_NOTICE);
-  }, [onNotice]);
 
   /* ── 값 제안(영업시간·주소·대표 메뉴·사이드) — 값 폼 시트. 접수는 수정 제안 큐로(Phase 6, spec 4.5) ── */
   const [suggestField, setSuggestField] = useState<SuggestField | null>(null);
@@ -315,10 +318,10 @@ export function usePlaceDetail({
     status,
     retryReviews,
     checkIn,
+    uploadPhotos,
     copyAddress,
     share,
     openRoute,
-    comingSoon,
     suggestField,
     openSuggest,
     closeSuggest,

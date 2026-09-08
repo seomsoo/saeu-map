@@ -29,6 +29,7 @@ const data = vi.hoisted(() => ({
   deleteReview: vi.fn<(id: string) => Promise<void>>(),
   flagPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
   reportPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
+  addPlacePhotos: vi.fn<(id: string, files: readonly File[], now: string) => Promise<Place>>(),
   submitOwnerRequest: vi.fn<(input: OwnerRequest) => Promise<void>>(),
   submitSuggestion: vi.fn<(input: SuggestionInput) => Promise<void>>(),
 }));
@@ -46,6 +47,7 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   deleteReview: data.deleteReview,
   flagPlace: data.flagPlace,
   reportPlace: data.reportPlace,
+  addPlacePhotos: data.addPlacePhotos,
   submitOwnerRequest: data.submitOwnerRequest,
   submitSuggestion: data.submitSuggestion,
 }));
@@ -462,7 +464,7 @@ describe("정보 블록 — 최근접역 줄 + 접히는 주소", () => {
   });
 });
 
-describe("찜·복사·공유·준비 중 입구", () => {
+describe("찜·복사·공유", () => {
   it("찜 버튼은 aria-pressed로 상태를 보이고 토글을 부모에 위임", () => {
     const { props, rerender } = renderDetail(nara());
     fireEvent.click(screen.getByRole("button", { name: "찜" }));
@@ -504,18 +506,6 @@ describe("찜·복사·공유·준비 중 입구", () => {
       expect(second.props.onNotice).toHaveBeenCalledWith("링크를 복사했어요");
     });
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/place/nara`);
-  });
-
-  it("아직 없는 플로우의 입구는 전부 '준비 중이에요' 토스트", async () => {
-    const onNotice = vi.fn();
-    renderDetail(nara({ hoursNote: null }), { onNotice });
-    await waitFor(() => {
-      expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
-    });
-    const entries: (string | RegExp)[] = [/첫 새우를 올려주세요/];
-    for (const name of entries) fireEvent.click(screen.getByRole("button", { name }));
-    expect(onNotice).toHaveBeenCalledTimes(entries.length);
-    for (const call of onNotice.mock.calls) expect(call[0]).toBe("준비 중이에요");
   });
 
   it("값이 있는 영업시간은 옅은 [수정]이 입구", () => {
@@ -832,6 +822,55 @@ describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [�
     renderDetail(nara(), { initialReviews: [review(5, { nickname: "을지로사람" })] });
     const band2 = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
     expect(within(band2).getByRole("button", { name: "리뷰 남기기" })).toBeInTheDocument();
+  });
+});
+
+describe("사진 올리기 — ＋ 타일이 곧 파일 선택기 (spec 4.2 \"사진은 즉시\")", () => {
+  const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
+
+  // 이 파일은 테스트마다 모의를 지우지 않는다 — 호출 여부를 보는 테스트가 있어 여기서만 지운다
+  beforeEach(() => {
+    data.addPlacePhotos.mockReset();
+  });
+
+  it("고른 즉시 스트립에 들어가고(낙관) 확정되면 부모에 알리며 토스트", async () => {
+    const uploaded = nara({ photos: [photo(1), photo(2), photo(3)] });
+    data.addPlacePhotos.mockResolvedValue(uploaded);
+    const { props } = renderDetail(nara({ photos: [photo(1), photo(2)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("new.jpg")] } });
+    // 낙관: 응답을 기다리지 않고 세 번째 칸이 이미 있다
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(3);
+    expect(data.addPlacePhotos).toHaveBeenCalledWith("nara", [expect.any(File)], NOW);
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("사진을 올렸어요");
+    });
+    expect(props.onPatchPlace).toHaveBeenCalledWith(uploaded);
+  });
+
+  it("실패하면 방금 넣은 사진이 빠지고 토스트", async () => {
+    data.addPlacePhotos.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderDetail(nara({ photos: [photo(1)] }));
+    fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("new.jpg")] } });
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(2);
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("사진을 올리지 못했어요");
+    });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(1);
+    expect(props.onPatchPlace).not.toHaveBeenCalled();
+  });
+
+  it("빈 상태 블록도 같은 선택기를 연다 — 이미지가 아닌 파일은 무시한다", () => {
+    data.addPlacePhotos.mockResolvedValue(nara());
+    renderDetail(nara({ photos: [] }));
+    expect(screen.getByRole("button", { name: /첫 새우를 올려주세요/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("사진 파일"), {
+      target: { files: [new File(["x"], "a.txt", { type: "text/plain" })] },
+    });
+    expect(data.addPlacePhotos).not.toHaveBeenCalled();
   });
 });
 

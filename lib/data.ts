@@ -421,8 +421,8 @@ const photoReportSchema = z.object({
 });
 
 /**
- * 사진 신고 접수 (spec 스팸 4겹 2 "신고 일 10"). 익명 업로드 이미지라, 다른 미구현 입구와 달리
- * "준비 중이에요"로 미루지 않는다(decisions 2026-09-03).
+ * 사진 신고 접수 (spec 스팸 4겹 2 "신고 일 10"). 익명 업로드 이미지라 상세의 어떤 입구보다 먼저
+ * 실동작으로 열었다(decisions 2026-09-03 — 나머지 입구는 2026-09-08에 따라왔다).
  * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·속도 제한은 Phase 6.
  */
 export async function reportPhoto(input: {

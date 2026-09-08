@@ -1,10 +1,14 @@
+"use client";
+
 import Image from "next/image";
+import { useRef } from "react";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Place } from "@/lib/types";
 
 interface PhotoAreaProps {
   place: Place;
-  onUploadPhoto: () => void;
+  /** 고른 이미지 파일 — 확인 단계 없이 바로 올라간다(spec 4.2 "사진은 즉시") */
+  onPickPhotos: (files: File[]) => void;
   /** 사진 탭 → 전체 화면 뷰어 (design 화면 2 변형 (e)) */
   onOpenPhoto: (index: number) => void;
 }
@@ -48,14 +52,40 @@ function FullTile() {
  * 카피가 두 줄인 이유: 여기는 버튼 라벨이 아니라 빈 상태다. 상태 한 줄 + 요청 한 줄이 그 문법이고,
  * 스트립 안 ＋ 타일은 그대로 액션 라벨("사진 추가")을 쓴다. 네이버 링크는 사진 유무와 무관하게 리뷰 끝.
  */
-export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps) {
+export function PhotoArea({ place, onPickPhotos, onOpenPhoto }: PhotoAreaProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const openPicker = () => {
+    inputRef.current?.click();
+  };
+  const pick = (list: FileList | null) => {
+    if (!list) return;
+    const images = Array.from(list).filter((file) => file.type.startsWith("image/"));
+    if (images.length > 0) onPickPhotos(images);
+    if (inputRef.current) inputRef.current.value = ""; // 같은 파일을 다시 고를 수 있게
+  };
+  /* 시트를 한 겹 더 두지 않는다 — ＋ 타일·빈 상태 블록이 곧 파일 선택기다(design 화면 2) */
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/*"
+      multiple
+      hidden
+      aria-label="사진 파일"
+      onChange={(e) => {
+        pick(e.target.files);
+      }}
+    />
+  );
+
   if (place.photos.length === 0) {
     return (
       <div className="px-5 pt-1 pb-3">
+        {fileInput}
         {/* 접근 이름은 보이는 두 줄 그대로 — aria-label로 덮으면 읽는 말과 보이는 말이 달라진다 */}
         <button
           type="button"
-          onClick={onUploadPhoto}
+          onClick={openPicker}
           className="press flex h-32 w-full flex-col items-center justify-center rounded-12 border border-line-brand"
         >
           {/* 아이콘은 떼고(8) 두 줄은 붙인다(2) — 상태와 요청은 한 덩어리다 */}
@@ -73,6 +103,7 @@ export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps)
       data-pan-x
       className="no-scrollbar flex touch-pan-x gap-2 overflow-x-auto px-5 pt-1 pb-3"
     >
+      <li hidden>{fileInput}</li>
       {place.photos.map((photo, i) => (
         <li key={photo.id} className="shrink-0">
           <button
@@ -101,7 +132,7 @@ export function PhotoArea({ place, onUploadPhoto, onOpenPhoto }: PhotoAreaProps)
         {place.photos.length >= MAX_PLACE_PHOTOS ? (
           <FullTile />
         ) : (
-          <button type="button" onClick={onUploadPhoto} className="press block" aria-label="사진 추가">
+          <button type="button" onClick={openPicker} className="press block" aria-label="사진 추가">
             <AddTile />
           </button>
         )}

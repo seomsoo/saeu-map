@@ -81,11 +81,7 @@ export function PlaceDetail({
   return (
     <article aria-label={`${place.name} 상세`}>
       {/* 1 */}
-      <PhotoArea
-        place={d.place}
-        onUploadPhoto={d.comingSoon}
-        onOpenPhoto={d.openPhoto}
-      />
+      <PhotoArea place={d.place} onPickPhotos={d.uploadPhotos} onOpenPhoto={d.openPhoto} />
       {/* 2 */}
       <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
