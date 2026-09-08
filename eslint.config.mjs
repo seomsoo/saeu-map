@@ -117,4 +117,28 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    /* 경계 JSON을 읽는 함수는 lib/data.ts만 부른다 (CLAUDE.md 절대 규칙 1).
+       boundaries 플러그인은 components → lib을 통째로 허용하고 데이터 차단이 lib/mock에만 걸려 있어
+       lib/gu.ts를 못 잡는다. 같은 파일에 getGuOfPoint를 이미 import해 두고도 lib/gu를 직접 부르는
+       일이 실제로 났다(Codex PR #13). 나머지 export(SEOUL_GU·isSeoulGu·GU_SLUGS·guSlug·guFromSlug)는
+       순수 상수·매핑이라 app에서 직접 써도 된다 — 그래서 모듈이 아니라 이름 단위로 막는다. */
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+    ignores: ["**/__tests__/**", "**/*.test.*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/gu",
+              importNames: ["guOfPoint", "guCenter"],
+              message:
+                "경계 파일을 읽는 함수는 lib/data.ts 경유 (절대 규칙 1) — getGuOfPoint·getGuCenter를 쓴다.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

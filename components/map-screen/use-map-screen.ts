@@ -32,7 +32,6 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { guOfPoint } from "@/lib/gu";
 import { isDesktopViewport, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import {
   areaLabel as computeAreaLabel,
@@ -354,6 +353,8 @@ export function useMapScreen({
 
   /**
    * 가게 0곳인 화면의 지역 이름 — 지도 중심 좌표를 우리 경계 폴리곤으로 판정한다(외부 지오코딩이 아니다).
+   * `lib/gu`를 직접 부르지 않고 **`lib/data.ts`의 `getGuOfPoint` 경유**다(절대 규칙 1) — 제보 2단계가 쓰는
+   * 그 이음매이고, Phase 6에서 이 파일 하나만 Supabase로 갈아끼우려면 데이터 접근이 새면 안 된다.
    * 전국 줌아웃을 열면서 "이 지역 0곳"이 흔해져 생긴 자리다(2026-09-09). 가게가 있으면 부르지 않는다:
    * 경계 파일(서울 60KB + 서울 밖 180KB)을 빈 화면에서만 받게 하고, 라벨도 분포로 정하는 게 맞기 때문이다.
    * 팬 중에는 뷰포트가 연달아 바뀌므로 늦게 온 응답은 순번으로 버린다.
@@ -364,7 +365,7 @@ export function useMapScreen({
     if (inView.length > 0 || !viewport) return;
     const at = viewport.center;
     const seq = ++centerGuSeq.current;
-    void guOfPoint(at).then(
+    void getGuOfPoint(at).then(
       (gu) => {
         if (centerGuSeq.current === seq) setCenterGu({ at, gu });
       },
