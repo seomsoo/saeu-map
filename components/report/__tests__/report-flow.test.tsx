@@ -460,7 +460,7 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     expect(screen.queryByRole("button", { name: "사진 추가" })).toBeNull();
   });
 
-  it("네이버 지도 링크(선택): 허용 링크는 그대로 넘어가고, 아닌 링크는 그 자리에서 막는다", async () => {
+  it("네이버 지도 링크(선택): 허용 링크는 그대로 넘어가고, 아닌 링크는 그 자리에서 막는다", () => {
     renderStep4();
     const field = screen.getByRole("textbox", { name: "네이버 지도 링크" });
 
