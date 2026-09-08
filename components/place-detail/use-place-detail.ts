@@ -203,9 +203,16 @@ export function usePlaceDetail({
     pushOverlayHistoryEntry();
     setSuggestField(field);
   }, []);
+  /** 늦게 온 응답이 "이미 닫힌 시트를 또 닫는" 일이 없게 — 상태를 핸들러가 재구독 없이 읽는다 */
+  const suggestOpenRef = useRef(false);
+  useEffect(() => {
+    suggestOpenRef.current = suggestField !== null;
+  }, [suggestField]);
   const handleSuggested = useCallback(
     (updated: Place) => {
+      // 쓰기는 이미 일어났다 — 갱신은 무조건 한다. 닫기·토스트만 "아직 열려 있을 때"다
       onPatchPlace(updated);
+      if (!suggestOpenRef.current) return;
       closeSuggest();
       onNotice(SUGGEST_THANKS_NOTICE);
     },

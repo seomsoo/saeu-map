@@ -1001,7 +1001,9 @@ export async function submitSuggestion(input: SuggestionInput, now: DateInput): 
     field: parsed.field,
     before,
   });
-  return place;
+  // 평점은 리뷰에서 파생돼 `dataset`의 raw place엔 없다 — 그대로 돌려주면 호출자가 통째로 갈아끼우면서
+  // 별점이 사라진다(`checkIn`과 같은 계약으로 얹는다, Codex PR #11 #2)
+  return withRating(place, ratingsByPlace(visibleReviews(data.reviews)));
 }
 
 const placeReportSchema = z.object({
@@ -1088,5 +1090,6 @@ export async function addPlacePhotos(
   // 대표 = photos[0].url — 첫 장이 올라간 가게는 카드·마커 썸네일도 이때 생긴다
   const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
   data.places = data.places.map((p) => (p.id === place.id ? place : p));
-  return place;
+  // 파생 평점을 얹어 돌려준다 (submitSuggestion과 같은 이유)
+  return withRating(place, ratingsByPlace(visibleReviews(data.reviews)));
 }

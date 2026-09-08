@@ -816,6 +816,31 @@ describe("submitSuggestion — 값 제안 (즉시 반영 + 이력)", () => {
     expect(place.tags).toEqual(target.tags);
   });
 
+  it("파생 평점을 얹어 돌려준다 — 안 그러면 고칠 때마다 별점이 사라진다", async () => {
+    /*
+     * 평점은 리뷰 3개 이상일 때만 붙는다(spec 4.2-8). 앞선 테스트가 목 리뷰를 지웠을 수 있어
+     * **이 테스트가 조건을 직접 만든다** — 픽스처 상태에 기대면 순서에 따라 조용히 무의미해진다.
+     */
+    await settle(signInWithKakao());
+    await settle(submitReview({ placeId: "p018", rating: 5, text: "", photo: null }, NOW));
+    const rated = await getPlaceById("p018", NOW);
+    expect(rated?.rating).toBeDefined();
+
+    const after = await settle(
+      submitSuggestion({ field: "hours", placeId: "p018", hoursNote: "밤 11시까지" }, NOW),
+    );
+    // 쓰기 응답이 읽기와 같은 모양이어야 한다 — 호출자가 이걸로 통째로 갈아끼운다 (Codex PR #11 #2)
+    expect(after.rating).toEqual(rated?.rating);
+    expect(after).toEqual(await getPlaceById("p018", NOW));
+
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:rating.jpg");
+    const withPhoto = await settle(
+      addPlacePhotos("p018", [new File(["x"], "rating.jpg", { type: "image/jpeg" })], NOW),
+    );
+    expect(withPhoto.rating).toEqual(rated?.rating);
+    await signOut();
+  });
+
   it("되돌릴 수 있게 이전 값이 이력에 남는다 (즉시 반영의 전제)", async () => {
     const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
     if (!target) throw new Error("no place with hours");

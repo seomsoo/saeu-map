@@ -654,6 +654,31 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
     });
   });
 
+  it("보내고 바로 닫아도 반영은 부모에 도착한다 — 쓰기는 이미 일어났다", async () => {
+    const updated = nara({ hoursNote: "24시간 영업" });
+    let resolveWrite!: (p: Place) => void;
+    data.submitSuggestion.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "영업시간 수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    // 응답 전에 닫는다 — 딤과 ✕ 둘 다 이름이 "닫기"다(닫는 길이 하나로 모인다)
+    const [closeBtn] = within(screen.getByRole("dialog")).getAllByRole("button", { name: "닫기" });
+    if (!closeBtn) throw new Error("no close button");
+    fireEvent.click(closeBtn);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    resolveWrite(updated);
+    await waitFor(() => {
+      expect(props.onPatchPlace).toHaveBeenCalledWith(updated);
+    });
+  });
+
   it("실패하면 시트 안 오류 한 줄 + 입력 유지 (닫아 버리면 무엇이 실패했는지 사라진다)", async () => {
     data.submitSuggestion.mockRejectedValue(new Error("mock write failed"));
     const { props } = renderDetail(nara());

@@ -149,9 +149,15 @@ export function SuggestSheet({ place, field, now, onSubmitted, onClose }: Sugges
     setError(null);
     submitSuggestion(input, now).then(
       (updated) => {
+        /*
+         * **부모 갱신은 alive와 무관하게 한다.** 보내기를 누르고 400ms 안에 ✕·딤·Escape·뒤로가기로
+         * 닫으면 쓰기는 이미 커밋됐는데 화면만 옛 값으로 남고, 다시 열면 그 stale 값으로 덮어쓴다
+         * (Codex PR #11 #1). 사진 업로드(`usePhotoUpload`)가 이미 이 규칙이다 — 시트만 달랐다.
+         * alive가 지키는 건 **이 시트의 내부 상태**뿐이다.
+         */
+        onSubmitted(updated);
         if (!alive.current) return;
         setPending(false);
-        onSubmitted(updated);
       },
       () => {
         if (!alive.current) return;
