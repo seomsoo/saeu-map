@@ -11,11 +11,13 @@ import type {
   Checkin,
   EventCard,
   LatLng,
+  Menu,
   MyReview,
   NearestStation,
   Photo,
   Place,
   PlaceDetail,
+  PlaceEdit,
   PlaceFlagReason,
   PlaceReportReason,
   PlaceTag,
@@ -100,6 +102,8 @@ export const MOCK_WRITE_DELAY_MS = 400;
  * 리사이즈(spec 6)를 하면 실제 저장본은 이보다 훨씬 작다 — 이건 "말도 안 되는 파일"을 막는 문이다.
  */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 — 목 50곳 최대가 5줄이라 여유롭게 */
+export const MAX_MENU_EDITS = 20;
 export const MOCK_FAILURE_RATE = 0.1;
 
 interface Dataset {
@@ -681,6 +685,13 @@ export async function deleteAccount(): Promise<Session> {
     // 확인 이벤트는 집계(시즌 카운터·확인 N회)에 남되 개인 식별자는 뗀다 — Phase 6: actor nullable + ON DELETE SET NULL
     data.checkins = data.checkins.map((c) => (c.actor === me ? { ...c, actor: DELETED_ACTOR } : c));
   }
+  // 수정 이력은 되돌리기·사후 확인에 남기고 개인 식별자만 뗀다 — checkins·reporterId와 같은 규칙
+  for (const [i, edit] of placeEdits.entries()) {
+    if (edit.actor !== me) continue;
+    const rest: PlaceEdit = { ...edit };
+    delete rest.actor;
+    placeEdits[i] = rest;
+  }
   bookmarksByUser.delete(me);
   kakaoNickname = KAKAO_MOCK_NICKNAME;
   currentSession = newAnonymousSession();
@@ -851,7 +862,7 @@ const placeFlagSchema = z.object({
 
 /**
  * 신규 패널 [정보가 달라요] 접수 (design 화면 4 변형 (a)). 사진 신고와 같은 계약 — 검증 + 지연만,
- * 수정 제안 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능") —
+ * 신고 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "신고는 익명 가능") —
  * 가장 싼 도배 경로라 속도 제한 자리: 핀당 일 1 (Phase 6 Upstash, spec 스팸 4겹 2).
  */
 export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
@@ -865,7 +876,7 @@ export async function flagPlace(input: { placeId: string; reason: PlaceFlagReaso
    ══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * 필드별 수정 제안(spec 4.2 "수정 제안은 즉시 반영이 아니라 승인 큐 경유").
+ * 필드별 수정 (spec 4.2 — 즉시 반영 + 사후 확인).
  * **주소는 사용자가 직접 친 값만 받는다** — 지오코더 응답은 절대 규칙 2로 저장할 수 없다
  * (`naverPlaceUrl`과 같은 판례, decisions 2026-09-08). 그래서 화면에도 자동완성이 없다.
  */
@@ -881,20 +892,116 @@ export const suggestionSchema = z.discriminatedUnion("field", [
     placeId: idSchema,
     addressRoad: z.string().trim().min(2).max(60),
   }),
-  z.object({ field: z.literal("menus"), placeId: idSchema, menus: z.array(reportMenuSchema).min(1).max(2) }),
+  /**
+   * 메뉴는 **바뀐 것만** 보낸다 — 사후 확인에서 "무엇이 어떻게 바뀌었나"로 읽혀야 한다(decisions 2026-09-08).
+   * 크롤 가게는 메뉴가 중앙값 3줄·최대 5줄이라 전체 교체 모델이 맞지 않는다.
+   */
+  z.object({
+    field: z.literal("menus"),
+    placeId: idSchema,
+    /** 기존 줄의 변경. `index`는 제안 시점의 화면 순서, `name`은 큐에서 사람이 대조할 이름이다 */
+    edits: z
+      .array(
+        z.object({
+          index: z.number().int().min(0),
+          // 크롤 메뉴명은 최대 59자였다(목 50곳) — 여유를 둔다
+          name: z.string().trim().min(1).max(200),
+          /** 새로 제안하는 가격. 가격을 안 고쳤으면 없다 */
+          price: z.number().int().min(100).max(999_999).optional(),
+          /** "없어졌어요"로 표시한 줄 */
+          removed: z.boolean(),
+        }),
+      )
+      .max(MAX_MENU_EDITS),
+    /** 새로 알려주는 줄 — 한 번에 하나까지. 구이·회 구분은 큐가 메뉴명으로 정한다 */
+    added: z.array(reportMenuSchema).max(1),
+  })
+    // 아무것도 안 고치고 낸 제안은 큐에서 버리는 일만 늘린다 — 화면도 같은 문구로 막는다
+    .refine((v) => v.edits.length + v.added.length > 0, "고친 곳이 없어요"),
   z.object({ field: z.literal("sides"), placeId: idSchema, sides: sidesSchema }),
 ]);
 export type SuggestionInput = z.infer<typeof suggestionSchema>;
 
+/** 수정 이력 — 되돌리기와 사후 확인(/admin)이 읽는다. Phase 6에선 `place_edits` 테이블. */
+let editSeq = 0;
+const placeEdits: PlaceEdit[] = [];
+
+/** 사후 확인 탭이 최신순으로 읽는다 (spec 4.5). 되돌리기는 `before`를 그대로 쓰면 된다. */
+export function getPlaceEdits(): Promise<PlaceEdit[]> {
+  return Promise.resolve([...placeEdits].reverse());
+}
+
+/** 제보 입력 한 줄 → 저장되는 메뉴. `submitReport`와 같은 모양이어야 한다. */
+function toMenu(line: ReportMenuInput): Menu {
+  return { raw: line.name, name: line.name, price: line.price, unit: line.unit, unit_raw: line.unitRaw };
+}
+
+/** 메뉴 제안 적용 — 가격 교체·삭제를 **원래 인덱스 기준으로** 한 번에 하고, 추가 줄은 뒤에 붙인다. */
+function applyMenuEdits(menus: Menu[], input: Extract<SuggestionInput, { field: "menus" }>): Menu[] {
+  const removed = new Set(input.edits.filter((e) => e.removed).map((e) => e.index));
+  const prices = new Map(
+    input.edits.filter((e) => e.price !== undefined).map((e) => [e.index, e.price]),
+  );
+  const kept = menus
+    .map((menu, i) => {
+      const price = prices.get(i);
+      return price === undefined ? menu : { ...menu, price };
+    })
+    .filter((_, i) => !removed.has(i));
+  return [...kept, ...input.added.map(toMenu)];
+}
+
 /**
- * 수정 제안 접수 — `flagPlace`·`reportPhoto`와 같은 계약(검증 + 지연만). 큐·관리자 화면은 Phase 6.
- * **돌려줄 Place가 없는 게 요점이다**: 승인 전에는 화면 값이 그대로라 낙관적 업데이트를 하지 않는다
- * (그래서 시트가 누르기 전에 "확인 후 반영돼요"라고 말한다 — design 화면 2).
- * 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능"). 속도 제한 자리: 핀당 일 N — Phase 6 Upstash.
+ * 수정 제안 — **즉시 반영하고 운영자가 사후에 확인한다**(2026-09-08에 뒤집었다. 제보의 "즉시 노출 +
+ * 24시간 내 사후 확인"과 같은 모델이다 — spec 5). 큐에서 기다리게 하면 1인 운영에서 밀리고, 밀리면
+ * 아무도 두 번 고쳐주지 않는다. 즉시 반영의 전제는 되돌리기라서 **바뀌기 직전 값을 이력에 남긴다**.
+ * 익명도 고칠 수 있다(spec 5 경계 그대로) — 익명 id가 `actor`로 남아 되돌리기·섀도 밴·속도 제한이 된다.
+ * `tags`(구이/회)는 건드리지 않는다: 추가된 줄이 회인지는 운영자가 사후 확인에서 정한다.
+ * 속도 제한 자리: 핀당 일 N — Phase 6 Upstash(spec 스팸 4겹 2). 자유 텍스트 방어는 같은 장의 내용 필터다.
  */
-export async function submitSuggestion(input: SuggestionInput): Promise<void> {
-  suggestionSchema.parse(input);
+export async function submitSuggestion(input: SuggestionInput, now: DateInput): Promise<Place> {
+  const parsed = suggestionSchema.parse(input);
+  // 행위자는 지연 전에 (CLAUDE.md 쓰기 규칙)
+  const actor = currentSession.userId;
   await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === parsed.placeId);
+  if (!current) throw new Error("place not found");
+
+  const before: PlaceEdit["before"] = {
+    hoursNote: current.hoursNote,
+    addressRoad: current.addressRoad,
+    menus: current.menus,
+    sides: current.sides,
+  };
+  let place: Place;
+  switch (parsed.field) {
+    case "hours":
+      place = { ...current, hoursNote: parsed.hoursNote };
+      break;
+    case "address":
+      // 지번은 건드리지 않는다 — 사용자가 준 건 도로명뿐이고, 둘을 같이 맞추는 건 사후 확인의 일이다
+      place = { ...current, addressRoad: parsed.addressRoad };
+      break;
+    case "sides":
+      place = { ...current, sides: parsed.sides };
+      break;
+    case "menus":
+      place = { ...current, menus: applyMenuEdits(current.menus, parsed) };
+      break;
+  }
+
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  editSeq += 1;
+  placeEdits.push({
+    id: `ed-local-${String(editSeq)}`,
+    placeId: place.id,
+    at: new Date(toMs(now)).toISOString(),
+    actor,
+    field: parsed.field,
+    before,
+  });
+  return place;
 }
 
 const placeReportSchema = z.object({

@@ -42,7 +42,7 @@ interface ReasonSheetProps {
  * 사유 시트 (design 화면 2 "상세의 쓰기 표면") — 바텀 모달, 44px 행 4개. **탭이 곧 제출**이라 확인 버튼이 없다:
  * 고르고도 안 낸 상태를 만들지 않는다. 접수 중엔 누른 행이 "접수 중…"으로 비활성, 실패하면 시트 안 오류 한 줄 +
  * 다시 탭이 재시도. 사진 신고(변형 (e))도 같은 문법이지만 그건 뷰어 안 표면이라 별도 컴포넌트다.
- * 접수된 것은 관리자 수정 제안 큐·신고 큐로 간다(Phase 6, spec 4.5).
+ * 접수된 것은 관리자 신고 큐로 간다(Phase 6, spec 4.5) — 값 수정과 달리 이건 **즉시 반영이 아니다**.
  */
 export function ReasonSheet({ place, kind, onSubmitted, onClose }: ReasonSheetProps) {
   const [pending, setPending] = useState<string | null>(null);

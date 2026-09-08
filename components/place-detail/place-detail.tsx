@@ -172,6 +172,7 @@ export function PlaceDetail({
         <SuggestSheet
           place={d.place}
           field={d.suggestField}
+          now={now}
           onSubmitted={d.handleSuggested}
           onClose={d.closeSuggest}
         />

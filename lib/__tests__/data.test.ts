@@ -17,6 +17,7 @@ import {
   getMyReviews,
   getPlaceById,
   getPlaceDetail,
+  getPlaceEdits,
   getPlaces,
   getReviews,
   getSeasonStats,
@@ -741,51 +742,119 @@ describe("flagPlace — [정보가 달라요] (목 쓰기)", () => {
   });
 });
 
-describe("submitSuggestion — 값 제안 (목 쓰기)", () => {
+describe("submitSuggestion — 값 제안 (즉시 반영 + 이력)", () => {
+  // 다른 테스트의 데이터셋을 건드리지 않도록 별도 날짜
+  const NOW = "2032-06-06T12:00:00+09:00";
+
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
   });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
-  it("네 필드 전부 400ms 뒤 resolve — 돌려주는 값이 없다(승인 큐 경유라 화면 값이 안 바뀐다)", async () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.99);
-    await expect(
-      settle(submitSuggestion({ field: "hours", placeId: "p019", hoursNote: "23:00 라스트오더, 월 휴무" })),
-    ).resolves.toBeUndefined();
-    await expect(
-      settle(submitSuggestion({ field: "address", placeId: "p019", addressRoad: "서울 마포구 마포대로12길 34" })),
-    ).resolves.toBeUndefined();
-    await expect(
-      settle(
-        submitSuggestion({
-          field: "menus",
-          placeId: "p019",
-          menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
-        }),
+  it("영업시간·주소·사이드는 그 자리에서 바뀌고 조회에도 바로 보인다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
+    const hours = await settle(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "23:00 라스트오더" }, NOW),
+    );
+    expect(hours.hoursNote).toBe("23:00 라스트오더");
+    expect(await getPlaceById(target.id, NOW)).toBe(hours);
+
+    const address = await settle(
+      submitSuggestion(
+        { field: "address", placeId: target.id, addressRoad: "서울 마포구 마포대로12길 34" },
+        NOW,
       ),
-    ).resolves.toBeUndefined();
-    await expect(
-      settle(
-        submitSuggestion({
-          field: "sides",
-          placeId: "p019",
-          sides: { headButter: true, ramen: false, friedRice: true },
-        }),
+    );
+    expect(address.addressRoad).toBe("서울 마포구 마포대로12길 34");
+    // 지번은 건드리지 않는다 — 사용자가 준 건 도로명뿐이다
+    expect(address.addressJibun).toBe(target.addressJibun);
+
+    const sides = await settle(
+      submitSuggestion(
+        { field: "sides", placeId: target.id, sides: { headButter: true, ramen: true, friedRice: true } },
+        NOW,
       ),
-    ).resolves.toBeUndefined();
+    );
+    expect(sides.sides).toEqual({ headButter: true, ramen: true, friedRice: true });
   });
 
-  it("실패는 reject, 검증 실패는 지연도 타지 않는다", async () => {
+  it("메뉴는 가격 교체·삭제를 원래 인덱스로 한 번에 하고 추가 줄은 뒤에 붙는다", async () => {
+    const target = (await getPlaces({}, NOW)).find((p) => p.menus.length >= 3);
+    if (!target) throw new Error("no place with 3+ menus");
+    const [first, , third] = target.menus;
+    const place = await settle(
+      submitSuggestion(
+        {
+          field: "menus",
+          placeId: target.id,
+          edits: [
+            { index: 0, name: first?.name ?? "", price: 32_000, removed: false },
+            { index: 2, name: third?.name ?? "", removed: true },
+          ],
+          added: [{ name: "새우튀김", price: 15_000, unit: "pan", unitRaw: "한판", raw: false }],
+        },
+        NOW,
+      ),
+    );
+    expect(place.menus).toHaveLength(target.menus.length - 1 + 1);
+    expect(place.menus[0]).toMatchObject({ name: first?.name, price: 32_000 });
+    // 삭제한 줄은 빠지고, 그 뒤 줄의 가격이 밀려 바뀌지 않는다
+    expect(place.menus.some((m) => m.name === third?.name)).toBe(false);
+    expect(place.menus.at(-1)).toEqual({
+      raw: "새우튀김",
+      name: "새우튀김",
+      price: 15_000,
+      unit: "pan",
+      unit_raw: "한판",
+    });
+    // 구이/회 태그는 건드리지 않는다 — 사후 확인에서 운영자가 정한다
+    expect(place.tags).toEqual(target.tags);
+  });
+
+  it("되돌릴 수 있게 이전 값이 이력에 남는다 (즉시 반영의 전제)", async () => {
+    const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
+    if (!target) throw new Error("no place with hours");
+    await settle(submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "새벽 3시까지" }, NOW));
+    const [latest] = await getPlaceEdits();
+    expect(latest).toMatchObject({ placeId: target.id, field: "hours" });
+    expect(latest?.before.hoursNote).toBe(target.hoursNote);
+    expect(latest?.actor).toMatch(/^anon-/);
+    expect(latest?.at).toBe(new Date(Date.parse(NOW)).toISOString());
+  });
+
+  it("실패는 reject하고 값도 그대로, 검증 실패는 지연도 타지 않는다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
     vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
-    await settleReject(submitSuggestion({ field: "hours", placeId: "p019", hoursNote: "월 휴무" }));
-    await expect(submitSuggestion({ field: "hours", placeId: "p019", hoursNote: "  " })).rejects.toThrow();
-    await expect(submitSuggestion({ field: "address", placeId: "p019", addressRoad: "가" })).rejects.toThrow();
-    await expect(submitSuggestion({ field: "menus", placeId: "p019", menus: [] })).rejects.toThrow();
-    await expect(submitSuggestion({ field: "sides", placeId: "", sides: SIDES } as never)).rejects.toThrow();
-    await expect(submitSuggestion({ field: "nope", placeId: "p019" } as never)).rejects.toThrow();
+    await settleReject(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "월 휴무" }, NOW),
+    );
+    expect((await getPlaceById(target.id, NOW))?.hoursNote).not.toBe("월 휴무");
+
+    await expect(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "  " }, NOW),
+    ).rejects.toThrow();
+    await expect(
+      submitSuggestion({ field: "address", placeId: target.id, addressRoad: "가" }, NOW),
+    ).rejects.toThrow();
+    // 아무것도 안 고친 제안은 거부한다
+    await expect(
+      submitSuggestion({ field: "menus", placeId: target.id, edits: [], added: [] }, NOW),
+    ).rejects.toThrow();
+    await expect(
+      submitSuggestion({ field: "sides", placeId: "", sides: SIDES } as never, NOW),
+    ).rejects.toThrow();
+    // 없는 가게는 지연을 통과한 뒤 걸린다 — 실패 주입을 풀고 확인한다
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await settleReject(
+      submitSuggestion({ field: "hours", placeId: "nope", hoursNote: "밤 12시" }, NOW),
+      "place not found",
+    );
   });
 });
 

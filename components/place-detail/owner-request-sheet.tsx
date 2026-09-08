@@ -28,7 +28,7 @@ interface OwnerRequestSheetProps {
 
 /**
  * [사장님이신가요?]의 요청 폼 (spec 4.2-9 "연락 창구 상시 노출", spec 5 "삭제 요청 1회로 즉시 처리").
- * 값 폼 시트 문법이되 **"확인 후 반영돼요"를 쓰지 않는다** — 여기는 제안이 아니라 요청이고,
+ * 값 폼 시트 문법이되 **반영 문구를 쓰지 않는다** — 여기는 값 수정이 아니라 요청이고,
  * 답은 화면이 아니라 연락처로 온다. 그래서 연락처가 필수다(decisions 2026-09-08).
  */
 export function OwnerRequestSheet({ place, onSubmitted, onClose }: OwnerRequestSheetProps) {

@@ -177,7 +177,7 @@ export interface Session {
 /** 신규 패널 [정보가 달라요] 사유 — 사유 시트 4행과 1:1 (design 화면 4 변형 (a)). */
 export type PlaceFlagReason = "location" | "menu" | "closed" | "other";
 
-/** 상세의 값 제안 입구 — 필드별 수정 제안(spec 4.2 "수정 제안은 승인 큐 경유"). */
+/** 상세의 값 제안 입구 — 필드별 수정. 즉시 반영되고 운영자가 사후에 확인한다(spec 4.2, 2026-09-08). */
 export type SuggestField = "hours" | "address" | "menus" | "sides";
 
 /**
@@ -188,6 +188,24 @@ export type PlaceReportReason = "not_shrimp" | "fake" | "duplicate" | "other";
 
 /** 사장님 요청 종류 — 게재 삭제는 1회 요청으로 즉시 처리(spec 5). */
 export type OwnerRequestKind = "edit" | "remove";
+
+/**
+ * 정보 수정 이력 — 영업시간·주소·메뉴·사이드는 **즉시 반영**하고 운영자가 사후에 확인한다
+ * (제보의 "즉시 노출 + 24시간 내 사후 확인"과 같은 모델, decisions 2026-09-08).
+ * 즉시 반영의 전제가 되돌리기라서 **바뀌기 직전 값을 통째로** 들고 있는다 — Phase 6에선 `place_edits` 테이블이다.
+ */
+export interface PlaceEdit {
+  id: string;
+  placeId: string;
+  /** 반영 시각(UTC ISO) */
+  at: string;
+  /** 고친 사람(익명 id 포함). 탈퇴하면 뗀다 — 다른 기록과 같은 규칙 */
+  actor?: string;
+  /** 무엇을 고쳤나 — /admin 사후 확인 탭이 이걸 읽어 사람 문장으로 만든다 */
+  field: SuggestField;
+  /** 되돌리기용: 바뀌기 직전의 네 필드 */
+  before: Pick<Place, "hoursNote" | "addressRoad" | "menus" | "sides">;
+}
 
 /** 상세 화면 데이터 묶음 — 가게 + 그 가게 리뷰(최신순). */
 export interface PlaceDetail {

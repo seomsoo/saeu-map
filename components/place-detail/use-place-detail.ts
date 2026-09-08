@@ -30,8 +30,8 @@ export const REVIEW_SAVED_NOTICE = "리뷰를 남겼어요";
 export const REVIEW_UPDATED_NOTICE = "리뷰를 고쳤어요";
 export const REVIEW_DELETE_FAILED_NOTICE = "리뷰를 삭제하지 못했어요";
 export const FLAGGED_NOTICE = "알려주셔서 고마워요";
-/** 값 제안은 승인 큐 경유라 화면 값이 안 바뀐다 — 토스트가 그 사실을 한 번 더 말한다(design 화면 2) */
-export const SUGGEST_THANKS_NOTICE = "알려주셔서 고마워요. 확인 후 반영돼요";
+/** 값 제안은 바로 반영된다(2026-09-08) — 화면이 이미 바뀌었으니 토스트는 고맙다는 말만 한다 */
+export const SUGGEST_THANKS_NOTICE = "고쳐주셔서 고마워요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
@@ -193,7 +193,7 @@ export function usePlaceDetail({
     [place.id, closePhoto, onNotice],
   );
 
-  /* ── 값 제안(영업시간·주소·대표 메뉴·사이드) — 값 폼 시트. 접수는 수정 제안 큐로(Phase 6, spec 4.5) ── */
+  /* ── 값 제안(영업시간·주소·대표 메뉴·사이드) — 값 폼 시트. **즉시 반영**되고 운영자가 사후에 확인한다 ── */
   const [suggestField, setSuggestField] = useState<SuggestField | null>(null);
   const clearSuggest = useCallback(() => {
     setSuggestField(null);
@@ -203,10 +203,14 @@ export function usePlaceDetail({
     pushOverlayHistoryEntry();
     setSuggestField(field);
   }, []);
-  const handleSuggested = useCallback(() => {
-    closeSuggest();
-    onNotice(SUGGEST_THANKS_NOTICE);
-  }, [closeSuggest, onNotice]);
+  const handleSuggested = useCallback(
+    (updated: Place) => {
+      onPatchPlace(updated);
+      closeSuggest();
+      onNotice(SUGGEST_THANKS_NOTICE);
+    },
+    [onPatchPlace, closeSuggest, onNotice],
+  );
 
   /* ── 하단 줄 — [정보 수정 제안]·[신고]는 사유 시트 하나가 맡는다(사유 목록만 다르다) ── */
   const [reasonKind, setReasonKind] = useState<ReasonKind | null>(null);

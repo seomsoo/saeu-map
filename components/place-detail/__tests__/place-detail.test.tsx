@@ -31,7 +31,7 @@ const data = vi.hoisted(() => ({
   reportPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
   addPlacePhotos: vi.fn<(id: string, files: readonly File[], now: string) => Promise<Place>>(),
   submitOwnerRequest: vi.fn<(input: OwnerRequest) => Promise<void>>(),
-  submitSuggestion: vi.fn<(input: SuggestionInput) => Promise<void>>(),
+  submitSuggestion: vi.fn<(input: SuggestionInput, now: string) => Promise<Place>>(),
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
@@ -517,13 +517,18 @@ describe("찜·복사·공유", () => {
 });
 
 describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (design 화면 2 값 폼 시트)", () => {
+  // 이 파일은 테스트마다 모의를 지우지 않는다 — 호출 여부를 보는 테스트가 있어 여기서만 지운다
+  beforeEach(() => {
+    data.submitSuggestion.mockReset();
+  });
+
   const openSheet = (name: string, place = nara()) => {
     const view = renderDetail(place);
     fireEvent.click(screen.getByRole("button", { name }));
     return view;
   };
 
-  it("네 입구가 각자의 시트를 연다 — 승인 큐 경유라 누르기 전에 '확인 후 반영돼요'를 말한다", () => {
+  it("네 입구가 각자의 시트를 연다 — 누르기 전에 '바로 반영되고 운영자가 확인해요'를 말한다", () => {
     const cases: [string, string][] = [
       ["영업시간 수정", "영업시간을 알려주세요"],
       ["대표 메뉴 수정", "메뉴와 가격을 알려주세요"],
@@ -533,7 +538,7 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
       const view = openSheet(entry);
       const sheet = screen.getByRole("dialog", { name: new RegExp(title) });
       expect(within(sheet).getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
-      expect(within(sheet).getByText("확인 후 반영돼요")).toBeInTheDocument();
+      expect(within(sheet).getByText("바로 반영되고 운영자가 확인해요")).toBeInTheDocument();
       view.unmount();
     }
   });
@@ -549,8 +554,9 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
     expect(screen.getByRole("button", { name: "알려주기" })).toBeInTheDocument();
   });
 
-  it("빈 값이면 지연 없이 필드 오류, 채우면 접수하고 시트가 닫히며 토스트", async () => {
-    data.submitSuggestion.mockResolvedValue(undefined);
+  it("빈 값이면 지연 없이 필드 오류, 채우면 바로 반영되고 시트가 닫히며 토스트", async () => {
+    const updated = nara({ hoursNote: "24시간 영업" });
+    data.submitSuggestion.mockResolvedValue(updated);
     const { props } = renderDetail(nara({ hoursNote: null }));
     fireEvent.click(screen.getByRole("button", { name: "영업시간을 알려주세요" }));
     fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
@@ -562,15 +568,89 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
     });
     fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
     await waitFor(() => {
-      expect(props.onNotice).toHaveBeenCalledWith("알려주셔서 고마워요. 확인 후 반영돼요");
+      expect(props.onNotice).toHaveBeenCalledWith("고쳐주셔서 고마워요");
     });
-    expect(data.submitSuggestion).toHaveBeenCalledWith({
-      field: "hours",
-      placeId: "nara",
-      hoursNote: "24시간 영업",
-    });
+    expect(data.submitSuggestion).toHaveBeenCalledWith(
+      { field: "hours", placeId: "nara", hoursNote: "24시간 영업" },
+      NOW,
+    );
+    // 승인 큐가 아니라 즉시 반영이라 부모가 갱신된 가게를 받는다 (decisions 2026-09-08)
+    expect(props.onPatchPlace).toHaveBeenCalledWith(updated);
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  it("메뉴 시트는 있는 줄을 다 보여주고 가격만 고친다 — 바뀐 줄만 나간다", async () => {
+    const many = nara({
+      menus: [
+        makeMenu({ name: "새우구이", price: 29900, unit: "none", unit_raw: null }),
+        makeMenu({ name: "새우회", price: 35000, unit: "g", unit_raw: "300" }),
+        makeMenu({ name: "새우머리튀김 0", price: null, unit: "none", unit_raw: null }),
+      ],
+    });
+    data.submitSuggestion.mockResolvedValue(many);
+    renderDetail(many);
+    fireEvent.click(screen.getByRole("button", { name: "대표 메뉴 수정" }));
+    const list = screen.getByRole("list", { name: "지금 메뉴" });
+    // 제보의 2줄 폼과 달리 세 줄이 다 보인다 (decisions 2026-09-08)
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByRole("textbox", { name: "새우구이 가격" })).toHaveValue("29,900");
+    expect(screen.getByRole("textbox", { name: "새우머리튀김 0 가격" })).toHaveValue("");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "새우구이 가격" }), {
+      target: { value: "32000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "새우머리튀김 0 없어졌어요" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    await waitFor(() => {
+      expect(data.submitSuggestion).toHaveBeenCalled();
+    });
+    // 안 건드린 새우회는 안 나간다
+    expect(data.submitSuggestion).toHaveBeenCalledWith(
+      {
+        field: "menus",
+        placeId: "nara",
+        edits: [
+          { index: 0, name: "새우구이", price: 32000, removed: false },
+          { index: 2, name: "새우머리튀김 0", removed: true },
+        ],
+        added: [],
+      },
+      NOW,
+    );
+  });
+
+  it("아무것도 안 고치고 보내면 CTA 위 오류 한 줄", () => {
+    renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "대표 메뉴 수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("고친 곳이 없어요");
+    expect(data.submitSuggestion).not.toHaveBeenCalled();
+  });
+
+  it("메뉴가 없는 가게는 추가 줄이 펼쳐진 채 열린다", async () => {
+    const empty = nara({ menus: [] });
+    data.submitSuggestion.mockResolvedValue(empty);
+    renderDetail(empty);
+    fireEvent.click(screen.getByRole("button", { name: "메뉴 알려주기" }));
+    expect(screen.queryByRole("list", { name: "지금 메뉴" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), {
+      target: { value: "왕새우 소금구이" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+    fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
+    await waitFor(() => {
+      expect(data.submitSuggestion).toHaveBeenCalledWith(
+        {
+          field: "menus",
+          placeId: "nara",
+          edits: [],
+          added: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+        },
+        NOW,
+      );
     });
   });
 
@@ -586,8 +666,8 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
     expect(props.onNotice).not.toHaveBeenCalled();
   });
 
-  it("사이드 칩은 보던 그대로의 생김새로 켜고 끈다 — 고친 값이 제안으로 나간다", async () => {
-    data.submitSuggestion.mockResolvedValue(undefined);
+  it("사이드 칩은 보던 그대로의 생김새로 켜고 끈다 — 고친 값이 그대로 나간다", async () => {
+    data.submitSuggestion.mockResolvedValue(nara());
     renderDetail(nara());
     fireEvent.click(screen.getByRole("button", { name: "사이드 수정" }));
     const friedRice = screen.getByRole("button", { name: /볶음밥/ });
@@ -596,11 +676,10 @@ describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (
     expect(screen.getByRole("button", { name: /볶음밥/ })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "보내기" }));
     await waitFor(() => {
-      expect(data.submitSuggestion).toHaveBeenCalledWith({
-        field: "sides",
-        placeId: "nara",
-        sides: { headButter: true, ramen: true, friedRice: true },
-      });
+      expect(data.submitSuggestion).toHaveBeenCalledWith(
+        { field: "sides", placeId: "nara", sides: { headButter: true, ramen: true, friedRice: true } },
+        NOW,
+      );
     });
   });
 });

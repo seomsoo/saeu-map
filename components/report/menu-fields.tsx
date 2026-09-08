@@ -28,7 +28,7 @@ interface MenuLineProps {
 }
 
 /** 메뉴명 / 가격(원, 숫자 키패드) / 단위 칩 6개(줄바꿈) + 마리면 칩 행 아래 "몇 마리" 입력 — 구이 줄과 회 줄이 같은 3필드 */
-function MenuLine({ raw, value, errors, onChange, className, nameRef }: MenuLineProps) {
+export function MenuLine({ raw, value, errors, onChange, className, nameRef }: MenuLineProps) {
   const groupLabel = raw ? "새우회 단위" : "단위";
   const countRef = useRef<HTMLInputElement | null>(null);
   // [마리]를 고르면 바로 수를 묻는다 — 입력이 칩 아래에 나타나며 키보드가 열린다

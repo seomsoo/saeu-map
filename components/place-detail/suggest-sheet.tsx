@@ -2,18 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  EMPTY_MENU_DRAFT,
   clearMenuErrors,
+  priceDigits,
   validateMenuDraft,
-  type MenuDraft,
   type MenuDraftErrors,
 } from "@/components/report/menu-draft";
-import { MenuFields, menuToDraft } from "@/components/report/menu-fields";
+import {
+  MenuEditFields,
+  initialMenuEditDraft,
+  type MenuEditDraft,
+} from "./menu-edit-fields";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { TextField } from "@/components/ui/text-field";
-import { submitSuggestion, type SuggestionInput } from "@/lib/data";
+import { submitSuggestion, type ReportMenuInput, type SuggestionInput } from "@/lib/data";
 import { sideChips } from "@/lib/places";
 import type { Place, Sides, SuggestField } from "@/lib/types";
 
@@ -31,37 +34,35 @@ const HOURS_MAX = 80;
 const ADDRESS_MAX = 60;
 const HOURS_ERROR = "영업시간을 적어주세요";
 const ADDRESS_ERROR = "도로명 주소를 적어주세요";
+export const NOTHING_CHANGED = "고친 곳이 없어요";
+/** `reportMenuSchema`와 같은 하한 — 100원 미만은 오타다 */
+const MIN_PRICE = 100;
+const PRICE_TOO_LOW = "가격을 100원 이상으로 적어주세요";
 
 interface SuggestSheetProps {
   place: Place;
   field: SuggestField;
-  /** 접수 성공 — 부모가 시트를 닫고 토스트를 낸다 */
-  onSubmitted: () => void;
+  /** 서버 렌더 시각(ISO) — 이력의 반영 시각. 클라이언트 Date.now() 금지 */
+  now: string;
+  /** 반영된 가게 — 부모가 화면을 갱신하고 시트를 닫고 토스트를 낸다 */
+  onSubmitted: (place: Place) => void;
   /** 딤·Escape·✕·뒤로가기 */
   onClose: () => void;
 }
 
 /**
- * 값 폼 시트 (design 화면 2 "상세의 쓰기 표면") — 영업시간·주소·대표 메뉴·사이드의 수정 제안.
- * **값이 있으면 채워 두고**(수정) 없으면 빈 채다. 제출해도 화면 값은 그대로다 — 승인 큐 경유라
- * (spec 4.2) 낙관적 업데이트를 하지 않고, 그 사실을 **누르기 전에** "확인 후 반영돼요"로 말한다.
- * 실패는 시트 안 오류 한 줄 + 입력 유지(닫아 버리면 무엇이 실패했는지 사라진다).
+ * 값 폼 시트 (design 화면 2 "상세의 쓰기 표면") — 영업시간·주소·대표 메뉴·사이드를 고친다.
+ * **값이 있으면 채워 두고**(수정) 없으면 빈 채다. 제출하면 **바로 반영되고** 운영자가 사후에 확인한다
+ * (2026-09-08에 승인 큐에서 뒤집었다 — 제보와 같은 모델). 실패는 시트 안 오류 한 줄 + 입력 유지
+ * (닫아 버리면 무엇이 실패했는지 사라지고, 폼은 사진과 달리 되돌릴 입력이 남는다).
  */
-export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestSheetProps) {
+export function SuggestSheet({ place, field, now, onSubmitted, onClose }: SuggestSheetProps) {
   const [hours, setHours] = useState(place.hoursNote ?? "");
   const [address, setAddress] = useState(place.addressRoad ?? "");
   const [sides, setSides] = useState<Sides>(place.sides);
-  /*
-   * 메뉴는 제보와 같은 순서다: 첫 줄이 구이, 둘째 줄이 회(submitReport가 그 순서로 넣는다).
-   * 시드 가게에 메뉴가 더 많아도 제안은 **대표 메뉴 한두 줄**이라(spec 4.2-5) 앞 두 줄만 채운다.
-   */
-  const [grill, setGrill] = useState<MenuDraft>(() => menuToDraft(place.menus[0]));
-  const [raw, setRaw] = useState<MenuDraft>(() => menuToDraft(place.menus[1]));
-  const [rawToo, setRawToo] = useState(place.menus.length > 1);
-  const [menuErrors, setMenuErrors] = useState<{ grill: MenuDraftErrors; raw: MenuDraftErrors }>({
-    grill: {},
-    raw: {},
-  });
+  /* 메뉴는 지금 있는 줄을 그대로 편집한다 — 가격 + "없어졌어요" + 추가 한 줄 (decisions 2026-09-08) */
+  const [menuDraft, setMenuDraft] = useState<MenuEditDraft>(() => initialMenuEditDraft(place.menus));
+  const [addedErrors, setAddedErrors] = useState<MenuDraftErrors>({});
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -94,12 +95,46 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
         return { field, placeId: place.id, addressRoad };
       }
       case "menus": {
-        const grillResult = validateMenuDraft(grill, false);
-        const rawResult = rawToo ? validateMenuDraft(raw, true) : null;
-        setMenuErrors({ grill: grillResult.errors ?? {}, raw: rawResult?.errors ?? {} });
-        if (grillResult.menu === null || rawResult?.menu === null) return null;
-        const menus = rawResult ? [grillResult.menu, rawResult.menu] : [grillResult.menu];
-        return { field, placeId: place.id, menus };
+        const edits: { index: number; name: string; price?: number; removed: boolean }[] = [];
+        place.menus.forEach((menu, i) => {
+          const removed = menuDraft.removed[i] ?? false;
+          const digits = priceDigits(menuDraft.prices[i] ?? "");
+          const price = digits === "" ? null : Number(digits);
+          // 비운 칸은 "변경 없음"이다 — 가격을 지우고 싶다는 뜻으로 읽지 않는다(그건 [없어졌어요]가 받는다)
+          const priceChanged = price !== null && price !== menu.price;
+          if (!removed && !priceChanged) return;
+          edits.push({
+            index: i,
+            name: menu.name,
+            ...(!removed && priceChanged && { price }),
+            removed,
+          });
+        });
+        if (edits.some((e) => e.price !== undefined && e.price < MIN_PRICE)) {
+          setError(PRICE_TOO_LOW);
+          return null;
+        }
+
+        let added: ReportMenuInput[] = [];
+        // 추가 줄을 펼쳐만 두고 비워 뒀으면 없는 셈 친다 — 다른 줄만 고쳐도 낼 수 있어야 한다
+        const addedTouched =
+          menuDraft.added.name.trim() !== "" ||
+          menuDraft.added.price !== "" ||
+          menuDraft.added.unit !== null;
+        if (menuDraft.adding && addedTouched) {
+          const result = validateMenuDraft(menuDraft.added, false);
+          setAddedErrors(result.errors ?? {});
+          if (result.menu === null) return null;
+          added = [result.menu];
+        } else {
+          setAddedErrors({});
+        }
+
+        if (edits.length + added.length === 0) {
+          setError(NOTHING_CHANGED);
+          return null;
+        }
+        return { field, placeId: place.id, edits, added };
       }
       case "sides":
         return { field, placeId: place.id, sides };
@@ -112,11 +147,11 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
     if (input === null) return;
     setPending(true);
     setError(null);
-    submitSuggestion(input).then(
-      () => {
+    submitSuggestion(input, now).then(
+      (updated) => {
         if (!alive.current) return;
         setPending(false);
-        onSubmitted();
+        onSubmitted(updated);
       },
       () => {
         if (!alive.current) return;
@@ -187,23 +222,18 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
           />
         )}
         {field === "menus" && (
-          <MenuFields
-            grill={grill}
-            raw={raw}
-            rawToo={rawToo}
-            errors={menuErrors}
-            onChangeGrill={(changes) => {
-              setMenuErrors((prev) => ({ ...prev, grill: clearMenuErrors(prev.grill, changes) }));
-              setGrill((prev) => ({ ...prev, ...changes }));
+          <MenuEditFields
+            menus={place.menus}
+            draft={menuDraft}
+            addedErrors={addedErrors}
+            onChange={(next) => {
+              setError(null);
+              setMenuDraft(next);
             }}
-            onChangeRaw={(changes) => {
-              setMenuErrors((prev) => ({ ...prev, raw: clearMenuErrors(prev.raw, changes) }));
-              setRaw((prev) => ({ ...prev, ...changes }));
-            }}
-            onRawTooChange={(next) => {
-              setRawToo(next);
-              // 껐다 켜면 빈 줄부터 — 지웠다고 생각한 값이 되살아나지 않는다
-              if (!next) setRaw(EMPTY_MENU_DRAFT);
+            onChangeAdded={(changes) => {
+              setError(null);
+              setAddedErrors((prev) => clearMenuErrors(prev, changes));
+              setMenuDraft((prev) => ({ ...prev, added: { ...prev.added, ...changes } }));
             }}
           />
         )}
@@ -232,9 +262,8 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
       </div>
 
       <div className="px-5 pb-2">
-        {/* 스크롤되는 본문 밖이다 — 메뉴처럼 긴 입력에서는 본문 안에 두면 CTA만 보인 채 눌리고,
-            "왜 값이 안 바뀌지?"는 누른 뒤에 말하면 늦다(design 화면 2 값 폼 시트) */}
-        <p className="mb-2 text-caption-l-regular text-fg-tertiary">확인 후 반영돼요</p>
+        {/* 스크롤되는 본문 밖이다 — 메뉴처럼 긴 입력에서는 본문 안에 두면 CTA만 보인 채 눌린다 */}
+        <p className="mb-2 text-caption-l-regular text-fg-tertiary">바로 반영되고 운영자가 확인해요</p>
         {error && (
           <p role="alert" className="mb-2 text-caption-l-regular text-brand-fg">
             {error}
