@@ -7,7 +7,8 @@ import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
 import { ContributionBand } from "./contribution-band";
-import { FlagSheet } from "./flag-sheet";
+import { OwnerRequestSheet } from "./owner-request-sheet";
+import { ReasonSheet } from "./reason-sheet";
 import { SuggestSheet } from "./suggest-sheet";
 import { FooterLinks } from "./footer-links";
 import { PlaceInfo } from "./info-rows";
@@ -144,10 +145,31 @@ export function PlaceDetail({
       />
       <SectionBand />
       {/* 9 */}
-      <FooterLinks onSuggest={d.openFlag} onSelect={d.comingSoon} />
-      {/* 하단 [정보 수정 제안] — 사유 시트(탭이 곧 제출). 접수는 Phase 6 관리자 큐로 */}
-      {d.flagOpen && (
-        <FlagSheet place={place} onFlagged={d.handleFlagged} onClose={d.closeFlag} />
+      <FooterLinks
+        onSuggest={() => {
+          d.openReason("flag");
+        }}
+        onReport={() => {
+          d.openReason("report");
+        }}
+        onOwner={d.openOwner}
+      />
+      {/* 하단 [정보 수정 제안]·[신고] — 사유 시트(탭이 곧 제출). 접수는 Phase 6 관리자 큐로 */}
+      {d.reasonKind !== null && (
+        <ReasonSheet
+          place={place}
+          kind={d.reasonKind}
+          onSubmitted={d.handleReasoned}
+          onClose={d.closeReason}
+        />
+      )}
+      {/* 하단 [사장님이신가요?] — 요청 폼. 답은 화면이 아니라 연락처로 간다 */}
+      {d.ownerOpen && (
+        <OwnerRequestSheet
+          place={place}
+          onSubmitted={d.handleOwnerRequested}
+          onClose={d.closeOwner}
+        />
       )}
       {/* 값 폼 시트 — 영업시간·주소·대표 메뉴·사이드. 접수는 Phase 6 관리자 큐로 */}
       {d.suggestField !== null && (

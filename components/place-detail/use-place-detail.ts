@@ -19,6 +19,7 @@ import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/nav
 import { sortReviewsNewest } from "@/lib/reviews";
 import { copyText, sharePlace } from "@/lib/share";
 import type { Place, Review, SuggestField } from "@/lib/types";
+import type { ReasonKind } from "./reason-sheet";
 import type { ReviewsStatus } from "./review-section";
 import { useCheckIn } from "./use-check-in";
 
@@ -35,6 +36,8 @@ export const SUGGEST_THANKS_NOTICE = "알려주셔서 고마워요. 확인 후 �
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
+/** 사장님 요청은 답이 화면이 아니라 연락처로 온다 — 토스트가 그 약속을 한다(spec 5 "24시간 내") */
+export const OWNER_REQUESTED_NOTICE = "요청을 접수했어요. 24시간 안에 연락드릴게요";
 /** 실패 토스트는 뷰어 안에서 뜬다(top layer가 지도 화면 토스트를 가린다) — 문구만 여기 모아 둔다 */
 export const PHOTO_REPORT_FAILED_NOTICE = "신고를 접수하지 못했어요";
 /** 앱 스킴을 열고 이 시간 안에 화면이 안 가려지면(앱 없음) 웹 지도로 */
@@ -201,20 +204,37 @@ export function usePlaceDetail({
     onNotice(SUGGEST_THANKS_NOTICE);
   }, [closeSuggest, onNotice]);
 
-  /* ── 정보 수정 제안(하단 줄) — 사유 시트. 접수는 관리자 수정 제안 큐로(Phase 6, spec 4.5) ── */
-  const [flagOpen, setFlagOpen] = useState(false);
-  const clearFlag = useCallback(() => {
-    setFlagOpen(false);
+  /* ── 하단 줄 — [정보 수정 제안]·[신고]는 사유 시트 하나가 맡는다(사유 목록만 다르다) ── */
+  const [reasonKind, setReasonKind] = useState<ReasonKind | null>(null);
+  const clearReason = useCallback(() => {
+    setReasonKind(null);
   }, []);
-  const closeFlag = useOverlayHistory(flagOpen, clearFlag);
-  const openFlag = useCallback(() => {
+  const closeReason = useOverlayHistory(reasonKind !== null, clearReason);
+  const openReason = useCallback((kind: ReasonKind) => {
     pushOverlayHistoryEntry();
-    setFlagOpen(true);
+    setReasonKind(kind);
   }, []);
-  const handleFlagged = useCallback(() => {
-    closeFlag();
-    onNotice(FLAGGED_NOTICE);
-  }, [closeFlag, onNotice]);
+  const handleReasoned = useCallback(() => {
+    // 접수 문구는 입구마다 다르다: 제안은 고마움, 신고는 접수 사실
+    const notice = reasonKind === "report" ? PHOTO_REPORTED_NOTICE : FLAGGED_NOTICE;
+    closeReason();
+    onNotice(notice);
+  }, [reasonKind, closeReason, onNotice]);
+
+  /* ── [사장님이신가요?] — 요청 폼(정보 수정·게재 삭제). 접수는 관리자 큐로(Phase 6) ── */
+  const [ownerOpen, setOwnerOpen] = useState(false);
+  const clearOwner = useCallback(() => {
+    setOwnerOpen(false);
+  }, []);
+  const closeOwner = useOverlayHistory(ownerOpen, clearOwner);
+  const openOwner = useCallback(() => {
+    pushOverlayHistoryEntry();
+    setOwnerOpen(true);
+  }, []);
+  const handleOwnerRequested = useCallback(() => {
+    closeOwner();
+    onNotice(OWNER_REQUESTED_NOTICE);
+  }, [closeOwner, onNotice]);
 
   /* ── 리뷰 쓰기 (화면 5 변형 (b)·(c)): 로그인 게이트 → 폼(오버레이), 본인 수정·낙관 삭제 ── */
   const { session, requireLogin } = useSession();
@@ -303,10 +323,14 @@ export function usePlaceDetail({
     openSuggest,
     closeSuggest,
     handleSuggested,
-    flagOpen,
-    openFlag,
-    closeFlag,
-    handleFlagged,
+    reasonKind,
+    openReason,
+    closeReason,
+    handleReasoned,
+    ownerOpen,
+    openOwner,
+    closeOwner,
+    handleOwnerRequested,
     photoIndex,
     openPhoto,
     closePhoto,

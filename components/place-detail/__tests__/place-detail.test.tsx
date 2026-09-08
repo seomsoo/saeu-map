@@ -5,13 +5,15 @@ import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Photo, Place, PlaceDetail as PlaceDetailData, Review, Session } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
-import { FLAG_FAILED_MESSAGE } from "../flag-sheet";
+import { OWNER_REQUEST_FAILED_MESSAGE } from "../owner-request-sheet";
+import { REASON_FAILED_MESSAGE } from "../reason-sheet";
 import { SUGGEST_FAILED_MESSAGE } from "../suggest-sheet";
 
 type PhotoReport = Parameters<typeof import("@/lib/data").reportPhoto>[0];
 type ReviewInput = Parameters<typeof import("@/lib/data").submitReview>[0];
 type ReviewPatch = Parameters<typeof import("@/lib/data").updateReview>[1];
 type SuggestionInput = Parameters<typeof import("@/lib/data").submitSuggestion>[0];
+type OwnerRequest = Parameters<typeof import("@/lib/data").submitOwnerRequest>[0];
 
 const ANON: Session = { userId: "anon-local-1", provider: "anonymous", nickname: null };
 const KAKAO: Session = { userId: "u-kakao-1", provider: "kakao", nickname: "새우헌터" };
@@ -26,6 +28,8 @@ const data = vi.hoisted(() => ({
   updateReview: vi.fn<(id: string, patch: ReviewPatch, now: string) => Promise<Review>>(),
   deleteReview: vi.fn<(id: string) => Promise<void>>(),
   flagPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
+  reportPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
+  submitOwnerRequest: vi.fn<(input: OwnerRequest) => Promise<void>>(),
   submitSuggestion: vi.fn<(input: SuggestionInput) => Promise<void>>(),
 }));
 
@@ -41,6 +45,8 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   updateReview: data.updateReview,
   deleteReview: data.deleteReview,
   flagPlace: data.flagPlace,
+  reportPlace: data.reportPlace,
+  submitOwnerRequest: data.submitOwnerRequest,
   submitSuggestion: data.submitSuggestion,
 }));
 
@@ -506,7 +512,7 @@ describe("찜·복사·공유·준비 중 입구", () => {
     await waitFor(() => {
       expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
     });
-    const entries: (string | RegExp)[] = [/첫 새우를 올려주세요/, "신고", "사장님이신가요?"];
+    const entries: (string | RegExp)[] = [/첫 새우를 올려주세요/];
     for (const name of entries) fireEvent.click(screen.getByRole("button", { name }));
     expect(onNotice).toHaveBeenCalledTimes(entries.length);
     for (const call of onNotice.mock.calls) expect(call[0]).toBe("준비 중이에요");
@@ -857,11 +863,83 @@ describe("정보 수정 제안 — 하단 줄이 사유 시트를 연다 (탭이
     fireEvent.click(screen.getByRole("button", { name: "정보 수정 제안" }));
     const sheet = await screen.findByRole("dialog", { name: "나라수산 정보가 달라요" });
     fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
-    expect(await within(sheet).findByRole("alert")).toHaveTextContent(FLAG_FAILED_MESSAGE);
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(REASON_FAILED_MESSAGE);
     expect(props.onNotice).not.toHaveBeenCalledWith("알려주셔서 고마워요");
     fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
     await waitFor(() => {
       expect(props.onNotice).toHaveBeenCalledWith("알려주셔서 고마워요");
     });
+  });
+
+  it("[신고]는 같은 시트를 등록 자체의 사유로 연다 — 문 닫았어요는 여기 없다", async () => {
+    data.reportPlace.mockResolvedValue(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "신고" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 신고" });
+    expect(within(sheet).getByText("무엇이 문제인가요?")).toBeInTheDocument();
+    // 값이 틀렸다(수정 제안)와 등록이 잘못됐다(신고)를 섞지 않는다
+    expect(within(sheet).queryByRole("button", { name: "문 닫았어요" })).toBeNull();
+    fireEvent.click(within(sheet).getByRole("button", { name: "중복 등록이에요" }));
+    expect(data.reportPlace).toHaveBeenCalledWith({ placeId: "nara", reason: "duplicate" });
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("신고를 접수했어요");
+    });
+  });
+});
+
+describe("사장님이신가요? — 요청 폼 (연락처 필수)", () => {
+  beforeEach(() => {
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+
+  it("연락처가 없으면 지연 없이 오류 — 답이 화면이 아니라 연락처로 오기 때문이다", async () => {
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("연락드릴 곳을 알려주세요");
+    expect(data.submitOwnerRequest).not.toHaveBeenCalled();
+    expect(props.onNotice).not.toHaveBeenCalled();
+  });
+
+  it("요청 종류를 고르고 연락처를 적으면 접수되고 시트가 닫히며 토스트", async () => {
+    data.submitOwnerRequest.mockResolvedValue(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "게재 삭제" }));
+    fireEvent.change(within(sheet).getByRole("textbox", { name: "연락처" }), {
+      target: { value: " owner@example.com " },
+    });
+    fireEvent.change(within(sheet).getByRole("textbox", { name: "하실 말씀 (선택)" }), {
+      target: { value: "폐업했습니다" },
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    expect(data.submitOwnerRequest).toHaveBeenCalledWith({
+      placeId: "nara",
+      kind: "remove",
+      contact: "owner@example.com",
+      message: "폐업했습니다",
+    });
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("요청을 접수했어요. 24시간 안에 연락드릴게요");
+    });
+  });
+
+  it("실패하면 시트 안 오류 한 줄 + 입력 유지", async () => {
+    data.submitOwnerRequest.mockRejectedValue(new Error("mock write failed"));
+    renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    const contact = within(sheet).getByRole("textbox", { name: "연락처" });
+    fireEvent.change(contact, { target: { value: "010-1234-5678" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    await waitFor(() => {
+      expect(within(sheet).getByRole("alert")).toHaveTextContent(OWNER_REQUEST_FAILED_MESSAGE);
+    });
+    expect(contact).toHaveValue("010-1234-5678");
   });
 });
