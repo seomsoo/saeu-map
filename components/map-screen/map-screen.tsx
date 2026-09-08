@@ -321,10 +321,15 @@ function MapScreenBody({
         />
       </div>
 
-      {/* 토스트(데스크탑) — 화면 아래 가운데 */}
+      {/* 토스트(데스크탑) — 화면 가운데가 아니라 **패널 바로 오른쪽 아래**(left = PANEL_OCCLUSION + 20).
+          안내는 대부분 패널에서 한 행동의 결과라 그 옆에 서야 눈이 따라가고, 우하단 줌·현위치 스택과도
+          겹치지 않는다. 지도 위에 뜨므로 그림자를 주고(공통 블록), 폭은 내용만큼 잡는다 */}
       {isDesktop && s.notice && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-30">
-          <Toast message={s.notice} />
+        <div className="pointer-events-none absolute bottom-4 left-114 z-30">
+          <Toast
+            message={s.notice}
+            className="saeu-toast-in mx-0 inline-block max-w-100 py-2.5 text-body-m-medium shadow-card"
+          />
         </div>
       )}
     </div>

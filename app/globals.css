@@ -411,6 +411,21 @@ body {
     transform: scale(1) rotate(0);
   }
 }
+/* 데스크탑 토스트 — 지도 위에 살짝 떠오른다. 모바일은 시트 위 스택이라 모션 없이 나타난다 */
+.saeu-toast-in {
+  animation: saeu-toast-in 160ms ease-out both;
+}
+@keyframes saeu-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .press:active {
     transform: none;
@@ -419,6 +434,9 @@ body {
     animation: none;
   }
   .saeu-pop {
+    animation: none;
+  }
+  .saeu-toast-in {
     animation: none;
   }
 }
