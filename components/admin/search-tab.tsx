@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { TextField } from "@/components/ui/text-field";
@@ -44,14 +44,9 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
     () => (submitted === "" ? Promise.resolve<Place[]>([]) : searchPlacesForAdmin(submitted, now)),
     [submitted, now],
   );
-  const { rows, status, retry, refresh } = useAdminList<Place>(load);
+  const { rows, status, retry, refresh } = useAdminList<Place>(load, submitted);
   const [pending, setPending] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Place | null>(null);
-
-  // 검색어가 바뀌면 다시 읽는다
-  useEffect(() => {
-    refresh();
-  }, [submitted, refresh]);
 
   const run = (place: Place, notice: string, work: () => Promise<unknown>) => {
     if (pending !== null) return;

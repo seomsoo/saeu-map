@@ -958,9 +958,12 @@ const placeEdits: PlaceEdit[] = [];
  * **읽기에도 게이트를 세운다** — 누가 무엇을 고쳤는지는 운영 기록이고, 게이트 없는 읽기를 여기 두면
  * Phase 6이 그 모양을 그대로 베낀다(그때는 RLS가 유일한 방어선이 된다).
  */
-export async function getPlaceEdits(): Promise<PlaceEdit[]> {
+export async function getPlaceEdits(filter: AdminListFilter = {}): Promise<PlaceEdit[]> {
   await requireAdmin();
-  return [...placeEdits].reverse();
+  return [...placeEdits]
+    .reverse()
+    .filter((e) => withinDays(e.at, filter))
+    .slice(0, filter.limit ?? ADMIN_PAGE_SIZE);
 }
 
 /** 제보 입력 한 줄 → 저장되는 메뉴. `submitReport`와 같은 모양이어야 한다. */
@@ -1157,6 +1160,29 @@ export function setAdmin(on: boolean): Promise<Session> {
 export const AUTO_HIDE_REPORT_COUNT = 3;
 
 /**
+ * 관리자 목록이 한 번에 가져오는 최대 행 수. **양 제한이 없으면 이력이 쌓일수록 표가 통째로 그려져
+ * 느려진다** — 무료 티어 한도(DB 500MB·MAU 5만)보다 이게 훨씬 먼저 온다(2026-09-08).
+ * Phase 6에서 그대로 SQL `LIMIT`가 된다.
+ */
+export const ADMIN_PAGE_SIZE = 100;
+
+/** 관리자 목록 공통 옵션 — 기간(일)과 상한. `sinceDays`가 없으면 전체다. */
+export interface AdminListFilter {
+  /** 기준 시각. 없으면 지금 */
+  now?: DateInput;
+  /** 최근 N일만. null·없음 = 전체 */
+  sinceDays?: number | null;
+  limit?: number;
+}
+
+/** `at`이 기준 안에 드는가 — 기간 칩이 쓰는 잣대. */
+function withinDays(at: string, filter: AdminListFilter): boolean {
+  if (filter.sinceDays === undefined || filter.sinceDays === null) return true;
+  const base = filter.now === undefined ? Date.now() : toMs(filter.now);
+  return toMs(at) >= base - filter.sinceDays * 86_400_000;
+}
+
+/**
  * 마지막 방어선. 프론트 게이트(`/admin`의 `notFound()`)는 장식이고 진짜 판정은 Phase 6 서버·RLS다 —
  * 목 단계에도 쓰기 함수마다 세워 두어 "화면만 가리면 된다"는 습관이 안 생기게 한다(spec 4.5).
  */
@@ -1219,13 +1245,15 @@ function autoHideIfReported(placeId: string): void {
  * **가장 민감한 읽기다**: 사장님 요청의 연락처(개인정보)와 낸 사람의 익명 id가 들어 있다.
  */
 export async function getReports(
-  filter: { kind?: ReportKind; status?: ReportStatus } = {},
+  filter: AdminListFilter & { kind?: ReportKind; status?: ReportStatus } = {},
 ): Promise<Report[]> {
   await requireAdmin();
-  const rows = reports
+  return [...reports]
+    .reverse()
     .filter((r) => (filter.kind ? r.kind === filter.kind : true))
-    .filter((r) => (filter.status ? r.status === filter.status : true));
-  return [...rows].reverse();
+    .filter((r) => (filter.status ? r.status === filter.status : true))
+    .filter((r) => withinDays(r.at, filter))
+    .slice(0, filter.limit ?? ADMIN_PAGE_SIZE);
 }
 
 /** 처리함·무시함으로 넘긴다. **원하는 상태를 받는다**(토글 아님, CLAUDE.md 쓰기 규칙). */
@@ -1321,7 +1349,7 @@ export async function searchPlacesForAdmin(query: string, now: DateInput): Promi
   if (q === "") return [];
   return dataset(now)
     .places.filter((p) => normalizeQuery(p.name).includes(q))
-    .slice(0, 30);
+    .slice(0, ADMIN_PAGE_SIZE);
 }
 
 function countByDay(items: readonly { at: string }[], dayStart: number, dayEnd: number): number {

@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ADMIN_PAGE_SIZE,
   AUTO_HIDE_REPORT_COUNT,
   MAX_PHOTO_BYTES,
   MAX_PLACE_PHOTOS,
@@ -1204,6 +1205,23 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
     const counts = stats.topPlaces.map((p) => p.checkCount);
     expect([...counts].sort((a, b) => b - a)).toEqual(counts);
     expect(stats.participants.anonymous + stats.participants.kakao).toBeGreaterThanOrEqual(0);
+  });
+
+  it("목록은 상한과 기간으로 줄인다 — 이력이 쌓여도 표가 통째로 그려지지 않게", async () => {
+    await setAdmin(false);
+    // 서로 다른 사람 넷이 신고 → 자동 숨김을 피하려 사유 제안(place_flag)으로
+    for (let i = 0; i < 4; i += 1) {
+      await signOut();
+      await settle(flagPlace({ placeId: "p019", reason: "other" }));
+    }
+    await setAdmin(true);
+    expect(await getReports({ limit: 2 })).toHaveLength(2);
+    // 기간 밖이면 안 나온다 (접수 시각은 지금이라 100일 뒤를 기준으로 보면 전부 밖이다)
+    const later = new Date(Date.now() + 100 * 86_400_000).toISOString();
+    expect(await getReports({ now: later, sinceDays: 7 })).toHaveLength(0);
+    expect(await getReports({ now: later, sinceDays: null })).not.toHaveLength(0);
+    // 기본 상한은 ADMIN_PAGE_SIZE
+    expect((await getReports()).length).toBeLessThanOrEqual(ADMIN_PAGE_SIZE);
   });
 
   it("처리함·무시함은 원하는 상태를 받는다 (토글이 아니다)", async () => {

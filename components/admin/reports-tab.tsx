@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
-import { getPlaces, getReports, resolveReport, setPlaceHidden } from "@/lib/data";
+import { ADMIN_PAGE_SIZE, getPlaces, getReports, resolveReport, setPlaceHidden } from "@/lib/data";
 import { copyText } from "@/lib/share";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Report, ReportKind } from "@/lib/types";
@@ -14,9 +14,12 @@ import {
   AdminEmpty,
   AdminListState,
   AdminRow,
+  AdminMore,
+  AdminPeriodChips,
   AdminStatus,
   AdminTable,
   AdminWhen,
+  type AdminPeriod,
 } from "./admin-table";
 import { useAdminList } from "./use-admin-list";
 
@@ -81,11 +84,17 @@ function bodyOf(report: Report): string {
  */
 export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: string) => void }) {
   const [kind, setKind] = useState<ReportKind | "all">("all");
+  // **기본은 전체다**: 열린 신고를 기간으로 가리면 오래된 숙제가 조용히 사라진다(이력 탭과 반대다)
+  const [period, setPeriod] = useState<AdminPeriod>(null);
+  const [limit, setLimit] = useState(ADMIN_PAGE_SIZE);
   const load = useCallback(async () => {
-    const [rows, places] = await Promise.all([getReports({ status: "open" }), getPlaces({}, now)]);
+    const [rows, places] = await Promise.all([
+      getReports({ status: "open", now, sinceDays: period, limit }),
+      getPlaces({}, now),
+    ]);
     return rows.map((r) => ({ report: r, place: places.find((p) => p.id === r.placeId) }));
-  }, [now]);
-  const { rows, status, retry, refresh } = useAdminList(load);
+  }, [now, period, limit]);
+  const { rows, status, retry, refresh } = useAdminList(load, `${String(period)}-${String(limit)}`);
   const [pending, setPending] = useState<string | null>(null);
 
   const shown = useMemo(
@@ -129,6 +138,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
           </li>
         ))}
       </ul>
+      <AdminPeriodChips value={period} onChange={setPeriod} />
 
       {state ??
         (shown.length === 0 ? (
@@ -212,6 +222,13 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
               );
             })}
             </AdminTable>
+            <AdminMore
+              shown={rows.length}
+              limit={limit}
+              onMore={() => {
+                setLimit((n) => n + ADMIN_PAGE_SIZE);
+              }}
+            />
           </>
         ))}
     </div>

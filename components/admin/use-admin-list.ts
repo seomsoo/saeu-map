@@ -8,7 +8,14 @@ import type { LoadStatus } from "@/components/activity/use-activity";
  * 네 탭이 같은 모양이라 여기 모았다. 늦게 온 응답이 최신 목록을 덮지 않게 **요청 순번(seq)**으로 거른다
  * (CLAUDE.md 비동기 가드 — alive ref는 StrictMode 이중 effect에서 돌아오지 않아 응답을 잃는다).
  */
-export function useAdminList<T>(load: () => Promise<T[]>): {
+export function useAdminList<T>(
+  load: () => Promise<T[]>,
+  /**
+   * 이게 바뀌면 다시 읽는다(기간 칩·상한·검색어). 별도 effect로 `refresh()`를 부르면
+   * **마운트 때 두 번 읽는다** — 그 자리에서 잡았다(2026-09-08).
+   */
+  key = "",
+): {
   rows: T[];
   status: LoadStatus;
   retry: () => void;
@@ -42,7 +49,7 @@ export function useAdminList<T>(load: () => Promise<T[]>): {
         setStatus("error");
       },
     );
-  }, [attempt]);
+  }, [attempt, key]);
 
   const retry = useCallback(() => {
     setStatus("loading");

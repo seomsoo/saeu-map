@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getPlaceEdits, getPlaces, revertPlaceEdit } from "@/lib/data";
+import { ADMIN_PAGE_SIZE, getPlaceEdits, getPlaces, revertPlaceEdit } from "@/lib/data";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place, PlaceEdit } from "@/lib/types";
 import {
@@ -11,10 +11,13 @@ import {
   AdminCount,
   AdminEmpty,
   AdminListState,
+  AdminMore,
+  AdminPeriodChips,
   AdminRow,
   AdminStatus,
   AdminTable,
   AdminWhen,
+  type AdminPeriod,
 } from "./admin-table";
 import { FIELD_LABEL, actorText, editDiffs } from "./edit-summary";
 import { useAdminList } from "./use-admin-list";
@@ -37,11 +40,17 @@ const COLUMNS = [
  * **되돌리기는 확인 없이 즉시** — 파괴적이지 않고, 되돌린 것도 이력에 남아 다시 되돌릴 수 있다(대칭).
  */
 export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string) => void }) {
+  // 이력은 계속 쌓인다 — 기본은 **최근 30일**이다(어제 바뀐 걸 보러 오는 화면이지 전수 감사가 아니다)
+  const [period, setPeriod] = useState<AdminPeriod>(30);
+  const [limit, setLimit] = useState(ADMIN_PAGE_SIZE);
   const load = useCallback(async () => {
-    const [edits, places] = await Promise.all([getPlaceEdits(), getPlaces({}, now)]);
+    const [edits, places] = await Promise.all([
+      getPlaceEdits({ now, sinceDays: period, limit }),
+      getPlaces({}, now),
+    ]);
     return edits.map((edit) => ({ edit, place: places.find((p) => p.id === edit.placeId) }));
-  }, [now]);
-  const { rows, status, retry, refresh } = useAdminList(load);
+  }, [now, period, limit]);
+  const { rows, status, retry, refresh } = useAdminList(load, `${String(period)}-${String(limit)}`);
   const [pending, setPending] = useState<string | null>(null);
 
   const revert = (edit: PlaceEdit) => {
@@ -62,12 +71,26 @@ export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string)
   };
 
   const state = AdminListState({ status, onRetry: retry });
-  if (state !== null) return state;
-  if (rows.length === 0) return <AdminEmpty title="아직 고쳐진 곳이 없어요" />;
+  const chips = <AdminPeriodChips value={period} onChange={setPeriod} />;
+  if (state !== null)
+    return (
+      <>
+        {chips}
+        {state}
+      </>
+    );
+  if (rows.length === 0)
+    return (
+      <>
+        {chips}
+        <AdminEmpty title="아직 고쳐진 곳이 없어요" />
+      </>
+    );
 
   return (
     <>
-      <AdminCount>최근 수정 {rows.length}건</AdminCount>
+      {chips}
+      <AdminCount>수정 {rows.length}건</AdminCount>
       <AdminTable label="수정 이력" columns={COLUMNS}>
         {rows.map(({ edit, place }) => (
           <EditRow
@@ -80,6 +103,13 @@ export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string)
           />
         ))}
       </AdminTable>
+      <AdminMore
+        shown={rows.length}
+        limit={limit}
+        onMore={() => {
+          setLimit((n) => n + ADMIN_PAGE_SIZE);
+        }}
+      />
     </>
   );
 }

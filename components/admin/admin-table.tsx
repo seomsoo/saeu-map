@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { LoadStatus } from "@/components/activity/use-activity";
-import { Chip } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
+import { Chip, ChipButton } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -134,6 +135,60 @@ export function AdminWhen({ at, relative }: { at: string; relative: string }) {
 /** 탭 맨 위 한 줄 — 지금 몇 건을 보고 있는지. 표를 세지 않아도 되게. */
 export function AdminCount({ children }: { children: ReactNode }) {
   return <p className="pb-2 text-caption-l-regular text-fg-tertiary">{children}</p>;
+}
+
+/** 기간 칩이 고를 수 있는 값 — `null`은 전체. */
+export type AdminPeriod = 7 | 30 | null;
+
+const PERIODS: { value: AdminPeriod; label: string }[] = [
+  { value: 7, label: "최근 7일" },
+  { value: 30, label: "최근 30일" },
+  { value: null, label: "전체" },
+];
+
+/**
+ * 기간 칩 — 이력·신고는 계속 쌓이는 목록이라 **언제 것까지 볼지**를 고를 수 있어야 한다.
+ * 상한(`ADMIN_PAGE_SIZE`)과 짝이다: 기간으로 좁히고, 그래도 넘치면 [더 보기]로 늘린다.
+ */
+export function AdminPeriodChips({
+  value,
+  onChange,
+}: {
+  value: AdminPeriod;
+  onChange: (next: AdminPeriod) => void;
+}) {
+  return (
+    <ul aria-label="기간" className="flex gap-1.5 pb-3">
+      {PERIODS.map((p) => (
+        <li key={String(p.value)}>
+          <ChipButton
+            size="sm"
+            pressed={value === p.value}
+            onClick={() => {
+              onChange(p.value);
+            }}
+          >
+            {p.label}
+          </ChipButton>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * [더 보기] — 받아온 수가 상한과 같으면 더 있을 수 있다는 뜻이다(정확히 같을 때 한 번 헛걸음하는 건
+ * 감수한다 — 총 개수를 세려고 쿼리를 하나 더 던지는 게 더 비싸다).
+ */
+export function AdminMore({ shown, limit, onMore }: { shown: number; limit: number; onMore: () => void }) {
+  if (shown < limit) return null;
+  return (
+    <div className="flex justify-center pt-4">
+      <Button variant="outline" size="sm" onClick={onMore}>
+        더 보기
+      </Button>
+    </div>
+  );
 }
 
 /**
