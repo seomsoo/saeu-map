@@ -71,6 +71,9 @@ export function LoginSheet({ reason, signIn, onSignedIn, onDismiss }: LoginSheet
           disabled={pending}
           aria-busy={pending}
         >
+          {/* 카카오 **공식 심볼** 자리 — 지금은 coolicons 말풍선 근접 대체다. 커뮤니티 아이콘 셋으로
+              때우지 않는다: 카카오가 로그인 버튼에 자기 심볼을 쓰라고 가이드로 정해뒀고 권한 심사 항목이다.
+              에셋이 오면 `next/image`로 바꾼다 (decisions 2026-09-08 커스텀 에셋 목록). */}
           <span className="icon-[ci--chat] size-4" aria-hidden="true" />
           {pending ? "로그인 중…" : "카카오로 시작하기"}
         </Button>
