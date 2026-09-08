@@ -711,6 +711,32 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     });
   });
 
+  it("카드 하트는 즉시 채워지고(낙관), 실패하면 되돌아오며 토스트가 뜬다", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
+    // 낙관: 응답을 기다리지 않고 지금 바뀐다 (UI 완성 기준 "쓰기는 상태 변화까지")
+    let resolveToggle: ((ids: string[]) => void) | undefined;
+    dataMocks.toggleBookmark.mockImplementationOnce(
+      () => new Promise<string[]>((resolve) => (resolveToggle = resolve)),
+    );
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "true");
+    act(() => {
+      resolveToggle?.(["nara"]);
+    });
+    await waitFor(() => {
+      expect(heart()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    // 실패: 하트가 되돌아오고 토스트가 뜬다
+    dataMocks.toggleBookmark.mockImplementationOnce(() => Promise.reject(new Error("mock write failed")));
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "false"); // 낙관적으로 해제
+    expect(await screen.findByText("찜을 저장하지 못했어요")).toBeInTheDocument();
+    expect(heart()).toHaveAttribute("aria-pressed", "true"); // 롤백
+  });
+
   it("다녀왔다면 성공 → 닫은 뒤 카드도 '오늘 확인'·확인 수 반영", async () => {
     const naraSeed = seed().find((p) => p.id === "nara");
     if (!naraSeed) throw new Error("seed expected");

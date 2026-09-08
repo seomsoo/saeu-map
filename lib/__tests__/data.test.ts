@@ -290,15 +290,34 @@ describe("checkIn — 목 쓰기 (400ms 지연, 10% 실패)", () => {
   });
 });
 
-describe("toggleBookmark", () => {
+describe("toggleBookmark — 목 쓰기 (400ms 지연, 10% 실패)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99); // 성공 경로
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   it("켜고 끄기, 목록 반환", async () => {
-    expect(await toggleBookmark("p018")).toEqual(["p018"]);
+    expect(await settle(toggleBookmark("p018"))).toEqual(["p018"]);
     expect(await getBookmarkedPlaceIds()).toEqual(["p018"]);
-    expect(await toggleBookmark("p018")).toEqual([]);
+    expect(await settle(toggleBookmark("p018"))).toEqual([]);
+  });
+
+  it("검증은 지연 전에 — 빈 id·없는 가게는 400ms를 기다리지 않고 거부한다", async () => {
+    // 검증이 simulateWrite 뒤에 있으면 낙관 업데이트가 400ms 뒤에야 롤백된다
     await expect(toggleBookmark("")).rejects.toThrow();
-    // 없는 가게·검수 대기 가게는 거부 — 찜 Set에 가짜 id가 쌓이지 않는다
     await expect(toggleBookmark("nonexistent")).rejects.toThrow("place not found");
     await expect(toggleBookmark("p108")).rejects.toThrow("place not found");
+    expect(await getBookmarkedPlaceIds()).toEqual([]);
+  });
+
+  it("실패(10%)면 찜은 그대로 — 화면이 롤백할 수 있게 reject한다", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
+    await settleReject(toggleBookmark("p018"));
+    expect(await getBookmarkedPlaceIds()).toEqual([]);
   });
 });
 
@@ -470,7 +489,7 @@ describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·�
 
   it("카카오 로그인: 익명의 찜·제보·확인이 카카오 id로 넘어온다 (linkIdentity)", async () => {
     const anonymous = await getSession();
-    await toggleBookmark("p018");
+    await settle(toggleBookmark("p018"));
     await settle(checkIn("p041", NOW));
     const created = await settle(submitReport(reportInput(), NOW));
     expect(created.reporterId).toBe(anonymous.userId);
@@ -493,7 +512,9 @@ describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·�
 
   it("로그인 실패(10%)면 익명 그대로, 찜도 그대로", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0.05);
-    await toggleBookmark("p018");
+    // 찜은 성공 경로로 넣어 두고(로그인만 실패시킨다) 승계 여부를 본다
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.99);
+    await settle(toggleBookmark("p018"));
     const before = await getSession();
     await settleReject(signInWithKakao());
     expect(await getSession()).toBe(before);
@@ -502,14 +523,14 @@ describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·�
 
   it("로그아웃은 새 익명 — 찜은 기기 한정이라 비고, 다시 로그인하면 카카오 찜이 돌아온다", async () => {
     await settle(signInWithKakao());
-    await toggleBookmark("p041");
+    await settle(toggleBookmark("p041"));
     const anonymous = await signOut();
     expect(anonymous.provider).toBe("anonymous");
     expect(await getBookmarkedPlaceIds()).toEqual([]);
     expect(await getMyReviews(NOW)).toEqual([]);
     await settle(signInWithKakao());
     expect(await getBookmarkedPlaceIds()).toContain("p041");
-    await toggleBookmark("p041"); // 다음 테스트를 위해 되돌린다
+    await settle(toggleBookmark("p041")); // 다음 테스트를 위해 되돌린다
   });
 
   it("닉네임: 2~12자, 카카오만, 이미 쓴 리뷰의 표시 이름도 바뀌고 재로그인해도 남는다", async () => {
@@ -716,7 +737,7 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
 
   it("탈퇴 뒤에는 내 리뷰가 화면에서 빠지고 찜은 비고 제보는 남되 작성자가 없다", async () => {
     await settle(signInWithKakao());
-    await toggleBookmark("p018");
+    await settle(toggleBookmark("p018"));
     await settle(checkIn("p041", NOW));
     const created: Place = await settle(submitReport(reportInput(), NOW));
     // 앞 테스트들이 목 리뷰를 지웠을 수 있다 — 지울 내 리뷰를 여기서 직접 만든다

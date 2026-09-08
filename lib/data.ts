@@ -526,16 +526,19 @@ function placeExists(id: string): boolean {
 }
 
 /** 찜 토글 (spec 5 "찜") — 현재 세션 기준. 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
-export function toggleBookmark(placeId: string): Promise<string[]> {
+/**
+ * 찜 토글 — 다른 쓰기와 같은 계약(지연 400ms · 10% 실패)이라 화면이 낙관 업데이트와 롤백을 다 보여준다.
+ * 속도 제한 자리: 사용자당 초당 N — Phase 6 Upstash(spec 스팸 4겹 2).
+ */
+export async function toggleBookmark(placeId: string): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
-  return Promise.resolve(placeId).then((raw) => {
-    const id = idSchema.parse(raw);
-    if (!placeExists(id)) throw new Error("place not found");
-    const mine = bookmarksOf(currentSession.userId);
-    if (mine.has(id)) mine.delete(id);
-    else mine.add(id);
-    return [...mine];
-  });
+  const id = idSchema.parse(placeId);
+  if (!placeExists(id)) throw new Error("place not found");
+  await simulateWrite();
+  const mine = bookmarksOf(currentSession.userId);
+  if (mine.has(id)) mine.delete(id);
+  else mine.add(id);
+  return [...mine];
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

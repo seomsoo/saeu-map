@@ -203,6 +203,22 @@ export function useMapScreen({
   const pinTouchedRef = useRef(false);
   /** 늦게 온 쓰기 응답이 "아직 그 세션인가"를 볼 수 있게 (CLAUDE.md 비동기 결과 규칙) */
   const sessionRef = useRef<string | null>(null);
+  /** 핸들러가 재구독 없이 현재 찜 목록을 읽는다(연타의 방향 판정) */
+  const bookmarkedIdsRef = useRef<readonly string[]>(initialBookmarkedIds);
+  /**
+   * 낙관 토글이 진행 중인 가게 → 그 시점의 희망 상태. 재로드(세션 바뀜)가 이 항목을 되살리거나
+   * 지우지 않게 결과에 덮어씌운다 — 성공·실패 **양쪽에서** 표식을 지운다 (CLAUDE.md 낙관 업데이트 규칙).
+   */
+  const pendingBookmarksRef = useRef(new Map<string, boolean>());
+  /** 서버 목록에 진행 중인 낙관 상태를 얹는다 */
+  const withPendingBookmarks = useCallback((ids: readonly string[]): string[] => {
+    const next = new Set(ids);
+    for (const [id, wanted] of pendingBookmarksRef.current) {
+      if (wanted) next.add(id);
+      else next.delete(id);
+    }
+    return [...next];
+  }, []);
   /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
   const snapRef = useRef<SheetSnap>("half");
   const modeRef = useRef<SheetMode>("list");
@@ -224,12 +240,15 @@ export function useMapScreen({
     sessionRef.current = sessionUserId;
   }, [sessionUserId]);
   useEffect(() => {
+    bookmarkedIdsRef.current = bookmarkedIds;
+  }, [bookmarkedIds]);
+  useEffect(() => {
     if (sessionUserId === null || bookmarksLoaded?.userId === sessionUserId) return;
     let alive = true;
     getBookmarkedPlaceIds().then(
       (ids) => {
         if (!alive) return;
-        setBookmarkedIds(ids);
+        setBookmarkedIds(withPendingBookmarks(ids));
         setBookmarksLoaded({ userId: sessionUserId, ok: true });
       },
       () => {
@@ -239,7 +258,7 @@ export function useMapScreen({
     return () => {
       alive = false;
     };
-  }, [sessionUserId, bookmarksLoaded]);
+  }, [sessionUserId, bookmarksLoaded, withPendingBookmarks]);
 
   /** 내 활동 찜 탭의 4상태 — 아직 이 세션의 찜을 못 읽었으면 로딩, 실패면 에러 */
   const bookmarksStatus: LoadStatus =
@@ -781,12 +800,21 @@ export function useMapScreen({
   const toggleBookmark = useCallback(
     (id: string) => {
       // 요청 시점의 세션을 기억한다 — 토글 중 로그아웃·승계·탈퇴가 끼면 늦게 온 이전 사용자의 목록이
-      // 새 세션 화면에 앉는다(목은 마이크로태스크라 창이 0에 가깝지만 Phase 6 왕복에선 실제 창이다).
+      // 새 세션 화면에 앉는다(목은 지연 400ms라 창이 넉넉하고, Phase 6 왕복에선 더 넓다).
       const requestedFor = session?.userId ?? null;
+      // 연타에도 방향이 맞게: 진행 중인 낙관 상태가 있으면 그것을, 없으면 화면 목록을 기준으로 뒤집는다
+      const now = pendingBookmarksRef.current.get(id) ?? bookmarkedIdsRef.current.includes(id);
+      const wanted = !now;
+      pendingBookmarksRef.current.set(id, wanted);
+      // 낙관 업데이트 — 하트는 누르는 즉시 바뀐다(쓰기는 상태 변화까지, UI 완성 기준)
+      setBookmarkedIds((prev) =>
+        wanted ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((x) => x !== id),
+      );
       requestToggleBookmark(id).then(
         (ids) => {
+          pendingBookmarksRef.current.delete(id);
           if (requestedFor !== null && requestedFor !== sessionRef.current) return;
-          setBookmarkedIds(ids);
+          setBookmarkedIds(withPendingBookmarks(ids));
           if (
             session?.provider === "anonymous" &&
             ids.length === BOOKMARK_NUDGE_AT &&
@@ -798,12 +826,17 @@ export function useMapScreen({
           }
         },
         () => {
+          pendingBookmarksRef.current.delete(id);
           if (requestedFor !== null && requestedFor !== sessionRef.current) return;
+          // 롤백 — 되돌릴 때 이미 들어와 있는지 보고 중복을 만들지 않는다
+          setBookmarkedIds((prev) =>
+            wanted ? prev.filter((x) => x !== id) : prev.includes(id) ? prev : [...prev, id],
+          );
           showNotice("찜을 저장하지 못했어요");
         },
       );
     },
-    [session, showNotice],
+    [session, showNotice, withPendingBookmarks],
   );
 
   /* ── 내 활동 패널 (화면 5): 시트 me 모드, 히스토리 엔트리 하나(URL은 /) ── */
