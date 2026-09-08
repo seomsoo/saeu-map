@@ -28,7 +28,8 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
   return (
     <div className="relative mx-5 mt-1 mb-2 overflow-hidden rounded-16 bg-brand-tint px-4 py-4" aria-label="이벤트">
       {card.href ? (
-        // 링크 대상은 설정값(/test는 Phase 7까지 404) — 프리페치하면 매 로드마다 404 콘솔 에러가 남는다
+        /* 링크 대상은 설정값이고 **없을 수 있다** — 지금 목 설정값이 그렇다(까주기 테스트 `/test`는 Phase 7).
+           없는 곳을 가리키면 카드를 누를 때 404로 떨어진다(2026-09-08). 프리페치는 그때도 끈다. */
         <Link href={card.href} prefetch={false} className={bodyClass}>
           {body}
         </Link>

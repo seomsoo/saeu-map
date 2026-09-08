@@ -150,8 +150,10 @@ describe("getSeasonStats", () => {
 
 describe("getEventCard", () => {
   it("기간 안이면 카드, 밖이면 null", async () => {
+    // href는 설정값이고 없을 수 있다 — 지금은 링크할 곳이 없어 null이다(까주기 테스트는 Phase 7)
     expect(await getEventCard("2026-09-01T12:00:00+09:00")).toMatchObject({
-      href: "/test",
+      title: "새우 까주기 테스트",
+      href: null,
     });
     expect(await getEventCard("2027-06-01T12:00:00+09:00")).toBeNull();
   });
