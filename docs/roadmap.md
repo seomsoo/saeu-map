@@ -69,16 +69,17 @@
 
 - [x] 상세 7곳 실동작: 사진 올리기 · 영업시간 · 주소 · 대표 메뉴 · 사이드 · 가게 신고 · 사장님 요청
 - [x] 이벤트 배너 404(링크 대상 없음) · 제보·리뷰 사진 실반영 · 홈 로딩 그릇 v3 · 상세 스켈레톤은 도달 불가임을 확인·기록(Phase 6에서 살아난다)
-- [ ] `/admin` 4탭(사후 확인 · 신고·숨김 · **수정 이력(되돌리기)** · 검색) — **다음 브랜치**, PR은 함께 올린다
+- [x] `/admin` **5탭**(사후 확인 · 신고·요청 · 수정 이력(되돌리기) · 검색 · 통계) — 브랜치 `feat/admin`, PR은 함께 올린다. 플랜·결과 docs/plans/admin.md
 - [x] Lighthouse 점수 PR 코멘트(백로그에서 당겨옴 — 조건이 "다음 코드 PR"이었고 이 PR이 그것이다) — **발화 확인은 이 PR에서**
-- 완료: 앱 전체에 "준비 중이에요" 0건, 갭 스윕 A항목(막힌 입구) 0건
+- 완료: 앱 전체에 "준비 중이에요" 0건, 갭 스윕 A항목(막힌 입구) 0건, `/admin` 5탭 동작
+- 결과(`/admin`): ✅ 2026-09-08 — 커밋 15개, 테스트 490 → 497. security-reviewer 높음 1(자동 숨김 철회)·중간 4·낮음 5 반영, gap-sweeper 미구현 5·부분 7 반영. 상세는 docs/plans/admin.md 결과.
 - 결과(상세 7곳 + 자잘한 4건): ✅ 2026-09-08 — 갭 스윕 안 닫힘 0·사용자 노출 "준비 중이에요" 0건, security-reviewer 중간 2·낮음 3·정보 3 반영, Playwright 320×480·390×656·390×702·1440×900, 테스트 422 → 446개. 상세는 docs/plans/pending-flows.md 결과. `/admin`은 다음 브랜치.
 
 ## Phase 6 — 백엔드 교체
 - [ ] 스키마 확정 (checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제)
 - [ ] convert_seed.py 전체 452곳 임포트 (needsReview·excluded 37곳 검수 반영) + **메뉴 정제**: 이름 잔재 제거("새우머리튀김 0"·프로모션 문구·이름에 박힌 가격)와 단위 재파싱 — 목 50곳 기준 단위 74%가 미파싱이다 (decisions 2026-09-08)
 - [ ] lib/data.ts → Supabase 교체, 익명 auth + 카카오 linkIdentity
-- [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP)
+- [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP) — **이게 서야 신고 3회 자동 숨김을 켤 수 있다**(spec 5, decisions 2026-09-08)
 - [ ] /admin 4탭을 실 DB에 연결(화면 자체는 Phase 5.5에서 만든다 — 사후 확인 탭 = 구 심판대, 행 구성·낙관 확인 로직은 커밋 cb32d18에서 꺼내 쓴다), 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
 - [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(기존 핀 이전·리다이렉트 — spec 4.3 엣지)
 - [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
@@ -96,4 +97,5 @@
 
 ## Phase 7 — 런칭 준비 (별도 결정 후)
 - [ ] 도메인 연결, 서치어드바이저, 축제 페이지, 까주기 테스트, 시즌 카운터 실데이터
+- [ ] **분석 켜기**: Cloudflare Web Analytics 배선 + GA4 측정 ID(`NEXT_PUBLIC_GA_ID`) 등록. **그 전에 개인정보처리방침·동의 배너를 정한다**(GA4는 쿠키를 쓴다 — decisions 2026-09-08)
 - [ ] SNS 채널·런칭일·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장)

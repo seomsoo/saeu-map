@@ -33,6 +33,8 @@ export interface SessionContextValue {
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   updateNickname: (nickname: string) => Promise<void>;
+  /** 세션을 다시 읽어 온다 — 이 컨텍스트 밖에서 세션이 바뀌었을 때(dev 관리자 토글) 화면을 맞춘다 */
+  refreshSession: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -63,6 +65,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    setSession(await getSession());
   }, []);
 
   const finish = useCallback(() => {
@@ -120,8 +126,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ session, requireLogin, signOut, deleteAccount, updateNickname }),
-    [session, requireLogin, signOut, deleteAccount, updateNickname],
+    () => ({ session, requireLogin, signOut, deleteAccount, updateNickname, refreshSession }),
+    [session, requireLogin, signOut, deleteAccount, updateNickname, refreshSession],
   );
 
   return (

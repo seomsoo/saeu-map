@@ -1,5 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ADMIN_PAGE_SIZE,
+  REPORT_ATTENTION_COUNT,
   MAX_PHOTO_BYTES,
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
@@ -17,14 +19,25 @@ import {
   getMyReviews,
   getPlaceById,
   getPlaceDetail,
+  getAdminStats,
   getPlaceEdits,
+  getPlacesForAdmin,
+  getReports,
   getPlaces,
   getReviews,
   getSeasonStats,
   getSession,
   addPlacePhotos,
+  confirmPlace,
+  deletePlace,
+  deletePlacePhoto,
   reportPhoto,
   reportPlace,
+  resolveReport,
+  revertPlaceEdit,
+  searchPlacesForAdmin,
+  setAdmin,
+  setPlaceHidden,
   signInWithKakao,
   signOut,
   submitOwnerRequest,
@@ -39,7 +52,7 @@ import {
   type ReviewInput,
 } from "../data";
 import { ratingSummary } from "../reviews";
-import { isInactive, kstDayIndex } from "../time";
+import { formatKstDate, isInactive, kstDayIndex } from "../time";
 import type { Place } from "../types";
 
 /** 목 쓰기(400ms) 완료까지 가짜 타이머를 돌린다. 거부는 핸들러를 먼저 붙인 뒤 돌린다(unhandled rejection 방지). */
@@ -845,11 +858,13 @@ describe("submitSuggestion — 값 제안 (즉시 반영 + 이력)", () => {
     const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
     if (!target) throw new Error("no place with hours");
     await settle(submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "새벽 3시까지" }, NOW));
+    await setAdmin(true); // 이력 읽기는 운영 기록이라 관리자만
     const [latest] = await getPlaceEdits();
     expect(latest).toMatchObject({ placeId: target.id, field: "hours" });
     expect(latest?.before.hoursNote).toBe(target.hoursNote);
     expect(latest?.actor).toMatch(/^anon-/);
     expect(latest?.at).toBe(new Date(Date.parse(NOW)).toISOString());
+    await setAdmin(false);
   });
 
   it("실패는 reject하고 값도 그대로, 검증 실패는 지연도 타지 않는다", async () => {
@@ -1034,6 +1049,221 @@ describe("사진 보관 — 상세 업로드·제보·리뷰", () => {
       submitReview({ placeId: "p004", rating: 5, text: "", photo: image("review.jpg") }, NOW),
     );
     expect(review.photoUrl).toBe("blob:review.jpg");
+  });
+});
+
+describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·되돌리기", () => {
+  const NOW = "2033-07-07T12:00:00+09:00";
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await setAdmin(false);
+  });
+  afterEach(async () => {
+    await setAdmin(false);
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("네 입구가 모두 신고·요청 목록에 쌓인다 (그전엔 검증만 하고 버렸다)", async () => {
+    await setAdmin(true);
+    const before = (await getReports()).length;
+    await setAdmin(false); // 내는 건 사용자다
+    await settle(flagPlace({ placeId: "p019", reason: "closed" }));
+    await settle(reportPlace({ placeId: "p019", reason: "duplicate" }));
+    await settle(reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "spam" }));
+    await settle(
+      submitOwnerRequest({
+        placeId: "p019",
+        kind: "remove",
+        contact: "owner@example.com",
+        message: "폐업했습니다",
+      }),
+    );
+    await setAdmin(true);
+    const rows = await getReports();
+    expect(rows).toHaveLength(before + 4);
+    // 최신순
+    expect(rows[0]).toMatchObject({ kind: "owner_request", ownerKind: "remove", contact: "owner@example.com", status: "open" });
+    expect(rows.slice(0, 4).map((r) => r.kind)).toEqual([
+      "owner_request",
+      "photo_report",
+      "place_report",
+      "place_flag",
+    ]);
+    expect(await getReports({ kind: "place_flag" })).toHaveLength(
+      (await getReports()).filter((r) => r.kind === "place_flag").length,
+    );
+  });
+
+  it("신고가 쌓여도 **자동으로 숨기지 않는다** — 익명 id 회전이 공짜라 무기가 된다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
+    // 서로 다른 익명 id로 여러 번 (예전엔 이걸로 남의 가게가 지도에서 사라졌다)
+    for (let i = 0; i < REPORT_ATTENTION_COUNT + 2; i += 1) {
+      await signOut();
+      await settle(reportPlace({ placeId: target.id, reason: "fake" }));
+    }
+    expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(true);
+    expect(await getPlaceById(target.id, NOW)).toBeDefined();
+    // 대신 관리자 화면이 "많이 신고됨"으로 띄울 수 있게 열린 신고가 그대로 쌓인다
+    await setAdmin(true);
+    const open = (await getReports({ status: "open" })).filter(
+      (r) => r.kind === "place_report" && r.placeId === target.id,
+    );
+    expect(open.length).toBeGreaterThanOrEqual(REPORT_ATTENTION_COUNT);
+  });
+
+  it("숨김은 운영자가 누른다 — 사용자 읽기에서 빠지고 관리자 검색엔 남는다", async () => {
+    const target = (await getPlaces({}, NOW)).at(-1);
+    if (!target) throw new Error("no place");
+    await setAdmin(true);
+    await settle(setPlaceHidden(target.id, true, NOW));
+    expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(false);
+    expect(await getPlaceById(target.id, NOW)).toBeUndefined();
+    expect(await getPlaceDetail(target.id, NOW)).toBeUndefined();
+    // 관리자 조인·검색에는 보인다 — 복구하려면 찾을 수 있어야 한다
+    expect((await searchPlacesForAdmin(target.name, NOW)).some((p) => p.id === target.id)).toBe(true);
+    expect((await getPlacesForAdmin(NOW)).some((p) => p.id === target.id)).toBe(true);
+
+    // **날짜가 바뀌어도 풀리지 않는다** — 숨김은 날짜 캐시 밖에 산다
+    const tomorrow = new Date(Date.parse(NOW) + 86_400_000).toISOString();
+    expect((await getPlaces({}, tomorrow)).some((p) => p.id === target.id)).toBe(false);
+
+    const restored = await settle(setPlaceHidden(target.id, false, NOW));
+    expect("hiddenAt" in restored).toBe(false);
+    expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(true);
+  });
+
+  it("읽기·쓰기 모두 관리자만 — 프론트 게이트를 우회해도 여기서 막힌다", async () => {
+    // 읽기도 막는다: 신고 목록엔 사장님 연락처(개인정보)와 낸 사람의 익명 id가 들어 있다
+    await expect(getReports()).rejects.toThrow("forbidden");
+    await expect(getPlaceEdits()).rejects.toThrow("forbidden");
+    await expect(getAdminStats(NOW)).rejects.toThrow("forbidden");
+    await expect(searchPlacesForAdmin("새우", NOW)).rejects.toThrow("forbidden");
+    await expect(resolveReport("rp-local-1", "done")).rejects.toThrow("forbidden");
+    await expect(confirmPlace("p019", NOW)).rejects.toThrow("forbidden");
+    await expect(setPlaceHidden("p019", true, NOW)).rejects.toThrow("forbidden");
+    await expect(revertPlaceEdit("ed-local-1", NOW)).rejects.toThrow("forbidden");
+    await expect(deletePlace("p019", NOW)).rejects.toThrow("forbidden");
+  });
+
+  it("[확인]은 배지만 찍는다 — '새로 제보됨'(isNew)은 그대로다", async () => {
+    await setAdmin(true);
+    const reported = await settle(
+      submitReport(
+        {
+          name: "확인 대상 새우집",
+          lat: 37.5571,
+          lng: 126.9245,
+          menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+          sides: SIDES,
+          hoursNote: "",
+          photos: [],
+          duplicateOf: null,
+          naverPlaceUrl: "",
+        },
+        NOW,
+      ),
+    );
+    expect(reported.isNew).toBe(true);
+    expect(reported.verifiedAt).toBeUndefined();
+    const confirmed = await settle(confirmPlace(reported.id, NOW));
+    expect(confirmed.verifiedAt).toBe(new Date(Date.parse(NOW)).toISOString());
+    // 라벨은 정보지 검증 표시가 아니다 (decisions 2026-09-08)
+    expect(confirmed.isNew).toBe(true);
+  });
+
+  it("되돌리기는 대칭이다 — 되돌린 것도 이력에 남아 다시 되돌릴 수 있다", async () => {
+    const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
+    if (!target) throw new Error("no place with hours");
+    const original = target.hoursNote;
+    await settle(submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "새벽 4시까지" }, NOW));
+    expect((await getPlaceById(target.id, NOW))?.hoursNote).toBe("새벽 4시까지");
+
+    await setAdmin(true);
+    const [edit] = await getPlaceEdits();
+    if (!edit) throw new Error("no edit");
+    const reverted = await settle(revertPlaceEdit(edit.id, NOW));
+    expect(reverted.hoursNote).toBe(original);
+
+    // 되돌린 것도 이력이다 → 다시 되돌리면 원래 제안 값으로 간다
+    const [latest] = await getPlaceEdits();
+    expect(latest?.id).not.toBe(edit.id);
+    expect(latest?.before.hoursNote).toBe("새벽 4시까지");
+    const again = await settle(revertPlaceEdit(latest?.id ?? "", NOW));
+    expect(again.hoursNote).toBe("새벽 4시까지");
+  });
+
+  it("삭제는 소프트다 — 기록이 남아야 재제보 때 경고할 수 있다", async () => {
+    await setAdmin(true);
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
+    const removed = await settle(deletePlace(target.id, NOW, true));
+    expect(removed.hiddenAt).toBeTruthy();
+    expect(removed.removedByOwner).toBe(true);
+    expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(false);
+    // 데이터는 남아 있다
+    expect((await searchPlacesForAdmin(target.name, NOW)).some((p) => p.id === target.id)).toBe(true);
+  });
+
+  it("내린 사진은 날짜가 바뀌어도 되살아나지 않는다", async () => {
+    await setAdmin(true);
+    const target = (await getPlaces({}, NOW)).find((p) => p.photos.length > 0);
+    if (!target) throw new Error("no place with photos");
+    const gone = target.photos[0];
+    if (!gone) throw new Error("no photo");
+    const after = await settle(deletePlacePhoto(target.id, gone.id));
+    expect(after.photos.some((p) => p.id === gone.id)).toBe(false);
+    // 캐시 밖에 남기지 않으면 KST 자정에 원본에서 다시 만들어진다 (Codex PR #12)
+    const tomorrow = new Date(Date.parse(NOW) + 86_400_000).toISOString();
+    const next = await getPlaceById(target.id, tomorrow);
+    expect(next?.photos.some((p) => p.id === gone.id)).toBe(false);
+  });
+
+  it("통계는 우리 DB로 셀 수 있는 것만 — 14일 버킷과 숙제 수", async () => {
+    await setAdmin(true);
+    const stats = await getAdminStats(NOW);
+    expect(stats.daily).toHaveLength(14);
+    expect(stats.daily.at(-1)?.date).toBe(formatKstDate(NOW));
+    expect(stats.today).toEqual(stats.daily.at(-1));
+    expect(stats.openReports).toBe((await getReports({ status: "open" })).length);
+    expect(stats.topPlaces.length).toBeLessThanOrEqual(10);
+    // 확인 많은 순
+    const counts = stats.topPlaces.map((p) => p.checkCount);
+    expect([...counts].sort((a, b) => b - a)).toEqual(counts);
+    expect(stats.participants.anonymous + stats.participants.kakao).toBeGreaterThanOrEqual(0);
+  });
+
+  it("목록은 상한과 기간으로 줄인다 — 이력이 쌓여도 표가 통째로 그려지지 않게", async () => {
+    await setAdmin(false);
+    // 서로 다른 사람 넷이 신고 → 자동 숨김을 피하려 사유 제안(place_flag)으로
+    for (let i = 0; i < 4; i += 1) {
+      await signOut();
+      await settle(flagPlace({ placeId: "p019", reason: "other" }));
+    }
+    await setAdmin(true);
+    expect(await getReports({ limit: 2 })).toHaveLength(2);
+    // 기간 밖이면 안 나온다 (접수 시각은 지금이라 100일 뒤를 기준으로 보면 전부 밖이다)
+    const later = new Date(Date.now() + 100 * 86_400_000).toISOString();
+    expect(await getReports({ now: later, sinceDays: 7 })).toHaveLength(0);
+    expect(await getReports({ now: later, sinceDays: null })).not.toHaveLength(0);
+    // 기본 상한은 ADMIN_PAGE_SIZE
+    expect((await getReports()).length).toBeLessThanOrEqual(ADMIN_PAGE_SIZE);
+  });
+
+  it("처리함·무시함은 원하는 상태를 받는다 (토글이 아니다)", async () => {
+    await settle(flagPlace({ placeId: "p019", reason: "menu" }));
+    await setAdmin(true);
+    const [row] = await getReports();
+    if (!row) throw new Error("no report");
+    expect((await settle(resolveReport(row.id, "done"))).status).toBe("done");
+    // 같은 값을 다시 보내도 뒤집히지 않는다 (멱등)
+    expect((await settle(resolveReport(row.id, "done"))).status).toBe("done");
+    expect((await settle(resolveReport(row.id, "dismissed"))).status).toBe("dismissed");
+    await settleReject(resolveReport("nope", "done"), "report not found");
   });
 });
 

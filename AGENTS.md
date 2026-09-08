@@ -15,7 +15,7 @@
 - localStorage/sessionStorage 사용 금지.
 
 ### 보안
-- 시크릿 하드코딩, 서버 전용 키(service_role 등)의 클라이언트 노출 금지. NEXT_PUBLIC_ 접두사는 네이버 지도 Client ID·Supabase anon 키·카카오 JS 키(공유용)만 허용.
+- 시크릿 하드코딩, 서버 전용 키(service_role 등)의 클라이언트 노출 금지. NEXT_PUBLIC_ 접두사는 네이버 지도 Client ID·Supabase anon 키·카카오 JS 키(공유용)·GA4 측정 ID만 허용 (decisions 2026-09-08).
 - dangerouslySetInnerHTML 금지 (리뷰·코멘트·제보는 유저 입력).
 - 쓰기 경로(Server Action)마다 확인: 입력 검증(zod) / 권한 체크 / 속도 제한 자리 / 에러에 내부 정보 노출 없음.
 - 쓰기 함수가 **지연·await 전에 행위자(세션)를 잡는지**, 상대값(토글)이 아니라 **원하는 상태**를 받는지. `await` 뒤에 세션을 읽으면 그 사이 바뀐 사용자의 데이터를 건드리고, 화면 가드는 응답만 버릴 뿐 쓰기는 못 되돌린다 (decisions 2026-09-08 Codex PR #10).
