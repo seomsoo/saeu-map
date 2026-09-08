@@ -7,7 +7,17 @@ import { getPlaces, getReports, resolveReport, setPlaceHidden } from "@/lib/data
 import { copyText } from "@/lib/share";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Report, ReportKind } from "@/lib/types";
-import { AdminCell, AdminEmpty, AdminListState, AdminRow, AdminTable } from "./admin-table";
+import {
+  AdminActions,
+  AdminCell,
+  AdminCount,
+  AdminEmpty,
+  AdminListState,
+  AdminRow,
+  AdminStatus,
+  AdminTable,
+  AdminWhen,
+} from "./admin-table";
 import { useAdminList } from "./use-admin-list";
 
 export const HIDDEN_NOTICE = "숨겼어요";
@@ -124,22 +134,29 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
         (shown.length === 0 ? (
           <AdminEmpty title="들어온 신고가 없어요" />
         ) : (
-          <AdminTable label="신고·요청" columns={COLUMNS}>
+          <>
+            <AdminCount>처리할 것 {shown.length}건</AdminCount>
+            <AdminTable label="신고·요청" columns={COLUMNS}>
             {shown.map(({ report, place }) => {
               const busy = pending === report.id;
               const hidden = place === undefined || place.hiddenAt !== undefined;
               return (
                 <AdminRow key={report.id}>
-                  <AdminCell className="text-fg-secondary">{KIND_LABEL[report.kind]}</AdminCell>
+                  <AdminCell>
+                    <AdminStatus
+                      label={KIND_LABEL[report.kind]}
+                      tone={report.kind === "place_report" ? "active" : "muted"}
+                    />
+                  </AdminCell>
                   <AdminCell className="text-body-m-medium text-fg">
                     {place?.name ?? "숨겨진 가게"}
                   </AdminCell>
                   <AdminCell className="text-fg-secondary">{bodyOf(report)}</AdminCell>
-                  <AdminCell align="right" className="text-fg-tertiary tabular-nums">
-                    {relativeCheckAgo(report.at, now)}
+                  <AdminCell align="right">
+                    <AdminWhen at={report.at} relative={relativeCheckAgo(report.at, now)} />
                   </AdminCell>
                   <AdminCell align="right">
-                    <span className="inline-flex gap-2">
+                    <AdminActions>
                       {report.kind === "owner_request" && report.contact !== undefined && (
                         <Button
                           variant="outline"
@@ -168,7 +185,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                         </Button>
                       )}
                       <Button
-                        variant="brand"
+                        variant="outline"
                         size="sm"
                         disabled={busy}
                         onClick={() => {
@@ -189,12 +206,13 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                       >
                         무시
                       </Button>
-                    </span>
+                    </AdminActions>
                   </AdminCell>
                 </AdminRow>
               );
             })}
-          </AdminTable>
+            </AdminTable>
+          </>
         ))}
     </div>
   );

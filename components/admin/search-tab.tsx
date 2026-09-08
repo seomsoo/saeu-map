@@ -7,7 +7,17 @@ import { TextField } from "@/components/ui/text-field";
 import { deletePlace, searchPlacesForAdmin, setPlaceHidden } from "@/lib/data";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place } from "@/lib/types";
-import { AdminCell, AdminEmpty, AdminListState, AdminRow, AdminTable } from "./admin-table";
+import {
+  AdminActions,
+  AdminCell,
+  AdminCount,
+  AdminEmpty,
+  AdminListState,
+  AdminRow,
+  AdminStatus,
+  AdminTable,
+  AdminWhen,
+} from "./admin-table";
 import { useAdminList } from "./use-admin-list";
 
 export const SEARCH_HIDDEN_NOTICE = "숨겼어요";
@@ -92,23 +102,33 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
           (rows.length === 0 ? (
             <AdminEmpty title="찾는 가게가 없어요" />
           ) : (
-            <AdminTable label="검색 결과" columns={COLUMNS}>
+            <>
+              <AdminCount>{rows.length}곳 찾았어요</AdminCount>
+              <AdminTable label="검색 결과" columns={COLUMNS}>
               {rows.map((place) => {
                 const hidden = place.hiddenAt !== undefined;
                 return (
                   <AdminRow key={place.id}>
                     <AdminCell className="text-body-m-medium text-fg">{place.name}</AdminCell>
                     <AdminCell className="text-fg-secondary">{place.gu}</AdminCell>
-                    <AdminCell className={hidden ? "text-brand-fg" : "text-fg-tertiary"}>
-                      {hidden ? (place.removedByOwner === true ? "내림(사장님)" : "숨김") : "정상"}
-                    </AdminCell>
-                    <AdminCell align="right" className="text-fg-tertiary tabular-nums">
-                      {place.createdAt === undefined
-                        ? "시드"
-                        : relativeCheckAgo(place.createdAt, now)}
+                    <AdminCell>
+                      <AdminStatus
+                        label={hidden ? (place.removedByOwner === true ? "내림(사장님)" : "숨김") : "정상"}
+                        tone={hidden ? "active" : "subtle"}
+                      />
                     </AdminCell>
                     <AdminCell align="right">
-                      <span className="inline-flex gap-2">
+                      {place.createdAt === undefined ? (
+                        <span className="text-fg-tertiary">시드</span>
+                      ) : (
+                        <AdminWhen
+                          at={place.createdAt}
+                          relative={relativeCheckAgo(place.createdAt, now)}
+                        />
+                      )}
+                    </AdminCell>
+                    <AdminCell align="right">
+                      <AdminActions>
                         <Button
                           variant="outline"
                           size="sm"
@@ -135,12 +155,13 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
                             삭제
                           </Button>
                         )}
-                      </span>
+                      </AdminActions>
                     </AdminCell>
                   </AdminRow>
                 );
-              })}
-            </AdminTable>
+                })}
+              </AdminTable>
+            </>
           )))
       )}
 

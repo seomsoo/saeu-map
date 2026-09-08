@@ -57,7 +57,9 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
     const table = await screen.findByRole("table", { name: "수정 이력" });
     expect(within(table).getByText("나라수산")).toBeInTheDocument();
     expect(within(table).getByText("영업시간")).toBeInTheDocument();
-    expect(within(table).getByText("영업시간 23:00 라스트오더 → 새벽 2시까지")).toBeInTheDocument();
+    // 이전 값과 새 값은 **다른 요소로** 그려야 굵기·취소선으로 대비를 준다
+    expect(within(table).getByText("23:00 라스트오더")).toBeInTheDocument();
+    expect(within(table).getByText("새벽 2시까지")).toBeInTheDocument();
     expect(within(table).getByText("익명")).toBeInTheDocument();
   });
 
@@ -75,9 +77,14 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
     ]);
     renderTab();
     const table = await screen.findByRole("table", { name: "수정 이력" });
-    expect(within(table).getByText("새우구이 29,900 → 32,000")).toBeInTheDocument();
-    expect(within(table).getByText(/새우머리튀김 0.*→ 삭제됨/)).toBeInTheDocument();
-    expect(within(table).getByText(/\+ 새우튀김/)).toBeInTheDocument();
+    // 가격 변경: 라벨(메뉴명) + 이전 → 지금
+    expect(within(table).getByText("새우구이")).toBeInTheDocument();
+    expect(within(table).getByText("29,900원")).toBeInTheDocument();
+    expect(within(table).getByText("32,000원")).toBeInTheDocument();
+    // 삭제·추가
+    expect(within(table).getByText("삭제됨")).toBeInTheDocument();
+    expect(within(table).getByText("추가")).toBeInTheDocument();
+    expect(within(table).getByText(/새우튀김 15,000원/)).toBeInTheDocument();
   });
 
   it("사이드는 켜고 꺼진 것만", async () => {
@@ -91,7 +98,9 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
     ]);
     renderTab();
     const table = await screen.findByRole("table", { name: "수정 이력" });
-    expect(within(table).getByText("라면 없음 → 있음")).toBeInTheDocument();
+    expect(within(table).getByText("라면")).toBeInTheDocument();
+    expect(within(table).getByText("없음")).toBeInTheDocument();
+    expect(within(table).getByText("있음")).toBeInTheDocument();
     expect(within(table).queryByText(/머리버터구이/)).toBeNull();
   });
 

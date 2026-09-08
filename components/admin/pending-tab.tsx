@@ -7,7 +7,17 @@ import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import { formatPrice, unitChipLabel } from "@/lib/places";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place } from "@/lib/types";
-import { AdminCell, AdminEmpty, AdminListState, AdminRow, AdminTable } from "./admin-table";
+import {
+  AdminActions,
+  AdminCell,
+  AdminCount,
+  AdminEmpty,
+  AdminListState,
+  AdminRow,
+  AdminStatus,
+  AdminTable,
+  AdminWhen,
+} from "./admin-table";
 import { useAdminList } from "./use-admin-list";
 
 export const CONFIRMED_NOTICE = "확인했어요";
@@ -76,6 +86,7 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
 
   return (
     <>
+      <AdminCount>확인 대기 {rows.length}건</AdminCount>
       {/* 데스크탑: 표 */}
       <div className="hidden lg:block">
         <AdminTable label="사후 확인" columns={COLUMNS}>
@@ -84,14 +95,19 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
               <AdminCell className="text-body-m-medium text-fg">{place.name}</AdminCell>
               <AdminCell className="text-fg-secondary">{place.gu}</AdminCell>
               <AdminCell className="text-fg-secondary">{menuLine(place)}</AdminCell>
-              <AdminCell align="right" className="text-fg-tertiary tabular-nums">
-                {relativeCheckAgo(place.createdAt ?? place.lastCheckedAt, now)}
-              </AdminCell>
-              <AdminCell align="right" className="text-fg-tertiary">
-                검증 전
+              <AdminCell align="right">
+                <AdminWhen
+                  at={place.createdAt ?? place.lastCheckedAt}
+                  relative={relativeCheckAgo(place.createdAt ?? place.lastCheckedAt, now)}
+                />
               </AdminCell>
               <AdminCell align="right">
-                <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} />
+                <AdminStatus label="검증 전" />
+              </AdminCell>
+              <AdminCell align="right">
+                <AdminActions>
+                  <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} />
+                </AdminActions>
               </AdminCell>
             </AdminRow>
           ))}
@@ -144,7 +160,7 @@ function PendingActions({
         </a>
       )}
       <Button
-        variant="brand"
+        variant="outline"
         size="sm"
         disabled={pending}
         onClick={() => {

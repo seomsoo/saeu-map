@@ -5,8 +5,18 @@ import { Button } from "@/components/ui/button";
 import { getPlaceEdits, getPlaces, revertPlaceEdit } from "@/lib/data";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place, PlaceEdit } from "@/lib/types";
-import { AdminCell, AdminEmpty, AdminListState, AdminRow, AdminTable } from "./admin-table";
-import { FIELD_LABEL, actorText, editSummary } from "./edit-summary";
+import {
+  AdminActions,
+  AdminCell,
+  AdminCount,
+  AdminEmpty,
+  AdminListState,
+  AdminRow,
+  AdminStatus,
+  AdminTable,
+  AdminWhen,
+} from "./admin-table";
+import { FIELD_LABEL, actorText, editDiffs } from "./edit-summary";
 import { useAdminList } from "./use-admin-list";
 
 export const REVERTED_NOTICE = "되돌렸어요";
@@ -56,18 +66,21 @@ export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string)
   if (rows.length === 0) return <AdminEmpty title="아직 고쳐진 곳이 없어요" />;
 
   return (
-    <AdminTable label="수정 이력" columns={COLUMNS}>
-      {rows.map(({ edit, place }) => (
-        <EditRow
-          key={edit.id}
-          edit={edit}
-          place={place}
-          now={now}
-          pending={pending === edit.id}
-          onRevert={revert}
-        />
-      ))}
-    </AdminTable>
+    <>
+      <AdminCount>최근 수정 {rows.length}건</AdminCount>
+      <AdminTable label="수정 이력" columns={COLUMNS}>
+        {rows.map(({ edit, place }) => (
+          <EditRow
+            key={edit.id}
+            edit={edit}
+            place={place}
+            now={now}
+            pending={pending === edit.id}
+            onRevert={revert}
+          />
+        ))}
+      </AdminTable>
+    </>
   );
 }
 
@@ -84,36 +97,48 @@ function EditRow({
   pending: boolean;
   onRevert: (edit: PlaceEdit) => void;
 }) {
-  const lines = editSummary(edit, place);
+  const diffs = editDiffs(edit, place);
   return (
     <AdminRow>
       <AdminCell className="text-body-m-medium text-fg">{place?.name ?? "숨겨진 가게"}</AdminCell>
-      <AdminCell className="text-fg-secondary">{FIELD_LABEL[edit.field]}</AdminCell>
-      <AdminCell className="py-2 text-fg-secondary">
-        {/* 메뉴는 줄 단위로 여러 줄이 나온다 — 한 줄로 이으면 무엇이 바뀌었는지 안 읽힌다 */}
-        <ul className="space-y-0.5">
-          {lines.map((line) => (
-            <li key={line} className="tabular-nums">
-              {line}
+      <AdminCell>
+        <AdminStatus label={FIELD_LABEL[edit.field]} />
+      </AdminCell>
+      <AdminCell className="py-2">
+        {/* 메뉴는 줄 단위로 여러 줄이 나온다. **이전은 흐린 취소선, 지금은 진하게** —
+            같은 굵기로 이어 놓으면 무엇이 바뀌었는지 눈이 못 잡는다 */}
+        <ul className="space-y-1">
+          {diffs.map((d) => (
+            <li key={`${d.label ?? ""}-${d.from}-${d.to}`} className="flex flex-wrap items-baseline gap-1.5">
+              {d.label !== undefined && (
+                <span className="text-caption-l-regular text-fg-tertiary">{d.label}</span>
+              )}
+              <span className="text-fg-placeholder line-through tabular-nums">{d.from}</span>
+              <span aria-hidden="true" className="text-fg-placeholder">
+                →
+              </span>
+              <span className="text-body-m-medium text-fg tabular-nums">{d.to}</span>
             </li>
           ))}
         </ul>
       </AdminCell>
       <AdminCell className="text-fg-tertiary">{actorText(edit)}</AdminCell>
-      <AdminCell align="right" className="text-fg-tertiary tabular-nums">
-        {relativeCheckAgo(edit.at, now)}
+      <AdminCell align="right">
+        <AdminWhen at={edit.at} relative={relativeCheckAgo(edit.at, now)} />
       </AdminCell>
       <AdminCell align="right">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => {
-            onRevert(edit);
-          }}
-        >
-          {pending ? "되돌리는 중…" : "되돌리기"}
-        </Button>
+        <AdminActions>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => {
+              onRevert(edit);
+            }}
+          >
+            {pending ? "되돌리는 중…" : "되돌리기"}
+          </Button>
+        </AdminActions>
       </AdminCell>
     </AdminRow>
   );
