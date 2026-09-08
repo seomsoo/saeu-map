@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
@@ -71,10 +72,10 @@ export function LoginSheet({ reason, signIn, onSignedIn, onDismiss }: LoginSheet
           disabled={pending}
           aria-busy={pending}
         >
-          {/* 카카오 **공식 심볼** 자리 — 지금은 coolicons 말풍선 근접 대체다. 커뮤니티 아이콘 셋으로
-              때우지 않는다: 카카오가 로그인 버튼에 자기 심볼을 쓰라고 가이드로 정해뒀고 권한 심사 항목이다.
-              에셋이 오면 `next/image`로 바꾼다 (decisions 2026-09-08 커스텀 에셋 목록). */}
-          <span className="icon-[ci--chat] size-4" aria-hidden="true" />
+          {/* 카카오 공식 심볼 — 카카오싱크 디자인 가이드가 배포하는 버튼 이미지에서 형태·비율·색을
+              그대로 떼어낸 것이다(직접 그리거나 커뮤니티 아이콘 셋으로 대체하지 않는다).
+              크기는 공식 버튼의 비율 그대로: 90px 버튼에 34px 심볼 → 48px 버튼에 18px. */}
+          <Image src="/kakao-symbol.png" alt="" width={19} height={18} draggable={false} />
           {pending ? "로그인 중…" : "카카오로 시작하기"}
         </Button>
         {error && (
