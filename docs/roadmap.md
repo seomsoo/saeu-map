@@ -63,12 +63,22 @@
 - 후속(같은 날 `feat/assets-desktop`): **새우 에셋 투입** — 목 도형 SVG·카테고리 색점을 실제 사진·새우 아트로. 마커·카드 플레이스홀더, 파비콘·홈 아이콘, 제보 핀 속, 별점 마크(별 → 새우), 루트 OG·제보 완료 축하 아트. 선택 마커 잉크 링 → 흰 링 + 그림자, 현위치는 파란 점으로 확정. 커스텀 에셋 대기 8줄 → 3줄. 결정은 decisions.md 2026-09-07, 플랜·결과는 docs/plans/shrimp-assets.md.er 2회(반영 6건, 취약점 0), Lighthouse 실측 뒤 예산 확정(LCP error 12s), 워커 gzip 1.62MB, 테스트 410개. 상세는 docs/plans/phase5-desktop.md 결과.
 - 후속 2(같은 브랜치, 2026-09-08): **데스크탑 리디자인(화면 6~9 v3)** — "모바일을 패널에 넣은 그릇이라 밋밋하다"는 판단으로 시안 4벌 비교 뒤 D 채택. 떠 있는 패널 420 · 칩만 지도 위(검색은 패널 안) · 사진 유무로 갈리는 혼합 카드(가격·역·평점·찜) · 이벤트 배너 · hover 사진 프리뷰 · 워드마크 에셋 · 버튼 커서 전수 수정. 결정은 decisions.md 2026-09-08, 플랜·결과는 docs/plans/desktop-redesign.md.
 
+## Phase 5.5 — 막힌 입구 열기 · 관리자 화면 (spec 4.2·4.5 · design 화면 2)
+
+"UI 먼저, 백엔드 나중"대로 Phase 6 전에 **사용자 화면에 남은 막힌 입구를 전부 열고**, 그 제출물이 도착할 `/admin`까지 만든다. 전수 조사와 근거는 decisions.md 2026-09-08, 플랜은 docs/plans/pending-flows.md.
+
+- [ ] 상세 7곳 실동작: 사진 올리기 · 영업시간 · 주소 · 대표 메뉴 · 사이드 · 가게 신고 · 사장님 요청
+- [ ] 이벤트 배너 404(링크 대상 없음) · 제보·리뷰 사진 실반영 · 홈 로딩 그릇 v3 · 상세 스켈레톤 연결
+- [ ] `/admin` 4탭(사후 확인 · 신고·숨김 · 수정 제안 큐 · 검색) — **다음 브랜치**, PR은 함께 올린다
+- 완료: 앱 전체에 "준비 중이에요" 0건, 갭 스윕 A항목(막힌 입구) 0건
+- 결과: (docs/plans/pending-flows.md)
+
 ## Phase 6 — 백엔드 교체
 - [ ] 스키마 확정 (checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제)
 - [ ] convert_seed.py 전체 452곳 임포트 (needsReview·excluded 37곳 검수 반영)
 - [ ] lib/data.ts → Supabase 교체, 익명 auth + 카카오 linkIdentity
 - [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP)
-- [ ] /admin 4탭(사후 확인 탭 = 구 심판대 — 행 구성·낙관 확인 로직은 커밋 cb32d18에서 꺼내 쓴다), 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
+- [ ] /admin 4탭을 실 DB에 연결(화면 자체는 Phase 5.5에서 만든다 — 사후 확인 탭 = 구 심판대, 행 구성·낙관 확인 로직은 커밋 cb32d18에서 꺼내 쓴다), 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
 - [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(기존 핀 이전·리다이렉트 — spec 4.3 엣지)
 - [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
 - 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴

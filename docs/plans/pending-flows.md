@@ -1,0 +1,144 @@
+# 막힌 입구 열기 — 상세 제안·신고·사장님 · 사진 실반영 (spec 4.2 · design 화면 2)
+
+## Context
+
+Phase 5 + 데스크탑 리디자인까지 머지된 상태(main `a0844d3`). 사용자 지적: "상세에서 수정 같은 거 누르면 준비 중이에요가 너무 많다".
+
+전수 조사(gap-sweeper, 2026-09-08) 결과 **막힌 입구(A) 8곳 · 스펙만 있고 화면 없음(B) 2곳 · 반쪽 동작(C) 4곳**:
+
+| # | 종류 | 위치 | 무엇이 없나 |
+|---|---|---|---|
+| 1 | A | 화면 2-1 사진 ＋ 타일 / 빈 블록 | 업로드 UI 자체가 없음 |
+| 2 | A | 화면 2-3 영업시간 [수정]·"알려주세요" | 준비 중 토스트 |
+| 3 | A | 화면 2-3 "주소를 알려주세요" | 준비 중 토스트 |
+| 4 | A | 화면 2-5 대표 메뉴 [수정]·[메뉴 알려주기] | 준비 중 토스트 |
+| 5 | A | 화면 2-6 사이드 [수정] | 준비 중 토스트 |
+| 6 | A | 화면 2-9 [신고] | 사유 시트 없음 |
+| 7 | A | 화면 2-9 [사장님이신가요?] | 창구 없음 |
+| 8 | A | 화면 1-5 이벤트 배너 | 카드 전체가 링크인데 대상 `/test`가 없어 404 |
+| 9 | B | `/admin` 4탭 | 라우트·컴포넌트 통째로 없음 → **다음 브랜치** |
+| 10 | B | `/test` 까주기 테스트 | Phase 7 미정 기능 → 범위 밖 |
+| 11 | C | 제보 4단계 사진 | 고른 파일을 버려서 등록 직후 상세가 "아직 사진이 없어요" |
+| 12 | C | 리뷰 폼 사진 1장 | 버려져서 `Review.photoUrl`이 안 채워짐 |
+| 13 | C | `app/(home)/loading.tsx` | 데스크탑 v2 그릇(붙은 400 패널 + `border-r`)이 남아 첫 프레임에 그릇이 튄다 |
+| 14 | C | `place-detail-skeleton.tsx` | 어디서도 import 안 됨 → 상세 4상태 중 로딩이 화면에 안 뜬다 |
+
+**왜 여태 없었나**(기록): decisions.md:112(2026-09-02) "미구현 플로우 입구 8곳 — 자리만 두고 토스트", design.md:149, roadmap Phase 6. 이유는 도착지가 사용자 화면이 아니라 관리자 수정 제안 큐(spec 4.2 "수정 제안은 승인 큐 경유", spec 4.5)였기 때문. 이 판단은 이미 두 번 앞으로 당겨졌다 — 사진 신고(2026-09-03), 정보 수정 제안 사유 시트(2026-09-05). 이번이 세 번째이자 마지막이다.
+
+## 결정 (사용자 선택 4 + 권고 6)
+
+1. **범위** — 위 표의 #1~#8 + #11~#14. `/admin`(#9)은 **다음 브랜치**, PR은 이 브랜치와 함께 올린다. `/test`(#10)는 범위 밖(Phase 7).
+2. **가게 신고 사유 4행** — 등록 자체의 문제만: `[새우집이 아니에요] [허위·광고성 등록] [중복 등록이에요] [기타]`. "문 닫았어요"는 이미 정보 수정 제안 시트에 있어 겹치지 않는다 — 신고는 "이 등록이 잘못됐다", 수정 제안은 "값이 틀렸다".
+3. **사장님이신가요? = 요청 폼 시트** — 요청 종류 2개[정보 수정 / 게재 삭제] + 연락처 + 내용. 이메일 안내가 아닌 이유: saeumap.kr 도메인이 아직 등록 전이고(spec 6), spec의 "24시간 내 처리"는 회신할 연락처가 있어야 성립한다.
+4. **(권고) 제안은 승인 큐 경유라 화면 값이 안 바뀐다** — 낙관적 업데이트를 하지 않는다. 대신 시트 안에 미리 "확인 후 반영돼요"(12 fg-tertiary)를 두고 성공 토스트도 같은 말을 한다. 이건 예외가 아니라 판례다: `flagPlace`(사유 시트)가 이미 같은 계약이다. **사진만 즉시 반영**(spec 4.2 "예외: 사진(즉시), 다녀왔어요(즉시)")이라 낙관 + 실패 롤백을 쓴다.
+5. **(권고) 공용 제안 시트 하나** `suggest-sheet.tsx` — 호출자가 영업시간·주소·메뉴·사이드 넷이라 사다리 5(세 번째 호출자)를 넘는다. 필드별로 다른 건 본문·초기값·zod 스키마뿐.
+6. **(권고) 사유 시트는 새로 만들지 않고 `flag-sheet.tsx`를 파라미터화** — 사유 목록·제목·제출 함수를 props로. 호출자 2곳(정보 수정 제안·가게 신고)이라 새 추상화를 만들 자리는 아니고, 기존 컴포넌트에 인자를 여는 것뿐이다.
+7. **(권고) 사진 ＋ 타일은 파일 선택기 직행** — 시트를 한 겹 더 두지 않는다. spec이 "즉시"라 했고, 올린 뒤엔 스트립 자체가 미리보기다. `PhotoPicker`의 미리보기·제거는 단계가 여럿인 제보 플로우의 문법이다.
+8. **(권고) blob URL은 `lib/data.ts`가 자기 것을 만들어 보관** — `PhotoPicker`는 자기 목록의 objectURL을 언마운트 때 revoke하므로, 그 URL을 그대로 `Place.photos`에 넣으면 시트가 닫히는 순간 사진이 깨진다. 데이터 쪽에서 `URL.createObjectURL`을 다시 불러 세션 동안 들고 있는다(revoke 안 함). 서버(SSR·OG 빌드)엔 이 API가 없으니 존재 확인 후 없으면 사진 없이 진행.
+9. **(권고) 이벤트 배너 `href`를 선택값으로** — 지금 링크할 곳이 없다는 사실을 데이터로 표현한다. `href`가 없으면 카드는 링크가 아니라 닫기만 있는 안내 카드. Phase 7에 `/test`가 생기면 설정값에 href를 다시 넣으면 된다. design 화면1-5에 이 분기를 한 줄 추가.
+10. **(권고) `PlaceDetailSkeleton`은 `mode === "detail"`인데 `detailPlace`가 아직 없을 때 연결** — 삭제하지 않는다. 목 단계에선 거의 안 뜨지만 design 화면2 변형 (d)가 정의한 상태이고, Phase 6에서 상세가 실제 비동기 로드가 되면 그대로 산다.
+
+## 디자인 언어 — 화면 2의 쓰기 표면 (전문은 design.md에 쓴다)
+
+지금 상세가 여는 오버레이는 세 문법인데, 이번에 **네 번째를 만들지 않는다**:
+
+| 문법 | 언제 | 이미 있는 예 | 이번에 붙는 것 |
+|---|---|---|---|
+| **사유 시트** (44px 행 N개, **탭이 곧 제출**, 확인 버튼 없음) | 고를 것이 닫힌 목록이고 값 입력이 없을 때 | 사진 신고, 정보 수정 제안 | 가게 신고 |
+| **값 폼 시트** (입력 + 바닥 CTA) | 사용자가 값을 적어 낼 때 | 리뷰 폼 | 영업시간·주소·메뉴·사이드, 사장님 요청 |
+| **파일 선택기 직행** | 즉시 반영되는 쓰기 | (없음) | 사진 올리기 |
+
+값 폼 시트 공통(`ModalSheet` — 모바일 바텀 모달 / 데스크탑 중앙 480):
+- 제목 행: 제목 14 medium + 오른쪽 ✕ 44 — 사유 시트와 같은 행
+- 본문 좌우 20: 필드별 입력. 값이 있으면 **채워 두고**(수정), 없으면 빈 채로(알려주기)
+- 입력 아래 12 fg-tertiary 한 줄 **"확인 후 반영돼요"** — 제출해도 화면 값이 안 바뀌는 이유를 미리 말한다
+- 바닥 전폭 CTA 48 **[알려주기]** (수정이면 [보내기]) — 채운 레드. 딤 위 별도 표면이라 "화면당 채운 레드 하나"를 어기지 않는다(리뷰 폼 판례, design:241)
+- 제출 중 CTA "보내는 중…"(비활성) / 실패는 **시트 안** CTA 위 오류 한 줄(12 brand-fg) + 입력 유지 / 성공은 시트가 닫히며 토스트
+
+제목·CTA·토스트 문구:
+
+| 입구 | 시트 제목 | 성공 토스트 |
+|---|---|---|
+| 영업시간 | 영업시간을 알려주세요 | 알려주셔서 고마워요. 확인 후 반영돼요 |
+| 주소 | 주소를 알려주세요 | 〃 |
+| 대표 메뉴 | 메뉴와 가격을 알려주세요 | 〃 |
+| 사이드 | 사이드를 알려주세요 | 〃 |
+| 가게 신고 | 무엇이 문제인가요? | 신고를 접수했어요 |
+| 사장님 | 사장님이신가요? | 요청을 접수했어요. 24시간 안에 연락드릴게요 |
+| 사진 | (시트 없음) | 사진을 올렸어요 / 실패 시 사진을 올리지 못했어요 |
+
+필드별 본문:
+- **영업시간** — `TextField` 한 줄, placeholder "예: 23:00 라스트오더, 월 휴무", 80자 (제보 4단계 `hoursNote`와 같은 상한)
+- **주소** — `TextField` 한 줄, placeholder "예: 서울 마포구 마포대로12길 34", 60자. **자동완성 없음** — 절대 규칙 2 때문에 지오코더 응답을 저장할 수 없다. 사용자가 직접 타이핑한 값은 예외(`naverPlaceUrl` 판례, decisions 2026-09-08). 캡션에 "도로명 주소를 적어주세요"
+- **대표 메뉴** — 제보 3단계의 3필드(메뉴명 / 가격 + "원" / 단위 칩 6개 + [마리] 펼침) + "새우회도 팔아요" 스위치. `step-menu.tsx`에서 폼 본체를 `menu-fields.tsx`로 추출해 두 곳이 같은 것을 쓴다
+- **사이드** — 화면 2-6과 같은 칩 3개를 **토글**로(있음 = 아웃라인+체크 / 없음 = 회색). 다른 생김새를 새로 만들지 않는다
+- **사장님** — 요청 종류 `Segmented` 2칸[정보 수정 / 게재 삭제] + 연락처 `TextField`(placeholder "이메일 또는 전화번호", 60자) + 내용 textarea(300자, 선택)
+
+## 변경
+
+### 1. 문서 먼저 — `docs/design.md` · `docs/decisions.md`
+- 화면 2에 **쓰기 표면 블록** 신설(위 표 3종 + 값 폼 시트 공통 + 필드별 본문 + 문구 표)
+- design.md:149 "아직 없는 플로우의 입구" 문단을 **다시 쓴다** — 남는 건 없다
+- design.md:145 화면 2-9 마지막 문장 "신고·사장님이신가요?는 그대로 준비 중 토스트" 삭제
+- 화면 1-5에 "`href`가 없으면 링크가 아닌 안내 카드" 한 줄
+- decisions.md 2026-09-08에 결정 10개 기록
+
+### 2. 데이터 — `lib/types.ts` · `lib/data.ts`
+- 타입: `SuggestField`("hours"|"address"|"menus"|"sides"), `PlaceReportReason`, `OwnerRequestKind`
+- `suggestionSchema` (discriminated union) + `submitSuggestion(input): Promise<void>`
+- `reportPlace({ placeId, reason }): Promise<void>` — `flagPlace`와 같은 계약
+- `submitOwnerRequest({ placeId, kind, contact, message }): Promise<void>`
+- `addPlacePhotos(placeId, files, now): Promise<Place>` — 10장 상한 검사, blob 보관, `Place.photos`·`thumbnailUrl` 갱신
+- `retainPhotoUrl(file): string | null` — 모듈이 들고 있는 objectURL (revoke 안 함, 서버면 null)
+- `submitReport`가 `photos`를 버리지 않고 `Photo[]`로 (#11) / `submitReview`가 `photoUrl`을 채운다 (#12)
+- 쓰기 규칙 준수: **await 전에 `currentSession`을 잡고**, 상대값이 아니라 원하는 상태를 받는다(CLAUDE.md 승격 규칙)
+
+### 3. 공용 시트 — `components/place-detail/suggest-sheet.tsx` (신규) · `flag-sheet.tsx`(파라미터화) · `owner-request-sheet.tsx`(신규) · `components/report/menu-fields.tsx`(추출)
+
+### 4. 상세 연결 — `use-place-detail.ts` · `place-detail.tsx` · `photo-area.tsx`
+- `comingSoon`과 `COMING_SOON_NOTICE` **삭제** (호출자가 0이 된다)
+- 오버레이는 `useOverlayHistory`로 뒤로가기 한 번에 닫히게 — 사유 시트와 같은 길
+- 늦은 비동기 가드: 시트는 alive ref, 사진 낙관은 진행 중 id를 ref로(CLAUDE.md 규칙 3종)
+
+### 5. 사진 실반영 — `photo-area.tsx`(＋ 타일 = `<input type=file>`) · `use-place-detail.ts`(낙관 + 롤백) · 제보·리뷰 쪽은 데이터만 고치면 화면은 그대로 산다
+
+### 6. 자잘한 3건 — `lib/mock/event-card.json`·`event-card.tsx`(#8) · `app/(home)/loading.tsx`(#13) · `map-screen.tsx`(#14 스켈레톤 연결)
+
+### 7. 감사 — gap-sweeper 재실행(A 0건) + security-reviewer(쓰기 경로 4개 신설) + roadmap 결과 줄
+
+## 변경 파일
+
+신규 6: `components/place-detail/suggest-sheet.tsx` · `owner-request-sheet.tsx` · `components/report/menu-fields.tsx` · 각 `__tests__` 3
+수정 14: `lib/types.ts` · `lib/data.ts` · `lib/mock/event-card.json` · `components/place-detail/{use-place-detail,place-detail,photo-area,flag-sheet,footer-links,info-rows,menu-list,sides-row}.tsx` · `components/report/step-menu.tsx` · `components/map-screen/{map-screen,event-card}.tsx` · `app/(home)/loading.tsx`
+문서 4: `docs/design.md` · `docs/decisions.md` · `docs/roadmap.md` · 이 파일
+
+## 검증
+
+- `pnpm typecheck && pnpm lint && pnpm test` — 새 테스트: 시트 6종의 성공·실패·닫기, 사진 낙관+롤백, 10장 상한, `comingSoon` 잔재 0
+- 기존 테스트 정정: `place-detail.test.tsx`의 "아직 없는 플로우의 입구는 전부 '준비 중이에요' 토스트"(455·499줄) — **이 테스트가 사라지는 게 이번 작업의 완료 신호**
+- Playwright 390×702 · 390×656 · 320×480 · 1440×900 · 1024×768 — 시트 6종 + 사진 업로드 한 바퀴
+- `pnpm preview`(workerd :8787) 스모크 — 이전 세션 잔여 서버 확인 후 기동
+- gap-sweeper 재실행: A 항목 0건
+
+## 커밋 단위 (한 턴 = 한 커밋)
+
+1. `docs:` design.md 쓰기 표면 블록 + decisions 10건
+2. `feat(data):` 제안·신고·사장님 목 함수 + 사진 보관 헬퍼 + 타입
+3. `feat(detail):` 제안 시트 4곳(영업시간·주소·메뉴·사이드) + 메뉴 폼 추출
+4. `feat(detail):` 가게 신고 사유 시트 + 사장님 요청 폼, `comingSoon` 제거
+5. `feat(photo):` 상세 사진 업로드 + 제보·리뷰 사진 실반영
+6. `fix:` 이벤트 배너 링크 · 홈 로딩 그릇 · 상세 스켈레톤 연결
+7. `docs:` 갭 스윕·보안 리뷰 결과 + roadmap
+
+## 열린 질문 (구현 전 확인)
+
+- 사진 ＋ 타일 직행(결정 7)이 아니라 미리보기 시트를 원하면 5번 커밋에서 바꾼다 — 되돌리기 쉬운 자리다.
+- 이벤트 배너(결정 9)를 "링크 없는 안내 카드" 대신 **카드 자체를 끄는 것**으로 하고 싶으면 목 설정값만 비우면 된다.
+- 사장님 요청에 가게명·본인 확인 절차를 더 둘지 — spec은 "1회 요청으로 즉시 처리"라 문턱을 낮게 뒀다.
+
+## 범위 밖 (기록)
+
+- `/admin` 4탭(#9) — 다음 브랜치. 이 브랜치가 큐에 무엇이 쌓이는지 정하므로 순서가 이쪽이 먼저다. PR은 함께 올린다.
+- `/test` 까주기 테스트(#10) — Phase 7, spec 9장 미정.
+- 사진 본인 삭제 — spec에 없다. 익명 업로드라 신고가 그 자리를 갖는다.
+- 목 사진의 새로고침 지속 — 저장소는 Phase 6. 제보로 만든 가게가 사라지는 것과 같은 수준이다.
