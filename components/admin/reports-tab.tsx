@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
 import {
   ADMIN_PAGE_SIZE,
+  REPORT_ATTENTION_COUNT,
+  deletePlace,
   deletePlacePhoto,
   getPlacesForAdmin,
   getReports,
@@ -109,6 +111,19 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
     () => (kind === "all" ? rows : rows.filter((r) => r.report.kind === kind)),
     [rows, kind],
   );
+  /**
+   * 가게별로 열려 있는 **가게 신고** 수. 자동 숨김을 걷어낸 대신 약속한 표시다(spec 5) — 3건이 넘으면
+   * 운영자가 알아볼 수 있어야 하고, 그러려면 행을 손으로 세게 두면 안 된다.
+   * 게이트를 지난 이 목록에서 센다(게이트 없는 집계 함수를 따로 열지 않는다).
+   */
+  const reportedCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const { report } of rows) {
+      if (report.kind !== "place_report") continue;
+      counts.set(report.placeId, (counts.get(report.placeId) ?? 0) + 1);
+    }
+    return counts;
+  }, [rows]);
 
   /** 액션 하나 — 끝나면 목록을 조용히 다시 읽는다(처리한 행은 열린 목록에서 빠진다) */
   const run = (id: string, notice: string, work: () => Promise<unknown>) => {
@@ -169,6 +184,11 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                   <AdminCell className="text-body-m-medium text-fg">
                     {place?.name ?? "없는 가게"}
                     {hidden && <span className="ml-1.5 text-caption-l-regular text-brand-fg">숨김</span>}
+                    {!hidden && (reportedCounts.get(report.placeId) ?? 0) >= REPORT_ATTENTION_COUNT && (
+                      <span className="ml-1.5 rounded-max bg-brand-tint px-1.5 text-caption-l-medium text-brand-fg tabular-nums">
+                        신고 {reportedCounts.get(report.placeId)}건
+                      </span>
+                    )}
                   </AdminCell>
                   <AdminCell className="text-fg-secondary">{bodyOf(report)}</AdminCell>
                   <AdminCell align="right">
@@ -194,7 +214,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                           disabled={busy}
                           onClick={() => {
                             run(report.id, PHOTO_DELETED_NOTICE, async () => {
-                              await deletePlacePhoto(place.id, report.photoId ?? "", now);
+                              await deletePlacePhoto(place.id, report.photoId ?? "");
                               await resolveReport(report.id, "done");
                             });
                           }}
@@ -234,10 +254,20 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                         size="sm"
                         disabled={busy}
                         onClick={() => {
-                          run(report.id, RESOLVED_NOTICE, () => resolveReport(report.id, "done"));
+                          run(report.id, RESOLVED_NOTICE, async () => {
+                            /*
+                             * 사장님의 **게재 삭제** 요청은 상태만 닫으면 가게가 그대로 남는다 —
+                             * `removedByOwner`가 영영 안 찍혀 재제보 경고(spec 5)가 죽는다.
+                             * 내리고 나서 닫는다 (Codex PR #12).
+                             */
+                            if (report.kind === "owner_request" && report.ownerKind === "remove" && place) {
+                              await deletePlace(place.id, now, true);
+                            }
+                            await resolveReport(report.id, "done");
+                          });
                         }}
                       >
-                        {busy ? "처리 중…" : "처리함"}
+                        {busy ? "처리 중…" : report.ownerKind === "remove" ? "내리고 처리" : "처리함"}
                       </Button>
                       <Button
                         variant="outline"

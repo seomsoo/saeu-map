@@ -9,6 +9,8 @@ const data = vi.hoisted(() => ({
   getPlacesForAdmin: vi.fn<(now: string) => Promise<Place[]>>(),
   resolveReport: vi.fn<(id: string, status: string) => Promise<Report>>(),
   setPlaceHidden: vi.fn<(id: string, hidden: boolean, now: string) => Promise<Place>>(),
+  deletePlace: vi.fn<(id: string, now: string, byOwner?: boolean) => Promise<Place>>(),
+  deletePlacePhoto: vi.fn<(placeId: string, photoId: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
@@ -16,6 +18,8 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   getPlacesForAdmin: data.getPlacesForAdmin,
   resolveReport: data.resolveReport,
   setPlaceHidden: data.setPlaceHidden,
+  deletePlace: data.deletePlace,
+  deletePlacePhoto: data.deletePlacePhoto,
 }));
 
 const NOW = "2026-09-08T12:00:00+09:00";
@@ -43,6 +47,8 @@ describe("신고·요청 탭 (design 화면 10-2)", () => {
     data.getPlacesForAdmin.mockReset();
     data.resolveReport.mockReset();
     data.setPlaceHidden.mockReset();
+    data.deletePlace.mockReset();
+    data.deletePlacePhoto.mockReset();
     data.getPlacesForAdmin.mockResolvedValue([nara]);
   });
 
@@ -141,6 +147,59 @@ describe("신고·요청 탭 (design 화면 10-2)", () => {
       expect(onNotice).toHaveBeenCalledWith("연락처를 복사했어요");
     });
     expect(writeText).toHaveBeenCalledWith("owner@example.com");
+  });
+
+  it("사장님 '게재 삭제'는 처리하면서 실제로 내린다 — 상태만 닫으면 가게가 남는다", async () => {
+    data.getReports.mockResolvedValue([
+      report({ id: "rp9", kind: "owner_request", ownerKind: "remove", contact: "a@b.com" }),
+    ]);
+    data.deletePlace.mockResolvedValue({ ...nara, hiddenAt: NOW, removedByOwner: true });
+    data.resolveReport.mockResolvedValue(report({ status: "done" }));
+    const { onNotice } = renderTab();
+    const table = await screen.findByRole("table", { name: "신고·요청" });
+    // 라벨이 무엇을 하는지 말한다
+    fireEvent.click(within(table).getByRole("button", { name: "내리고 처리" }));
+    await waitFor(() => {
+      expect(onNotice).toHaveBeenCalledWith("처리했어요");
+    });
+    // removedByOwner가 찍혀야 재제보 경고(spec 5)가 산다
+    expect(data.deletePlace).toHaveBeenCalledWith("nara", NOW, true);
+    expect(data.resolveReport).toHaveBeenCalledWith("rp9", "done");
+  });
+
+  it("정보 수정 요청은 그냥 [처리함] — 가게를 내리지 않는다", async () => {
+    data.getReports.mockResolvedValue([
+      report({ id: "rp8", kind: "owner_request", ownerKind: "edit", contact: "a@b.com" }),
+    ]);
+    data.resolveReport.mockResolvedValue(report({ status: "done" }));
+    renderTab();
+    const table = await screen.findByRole("table", { name: "신고·요청" });
+    fireEvent.click(within(table).getByRole("button", { name: "처리함" }));
+    await waitFor(() => {
+      expect(data.resolveReport).toHaveBeenCalled();
+    });
+    expect(data.deletePlace).not.toHaveBeenCalled();
+  });
+
+  it("한 가게에 신고가 3건 넘게 쌓이면 눈에 띄게 — 자동 숨김을 걷어낸 대가로 약속한 표시", async () => {
+    data.getReports.mockResolvedValue([
+      report({ id: "r1", kind: "place_report" }),
+      report({ id: "r2", kind: "place_report" }),
+      report({ id: "r3", kind: "place_report" }),
+    ]);
+    renderTab();
+    const table = await screen.findByRole("table", { name: "신고·요청" });
+    expect(within(table).getAllByText("신고 3건")).toHaveLength(3);
+  });
+
+  it("두 건뿐이면 표시하지 않는다", async () => {
+    data.getReports.mockResolvedValue([
+      report({ id: "r1", kind: "place_report" }),
+      report({ id: "r2", kind: "place_report" }),
+    ]);
+    renderTab();
+    const table = await screen.findByRole("table", { name: "신고·요청" });
+    expect(within(table).queryByText(/신고 \d건/)).toBeNull();
   });
 
   it("실패하면 토스트만 — 목록은 그대로", async () => {

@@ -30,8 +30,8 @@ import {
   addPlacePhotos,
   confirmPlace,
   deletePlace,
+  deletePlacePhoto,
   reportPhoto,
-  openReportCount,
   reportPlace,
   resolveReport,
   revertPlaceEdit,
@@ -1108,8 +1108,12 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
     }
     expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(true);
     expect(await getPlaceById(target.id, NOW)).toBeDefined();
-    // 대신 관리자 화면이 "많이 신고됨"으로 띄울 수를 센다
-    expect(openReportCount(target.id)).toBeGreaterThanOrEqual(REPORT_ATTENTION_COUNT);
+    // 대신 관리자 화면이 "많이 신고됨"으로 띄울 수 있게 열린 신고가 그대로 쌓인다
+    await setAdmin(true);
+    const open = (await getReports({ status: "open" })).filter(
+      (r) => r.kind === "place_report" && r.placeId === target.id,
+    );
+    expect(open.length).toBeGreaterThanOrEqual(REPORT_ATTENTION_COUNT);
   });
 
   it("숨김은 운영자가 누른다 — 사용자 읽기에서 빠지고 관리자 검색엔 남는다", async () => {
@@ -1203,6 +1207,20 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
     expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(false);
     // 데이터는 남아 있다
     expect((await searchPlacesForAdmin(target.name, NOW)).some((p) => p.id === target.id)).toBe(true);
+  });
+
+  it("내린 사진은 날짜가 바뀌어도 되살아나지 않는다", async () => {
+    await setAdmin(true);
+    const target = (await getPlaces({}, NOW)).find((p) => p.photos.length > 0);
+    if (!target) throw new Error("no place with photos");
+    const gone = target.photos[0];
+    if (!gone) throw new Error("no photo");
+    const after = await settle(deletePlacePhoto(target.id, gone.id));
+    expect(after.photos.some((p) => p.id === gone.id)).toBe(false);
+    // 캐시 밖에 남기지 않으면 KST 자정에 원본에서 다시 만들어진다 (Codex PR #12)
+    const tomorrow = new Date(Date.parse(NOW) + 86_400_000).toISOString();
+    const next = await getPlaceById(target.id, tomorrow);
+    expect(next?.photos.some((p) => p.id === gone.id)).toBe(false);
   });
 
   it("통계는 우리 DB로 셀 수 있는 것만 — 14일 버킷과 숙제 수", async () => {

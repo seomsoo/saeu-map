@@ -127,6 +127,8 @@ const datasetCache = new Map<number, Dataset>();
  */
 type PlaceOps = Pick<Place, "hiddenAt" | "verifiedAt" | "removedByOwner">;
 const placeOps = new Map<string, PlaceOps>();
+/** 운영자가 내린 사진 id — 같은 이유로 캐시 밖에 산다(`deletedReviewIds`와 같은 규칙). */
+const removedPhotoIds = new Set<string>();
 
 function dataset(now: DateInput): Dataset {
   const today = kstDayIndex(now);
@@ -149,6 +151,7 @@ function dataset(now: DateInput): Dataset {
           if (url === null) return [];
           return [{ id: `${raw.id}-p${String(i + 1)}`, url, uploadedAt: shiftDateOnly(photo.at) }];
         })
+        .filter((photo) => !removedPhotoIds.has(photo.id))
         .slice(0, MAX_PLACE_PHOTOS);
       return {
         ...raw,
@@ -1260,13 +1263,6 @@ function pushReport(input: Omit<Report, "id" | "at" | "status">): Report {
   return report;
 }
 
-/** 이 가게에 열려 있는 가게 신고 수 — 관리자 화면이 "많이 신고됨"을 띄우는 잣대다(숨기지는 않는다). */
-export function openReportCount(placeId: string): number {
-  return reports.filter(
-    (r) => r.kind === "place_report" && r.placeId === placeId && r.status === "open",
-  ).length;
-}
-
 /**
  * 신고·요청 목록 — 최신순. `kind`로 거르면 종류 칩 한 줄이 된다.
  * **가장 민감한 읽기다**: 사장님 요청의 연락처(개인정보)와 낸 사람의 익명 id가 들어 있다.
@@ -1283,13 +1279,22 @@ export async function getReports(
     .slice(0, filter.limit ?? ADMIN_PAGE_SIZE);
 }
 
+const resolveReportSchema = z.object({
+  id: idSchema,
+  // `as` 단언으로 넘기면 모르는 상태가 저장되고, 그 행은 열린 큐에서 빠지는데 어떤 종결 상태도 아니라
+  // **영영 안 보인다**. 다른 쓰기와 같이 첫 await 앞에서 파싱한다 (Codex PR #12)
+  status: z.enum(["open", "done", "dismissed"]),
+});
+
 /** 처리함·무시함으로 넘긴다. **원하는 상태를 받는다**(토글 아님, CLAUDE.md 쓰기 규칙). */
 export async function resolveReport(id: string, status: ReportStatus): Promise<Report> {
+  const parsed = resolveReportSchema.parse({ id, status });
   await requireAdmin();
   await simulateWrite();
-  const i = reports.findIndex((r) => r.id === id);
-  if (i < 0) throw new Error("report not found");
-  const next = { ...reports[i], status } as Report;
+  const i = reports.findIndex((r) => r.id === parsed.id);
+  const current = reports[i];
+  if (!current) throw new Error("report not found");
+  const next: Report = { ...current, status: parsed.status };
   reports[i] = next;
   return next;
 }
@@ -1329,16 +1334,22 @@ export async function setPlaceHidden(
  * 신고된 사진 내리기 — 신고 처리의 핵심 동작이라 [무시]와 짝이다(design 화면 10-2).
  * 사진만 빼고 가게는 그대로 둔다. 대표 썸네일이 그 장이었으면 다음 장으로 내려온다.
  */
-export async function deletePlacePhoto(placeId: string, photoId: string, now: DateInput): Promise<Place> {
+export async function deletePlacePhoto(placeId: string, photoId: string): Promise<Place> {
   await requireAdmin();
   await simulateWrite();
-  const data = dataset(now);
-  const current = data.places.find((p) => p.id === placeId);
-  if (!current) throw new Error("place not found");
-  const photos = current.photos.filter((photo) => photo.id !== photoId);
-  const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
-  data.places = data.places.map((p) => (p.id === place.id ? place : p));
-  return place;
+  // 내린 사진 id는 **날짜 캐시 밖**에 남긴다 — `dataset(now)`만 고치면 KST 자정에 다시 만들어지며
+  // 사진이 되살아나고, 이미 만들어진 다른 날짜 캐시에도 그대로 남는다(숨김과 같은 실수, Codex PR #12)
+  removedPhotoIds.add(photoId);
+  let result: Place | null = null;
+  for (const data of datasetCache.values()) {
+    if (!data.places.some((p) => p.id === placeId)) continue;
+    result = patchPlaceSync(data, placeId, (p) => {
+      const photos = p.photos.filter((photo) => photo.id !== photoId);
+      return { ...p, photos, thumbnailUrl: photos[0]?.url ?? null };
+    });
+  }
+  if (!result) throw new Error("place not found");
+  return result;
 }
 
 /**
