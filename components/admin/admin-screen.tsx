@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { NotFoundView } from "@/components/ui/not-found-view";
 import { Segmented, type SegmentOption } from "@/components/ui/segmented";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Toast } from "@/components/ui/toast";
 import { getAdminStats } from "@/lib/data";
 import type { AdminStats } from "@/lib/types";
@@ -13,6 +12,7 @@ import { EditsTab } from "./edits-tab";
 import { PendingTab } from "./pending-tab";
 import { ReportsTab } from "./reports-tab";
 import { SearchTab } from "./search-tab";
+import { StatsTab } from "./stats-tab";
 
 export type AdminTab = "pending" | "reports" | "edits" | "search" | "stats";
 
@@ -122,7 +122,7 @@ function AdminShell({ now }: { now: string }) {
           {tab === "reports" && <ReportsTab now={now} onNotice={showNotice} />}
           {tab === "edits" && <EditsTab now={now} onNotice={showNotice} />}
           {tab === "search" && <SearchTab now={now} onNotice={showNotice} />}
-          {tab === "stats" && <AdminTabPlaceholder label="통계" />}
+          {tab === "stats" && <StatsTab now={now} />}
         </div>
       </div>
 
@@ -131,16 +131,5 @@ function AdminShell({ now }: { now: string }) {
         <Toast message={notice} />
       </div>
     </main>
-  );
-}
-
-/** 탭 본문이 붙기 전 자리 — 표 헤더가 남아 화면이 뛰지 않는 로딩 문법을 미리 세워 둔다 */
-function AdminTabPlaceholder({ label }: { label: string }) {
-  return (
-    <div aria-label={label} className="space-y-2">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Skeleton key={i} className="h-13" />
-      ))}
-    </div>
   );
 }

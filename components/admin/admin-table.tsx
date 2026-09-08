@@ -137,6 +137,30 @@ export function AdminCount({ children }: { children: ReactNode }) {
   return <p className="pb-2 text-caption-l-regular text-fg-tertiary">{children}</p>;
 }
 
+/**
+ * 요약 한 칸 — 큰 숫자 하나 + 라벨, 그 아래 비교값 한 줄. 운영자가 화면을 열자마자 보는 값이라
+ * **오늘만 두면 많은지 적은지 모른다** — 최근 7일을 같이 놓아야 오늘이 읽힌다.
+ */
+export function AdminStat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-12 border border-line-hairline px-4 py-3">
+      <p className="text-caption-l-regular text-fg-tertiary">{label}</p>
+      <p className="mt-1 text-title-s-semibold text-fg tabular-nums">{value}</p>
+      {sub !== undefined && (
+        <p className="mt-0.5 text-caption-l-regular text-fg-tertiary tabular-nums">{sub}</p>
+      )}
+    </div>
+  );
+}
+
 /** 기간 칩이 고를 수 있는 값 — `null`은 전체. */
 export type AdminPeriod = 7 | 30 | null;
 
