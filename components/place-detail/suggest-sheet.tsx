@@ -226,10 +226,12 @@ export function SuggestSheet({ place, field, onSubmitted, onClose }: SuggestShee
             ))}
           </ul>
         )}
-        <p className="mt-3 text-caption-l-regular text-fg-tertiary">확인 후 반영돼요</p>
       </div>
 
       <div className="px-5 pb-2">
+        {/* 스크롤되는 본문 밖이다 — 메뉴처럼 긴 입력에서는 본문 안에 두면 CTA만 보인 채 눌리고,
+            "왜 값이 안 바뀌지?"는 누른 뒤에 말하면 늦다(design 화면 2 값 폼 시트) */}
+        <p className="mb-2 text-caption-l-regular text-fg-tertiary">확인 후 반영돼요</p>
         {error && (
           <p role="alert" className="mb-2 text-caption-l-regular text-brand-fg">
             {error}
