@@ -32,7 +32,7 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 4. localStorage/sessionStorage 사용 금지. 상태는 메모리, 지속은 (나중에) 서버.
 5. 시크릿을 코드에 박지 마라. .env만.
 6. dangerouslySetInnerHTML 금지 (리뷰·코멘트는 유저 입력이다).
-7. service_role 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, Supabase anon 키, 카카오 JS 키(공유용))만 — 목록 밖 추가는 리뷰에서 잡는다.
+7. service_role 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, Supabase anon 키, 카카오 JS 키(공유용), GA4 측정 ID)만 — 목록 밖 추가는 리뷰에서 잡는다.
 
 ## 스타일 (docs/design.md 공통 블록·토큰 표가 원본 — 2026-09-02 버틸까 디자인 언어 채택)
 - 라이트 모드 우선. 색은 전부 CSS 변수 토큰으로 — Figma 변수와 1:1(Primitive 램프 + Semantic 역할). 다크는 Semantic만 두 번째 벌.

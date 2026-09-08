@@ -41,7 +41,8 @@ export function Segmented<K extends string>({
               onChange(option.key);
             }}
             className={cx(
-              "press flex-1 whitespace-nowrap rounded-6 text-body-m-medium transition-colors",
+              // px-3: 전폭일 땐 flex-1이 벌려 주지만 **내용 폭**(관리자 탭)에서는 여백이 없으면 글자끼리 붙는다
+              "press flex-1 whitespace-nowrap rounded-6 px-3 text-body-m-medium transition-colors",
               selected ? "bg-bg text-fg shadow-float" : "text-fg-secondary",
             )}
           >

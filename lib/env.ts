@@ -12,10 +12,19 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_NCP_CLIENT_ID: z.string().min(1),
+    /**
+     * GA4 측정 ID (`G-XXXXXXX`). **비우면 스크립트를 아예 안 붙인다** — dev·프리뷰에서 수치가 섞이지 않게,
+     * 그리고 런칭 전까지는 아무것도 수집하지 않게. 공개 값이라 NEXT_PUBLIC_ 허용 목록에 있다(규칙 7).
+     */
+    NEXT_PUBLIC_GA_ID: z
+      .string()
+      .regex(/^G-[A-Z0-9]+$/)
+      .optional(),
   },
   runtimeEnv: {
     SITE_URL: process.env["SITE_URL"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
+    NEXT_PUBLIC_GA_ID: process.env["NEXT_PUBLIC_GA_ID"],
   },
   // `.env.example`의 `SITE_URL=`(빈 값)을 그대로 두면 ""가 들어와 z.url()이 거부하고 앱이 안 뜬다 — 빈 문자열은 없는 것으로 (Codex PR #9 P1)
   emptyStringAsUndefined: true,

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { env } from "@/lib/env";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/seo";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({
           href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"
         />
         {children}
+        <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_ID} />
       </body>
     </html>
   );
