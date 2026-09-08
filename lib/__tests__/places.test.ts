@@ -222,6 +222,35 @@ describe("areaLabel — 시트 제목의 지역", () => {
     const many = ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구"].flatMap((g) => gu(g, 1));
     expect(areaLabel(many, 500)).toBe("서울 전체");
   });
+
+  it("서울 밖은 시도 괄호를 떼고 시군구만", () => {
+    expect(areaLabel(gu("김포시(경기)", 1), 50)).toBe("김포시");
+    expect(areaLabel([...gu("김포시(경기)", 1), ...gu("고양시(경기)", 1)], 50)).toBe("고양시 일대");
+  });
+  it("한 시도 대부분이면 그 시도 '전체' — 서울 전용이 아니다", () => {
+    expect(areaLabel([...gu("김포시(경기)", 2), ...gu("고양시(경기)", 1)], 5)).toBe("경기 전체");
+  });
+  it("시도가 섞여 최다 시도가 80% 미만이면 그 시도 + 일대", () => {
+    expect(areaLabel([...gu("마포구", 3), ...gu("김포시(경기)", 1)], 50)).toBe("서울 일대");
+  });
+  it("곁다리 시도 한둘은 무시한다 — 서울 9 + 김포 1은 여전히 서울", () => {
+    const mostlySeoul = [...gu("마포구", 5), ...gu("동작구", 4), ...gu("김포시(경기)", 1)];
+    expect(areaLabel(mostlySeoul, 50)).toBe("마포구 일대");
+  });
+
+  // "전국"만 뷰포트로 정한다 — 시드의 93%가 서울이라 수도권 뷰와 전국 뷰는 보이는 가게가 거의 같다
+  const KOREA = { north: 38.6, south: 33.1, east: 129.6, west: 125.9 };
+  const SEOUL_VIEW = { north: 37.7, south: 37.4, east: 127.2, west: 126.8 };
+  it("뷰포트가 나라 규모면 '전국'", () => {
+    expect(areaLabel([...gu("마포구", 3), ...gu("김포시(경기)", 1)], 50, KOREA)).toBe("전국");
+  });
+  it("한 축만 넓으면 '전국'이 아니다 — 가로·세로 둘 다 3° 넘어야 한다", () => {
+    expect(areaLabel(gu("마포구", 3), 50, { ...KOREA, north: 37.7, south: 37.4 })).toBe("마포구");
+  });
+  it("좁은 뷰포트와 bounds 없음(SSR)은 분포대로", () => {
+    expect(areaLabel(gu("마포구", 3), 50, SEOUL_VIEW)).toBe("마포구");
+    expect(areaLabel(gu("마포구", 3), 50, undefined)).toBe("마포구");
+  });
 });
 
 describe("primaryMenuLine — 대표 메뉴 한 줄 (제보 완료 카드·신규 패널 행)", () => {

@@ -356,7 +356,7 @@ export function useMapScreen({
       // 가게 0곳인 구의 SSR 헤더는 "이 지역"이 아니라 그 구 이름으로
       !viewport && initialGu && inView.length === 0
         ? initialGu.name
-        : computeAreaLabel(inView, places.length),
+        : computeAreaLabel(inView, places.length, viewport?.bounds),
     [inView, places.length, viewport, initialGu],
   );
 

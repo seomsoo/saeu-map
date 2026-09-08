@@ -145,7 +145,11 @@ function useNaverAuthFailure(onAuthFailure: () => void): void {
   }, [onAuthFailure]);
 }
 
-const MIN_ZOOM = 10;
+/**
+ * 최소 줌 7 = 폰(390px)에서 남한 전체가 한 화면(970m/px → 378×681km). 줌 10은 수도권까지(47×85km)라
+ * 전국에서 받는 제보(decisions 2026-09-04)를 지도에서 볼 길이 없었다. 더 줄이면 주변국 바다뿐이다.
+ */
+const MIN_ZOOM = 7;
 const MAX_ZOOM = 19;
 
 /* 마커 hover 프리뷰 (design 화면 6 v3) — 진입은 지연, 이탈은 유예. 지연이 없으면 지도를 가로지르는 동안

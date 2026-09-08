@@ -1,4 +1,5 @@
 import type {
+  BoundsLiteral,
   ChipKey,
   LatLng,
   Menu,
@@ -236,15 +237,19 @@ export function formatPrice(price: number): string {
 
 /* ────────────────────────── 시트 헤더: 보고 있는 지역 ────────────────────────── */
 
-/** 뷰포트 안 가게가 이 비율 이상이면 "서울 전체"로 본다 */
+/** 뷰포트 안 가게가 이 비율 이상이면 그 시도 "전체"(시도가 여럿이면 "전국")로 본다 */
 const WHOLE_CITY_RATIO = 0.6;
-/** 구가 이만큼 섞이면 "서울 전체" */
+/** 시군구가 이만큼 섞이면 그 시도 "전체" */
 const WHOLE_CITY_GU_COUNT = 8;
-
+/** 최다 시도가 이 비율 이상이면 나머지는 곁다리로 보고 그 시도로 취급한다 */
+const SIDO_DOMINANT_RATIO = 0.8;
 /**
- * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트 안 가게의 구 분포로만 정한다(규칙 2).
- * 0곳 → "이 지역" / 전체의 60%↑ 또는 구 8개↑ → "서울 전체" / 구 1개 → 그 구 / 그 외 → 최다 구 + " 일대"
+ * 뷰포트 가로·세로가 둘 다 이만큼(도) 넘으면 "전국"으로 본다. 남한은 경도 125.9~129.6·위도 33.1~38.6이라
+ * 3°면 "동서로도 남북으로도 나라 규모"가 된다 — 폰 줌 7(4.3°×6.1°)·데스크탑 줌 8(7.9°×3.9°)이 여기 걸리고,
+ * 폰 줌 8(2.1°×3.1°)·데스크탑 줌 9(4.0°×2.0°)는 한 축이 모자라 안 걸린다.
  */
+const NATIONWIDE_SPAN_DEG = 3;
+
 /** 첫 지도 중심을 고를 때 세는 반경. 줌 12의 가시 영역(약 11.8×9.4km)에 내접한다. */
 const DENSEST_RADIUS_KM = 5;
 
@@ -276,23 +281,76 @@ export function densestPoint(places: readonly Place[]): LatLng | null {
   return { lat: best.lat, lng: best.lng };
 }
 
-export function areaLabel(visible: readonly Place[], total: number): string {
-  if (visible.length === 0) return "이 지역";
-  const counts = new Map<string, number>();
-  for (const p of visible) counts.set(p.gu, (counts.get(p.gu) ?? 0) + 1);
-  if (
-    counts.size >= WHOLE_CITY_GU_COUNT ||
-    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
-  ) {
-    return "서울 전체";
-  }
+/**
+ * `Place.gu`를 시도와 시군구로 쪼갠다 — "마포구" → 서울·마포구, "김포시(경기)" → 경기·김포시,
+ * "창원시 진해구(경남)" → 경남·창원시 진해구. 괄호가 없으면 서울이다(decisions 2026-09-04).
+ */
+function splitGu(gu: string): { sido: string; sigungu: string } {
+  const open = gu.indexOf("(");
+  if (open === -1 || !gu.endsWith(")")) return { sido: "서울", sigungu: gu };
+  return { sido: gu.slice(open + 1, -1), sigungu: gu.slice(0, open) };
+}
+
+/** 가장 많은 키. 동률은 가나다순으로 고정해 지도를 조금 움직일 때마다 라벨이 튀지 않게 한다. */
+function topKey(counts: ReadonlyMap<string, number>): string {
   let top = "";
   let topCount = -1;
-  for (const [gu, count] of counts) {
-    if (count > topCount || (count === topCount && collator.compare(gu, top) < 0)) {
-      top = gu;
+  for (const [key, count] of counts) {
+    if (count > topCount || (count === topCount && collator.compare(key, top) < 0)) {
+      top = key;
       topCount = count;
     }
   }
-  return counts.size === 1 ? top : `${top} 일대`;
+  return top;
+}
+
+/**
+ * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트와 그 안 가게의 지역 분포로만 정한다(규칙 2).
+ *
+ * 0곳 → "이 지역" / **뷰포트가 나라 규모** → "전국" / 최다 시도가 80% 미만 → 최다 시도 + " 일대"("서울 일대") /
+ * 그 시도 안에서: 시군구 8개↑ 또는 전체의 60%↑ → "서울 전체" / 시군구 1개 → 그 시군구("마포구"·"김포시") /
+ * 그 외 → 최다 시군구 + " 일대".
+ *
+ * **"전국"만 뷰포트로 판정한다.** 시드의 93%가 서울에 몰려 있어 수도권 뷰와 전국 뷰는 *보이는 가게가 거의
+ * 같다* — 분포로는 구별이 안 되고, 60% 문턱으로 잡으면 김포 한 곳이 섞인 기본 화면(줌 12)까지 "전국"이 된다
+ * (2026-09-09에 실제로 그렇게 나왔다). 나머지 칸은 그대로 분포로 정한다: 줌만 보면 같은 줌에서 강남을 보든
+ * 강원을 보든 같은 라벨이 나오기 때문이다.
+ *
+ * 최다 시도 80% 규칙이 곁다리를 걸러낸다 — 서울 37 + 김포 1이면 "서울 전체"고, 서울 20 + 경기 18이면
+ * "서울 일대"다. `bounds`가 없으면(`/gu` SSR 등) "전국"은 나오지 않는다.
+ */
+export function areaLabel(
+  visible: readonly Place[],
+  total: number,
+  bounds?: BoundsLiteral,
+): string {
+  if (visible.length === 0) return "이 지역";
+  if (
+    bounds &&
+    bounds.east - bounds.west >= NATIONWIDE_SPAN_DEG &&
+    bounds.north - bounds.south >= NATIONWIDE_SPAN_DEG
+  ) {
+    return "전국";
+  }
+
+  const bySido = new Map<string, number>();
+  for (const p of visible) {
+    const { sido } = splitGu(p.gu);
+    bySido.set(sido, (bySido.get(sido) ?? 0) + 1);
+  }
+  const sido = topKey(bySido);
+  if ((bySido.get(sido) ?? 0) < visible.length * SIDO_DOMINANT_RATIO) return `${sido} 일대`;
+
+  const bySigungu = new Map<string, number>();
+  for (const p of visible) {
+    const split = splitGu(p.gu);
+    if (split.sido === sido) bySigungu.set(split.sigungu, (bySigungu.get(split.sigungu) ?? 0) + 1);
+  }
+  if (
+    bySigungu.size >= WHOLE_CITY_GU_COUNT ||
+    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
+  ) {
+    return `${sido} 전체`;
+  }
+  return bySigungu.size === 1 ? topKey(bySigungu) : `${topKey(bySigungu)} 일대`;
 }
