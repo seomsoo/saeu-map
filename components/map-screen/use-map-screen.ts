@@ -32,6 +32,7 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
+import { guOfPoint } from "@/lib/gu";
 import { isDesktopViewport, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import {
   areaLabel as computeAreaLabel,
@@ -351,13 +352,44 @@ export function useMapScreen({
     return initialGu ? filtered : [];
   }, [filtered, viewport, initialGu]);
 
+  /**
+   * 가게 0곳인 화면의 지역 이름 — 지도 중심 좌표를 우리 경계 폴리곤으로 판정한다(외부 지오코딩이 아니다).
+   * 전국 줌아웃을 열면서 "이 지역 0곳"이 흔해져 생긴 자리다(2026-09-09). 가게가 있으면 부르지 않는다:
+   * 경계 파일(서울 60KB + 서울 밖 180KB)을 빈 화면에서만 받게 하고, 라벨도 분포로 정하는 게 맞기 때문이다.
+   * 팬 중에는 뷰포트가 연달아 바뀌므로 늦게 온 응답은 순번으로 버린다.
+   */
+  const [centerGu, setCenterGu] = useState<{ at: LatLng; gu: string | null } | null>(null);
+  const centerGuSeq = useRef(0);
+  useEffect(() => {
+    if (inView.length > 0 || !viewport) return;
+    const at = viewport.center;
+    const seq = ++centerGuSeq.current;
+    void guOfPoint(at).then(
+      (gu) => {
+        if (centerGuSeq.current === seq) setCenterGu({ at, gu });
+      },
+      () => {
+        // 경계 파일을 못 받으면 "이 지역"으로 둔다 — 헤더 한 줄이라 재시도를 걸 값이 아니다
+      },
+    );
+  }, [inView.length, viewport]);
+
+  /** 지금 중심으로 판정한 결과일 때만 쓴다 — 팬 도중 이전 지역 이름이 남지 않는다(경계는 모듈 캐시라 즉시 온다) */
+  const resolvedCenterGu =
+    centerGu &&
+    viewport &&
+    centerGu.at.lat === viewport.center.lat &&
+    centerGu.at.lng === viewport.center.lng
+      ? centerGu.gu
+      : null;
+
   const areaLabel = useMemo(
     () =>
       // 가게 0곳인 구의 SSR 헤더는 "이 지역"이 아니라 그 구 이름으로
       !viewport && initialGu && inView.length === 0
         ? initialGu.name
-        : computeAreaLabel(inView, places.length, viewport?.bounds),
-    [inView, places.length, viewport, initialGu],
+        : computeAreaLabel(inView, places.length, viewport?.bounds, resolvedCenterGu),
+    [inView, places.length, viewport, initialGu, resolvedCenterGu],
   );
 
   const origin = userLocation ?? sortOrigin ?? viewport?.center ?? null;

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu as menu, makePlace } from "./fixtures";
 import type { Menu } from "../types";
+import seoulBoundaries from "../gu-boundaries.json";
+import koreaBoundaries from "../gu-boundaries-korea.json";
 import {
+  AMBIGUOUS_SIGUNGU,
   SIDE_LABELS,
   areaLabel,
   filterPlaces,
@@ -227,6 +230,14 @@ describe("areaLabel — 시트 제목의 지역", () => {
     expect(areaLabel(gu("김포시(경기)", 1), 50)).toBe("김포시");
     expect(areaLabel([...gu("김포시(경기)", 1), ...gu("고양시(경기)", 1)], 50)).toBe("고양시 일대");
   });
+  it("여러 시도에 있는 이름은 시도를 앞에 붙인다 — 서울은 생략", () => {
+    expect(areaLabel(gu("강서구", 1), 50)).toBe("강서구"); // 서울
+    expect(areaLabel(gu("강서구(부산)", 1), 50)).toBe("부산 강서구");
+    expect(areaLabel(gu("서구(광주)", 1), 50)).toBe("광주 서구");
+    expect(areaLabel(gu("고성군(강원)", 1), 50)).toBe("강원 고성군");
+    expect(areaLabel([...gu("서구(광주)", 2), ...gu("북구(광주)", 1)], 50)).toBe("광주 서구 일대");
+    expect(areaLabel([], 50, SEOUL_VIEW, "동구(대전)")).toBe("대전 동구");
+  });
   it("한 시도 대부분이면 그 시도 '전체' — 서울 전용이 아니다", () => {
     expect(areaLabel([...gu("김포시(경기)", 2), ...gu("고양시(경기)", 1)], 5)).toBe("경기 전체");
   });
@@ -250,6 +261,41 @@ describe("areaLabel — 시트 제목의 지역", () => {
   it("좁은 뷰포트와 bounds 없음(SSR)은 분포대로", () => {
     expect(areaLabel(gu("마포구", 3), 50, SEOUL_VIEW)).toBe("마포구");
     expect(areaLabel(gu("마포구", 3), 50, undefined)).toBe("마포구");
+  });
+
+  // 0곳이면 지도 중심의 지역을 부른다 — 전국 줌아웃을 열면서 "이 지역 0곳"이 흔해졌다
+  const BUSAN_WIDE = { north: 35.6, south: 34.6, east: 129.5, west: 128.3 };
+  it("0곳이고 좁게 보면 중심의 시군구", () => {
+    expect(areaLabel([], 50, SEOUL_VIEW, "해운대구(부산)")).toBe("해운대구");
+    expect(areaLabel([], 50, SEOUL_VIEW, "마포구")).toBe("마포구");
+  });
+  it("0곳이고 넓게 보면 중심의 시도", () => {
+    expect(areaLabel([], 50, BUSAN_WIDE, "해운대구(부산)")).toBe("부산");
+  });
+  it("0곳이어도 나라 규모 뷰포트면 '전국'", () => {
+    expect(areaLabel([], 50, KOREA, "해운대구(부산)")).toBe("전국");
+  });
+  it("중심을 모르면(한국 밖·경계 파일 실패) '이 지역'", () => {
+    expect(areaLabel([], 50, SEOUL_VIEW, null)).toBe("이 지역");
+    expect(areaLabel([], 50, SEOUL_VIEW)).toBe("이 지역");
+    expect(areaLabel([], 50)).toBe("이 지역");
+  });
+
+  it("AMBIGUOUS_SIGUNGU가 경계 파일과 일치한다 (상수가 어긋나면 여기서 잡힌다)", () => {
+    const names = [seoulBoundaries, koreaBoundaries].flatMap((b) =>
+      (b as { districts: { name: string }[] }).districts.map((d) => d.name),
+    );
+    const sidosOf = new Map<string, Set<string>>();
+    for (const name of names) {
+      const open = name.indexOf("(");
+      const sido = open === -1 ? "서울" : name.slice(open + 1, -1);
+      const sigungu = open === -1 ? name : name.slice(0, open);
+      const sidos = sidosOf.get(sigungu) ?? new Set<string>();
+      sidos.add(sido);
+      sidosOf.set(sigungu, sidos);
+    }
+    const duplicated = [...sidosOf].filter(([, sidos]) => sidos.size > 1).map(([sigungu]) => sigungu);
+    expect(duplicated.sort()).toEqual([...AMBIGUOUS_SIGUNGU].sort());
   });
 });
 
