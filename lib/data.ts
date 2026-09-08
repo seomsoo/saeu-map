@@ -439,7 +439,8 @@ export async function reportPhoto(input: {
  */
 export const reportMenuSchema = z.object({
   name: z.string().trim().min(1).max(30),
-  price: z.number().int().min(100),
+  // 십만 원대까지 — 화면 입력 상한(PRICE_MAX_DIGITS = 6자리)과 같은 값. UI 제한만으론 검증이 아니다
+  price: z.number().int().min(100).max(999_999),
   unit: z.enum(["kg", "g", "pan", "count", "none"]),
   unitRaw: z.string().trim().max(10).nullable(),
   /** true = 새우회 줄("새우회도 팔아요"), false = 구이 줄 */

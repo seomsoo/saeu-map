@@ -564,7 +564,16 @@ export function useMapScreen({
 
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
-      if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
+      const step = reportStepRef.current;
+      // 2단계에선 클러스터도 **지도의 그 자리**다 — 여기서 빠져나가면 마커가 덮은 지역을 눌렀을 때
+      // 아무 일도 안 일어나 "핀이 안 꽂힌다"가 된다(마커가 지도의 상당 부분을 덮는다, 2026-09-08).
+      // 개별 마커는 그대로 중복 의심 후보로 간다(design 화면 3 변형 (a)).
+      if (step === 2) {
+        pinTouchedRef.current = true;
+        setReportPin(center);
+        return;
+      }
+      if (step !== null) return; // 다른 단계에선 클러스터도 보이기만
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
       mapRef.current?.focus(center, zoom, { screenX: stripCenterX(), screenY: stripCenterY() });
     },
