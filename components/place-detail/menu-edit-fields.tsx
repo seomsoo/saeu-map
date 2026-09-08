@@ -64,8 +64,12 @@ export function MenuEditFields({
                 key={`${String(i)}-${menu.name}`}
                 className="flex items-center gap-2 border-t border-line-hairline py-2 first:border-t-0"
               >
-                <span className={cx("min-w-0 flex-1", gone && "text-fg-tertiary line-through")}>
-                  <span className="block truncate text-body-m-regular">{menu.name}</span>
+                <span className={cx("min-w-0 flex-1", gone && "text-fg-tertiary")}>
+                  {/* 취소선은 이 안쪽에 준다 — `truncate`(overflow:hidden)가 독립 서식 문맥을 만들어
+                      바깥에서 준 text-decoration이 안으로 전파되지 않는다(390×702 실측) */}
+                  <span className={cx("block truncate text-body-m-regular", gone && "line-through")}>
+                    {menu.name}
+                  </span>
                   {unit && (
                     <span className="text-caption-l-regular text-fg-tertiary tabular-nums">{unit}</span>
                   )}
