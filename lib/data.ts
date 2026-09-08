@@ -11,12 +11,15 @@ import type {
   Checkin,
   EventCard,
   LatLng,
+  Menu,
   MyReview,
   NearestStation,
   Photo,
   Place,
   PlaceDetail,
+  PlaceEdit,
   PlaceFlagReason,
+  PlaceReportReason,
   PlaceTag,
   Review,
   SeasonStats,
@@ -93,6 +96,14 @@ const MOCK_LATEST_DAY = Math.max(...rawCheckins.map((c) => kstDayIndex(c.at)));
 
 /** 쓰기 시뮬레이션 — roadmap Phase 2 "목: delay 400ms, 10% 실패". */
 export const MOCK_WRITE_DELAY_MS = 400;
+/**
+ * 업로드 한 장 상한 (security-reviewer 2026-09-08). 목 단계에도 필요한 이유: blob을 일부러 revoke하지 않고
+ * 들고 있으므로 상한이 없으면 탭 메모리가 고른 파일 크기만큼 그대로 눌러앉는다. 업로드 시 1200px webp
+ * 리사이즈(spec 6)를 하면 실제 저장본은 이보다 훨씬 작다 — 이건 "말도 안 되는 파일"을 막는 문이다.
+ */
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 — 목 50곳 최대가 5줄이라 여유롭게 */
+export const MAX_MENU_EDITS = 20;
 export const MOCK_FAILURE_RATE = 0.1;
 
 interface Dataset {
@@ -420,8 +431,8 @@ const photoReportSchema = z.object({
 });
 
 /**
- * 사진 신고 접수 (spec 스팸 4겹 2 "신고 일 10"). 익명 업로드 이미지라, 다른 미구현 입구와 달리
- * "준비 중이에요"로 미루지 않는다(decisions 2026-09-03).
+ * 사진 신고 접수 (spec 스팸 4겹 2 "신고 일 10"). 익명 업로드 이미지라 상세의 어떤 입구보다 먼저
+ * 실동작으로 열었다(decisions 2026-09-03 — 나머지 입구는 2026-09-08에 따라왔다).
  * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·속도 제한은 Phase 6.
  */
 export async function reportPhoto(input: {
@@ -448,17 +459,29 @@ export const reportMenuSchema = z.object({
   raw: z.boolean(),
 });
 
+/** 사이드 3종 — 제보(화면 3-4)와 상세의 사이드 제안(화면 2-6)이 같은 모양을 쓴다. */
+const sidesSchema = z.object({
+  headButter: z.boolean(),
+  ramen: z.boolean(),
+  friedRice: z.boolean(),
+});
+
 /** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 주소는 받지 않는다 — 구는 좌표로 판정(전국). 좌표 범위는 한국 대략 상자. */
 export const reportInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
   menus: z.array(reportMenuSchema).min(1).max(2),
-  sides: z.object({ headButter: z.boolean(), ramen: z.boolean(), friedRice: z.boolean() }),
+  sides: sidesSchema,
   hoursNote: z.string().trim().max(80),
   /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */
   photos: z
-    .array(z.instanceof(File).refine((f) => f.type.startsWith("image/"), "이미지 파일만"))
+    .array(
+      z
+        .instanceof(File)
+        .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+        .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지"),
+    )
     .max(MAX_PLACE_PHOTOS),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
   duplicateOf: idSchema.nullable(),
@@ -477,6 +500,31 @@ export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
 export type ReportInput = z.infer<typeof reportInputSchema>;
 
 let reportSeq = 0;
+let photoSeq = 0;
+
+/**
+ * 목 단계의 사진 "저장소" — 브라우저 메모리다. `createObjectURL`로 만든 URL을 **일부러 revoke하지 않는다**:
+ * `PhotoPicker`는 자기 목록의 URL을 언마운트 때 revoke하므로, 그 URL을 그대로 `Place.photos`에 넣으면
+ * 시트가 닫히는 순간 사진이 깨진다(decisions 2026-09-08). 새로고침하면 사라지는 건 제보로 만든 가게와
+ * 같은 수준이고, 진짜 저장소(NCP → R2)는 Phase 6이다.
+ * 서버(SSR·OG 빌드)에는 이 API가 없으므로 `null`을 돌려주고 호출자가 사진 없이 진행한다.
+ */
+function retainPhotoUrl(file: File): string | null {
+  if (typeof URL.createObjectURL !== "function") return null;
+  return URL.createObjectURL(file);
+}
+
+/** 고른 파일을 `Photo[]`로. URL을 못 만드는 환경(서버)에서는 그 장을 조용히 버린다. */
+function toPhotos(placeId: string, files: readonly File[], uploadedAt: string, uploaderId: string): Photo[] {
+  const photos: Photo[] = [];
+  for (const file of files) {
+    const url = retainPhotoUrl(file);
+    if (url === null) continue;
+    photoSeq += 1;
+    photos.push({ id: `${placeId}-u${String(photoSeq)}`, url, uploadedAt, uploaderId });
+  }
+  return photos;
+}
 
 /**
  * 제보 등록 (spec 4.3, 5 "모든 제보 즉시 노출"). 성공하면 만들어진 Place를 돌려주고 데이터셋 끝에 붙인다.
@@ -485,16 +533,21 @@ let reportSeq = 0;
  */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const report = reportInputSchema.parse(input);
+  // 행위자는 지연 전에 잡는다 — await 뒤에 읽으면 그 사이 바뀐 사용자의 것으로 기록된다(CLAUDE.md 쓰기 규칙)
+  const actor = currentSession.userId;
   const gu = await guOfPoint(report);
   if (gu === null) throw new Error("outside korea");
   await simulateWrite();
   const data = dataset(now);
   const createdAt = new Date(toMs(now)).toISOString();
   reportSeq += 1;
+  const id = `r${String(reportSeq).padStart(3, "0")}`;
+  // 고른 사진을 버리지 않는다(2026-09-08) — 등록 직후 상세가 "아직 사진이 없어요"로 뜨던 자리다
+  const photos = toPhotos(id, report.photos, createdAt, actor);
   const tags: PlaceTag[] = ["grill"];
   if (report.menus.some((m) => m.raw)) tags.push("raw");
   const place: Place = {
-    id: `r${String(reportSeq).padStart(3, "0")}`,
+    id,
     name: report.name,
     gu,
     addressRoad: null,
@@ -505,8 +558,8 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     tags,
     specialist: false, // 제보 핀은 전문점 판정 없음 (spec 2 가공 규칙)
     naverPlaceUrl: report.naverPlaceUrl || null,
-    photos: [],
-    thumbnailUrl: null,
+    photos,
+    thumbnailUrl: photos[0]?.url ?? null,
     hoursNote: report.hoursNote || null,
     menus: report.menus.map((m) => ({
       raw: m.name,
@@ -523,7 +576,7 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     isNew: true,
     createdAt,
     ...(report.duplicateOf !== null && { duplicateSuspectOf: report.duplicateOf }),
-    reporterId: currentSession.userId,
+    reporterId: actor,
   };
   data.places = [...data.places, place];
   return place;
@@ -615,8 +668,29 @@ export async function deleteAccount(): Promise<Session> {
       delete rest.reporterId;
       return rest;
     });
+    // 올린 사진은 가게 정보라 남기고 업로더만 뗀다 — 제보 가게(reporterId)와 같은 규칙 (security-reviewer 2026-09-08)
+    data.places = data.places.map((p) =>
+      p.photos.some((photo) => photo.uploaderId === me)
+        ? {
+            ...p,
+            photos: p.photos.map((photo) => {
+              if (photo.uploaderId !== me) return photo;
+              const rest: Photo = { ...photo };
+              delete rest.uploaderId;
+              return rest;
+            }),
+          }
+        : p,
+    );
     // 확인 이벤트는 집계(시즌 카운터·확인 N회)에 남되 개인 식별자는 뗀다 — Phase 6: actor nullable + ON DELETE SET NULL
     data.checkins = data.checkins.map((c) => (c.actor === me ? { ...c, actor: DELETED_ACTOR } : c));
+  }
+  // 수정 이력은 되돌리기·사후 확인에 남기고 개인 식별자만 뗀다 — checkins·reporterId와 같은 규칙
+  for (const [i, edit] of placeEdits.entries()) {
+    if (edit.actor !== me) continue;
+    const rest: PlaceEdit = { ...edit };
+    delete rest.actor;
+    placeEdits[i] = rest;
   }
   bookmarksByUser.delete(me);
   kakaoNickname = KAKAO_MOCK_NICKNAME;
@@ -665,6 +739,7 @@ export const reviewInputSchema = z.object({
   photo: z
     .instanceof(File)
     .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+    .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지")
     .nullable(),
 });
 export type ReviewInput = z.infer<typeof reviewInputSchema>;
@@ -703,6 +778,8 @@ export async function submitReview(
   if (!current) throw new Error("place not found");
   const at = new Date(toMs(now)).toISOString();
   reviewSeq += 1;
+  // 고른 사진은 리뷰 행 썸네일이 된다(2026-09-08) — 그전엔 버려져 `photoUrl`이 늘 비어 있었다
+  const photoUrl = parsed.photo === null ? null : retainPhotoUrl(parsed.photo);
   const review: Review = {
     id: `rv-local-${String(reviewSeq)}`,
     placeId: parsed.placeId,
@@ -711,6 +788,7 @@ export async function submitReview(
     text: parsed.text,
     nickname: currentSession.nickname ?? KAKAO_MOCK_NICKNAME,
     at,
+    ...(photoUrl !== null && { photoUrl }),
   };
   const place: Place = { ...current, checkCount: current.checkCount + 1, lastCheckedAt: at };
   data.reviews = [...data.reviews, review];
@@ -784,10 +862,234 @@ const placeFlagSchema = z.object({
 
 /**
  * 신규 패널 [정보가 달라요] 접수 (design 화면 4 변형 (a)). 사진 신고와 같은 계약 — 검증 + 지연만,
- * 수정 제안 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능") —
+ * 신고 큐·관리자 화면은 Phase 6. 익명도 보낼 수 있다(spec 5 "신고는 익명 가능") —
  * 가장 싼 도배 경로라 속도 제한 자리: 핀당 일 1 (Phase 6 Upstash, spec 스팸 4겹 2).
  */
 export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
   placeFlagSchema.parse(input);
   await simulateWrite();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   값 제안 · 가게 신고 · 사장님 요청 · 사진 올리기 (design 화면 2 "상세의 쓰기 표면")
+   2026-09-08 — 상세에 남아 있던 "준비 중이에요" 입구 7곳을 실제 쓰기로 바꾼다.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 필드별 수정 (spec 4.2 — 즉시 반영 + 사후 확인).
+ * **주소는 사용자가 직접 친 값만 받는다** — 지오코더 응답은 절대 규칙 2로 저장할 수 없다
+ * (`naverPlaceUrl`과 같은 판례, decisions 2026-09-08). 그래서 화면에도 자동완성이 없다.
+ */
+export const suggestionSchema = z.discriminatedUnion("field", [
+  z.object({
+    field: z.literal("hours"),
+    placeId: idSchema,
+    // 제보 4단계 `hoursNote`와 같은 상한 — 같은 값을 두 곳에서 다르게 받지 않는다
+    hoursNote: z.string().trim().min(1).max(80),
+  }),
+  z.object({
+    field: z.literal("address"),
+    placeId: idSchema,
+    addressRoad: z.string().trim().min(2).max(60),
+  }),
+  /**
+   * 메뉴는 **바뀐 것만** 보낸다 — 사후 확인에서 "무엇이 어떻게 바뀌었나"로 읽혀야 한다(decisions 2026-09-08).
+   * 크롤 가게는 메뉴가 중앙값 3줄·최대 5줄이라 전체 교체 모델이 맞지 않는다.
+   */
+  z.object({
+    field: z.literal("menus"),
+    placeId: idSchema,
+    /** 기존 줄의 변경. `index`는 제안 시점의 화면 순서, `name`은 큐에서 사람이 대조할 이름이다 */
+    edits: z
+      .array(
+        z.object({
+          index: z.number().int().min(0),
+          // 크롤 메뉴명은 최대 59자였다(목 50곳) — 여유를 둔다
+          name: z.string().trim().min(1).max(200),
+          /** 새로 제안하는 가격. 가격을 안 고쳤으면 없다 */
+          price: z.number().int().min(100).max(999_999).optional(),
+          /** "없어졌어요"로 표시한 줄 */
+          removed: z.boolean(),
+        }),
+      )
+      .max(MAX_MENU_EDITS),
+    /** 새로 알려주는 줄 — 한 번에 하나까지. 구이·회 구분은 큐가 메뉴명으로 정한다 */
+    added: z.array(reportMenuSchema).max(1),
+  })
+    // 아무것도 안 고치고 낸 제안은 큐에서 버리는 일만 늘린다 — 화면도 같은 문구로 막는다
+    .refine((v) => v.edits.length + v.added.length > 0, "고친 곳이 없어요"),
+  z.object({ field: z.literal("sides"), placeId: idSchema, sides: sidesSchema }),
+]);
+export type SuggestionInput = z.infer<typeof suggestionSchema>;
+
+/** 수정 이력 — 되돌리기와 사후 확인(/admin)이 읽는다. Phase 6에선 `place_edits` 테이블. */
+let editSeq = 0;
+const placeEdits: PlaceEdit[] = [];
+
+/** 사후 확인 탭이 최신순으로 읽는다 (spec 4.5). 되돌리기는 `before`를 그대로 쓰면 된다. */
+export function getPlaceEdits(): Promise<PlaceEdit[]> {
+  return Promise.resolve([...placeEdits].reverse());
+}
+
+/** 제보 입력 한 줄 → 저장되는 메뉴. `submitReport`와 같은 모양이어야 한다. */
+function toMenu(line: ReportMenuInput): Menu {
+  return { raw: line.name, name: line.name, price: line.price, unit: line.unit, unit_raw: line.unitRaw };
+}
+
+/** 메뉴 제안 적용 — 가격 교체·삭제를 **원래 인덱스 기준으로** 한 번에 하고, 추가 줄은 뒤에 붙인다. */
+function applyMenuEdits(menus: Menu[], input: Extract<SuggestionInput, { field: "menus" }>): Menu[] {
+  const removed = new Set(input.edits.filter((e) => e.removed).map((e) => e.index));
+  const prices = new Map(
+    input.edits.filter((e) => e.price !== undefined).map((e) => [e.index, e.price]),
+  );
+  const kept = menus
+    .map((menu, i) => {
+      const price = prices.get(i);
+      return price === undefined ? menu : { ...menu, price };
+    })
+    .filter((_, i) => !removed.has(i));
+  return [...kept, ...input.added.map(toMenu)];
+}
+
+/**
+ * 수정 제안 — **즉시 반영하고 운영자가 사후에 확인한다**(2026-09-08에 뒤집었다. 제보의 "즉시 노출 +
+ * 24시간 내 사후 확인"과 같은 모델이다 — spec 5). 큐에서 기다리게 하면 1인 운영에서 밀리고, 밀리면
+ * 아무도 두 번 고쳐주지 않는다. 즉시 반영의 전제는 되돌리기라서 **바뀌기 직전 값을 이력에 남긴다**.
+ * 익명도 고칠 수 있다(spec 5 경계 그대로) — 익명 id가 `actor`로 남아 되돌리기·섀도 밴·속도 제한이 된다.
+ * `tags`(구이/회)는 건드리지 않는다: 추가된 줄이 회인지는 운영자가 사후 확인에서 정한다.
+ * 속도 제한 자리: 핀당 일 N — Phase 6 Upstash(spec 스팸 4겹 2). 자유 텍스트 방어는 같은 장의 내용 필터다.
+ */
+export async function submitSuggestion(input: SuggestionInput, now: DateInput): Promise<Place> {
+  const parsed = suggestionSchema.parse(input);
+  // 행위자는 지연 전에 (CLAUDE.md 쓰기 규칙)
+  const actor = currentSession.userId;
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === parsed.placeId);
+  if (!current) throw new Error("place not found");
+
+  const before: PlaceEdit["before"] = {
+    hoursNote: current.hoursNote,
+    addressRoad: current.addressRoad,
+    menus: current.menus,
+    sides: current.sides,
+  };
+  let place: Place;
+  switch (parsed.field) {
+    case "hours":
+      place = { ...current, hoursNote: parsed.hoursNote };
+      break;
+    case "address":
+      // 지번은 건드리지 않는다 — 사용자가 준 건 도로명뿐이고, 둘을 같이 맞추는 건 사후 확인의 일이다
+      place = { ...current, addressRoad: parsed.addressRoad };
+      break;
+    case "sides":
+      place = { ...current, sides: parsed.sides };
+      break;
+    case "menus":
+      place = { ...current, menus: applyMenuEdits(current.menus, parsed) };
+      break;
+  }
+
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  editSeq += 1;
+  placeEdits.push({
+    id: `ed-local-${String(editSeq)}`,
+    placeId: place.id,
+    at: new Date(toMs(now)).toISOString(),
+    actor,
+    field: parsed.field,
+    before,
+  });
+  // 평점은 리뷰에서 파생돼 `dataset`의 raw place엔 없다 — 그대로 돌려주면 호출자가 통째로 갈아끼우면서
+  // 별점이 사라진다(`checkIn`과 같은 계약으로 얹는다, Codex PR #11 #2)
+  return withRating(place, ratingsByPlace(visibleReviews(data.reviews)));
+}
+
+const placeReportSchema = z.object({
+  placeId: idSchema,
+  reason: z.enum(["not_shrimp", "fake", "duplicate", "other"]),
+});
+
+/**
+ * 가게 신고 접수 (spec 5 "신고 3회 → 자동 숨김", 스팸 4겹 2 "신고 일 10").
+ * 사유에 "문 닫았어요"가 없는 건 그게 `flagPlace`(정보 수정 제안)의 사유이기 때문이다 —
+ * 신고는 "이 등록 자체가 잘못됐다", 수정 제안은 "값이 틀렸다"로 갈린다(decisions 2026-09-08).
+ * 익명도 보낼 수 있다(spec 5). 속도 제한 자리: 일 10 — Phase 6 Upstash(spec 스팸 4겹 2).
+ */
+export async function reportPlace(input: {
+  placeId: string;
+  reason: PlaceReportReason;
+}): Promise<void> {
+  placeReportSchema.parse(input);
+  await simulateWrite();
+}
+
+/**
+ * 사장님 정보 수정·게재 삭제 요청 (spec 4.2-9 "연락 창구 상시 노출", spec 5 "1회 요청으로 즉시 처리").
+ * **연락처가 필수**인 이유: "24시간 내 처리"는 회신할 곳이 있어야 성립한다(decisions 2026-09-08).
+ * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·텔레그램 알림은 Phase 6.
+ * 익명도 보낼 수 있다(사장님이 우리 계정을 가질 이유가 없다). 속도 제한 자리: 핀당 일 N — Phase 6 Upstash.
+ */
+export const ownerRequestSchema = z.object({
+  placeId: idSchema,
+  kind: z.enum(["edit", "remove"]),
+  /**
+   * 연락처는 Phase 6에서 텔레그램 알림 본문에 들어간다 — 개행·제어문자로 본문을 조작하지 못하게
+   * NFKC 정규화 + 제어문자 제거를 먼저 한다(`nicknameSchema`와 같은 문법, security-reviewer 2026-09-08).
+   */
+  contact: z
+    .string()
+    .transform((v) => v.normalize("NFKC").replaceAll(/[\u0000-\u001f\u007f]/gu, " ").trim())
+    .pipe(z.string().min(5).max(60)),
+  message: z.string().trim().max(300),
+});
+export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
+
+export async function submitOwnerRequest(input: OwnerRequestInput): Promise<void> {
+  ownerRequestSchema.parse(input);
+  await simulateWrite();
+}
+
+const photoUploadSchema = z.object({
+  placeId: idSchema,
+  files: z
+    .array(
+      z
+        .instanceof(File)
+        .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
+        .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지"),
+    )
+    .min(1)
+    .max(MAX_PLACE_PHOTOS),
+});
+
+/**
+ * 사진 올리기 — **수정 제안과 달리 즉시 반영이다**(spec 4.2 "예외: 사진(즉시), 다녀왔어요(즉시)").
+ * 그래서 갱신된 Place를 돌려준다: 호출자가 스트립·카드·마커를 바로 맞춘다.
+ * 10장 상한은 UI(＋ 타일이 안내 타일로 바뀜)에도 있지만 여기가 마지막 방어선이고,
+ * 남은 자리보다 많이 고르면 앞에서부터 채운다. MIME은 클라이언트가 정하는 값이라 위조 가능 —
+ * 서버 sharp 재인코딩(spec 스팸 4겹 3)이 진짜 방어선이다.
+ */
+export async function addPlacePhotos(
+  placeId: string,
+  files: readonly File[],
+  now: DateInput,
+): Promise<Place> {
+  const parsed = photoUploadSchema.parse({ placeId, files: [...files] });
+  // 행위자는 지연 전에 (CLAUDE.md 쓰기 규칙). 속도 제한 자리: 가게당 시간 N장 — Phase 6 Upstash
+  const actor = currentSession.userId;
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === parsed.placeId);
+  if (!current) throw new Error("place not found");
+  const room = MAX_PLACE_PHOTOS - current.photos.length;
+  if (room <= 0) throw new Error("photo limit reached");
+  const uploadedAt = new Date(toMs(now)).toISOString();
+  const photos = [...current.photos, ...toPhotos(parsed.placeId, parsed.files.slice(0, room), uploadedAt, actor)];
+  // 대표 = photos[0].url — 첫 장이 올라간 가게는 카드·마커 썸네일도 이때 생긴다
+  const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  // 파생 평점을 얹어 돌려준다 (submitSuggestion과 같은 이유)
+  return withRating(place, ratingsByPlace(visibleReviews(data.reviews)));
 }

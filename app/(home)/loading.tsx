@@ -2,25 +2,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * 라우트 로딩 — 검색 블록·칩 행·시트 자리 스켈레톤 (화면 1과 같은 배치).
- * 데스크탑(lg)은 실제 화면과 같은 그릇: 왼쪽 400 패널(브랜드 행·검색·칩·헤더·카드) + 회색 지도 자리.
+ * 데스크탑(lg)은 실제 화면과 같은 그릇이어야 한다: **지도 위에 떠 있는 420 패널**(여백 16·라운드 20·그림자)
+ * + 풀블리드 회색 지도, 칩 행은 패널 오른쪽 지도 위. 붙은 패널(v2)로 두면 첫 프레임에서 그릇이 튄다
+ * (2026-09-08 — 화면 6~9 v3 리디자인 때 여기가 안 따라왔다). 폭·여백은 map-screen과 같은 유틸을 쓴다.
  */
 export default function Loading() {
   return (
     <div
-      className="relative h-dvh w-full overflow-hidden bg-bg-dim lg:flex"
+      className="relative h-dvh w-full overflow-hidden bg-bg-dim"
       aria-busy="true"
       aria-label="불러오는 중"
     >
-      <div className="contents lg:flex lg:h-full lg:w-100 lg:shrink-0 lg:flex-col lg:border-r lg:border-line-hairline lg:bg-bg">
+      <div className="contents lg:absolute lg:inset-y-4 lg:left-4 lg:z-10 lg:flex lg:w-105 lg:flex-col lg:overflow-hidden lg:rounded-20 lg:bg-bg lg:shadow-panel">
         <div className="absolute inset-x-0 top-0 flex flex-col gap-2.5 lg:static lg:shrink-0">
-          <div className="hidden lg:flex lg:h-14 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
+          <div className="hidden lg:flex lg:h-13 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
             <Skeleton className="h-6 w-16" />
             <Skeleton className="h-9 w-20 rounded-max" />
           </div>
           <div className="pt-safe-top-or-3 pl-safe-left-or-5 pr-safe-right-or-5 lg:pt-0">
             <Skeleton className="h-12 rounded-max" />
           </div>
-          <div className="flex gap-1.5 pl-safe-left-or-5 pr-safe-right-or-5 lg:flex-wrap lg:pb-2" aria-hidden="true">
+          {/* 칩 행은 데스크탑에서 패널 밖 지도 위 한 층 — 실제 화면과 같은 lg:fixed 자리 */}
+          <div
+            className="flex gap-1.5 pl-safe-left-or-5 pr-safe-right-or-5 lg:fixed lg:top-5 lg:left-114 lg:z-20 lg:max-w-160 lg:flex-wrap lg:gap-2 lg:p-0"
+            aria-hidden="true"
+          >
             <Skeleton className="h-9 w-14 rounded-max" />
             <Skeleton className="h-9 w-14 rounded-max" />
             <Skeleton className="h-9 w-12 rounded-max" />

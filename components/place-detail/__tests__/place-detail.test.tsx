@@ -5,11 +5,15 @@ import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Photo, Place, PlaceDetail as PlaceDetailData, Review, Session } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
-import { FLAG_FAILED_MESSAGE } from "../flag-sheet";
+import { OWNER_REQUEST_FAILED_MESSAGE } from "../owner-request-sheet";
+import { REASON_FAILED_MESSAGE } from "../reason-sheet";
+import { SUGGEST_FAILED_MESSAGE } from "../suggest-sheet";
 
 type PhotoReport = Parameters<typeof import("@/lib/data").reportPhoto>[0];
 type ReviewInput = Parameters<typeof import("@/lib/data").submitReview>[0];
 type ReviewPatch = Parameters<typeof import("@/lib/data").updateReview>[1];
+type SuggestionInput = Parameters<typeof import("@/lib/data").submitSuggestion>[0];
+type OwnerRequest = Parameters<typeof import("@/lib/data").submitOwnerRequest>[0];
 
 const ANON: Session = { userId: "anon-local-1", provider: "anonymous", nickname: null };
 const KAKAO: Session = { userId: "u-kakao-1", provider: "kakao", nickname: "새우헌터" };
@@ -24,6 +28,10 @@ const data = vi.hoisted(() => ({
   updateReview: vi.fn<(id: string, patch: ReviewPatch, now: string) => Promise<Review>>(),
   deleteReview: vi.fn<(id: string) => Promise<void>>(),
   flagPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
+  reportPlace: vi.fn<(input: { placeId: string; reason: string }) => Promise<void>>(),
+  addPlacePhotos: vi.fn<(id: string, files: readonly File[], now: string) => Promise<Place>>(),
+  submitOwnerRequest: vi.fn<(input: OwnerRequest) => Promise<void>>(),
+  submitSuggestion: vi.fn<(input: SuggestionInput, now: string) => Promise<Place>>(),
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
@@ -38,6 +46,10 @@ vi.mock("@/lib/data", async (importOriginal) => ({
   updateReview: data.updateReview,
   deleteReview: data.deleteReview,
   flagPlace: data.flagPlace,
+  reportPlace: data.reportPlace,
+  addPlacePhotos: data.addPlacePhotos,
+  submitOwnerRequest: data.submitOwnerRequest,
+  submitSuggestion: data.submitSuggestion,
 }));
 
 const NOW = "2026-09-01T12:00:00+09:00";
@@ -452,7 +464,7 @@ describe("정보 블록 — 최근접역 줄 + 접히는 주소", () => {
   });
 });
 
-describe("찜·복사·공유·준비 중 입구", () => {
+describe("찜·복사·공유", () => {
   it("찜 버튼은 aria-pressed로 상태를 보이고 토글을 부모에 위임", () => {
     const { props, rerender } = renderDetail(nara());
     fireEvent.click(screen.getByRole("button", { name: "찜" }));
@@ -496,31 +508,204 @@ describe("찜·복사·공유·준비 중 입구", () => {
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/place/nara`);
   });
 
-  it("아직 없는 플로우의 입구는 전부 '준비 중이에요' 토스트", async () => {
-    const onNotice = vi.fn();
-    renderDetail(nara({ hoursNote: null }), { onNotice });
-    await waitFor(() => {
-      expect(screen.getByText("아직 리뷰가 없어요")).toBeInTheDocument();
-    });
-    const entries: (string | RegExp)[] = [
-      /첫 새우를 올려주세요/,
-      "영업시간을 알려주세요",
-      "대표 메뉴 수정",
-      "사이드 수정",
-      "신고",
-      "사장님이신가요?",
-    ];
-    for (const name of entries) fireEvent.click(screen.getByRole("button", { name }));
-    expect(onNotice).toHaveBeenCalledTimes(entries.length);
-    for (const call of onNotice.mock.calls) expect(call[0]).toBe("준비 중이에요");
-  });
-
   it("값이 있는 영업시간은 옅은 [수정]이 입구", () => {
-    const onNotice = vi.fn();
-    renderDetail(nara(), { onNotice });
+    renderDetail(nara());
     expect(screen.queryByRole("button", { name: "영업시간을 알려주세요" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "영업시간 수정" }));
-    expect(onNotice).toHaveBeenCalledWith("준비 중이에요");
+    expect(screen.getByRole("dialog", { name: /영업시간을 알려주세요/ })).toBeInTheDocument();
+  });
+});
+
+describe("값 제안 시트 — 영업시간·주소·대표 메뉴·사이드 (design 화면 2 값 폼 시트)", () => {
+  // 이 파일은 테스트마다 모의를 지우지 않는다 — 호출 여부를 보는 테스트가 있어 여기서만 지운다
+  beforeEach(() => {
+    data.submitSuggestion.mockReset();
+  });
+
+  const openSheet = (name: string, place = nara()) => {
+    const view = renderDetail(place);
+    fireEvent.click(screen.getByRole("button", { name }));
+    return view;
+  };
+
+  it("네 입구가 각자의 시트를 연다 — 누르기 전에 '바로 반영되고 운영자가 확인해요'를 말한다", () => {
+    const cases: [string, string][] = [
+      ["영업시간 수정", "영업시간을 알려주세요"],
+      ["대표 메뉴 수정", "메뉴와 가격을 알려주세요"],
+      ["사이드 수정", "사이드를 알려주세요"],
+    ];
+    for (const [entry, title] of cases) {
+      const view = openSheet(entry);
+      const sheet = screen.getByRole("dialog", { name: new RegExp(title) });
+      expect(within(sheet).getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
+      expect(within(sheet).getByText("바로 반영되고 운영자가 확인해요")).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("값이 있으면 채워 두고 CTA가 [보내기], 비어 있으면 [알려주기]", () => {
+    const filled = openSheet("영업시간 수정");
+    expect(screen.getByRole("textbox", { name: "영업시간" })).toHaveValue("23:00 라스트오더, 월 휴무");
+    expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
+    filled.unmount();
+
+    openSheet("영업시간을 알려주세요", nara({ hoursNote: null }));
+    expect(screen.getByRole("textbox", { name: "영업시간" })).toHaveValue("");
+    expect(screen.getByRole("button", { name: "알려주기" })).toBeInTheDocument();
+  });
+
+  it("빈 값이면 지연 없이 필드 오류, 채우면 바로 반영되고 시트가 닫히며 토스트", async () => {
+    const updated = nara({ hoursNote: "24시간 영업" });
+    data.submitSuggestion.mockResolvedValue(updated);
+    const { props } = renderDetail(nara({ hoursNote: null }));
+    fireEvent.click(screen.getByRole("button", { name: "영업시간을 알려주세요" }));
+    fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("영업시간을 적어주세요");
+    expect(data.submitSuggestion).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "영업시간" }), {
+      target: { value: " 24시간 영업 " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("고쳐주셔서 고마워요");
+    });
+    expect(data.submitSuggestion).toHaveBeenCalledWith(
+      { field: "hours", placeId: "nara", hoursNote: "24시간 영업" },
+      NOW,
+    );
+    // 승인 큐가 아니라 즉시 반영이라 부모가 갱신된 가게를 받는다 (decisions 2026-09-08)
+    expect(props.onPatchPlace).toHaveBeenCalledWith(updated);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  it("메뉴 시트는 있는 줄을 다 보여주고 가격만 고친다 — 바뀐 줄만 나간다", async () => {
+    const many = nara({
+      menus: [
+        makeMenu({ name: "새우구이", price: 29900, unit: "none", unit_raw: null }),
+        makeMenu({ name: "새우회", price: 35000, unit: "g", unit_raw: "300" }),
+        makeMenu({ name: "새우머리튀김 0", price: null, unit: "none", unit_raw: null }),
+      ],
+    });
+    data.submitSuggestion.mockResolvedValue(many);
+    renderDetail(many);
+    fireEvent.click(screen.getByRole("button", { name: "대표 메뉴 수정" }));
+    const list = screen.getByRole("list", { name: "지금 메뉴" });
+    // 제보의 2줄 폼과 달리 세 줄이 다 보인다 (decisions 2026-09-08)
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByRole("textbox", { name: "새우구이 가격" })).toHaveValue("29,900");
+    expect(screen.getByRole("textbox", { name: "새우머리튀김 0 가격" })).toHaveValue("");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "새우구이 가격" }), {
+      target: { value: "32000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "새우머리튀김 0 없어졌어요" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    await waitFor(() => {
+      expect(data.submitSuggestion).toHaveBeenCalled();
+    });
+    // 안 건드린 새우회는 안 나간다
+    expect(data.submitSuggestion).toHaveBeenCalledWith(
+      {
+        field: "menus",
+        placeId: "nara",
+        edits: [
+          { index: 0, name: "새우구이", price: 32000, removed: false },
+          { index: 2, name: "새우머리튀김 0", removed: true },
+        ],
+        added: [],
+      },
+      NOW,
+    );
+  });
+
+  it("아무것도 안 고치고 보내면 CTA 위 오류 한 줄", () => {
+    renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "대표 메뉴 수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("고친 곳이 없어요");
+    expect(data.submitSuggestion).not.toHaveBeenCalled();
+  });
+
+  it("메뉴가 없는 가게는 추가 줄이 펼쳐진 채 열린다", async () => {
+    const empty = nara({ menus: [] });
+    data.submitSuggestion.mockResolvedValue(empty);
+    renderDetail(empty);
+    fireEvent.click(screen.getByRole("button", { name: "메뉴 알려주기" }));
+    expect(screen.queryByRole("list", { name: "지금 메뉴" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), {
+      target: { value: "왕새우 소금구이" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+    fireEvent.click(screen.getByRole("button", { name: "알려주기" }));
+    await waitFor(() => {
+      expect(data.submitSuggestion).toHaveBeenCalledWith(
+        {
+          field: "menus",
+          placeId: "nara",
+          edits: [],
+          added: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+        },
+        NOW,
+      );
+    });
+  });
+
+  it("보내고 바로 닫아도 반영은 부모에 도착한다 — 쓰기는 이미 일어났다", async () => {
+    const updated = nara({ hoursNote: "24시간 영업" });
+    let resolveWrite!: (p: Place) => void;
+    data.submitSuggestion.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "영업시간 수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    // 응답 전에 닫는다 — 딤과 ✕ 둘 다 이름이 "닫기"다(닫는 길이 하나로 모인다)
+    const [closeBtn] = within(screen.getByRole("dialog")).getAllByRole("button", { name: "닫기" });
+    if (!closeBtn) throw new Error("no close button");
+    fireEvent.click(closeBtn);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    resolveWrite(updated);
+    await waitFor(() => {
+      expect(props.onPatchPlace).toHaveBeenCalledWith(updated);
+    });
+  });
+
+  it("실패하면 시트 안 오류 한 줄 + 입력 유지 (닫아 버리면 무엇이 실패했는지 사라진다)", async () => {
+    data.submitSuggestion.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사이드 수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(SUGGEST_FAILED_MESSAGE);
+    });
+    expect(screen.getByRole("dialog", { name: /사이드/ })).toBeInTheDocument();
+    expect(props.onNotice).not.toHaveBeenCalled();
+  });
+
+  it("사이드 칩은 보던 그대로의 생김새로 켜고 끈다 — 고친 값이 그대로 나간다", async () => {
+    data.submitSuggestion.mockResolvedValue(nara());
+    renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사이드 수정" }));
+    const friedRice = screen.getByRole("button", { name: /볶음밥/ });
+    expect(friedRice).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(friedRice);
+    expect(screen.getByRole("button", { name: /볶음밥/ })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    await waitFor(() => {
+      expect(data.submitSuggestion).toHaveBeenCalledWith(
+        { field: "sides", placeId: "nara", sides: { headButter: true, ramen: true, friedRice: true } },
+        NOW,
+      );
+    });
   });
 });
 
@@ -744,6 +929,55 @@ describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [�
   });
 });
 
+describe("사진 올리기 — ＋ 타일이 곧 파일 선택기 (spec 4.2 \"사진은 즉시\")", () => {
+  const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
+
+  // 이 파일은 테스트마다 모의를 지우지 않는다 — 호출 여부를 보는 테스트가 있어 여기서만 지운다
+  beforeEach(() => {
+    data.addPlacePhotos.mockReset();
+  });
+
+  it("고른 즉시 스트립에 들어가고(낙관) 확정되면 부모에 알리며 토스트", async () => {
+    const uploaded = nara({ photos: [photo(1), photo(2), photo(3)] });
+    data.addPlacePhotos.mockResolvedValue(uploaded);
+    const { props } = renderDetail(nara({ photos: [photo(1), photo(2)] }));
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(2);
+
+    fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("new.jpg")] } });
+    // 낙관: 응답을 기다리지 않고 세 번째 칸이 이미 있다
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(3);
+    expect(data.addPlacePhotos).toHaveBeenCalledWith("nara", [expect.any(File)], NOW);
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("사진을 올렸어요");
+    });
+    expect(props.onPatchPlace).toHaveBeenCalledWith(uploaded);
+  });
+
+  it("실패하면 방금 넣은 사진이 빠지고 토스트", async () => {
+    data.addPlacePhotos.mockRejectedValue(new Error("mock write failed"));
+    const { props } = renderDetail(nara({ photos: [photo(1)] }));
+    fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("new.jpg")] } });
+    const strip = screen.getByRole("list", { name: "나라수산 사진" });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(2);
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("사진을 올리지 못했어요");
+    });
+    expect(within(strip).getAllByRole("button", { name: /크게 보기/ })).toHaveLength(1);
+    expect(props.onPatchPlace).not.toHaveBeenCalled();
+  });
+
+  it("빈 상태 블록도 같은 선택기를 연다 — 이미지가 아닌 파일은 무시한다", () => {
+    data.addPlacePhotos.mockResolvedValue(nara());
+    renderDetail(nara({ photos: [] }));
+    expect(screen.getByRole("button", { name: /첫 새우를 올려주세요/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("사진 파일"), {
+      target: { files: [new File(["x"], "a.txt", { type: "text/plain" })] },
+    });
+    expect(data.addPlacePhotos).not.toHaveBeenCalled();
+  });
+});
+
 describe("정보 수정 제안 — 하단 줄이 사유 시트를 연다 (탭이 곧 제출)", () => {
   beforeEach(() => {
     vi.spyOn(window.history, "pushState").mockImplementation(() => {});
@@ -772,11 +1006,83 @@ describe("정보 수정 제안 — 하단 줄이 사유 시트를 연다 (탭이
     fireEvent.click(screen.getByRole("button", { name: "정보 수정 제안" }));
     const sheet = await screen.findByRole("dialog", { name: "나라수산 정보가 달라요" });
     fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
-    expect(await within(sheet).findByRole("alert")).toHaveTextContent(FLAG_FAILED_MESSAGE);
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(REASON_FAILED_MESSAGE);
     expect(props.onNotice).not.toHaveBeenCalledWith("알려주셔서 고마워요");
     fireEvent.click(within(sheet).getByRole("button", { name: "위치가 달라요" }));
     await waitFor(() => {
       expect(props.onNotice).toHaveBeenCalledWith("알려주셔서 고마워요");
     });
+  });
+
+  it("[신고]는 같은 시트를 등록 자체의 사유로 연다 — 문 닫았어요는 여기 없다", async () => {
+    data.reportPlace.mockResolvedValue(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "신고" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 신고" });
+    expect(within(sheet).getByText("무엇이 문제인가요?")).toBeInTheDocument();
+    // 값이 틀렸다(수정 제안)와 등록이 잘못됐다(신고)를 섞지 않는다
+    expect(within(sheet).queryByRole("button", { name: "문 닫았어요" })).toBeNull();
+    fireEvent.click(within(sheet).getByRole("button", { name: "중복 등록이에요" }));
+    expect(data.reportPlace).toHaveBeenCalledWith({ placeId: "nara", reason: "duplicate" });
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("신고를 접수했어요");
+    });
+  });
+});
+
+describe("사장님이신가요? — 요청 폼 (연락처 필수)", () => {
+  beforeEach(() => {
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  });
+
+  it("연락처가 없으면 지연 없이 오류 — 답이 화면이 아니라 연락처로 오기 때문이다", async () => {
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("연락드릴 곳을 알려주세요");
+    expect(data.submitOwnerRequest).not.toHaveBeenCalled();
+    expect(props.onNotice).not.toHaveBeenCalled();
+  });
+
+  it("요청 종류를 고르고 연락처를 적으면 접수되고 시트가 닫히며 토스트", async () => {
+    data.submitOwnerRequest.mockResolvedValue(undefined);
+    const { props } = renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "게재 삭제" }));
+    fireEvent.change(within(sheet).getByRole("textbox", { name: "연락처" }), {
+      target: { value: " owner@example.com " },
+    });
+    fireEvent.change(within(sheet).getByRole("textbox", { name: "하실 말씀 (선택)" }), {
+      target: { value: "폐업했습니다" },
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    expect(data.submitOwnerRequest).toHaveBeenCalledWith({
+      placeId: "nara",
+      kind: "remove",
+      contact: "owner@example.com",
+      message: "폐업했습니다",
+    });
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("요청을 접수했어요. 24시간 안에 연락드릴게요");
+    });
+  });
+
+  it("실패하면 시트 안 오류 한 줄 + 입력 유지", async () => {
+    data.submitOwnerRequest.mockRejectedValue(new Error("mock write failed"));
+    renderDetail(nara());
+    fireEvent.click(screen.getByRole("button", { name: "사장님이신가요?" }));
+    const sheet = await screen.findByRole("dialog", { name: "나라수산 사장님 요청" });
+    const contact = within(sheet).getByRole("textbox", { name: "연락처" });
+    fireEvent.change(contact, { target: { value: "010-1234-5678" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "요청 보내기" }));
+    await waitFor(() => {
+      expect(within(sheet).getByRole("alert")).toHaveTextContent(OWNER_REQUEST_FAILED_MESSAGE);
+    });
+    expect(contact).toHaveValue("010-1234-5678");
   });
 });

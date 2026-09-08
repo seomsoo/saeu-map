@@ -18,21 +18,25 @@ import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
 import { sortReviewsNewest } from "@/lib/reviews";
 import { copyText, sharePlace } from "@/lib/share";
-import type { Place, Review } from "@/lib/types";
+import type { Place, Review, SuggestField } from "@/lib/types";
+import type { ReasonKind } from "./reason-sheet";
 import type { ReviewsStatus } from "./review-section";
 import { useCheckIn } from "./use-check-in";
+import { usePhotoUpload } from "./use-photo-upload";
 
 export { CHECKIN_FAILED_NOTICE } from "./use-check-in";
 
-/** 아직 없는 플로우의 입구(사진·영업시간·수정 제안·신고 등)가 띄우는 토스트 — 화면 1 [제보]와 같은 톤 */
-export const COMING_SOON_NOTICE = "준비 중이에요";
 export const REVIEW_SAVED_NOTICE = "리뷰를 남겼어요";
 export const REVIEW_UPDATED_NOTICE = "리뷰를 고쳤어요";
 export const REVIEW_DELETE_FAILED_NOTICE = "리뷰를 삭제하지 못했어요";
 export const FLAGGED_NOTICE = "알려주셔서 고마워요";
+/** 값 제안은 바로 반영된다(2026-09-08) — 화면이 이미 바뀌었으니 토스트는 고맙다는 말만 한다 */
+export const SUGGEST_THANKS_NOTICE = "고쳐주셔서 고마워요";
 export const ADDRESS_COPIED_NOTICE = "주소를 복사했어요";
 export const ADDRESS_COPY_FAILED_NOTICE = "주소를 복사하지 못했어요";
 export const PHOTO_REPORTED_NOTICE = "신고를 접수했어요";
+/** 사장님 요청은 답이 화면이 아니라 연락처로 온다 — 토스트가 그 약속을 한다(spec 5 "24시간 내") */
+export const OWNER_REQUESTED_NOTICE = "요청을 접수했어요. 24시간 안에 연락드릴게요";
 /** 실패 토스트는 뷰어 안에서 뜬다(top layer가 지도 화면 토스트를 가린다) — 문구만 여기 모아 둔다 */
 export const PHOTO_REPORT_FAILED_NOTICE = "신고를 접수하지 못했어요";
 /** 앱 스킴을 열고 이 시간 안에 화면이 안 가려지면(앱 없음) 웹 지도로 */
@@ -51,7 +55,8 @@ interface UsePlaceDetailInput {
 }
 
 /**
- * 상세 화면 상태 — 리뷰 로드(3상태), "다녀왔어요" 낙관적 업데이트 + 실패 롤백, 복사·공유·길찾기·준비 중 입구.
+ * 상세 화면 상태 — 리뷰 로드(3상태), "다녀왔어요"·사진 올리기 낙관적 업데이트 + 실패 롤백,
+ * 복사·공유·길찾기, 값 제안·사유·사장님 요청 시트.
  * 가게 데이터의 진실은 부모(`places` state)이고, 여기선 낙관 패치만 겹쳐 보여준다.
  */
 export function usePlaceDetail({
@@ -98,10 +103,18 @@ export function usePlaceDetail({
 
   /* ── 다녀왔어요: 낙관 +1 → 성공 시 부모 확정, 실패 시 원복 + 토스트 (신규 패널 [맞아요]와 같은 훅) ── */
   const {
-    place: shownPlace,
+    place: checkedPlace,
     done,
     checkIn,
   } = useCheckIn({ place, now, checked, onPatchPlace, onChecked, onNotice });
+
+  /* ── 사진 올리기: 고른 즉시 스트립에 → 성공 시 부모 확정, 실패 시 빠지고 토스트 (spec 4.2 "사진은 즉시") ── */
+  const { place: shownPlace, uploadPhotos } = usePhotoUpload({
+    place: checkedPlace,
+    now,
+    onPatchPlace,
+    onNotice,
+  });
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
@@ -180,24 +193,63 @@ export function usePlaceDetail({
     [place.id, closePhoto, onNotice],
   );
 
-  const comingSoon = useCallback(() => {
-    onNotice(COMING_SOON_NOTICE);
-  }, [onNotice]);
-
-  /* ── 정보 수정 제안(하단 줄) — 사유 시트. 접수는 관리자 수정 제안 큐로(Phase 6, spec 4.5) ── */
-  const [flagOpen, setFlagOpen] = useState(false);
-  const clearFlag = useCallback(() => {
-    setFlagOpen(false);
+  /* ── 값 제안(영업시간·주소·대표 메뉴·사이드) — 값 폼 시트. **즉시 반영**되고 운영자가 사후에 확인한다 ── */
+  const [suggestField, setSuggestField] = useState<SuggestField | null>(null);
+  const clearSuggest = useCallback(() => {
+    setSuggestField(null);
   }, []);
-  const closeFlag = useOverlayHistory(flagOpen, clearFlag);
-  const openFlag = useCallback(() => {
+  const closeSuggest = useOverlayHistory(suggestField !== null, clearSuggest);
+  const openSuggest = useCallback((field: SuggestField) => {
     pushOverlayHistoryEntry();
-    setFlagOpen(true);
+    setSuggestField(field);
   }, []);
-  const handleFlagged = useCallback(() => {
-    closeFlag();
-    onNotice(FLAGGED_NOTICE);
-  }, [closeFlag, onNotice]);
+  /** 늦게 온 응답이 "이미 닫힌 시트를 또 닫는" 일이 없게 — 상태를 핸들러가 재구독 없이 읽는다 */
+  const suggestOpenRef = useRef(false);
+  useEffect(() => {
+    suggestOpenRef.current = suggestField !== null;
+  }, [suggestField]);
+  const handleSuggested = useCallback(
+    (updated: Place) => {
+      // 쓰기는 이미 일어났다 — 갱신은 무조건 한다. 닫기·토스트만 "아직 열려 있을 때"다
+      onPatchPlace(updated);
+      if (!suggestOpenRef.current) return;
+      closeSuggest();
+      onNotice(SUGGEST_THANKS_NOTICE);
+    },
+    [onPatchPlace, closeSuggest, onNotice],
+  );
+
+  /* ── 하단 줄 — [정보 수정 제안]·[신고]는 사유 시트 하나가 맡는다(사유 목록만 다르다) ── */
+  const [reasonKind, setReasonKind] = useState<ReasonKind | null>(null);
+  const clearReason = useCallback(() => {
+    setReasonKind(null);
+  }, []);
+  const closeReason = useOverlayHistory(reasonKind !== null, clearReason);
+  const openReason = useCallback((kind: ReasonKind) => {
+    pushOverlayHistoryEntry();
+    setReasonKind(kind);
+  }, []);
+  const handleReasoned = useCallback(() => {
+    // 접수 문구는 입구마다 다르다: 제안은 고마움, 신고는 접수 사실
+    const notice = reasonKind === "report" ? PHOTO_REPORTED_NOTICE : FLAGGED_NOTICE;
+    closeReason();
+    onNotice(notice);
+  }, [reasonKind, closeReason, onNotice]);
+
+  /* ── [사장님이신가요?] — 요청 폼(정보 수정·게재 삭제). 접수는 관리자 큐로(Phase 6) ── */
+  const [ownerOpen, setOwnerOpen] = useState(false);
+  const clearOwner = useCallback(() => {
+    setOwnerOpen(false);
+  }, []);
+  const closeOwner = useOverlayHistory(ownerOpen, clearOwner);
+  const openOwner = useCallback(() => {
+    pushOverlayHistoryEntry();
+    setOwnerOpen(true);
+  }, []);
+  const handleOwnerRequested = useCallback(() => {
+    closeOwner();
+    onNotice(OWNER_REQUESTED_NOTICE);
+  }, [closeOwner, onNotice]);
 
   /* ── 리뷰 쓰기 (화면 5 변형 (b)·(c)): 로그인 게이트 → 폼(오버레이), 본인 수정·낙관 삭제 ── */
   const { session, requireLogin } = useSession();
@@ -278,14 +330,22 @@ export function usePlaceDetail({
     status,
     retryReviews,
     checkIn,
+    uploadPhotos,
     copyAddress,
     share,
     openRoute,
-    comingSoon,
-    flagOpen,
-    openFlag,
-    closeFlag,
-    handleFlagged,
+    suggestField,
+    openSuggest,
+    closeSuggest,
+    handleSuggested,
+    reasonKind,
+    openReason,
+    closeReason,
+    handleReasoned,
+    ownerOpen,
+    openOwner,
+    closeOwner,
+    handleOwnerRequested,
     photoIndex,
     openPhoto,
     closePhoto,

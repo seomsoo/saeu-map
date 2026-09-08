@@ -416,7 +416,8 @@ function renderStep4(overrides: Partial<ReportPanelProps> = {}) {
 const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
 
 describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
-  // jsdom에는 createObjectURL이 없다 — 미리보기 URL 생성·해제를 셀 수 있게 가짜로
+  // jsdom에도 createObjectURL은 있다(2026-09-08 확인) — 다만 값이 무작위라
+  // 생성·해제 횟수와 어떤 파일이 어디로 갔는지를 세려고 가짜로 바꾼다
   const createObjectURL = vi.fn((file: Blob) => `blob:${(file as File).name}`);
   const revokeObjectURL = vi.fn();
 
@@ -530,7 +531,6 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     // 리뷰 유도는 상세로 넘어간 뒤 로그인 게이트 → 폼 (Phase 4)
     fireEvent.click(screen.getByRole("button", { name: "리뷰도 남겨볼래요?" }));
     expect(props.onOpenExisting).toHaveBeenLastCalledWith("r001", { review: true });
-    expect(props.onNotice).not.toHaveBeenCalledWith("준비 중이에요");
   });
 
   it("완료 카드의 [공유]는 상세와 같은 길 (기기 공유 시트 → 링크 복사)", async () => {

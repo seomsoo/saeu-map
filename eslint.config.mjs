@@ -20,12 +20,26 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // scripts/*.mjs는 Next 앱 tsconfig 밖이라 기본 프로젝트로 검사한다 (CI 보조 스크립트, 2026-09-08)
+        projectService: { allowDefaultProject: ["scripts/*.mjs"] },
         tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
       "@typescript-eslint/restrict-template-expressions": "off",
+    },
+  },
+  {
+    // CI 보조 스크립트 — lhci가 만든 JSON을 읽는다. 타입 소스가 없어 `JSON.parse`가 전부 any이고
+    // strict-type-checked의 unsafe-* 가 다 걸린다. 앱 코드가 아니고(번들에 안 들어간다) 형식이 어긋나면
+    // 그 자리에서 예외가 나 CI 로그에 드러나므로, **이 파일들에서만** 끈다. 나머지 규칙은 그대로 적용된다.
+    files: ["scripts/*.mjs"],
+    rules: {
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
     },
   },
   {

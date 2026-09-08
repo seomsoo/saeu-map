@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MAX_PHOTO_BYTES,
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
   MOCK_WRITE_DELAY_MS,
@@ -16,18 +17,24 @@ import {
   getMyReviews,
   getPlaceById,
   getPlaceDetail,
+  getPlaceEdits,
   getPlaces,
   getReviews,
   getSeasonStats,
   getSession,
+  addPlacePhotos,
   reportPhoto,
+  reportPlace,
   signInWithKakao,
   signOut,
+  submitOwnerRequest,
   submitReport,
   submitReview,
+  submitSuggestion,
   setBookmark,
   updateNickname,
   updateReview,
+  type OwnerRequestInput,
   type ReportInput,
   type ReviewInput,
 } from "../data";
@@ -45,6 +52,9 @@ async function settleReject(pending: Promise<unknown>, message?: string): Promis
   await vi.advanceTimersByTimeAsync(MOCK_WRITE_DELAY_MS);
   await assertion;
 }
+
+/** 사이드 기본값 — 이 파일의 제보·제안 입력이 공유한다. */
+const SIDES = { headButter: true, ramen: false, friedRice: false } as const;
 
 // 목 날짜는 now 기준으로 이동되므로, 어떤 now를 넣어도 같은 성질이 유지되어야 한다.
 const NOWS = ["2026-09-01T12:00:00+09:00", "2027-03-15T09:30:00+09:00"];
@@ -142,8 +152,10 @@ describe("getSeasonStats", () => {
 
 describe("getEventCard", () => {
   it("기간 안이면 카드, 밖이면 null", async () => {
+    // href는 설정값이고 없을 수 있다 — 지금은 링크할 곳이 없어 null이다(까주기 테스트는 Phase 7)
     expect(await getEventCard("2026-09-01T12:00:00+09:00")).toMatchObject({
-      href: "/test",
+      title: "새우 까주기 테스트",
+      href: null,
     });
     expect(await getEventCard("2027-06-01T12:00:00+09:00")).toBeNull();
   });
@@ -394,8 +406,6 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
       tags: ["grill", "raw"],
       specialist: false,
       naverPlaceUrl: null,
-      photos: [], // 목은 파일을 버린다 (Phase 6 저장소)
-      thumbnailUrl: null,
       hoursNote: "새벽 2시까지",
       source: "report",
       needsReview: false,
@@ -409,6 +419,9 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
       { raw: "왕새우 소금구이", name: "왕새우 소금구이", price: 35000, unit: "kg", unit_raw: "1" },
       { raw: "생새우회", name: "생새우회", price: 40000, unit: "g", unit_raw: "500" },
     ]);
+    // 고른 두 장이 그대로 새 가게의 스트립·대표가 된다 (2026-09-08 — 그전엔 버려졌다)
+    expect(place.photos).toHaveLength(2);
+    expect(place.thumbnailUrl).toBe(place.photos[0]?.url);
     const after = await getPlaces({}, NOW);
     expect(after).toHaveLength(before.length + 1);
     expect(after.at(-1)).toBe(place);
@@ -424,6 +437,7 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
     expect(place.tags).toEqual(["grill"]);
     expect(place.hoursNote).toBeNull();
     expect("duplicateSuspectOf" in place).toBe(false);
+    expect(place.photos).toEqual([]);
     expect(place.id).toMatch(/^r\d{3}$/);
   });
 
@@ -591,7 +605,7 @@ describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·�
     await expect(deleteReview("rv001")).rejects.toThrow("forbidden");
   });
 
-  it("등록: 리뷰가 상세 맨 앞에, 확인일 = now·확인 +1·checkin, 사진은 버린다", async () => {
+  it("등록: 리뷰가 상세 맨 앞에, 확인일 = now·확인 +1·checkin", async () => {
     await settle(signInWithKakao());
     const before = await getPlaceById("p004", NOW);
     if (!before) throw new Error("no place");
@@ -608,7 +622,8 @@ describe("리뷰 쓰기 — 카카오 필수, 확인일 갱신, 본인 수정·�
       at,
     });
     expect(review.id).toMatch(/^rv-local-\d+$/);
-    expect("photoUrl" in review).toBe(false);
+    // 고른 사진이 리뷰 행 썸네일이 된다 (2026-09-08 — 그전엔 버려졌다)
+    expect(review.photoUrl).toMatch(/^blob:/);
     expect(place).toMatchObject({ checkCount: before.checkCount + 1, lastCheckedAt: at });
     expect(await getPlaceById("p004", NOW)).toBe(place);
     expect((await getPlaceDetail("p004", NOW))?.reviews[0]).toBe(review);
@@ -727,6 +742,301 @@ describe("flagPlace — [정보가 달라요] (목 쓰기)", () => {
   });
 });
 
+describe("submitSuggestion — 값 제안 (즉시 반영 + 이력)", () => {
+  // 다른 테스트의 데이터셋을 건드리지 않도록 별도 날짜
+  const NOW = "2032-06-06T12:00:00+09:00";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("영업시간·주소·사이드는 그 자리에서 바뀌고 조회에도 바로 보인다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
+    const hours = await settle(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "23:00 라스트오더" }, NOW),
+    );
+    expect(hours.hoursNote).toBe("23:00 라스트오더");
+    expect(await getPlaceById(target.id, NOW)).toBe(hours);
+
+    const address = await settle(
+      submitSuggestion(
+        { field: "address", placeId: target.id, addressRoad: "서울 마포구 마포대로12길 34" },
+        NOW,
+      ),
+    );
+    expect(address.addressRoad).toBe("서울 마포구 마포대로12길 34");
+    // 지번은 건드리지 않는다 — 사용자가 준 건 도로명뿐이다
+    expect(address.addressJibun).toBe(target.addressJibun);
+
+    const sides = await settle(
+      submitSuggestion(
+        { field: "sides", placeId: target.id, sides: { headButter: true, ramen: true, friedRice: true } },
+        NOW,
+      ),
+    );
+    expect(sides.sides).toEqual({ headButter: true, ramen: true, friedRice: true });
+  });
+
+  it("메뉴는 가격 교체·삭제를 원래 인덱스로 한 번에 하고 추가 줄은 뒤에 붙는다", async () => {
+    const target = (await getPlaces({}, NOW)).find((p) => p.menus.length >= 3);
+    if (!target) throw new Error("no place with 3+ menus");
+    const [first, , third] = target.menus;
+    const place = await settle(
+      submitSuggestion(
+        {
+          field: "menus",
+          placeId: target.id,
+          edits: [
+            { index: 0, name: first?.name ?? "", price: 32_000, removed: false },
+            { index: 2, name: third?.name ?? "", removed: true },
+          ],
+          added: [{ name: "새우튀김", price: 15_000, unit: "pan", unitRaw: "한판", raw: false }],
+        },
+        NOW,
+      ),
+    );
+    expect(place.menus).toHaveLength(target.menus.length - 1 + 1);
+    expect(place.menus[0]).toMatchObject({ name: first?.name, price: 32_000 });
+    // 삭제한 줄은 빠지고, 그 뒤 줄의 가격이 밀려 바뀌지 않는다
+    expect(place.menus.some((m) => m.name === third?.name)).toBe(false);
+    expect(place.menus.at(-1)).toEqual({
+      raw: "새우튀김",
+      name: "새우튀김",
+      price: 15_000,
+      unit: "pan",
+      unit_raw: "한판",
+    });
+    // 구이/회 태그는 건드리지 않는다 — 사후 확인에서 운영자가 정한다
+    expect(place.tags).toEqual(target.tags);
+  });
+
+  it("파생 평점을 얹어 돌려준다 — 안 그러면 고칠 때마다 별점이 사라진다", async () => {
+    /*
+     * 평점은 리뷰 3개 이상일 때만 붙는다(spec 4.2-8). 앞선 테스트가 목 리뷰를 지웠을 수 있어
+     * **이 테스트가 조건을 직접 만든다** — 픽스처 상태에 기대면 순서에 따라 조용히 무의미해진다.
+     */
+    await settle(signInWithKakao());
+    await settle(submitReview({ placeId: "p018", rating: 5, text: "", photo: null }, NOW));
+    const rated = await getPlaceById("p018", NOW);
+    expect(rated?.rating).toBeDefined();
+
+    const after = await settle(
+      submitSuggestion({ field: "hours", placeId: "p018", hoursNote: "밤 11시까지" }, NOW),
+    );
+    // 쓰기 응답이 읽기와 같은 모양이어야 한다 — 호출자가 이걸로 통째로 갈아끼운다 (Codex PR #11 #2)
+    expect(after.rating).toEqual(rated?.rating);
+    expect(after).toEqual(await getPlaceById("p018", NOW));
+
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:rating.jpg");
+    const withPhoto = await settle(
+      addPlacePhotos("p018", [new File(["x"], "rating.jpg", { type: "image/jpeg" })], NOW),
+    );
+    expect(withPhoto.rating).toEqual(rated?.rating);
+    await signOut();
+  });
+
+  it("되돌릴 수 있게 이전 값이 이력에 남는다 (즉시 반영의 전제)", async () => {
+    const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
+    if (!target) throw new Error("no place with hours");
+    await settle(submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "새벽 3시까지" }, NOW));
+    const [latest] = await getPlaceEdits();
+    expect(latest).toMatchObject({ placeId: target.id, field: "hours" });
+    expect(latest?.before.hoursNote).toBe(target.hoursNote);
+    expect(latest?.actor).toMatch(/^anon-/);
+    expect(latest?.at).toBe(new Date(Date.parse(NOW)).toISOString());
+  });
+
+  it("실패는 reject하고 값도 그대로, 검증 실패는 지연도 타지 않는다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
+    if (!target) throw new Error("no place");
+    vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
+    await settleReject(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "월 휴무" }, NOW),
+    );
+    expect((await getPlaceById(target.id, NOW))?.hoursNote).not.toBe("월 휴무");
+
+    await expect(
+      submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "  " }, NOW),
+    ).rejects.toThrow();
+    await expect(
+      submitSuggestion({ field: "address", placeId: target.id, addressRoad: "가" }, NOW),
+    ).rejects.toThrow();
+    // 아무것도 안 고친 제안은 거부한다
+    await expect(
+      submitSuggestion({ field: "menus", placeId: target.id, edits: [], added: [] }, NOW),
+    ).rejects.toThrow();
+    await expect(
+      submitSuggestion({ field: "sides", placeId: "", sides: SIDES } as never, NOW),
+    ).rejects.toThrow();
+    // 없는 가게는 지연을 통과한 뒤 걸린다 — 실패 주입을 풀고 확인한다
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await settleReject(
+      submitSuggestion({ field: "hours", placeId: "nope", hoursNote: "밤 12시" }, NOW),
+      "place not found",
+    );
+  });
+});
+
+describe("reportPlace — 가게 신고 (목 쓰기)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("사유 4개는 통과, 정보 수정 제안의 사유(closed)는 거부한다", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    for (const reason of ["not_shrimp", "fake", "duplicate", "other"] as const) {
+      await expect(settle(reportPlace({ placeId: "p019", reason }))).resolves.toBeUndefined();
+    }
+    // 신고는 "이 등록이 잘못됐다", 수정 제안은 "값이 틀렸다" — 사유를 섞지 않는다
+    await expect(reportPlace({ placeId: "p019", reason: "closed" as never })).rejects.toThrow();
+    await expect(reportPlace({ placeId: "", reason: "fake" })).rejects.toThrow();
+  });
+
+  it("실패는 reject", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(MOCK_FAILURE_RATE / 2);
+    await settleReject(reportPlace({ placeId: "p019", reason: "duplicate" }));
+  });
+});
+
+describe("submitOwnerRequest — 사장님 요청 (목 쓰기)", () => {
+  const request = (overrides: Partial<OwnerRequestInput> = {}): OwnerRequestInput => ({
+    placeId: "p019",
+    kind: "edit",
+    contact: "owner@example.com",
+    message: "영업시간이 바뀌었어요",
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("정보 수정·게재 삭제 둘 다 접수, 내용은 비어도 된다", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    await expect(settle(submitOwnerRequest(request()))).resolves.toBeUndefined();
+    await expect(
+      settle(submitOwnerRequest(request({ kind: "remove", message: "" }))),
+    ).resolves.toBeUndefined();
+  });
+
+  it("연락처는 필수 — 없거나 너무 짧으면 지연 없이 거부한다(24시간 내 회신이 성립해야 한다)", async () => {
+    await expect(submitOwnerRequest(request({ contact: "" }))).rejects.toThrow();
+    await expect(submitOwnerRequest(request({ contact: "  a " }))).rejects.toThrow();
+    await expect(submitOwnerRequest(request({ message: "가".repeat(301) }))).rejects.toThrow();
+    await expect(submitOwnerRequest(request({ kind: "delete" as never }))).rejects.toThrow();
+  });
+});
+
+describe("사진 보관 — 상세 업로드·제보·리뷰", () => {
+  const NOW = "2031-02-02T12:00:00+09:00";
+  const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
+
+  beforeEach(() => {
+    // jsdom의 blob URL은 값이 무작위다 — 어떤 파일이 어디로 갔는지 보려고 예측 가능하게 고정한다
+    vi.spyOn(URL, "createObjectURL").mockImplementation((file) => `blob:${(file as File).name}`);
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+  afterEach(async () => {
+    await signOut();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("첫 장이 올라가면 스트립과 대표 썸네일이 같이 생기고, 조회에도 바로 보인다", async () => {
+    const empty = (await getPlaces({}, NOW)).find((p) => p.photos.length === 0);
+    if (!empty) throw new Error("no photo-less place");
+    const place = await settle(addPlacePhotos(empty.id, [image("a.jpg")], NOW));
+    expect(place.photos).toHaveLength(1);
+    expect(place.photos[0]?.url).toBe("blob:a.jpg");
+    expect(place.photos[0]?.uploadedAt).toBe(new Date(Date.parse(NOW)).toISOString());
+    expect(place.thumbnailUrl).toBe("blob:a.jpg");
+    expect(await getPlaceById(empty.id, NOW)).toBe(place);
+  });
+
+  it("남은 자리만큼만 채우고, 10장이 차 있으면 거부한다", async () => {
+    const target = (await getPlaces({}, NOW)).find(
+      (p) => p.photos.length > 0 && p.photos.length < MAX_PLACE_PHOTOS,
+    );
+    if (!target) throw new Error("no partially filled place");
+    const room = MAX_PLACE_PHOTOS - target.photos.length;
+    // 남은 자리보다 많이 고른다 — 한 번에 보낼 수 있는 상한(10장)은 넘지 않는다
+    const files = Array.from({ length: Math.min(room + 2, MAX_PLACE_PHOTOS) }, (_, i) =>
+      image(`${String(i)}.jpg`),
+    );
+    const place = await settle(addPlacePhotos(target.id, files, NOW));
+    expect(place.photos).toHaveLength(MAX_PLACE_PHOTOS);
+    // 대표는 원래 첫 장 그대로 — 나중에 올린 사진이 썸네일을 빼앗지 않는다
+    expect(place.thumbnailUrl).toBe(target.photos[0]?.url);
+    await settleReject(addPlacePhotos(target.id, [image("z.jpg")], NOW), "photo limit reached");
+  });
+
+  it("10MB를 넘는 사진은 지연 없이 거부한다 (blob을 revoke하지 않고 들고 있어서다)", async () => {
+    const big = image("big.jpg");
+    // 실제로 10MB를 만들면 테스트가 느려진다 — 크기만 크게 속인다
+    Object.defineProperty(big, "size", { value: MAX_PHOTO_BYTES + 1 });
+    await expect(addPlacePhotos("p019", [big], NOW)).rejects.toThrow();
+  });
+
+  it("검증: 이미지가 아니거나 빈 목록·11장·없는 가게는 거부한다", async () => {
+    await expect(
+      addPlacePhotos("p019", [new File(["x"], "a.txt", { type: "text/plain" })], NOW),
+    ).rejects.toThrow();
+    await expect(addPlacePhotos("p019", [], NOW)).rejects.toThrow();
+    await expect(
+      addPlacePhotos(
+        "p019",
+        Array.from({ length: MAX_PLACE_PHOTOS + 1 }, (_, i) => image(`${String(i)}.jpg`)),
+        NOW,
+      ),
+    ).rejects.toThrow();
+    await settleReject(addPlacePhotos("nope", [image("a.jpg")], NOW), "place not found");
+  });
+
+  it("제보로 고른 사진이 순서 그대로 새 가게의 스트립·대표가 된다", async () => {
+    const place = await settle(
+      submitReport(
+        {
+          name: "사진 있는 제보",
+          lat: 37.5571,
+          lng: 126.9245,
+          menus: [{ name: "왕새우 소금구이", price: 35000, unit: "kg", unitRaw: "1", raw: false }],
+          sides: SIDES,
+          hoursNote: "",
+          photos: [image("first.jpg"), image("second.jpg")],
+          duplicateOf: null,
+          naverPlaceUrl: "",
+        },
+        NOW,
+      ),
+    );
+    expect(place.photos.map((photo) => photo.url)).toEqual(["blob:first.jpg", "blob:second.jpg"]);
+    expect(place.thumbnailUrl).toBe("blob:first.jpg");
+  });
+
+  it("리뷰로 고른 사진이 photoUrl이 된다", async () => {
+    await settle(signInWithKakao());
+    const { review } = await settle(
+      submitReview({ placeId: "p004", rating: 5, text: "", photo: image("review.jpg") }, NOW),
+    );
+    expect(review.photoUrl).toBe("blob:review.jpg");
+  });
+});
+
 /* 탈퇴는 목 카카오 유저의 리뷰를 영구히 지우므로 이 파일의 맨 마지막이다. */
 describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명", () => {
   const NOW = "2030-04-04T12:00:00+09:00";
@@ -746,6 +1056,25 @@ describe("탈퇴 — 내 리뷰·찜 삭제, 제보 작성자 해제, 새 익명
 
   it("익명은 탈퇴할 수 없다", async () => {
     await expect(deleteAccount()).rejects.toThrow("login required");
+  });
+
+  it("올린 사진은 남고 업로더만 떨어진다 (제보 가게의 reporterId와 같은 규칙)", async () => {
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mine.jpg");
+    await settle(signInWithKakao());
+    const target = (await getPlaces({}, NOW)).find((p) => p.photos.length < MAX_PLACE_PHOTOS);
+    if (!target) throw new Error("no place with room");
+    const uploaded = await settle(
+      addPlacePhotos(target.id, [new File(["x"], "mine.jpg", { type: "image/jpeg" })], NOW),
+    );
+    const mine = uploaded.photos.at(-1);
+    expect(mine?.uploaderId).toBe("u-kakao-1");
+
+    await settle(deleteAccount());
+    const after = await getPlaceById(target.id, NOW);
+    const same = after?.photos.find((photo) => photo.id === mine?.id);
+    // 사진은 가게 정보라 남는다 — 개인 식별자만 뗀다
+    expect(same?.url).toBe(mine?.url);
+    expect("uploaderId" in (same ?? {})).toBe(false);
   });
 
   it("탈퇴 뒤에는 내 리뷰가 화면에서 빠지고 찜은 비고 제보는 남되 작성자가 없다", async () => {
