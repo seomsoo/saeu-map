@@ -41,7 +41,7 @@ export function Segmented<K extends string>({
               onChange(option.key);
             }}
             className={cx(
-              "press flex-1 rounded-6 text-body-m-medium transition-colors",
+              "press flex-1 whitespace-nowrap rounded-6 text-body-m-medium transition-colors",
               selected ? "bg-bg text-fg shadow-float" : "text-fg-secondary",
             )}
           >

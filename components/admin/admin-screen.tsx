@@ -102,7 +102,16 @@ function AdminShell({ now }: { now: string }) {
       </header>
 
       <div className="mx-auto w-full max-w-300 px-6 py-4">
-        <Segmented label="관리 탭" value={tab} options={options} onChange={setTab} />
+        {/* 5탭 + 배지는 390에 안 들어간다 — 좁으면 가로로 넘긴다(줄바꿈되면 배지가 라벨 아래로 떨어진다) */}
+        <div className="no-scrollbar -mx-6 overflow-x-auto px-6">
+          <Segmented
+            label="관리 탭"
+            value={tab}
+            options={options}
+            onChange={setTab}
+            className="min-w-max"
+          />
+        </div>
         <div className="pt-4">
           {tab === "pending" && <PendingTab now={now} onNotice={showNotice} />}
           {tab === "reports" && <AdminTabPlaceholder label="신고·요청" />}
