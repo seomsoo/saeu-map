@@ -97,3 +97,19 @@ export function validateMenuDraft(
   if (!parsed.success) return { menu: null, errors: { name: MENU_ERRORS.name } };
   return { menu: parsed.data, errors: null };
 }
+
+/**
+ * 고친 필드의 오류만 지운다 — 단위를 바꾸면 "몇 마리" 오류도 같이 지운다(마리를 벗어나면 물을 값이 아니다).
+ * 제보 3단계와 상세의 메뉴 제안 시트가 같은 규칙을 쓴다.
+ */
+export function clearMenuErrors(errors: MenuDraftErrors, changes: Partial<MenuDraft>): MenuDraftErrors {
+  const cleared = { ...errors };
+  if ("name" in changes) delete cleared.name;
+  if ("price" in changes) delete cleared.price;
+  if ("unit" in changes) {
+    delete cleared.unit;
+    delete cleared.count;
+  }
+  if ("count" in changes) delete cleared.count;
+  return cleared;
+}

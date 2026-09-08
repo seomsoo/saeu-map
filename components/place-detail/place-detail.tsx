@@ -8,6 +8,7 @@ import type { Place, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
 import { ContributionBand } from "./contribution-band";
 import { FlagSheet } from "./flag-sheet";
+import { SuggestSheet } from "./suggest-sheet";
 import { FooterLinks } from "./footer-links";
 import { PlaceInfo } from "./info-rows";
 import { MenuList } from "./menu-list";
@@ -91,8 +92,12 @@ export function PlaceDetail({
       <PlaceInfo
         place={d.place}
         onCopy={d.copyAddress}
-        onSuggestHours={d.comingSoon}
-        onSuggestAddress={d.comingSoon}
+        onSuggestHours={() => {
+          d.openSuggest("hours");
+        }}
+        onSuggestAddress={() => {
+          d.openSuggest("address");
+        }}
       />
       {/* 4 */}
       <ActionRow
@@ -103,9 +108,19 @@ export function PlaceDetail({
       />
       <SectionBand />
       {/* 5 */}
-      <MenuList menus={d.place.menus} onSuggest={d.comingSoon} />
+      <MenuList
+        menus={d.place.menus}
+        onSuggest={() => {
+          d.openSuggest("menus");
+        }}
+      />
       {/* 6 */}
-      <SidesRow sides={d.place.sides} onSuggest={d.comingSoon} />
+      <SidesRow
+        sides={d.place.sides}
+        onSuggest={() => {
+          d.openSuggest("sides");
+        }}
+      />
       <SectionBand />
       {/* 7 — 구 3(확인 줄)의 액션 자리. 신선도는 상호 아래 캡션, 여기는 "그래서 뭘 하면 되나"만 */}
       <ContributionBand
@@ -133,6 +148,15 @@ export function PlaceDetail({
       {/* 하단 [정보 수정 제안] — 사유 시트(탭이 곧 제출). 접수는 Phase 6 관리자 큐로 */}
       {d.flagOpen && (
         <FlagSheet place={place} onFlagged={d.handleFlagged} onClose={d.closeFlag} />
+      )}
+      {/* 값 폼 시트 — 영업시간·주소·대표 메뉴·사이드. 접수는 Phase 6 관리자 큐로 */}
+      {d.suggestField !== null && (
+        <SuggestSheet
+          place={d.place}
+          field={d.suggestField}
+          onSubmitted={d.handleSuggested}
+          onClose={d.closeSuggest}
+        />
       )}
       {/* 화면 5 변형 (b) — 리뷰 폼. 뷰어와 같은 top layer 오버레이 */}
       {d.reviewForm && (

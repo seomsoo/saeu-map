@@ -6,6 +6,12 @@ import { createPortal } from "react-dom";
 interface ModalSheetProps {
   /** 접근성 이름 */
   label: string;
+  /**
+   * 입력이 있는 모달(값 폼 시트)인가 — 키보드가 뜨면 시트가 그 위에 앉고 긴 본문만 스크롤한다
+   * (리뷰 폼과 같은 `--vvh`/`--kb` 기준, globals.css `dialog[data-form]`).
+   * 사유 시트처럼 입력이 없는 모달은 짧아서 이 처리가 필요 없다.
+   */
+  form?: boolean | undefined;
   /** 닫힌 뒤(딤 탭·Escape·부모의 ✕·뒤로가기 전부) 한 번 불린다 — 부모는 여기서 언마운트한다. */
   onClose: () => void;
   children: ReactNode;
@@ -20,7 +26,7 @@ interface ModalSheetProps {
  * **데스크탑(lg)은 같은 컴포넌트가 딤 위 중앙 480 카드**(라운드 16 — design 화면 9 프레임 2). 딤 버튼이 뒤에 깔리고
  * 내용은 모바일 `mt-auto`(바닥) / 데스크탑 `m-auto`(중앙)로 자리만 바뀐다.
  */
-export function ModalSheet({ label, onClose, children }: ModalSheetProps) {
+export function ModalSheet({ label, form, onClose, children }: ModalSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -36,6 +42,7 @@ export function ModalSheet({ label, onClose, children }: ModalSheetProps) {
     <dialog
       ref={dialogRef}
       aria-label={label}
+      data-form={form ? "true" : undefined}
       onClose={onClose}
       className="fixed inset-0 m-0 size-full max-h-none max-w-none bg-transparent p-0 text-fg backdrop:bg-common-100/40"
     >

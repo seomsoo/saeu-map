@@ -586,3 +586,17 @@ body {
     flex-direction: column;
   }
 }
+
+/* 값 폼 시트(design 화면 2 "상세의 쓰기 표면") — 사유 시트와 달리 입력이 있어 키보드가 뜨고 본문이 길 수 있다.
+   리뷰 폼과 같은 기준으로 시트를 키보드 위(--kb)에 앉히고, 넘치는 본문만 스크롤한다.
+   빼는 9rem은 제목 행 + CTA 줄 + 여백이다 — 본문이 그 아래로 흘러 CTA를 밀어내지 않게 한다. */
+dialog[data-form="true"] {
+  top: auto;
+  bottom: var(--kb, 0px);
+  height: var(--vvh, 100dvh);
+}
+dialog[data-form="true"] .saeu-modal-body {
+  max-height: calc(var(--vvh, 100dvh) - var(--kb, 0px) - 9rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
