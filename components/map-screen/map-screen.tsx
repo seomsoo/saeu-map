@@ -321,14 +321,15 @@ function MapScreenBody({
         />
       </div>
 
-      {/* 토스트(데스크탑) — 화면 가운데가 아니라 **패널 바로 오른쪽 아래**(left = PANEL_OCCLUSION + 20).
-          안내는 대부분 패널에서 한 행동의 결과라 그 옆에 서야 눈이 따라가고, 우하단 줌·현위치 스택과도
-          겹치지 않는다. 지도 위에 뜨므로 그림자를 주고(공통 블록), 폭은 내용만큼 잡는다 */}
+      {/* 토스트(데스크탑) — **패널 안 바닥**에 목록 위로 떠오른다(Gmail 문법).
+          안내는 대부분 패널에서 한 행동의 결과라, 지금 보고 있는 곳에 떠야 놓치지 않는다.
+          패널 밖(셸 루트)에 두고 좌표만 패널과 맞춘다 — 패널은 overflow-hidden이라 안에 넣으면 그림자가 잘린다.
+          자리는 CSS와 lib/layout.ts의 PANEL_* 상수가 같은 값이어야 한다 */}
       {isDesktop && s.notice && (
-        <div className="pointer-events-none absolute bottom-4 left-114 z-30">
+        <div className="pointer-events-none absolute bottom-8 left-4 z-30 w-105 px-4">
           <Toast
             message={s.notice}
-            className="saeu-toast-in mx-0 inline-block max-w-100 py-2.5 text-body-m-medium shadow-card"
+            className="saeu-toast-in py-2.5 text-body-m-medium shadow-card"
           />
         </div>
       )}
