@@ -8,6 +8,8 @@
  */
 import { z } from "zod";
 import type {
+  AdminDayCount,
+  AdminStats,
   Checkin,
   EventCard,
   LatLng,
@@ -19,6 +21,9 @@ import type {
   PlaceDetail,
   PlaceEdit,
   PlaceFlagReason,
+  Report,
+  ReportKind,
+  ReportStatus,
   PlaceReportReason,
   PlaceTag,
   Review,
@@ -28,6 +33,7 @@ import type {
 import {
   type DateInput,
   addDaysIso,
+  formatKstDate,
   isWithinNewWindow,
   kstDateOnlyToIso,
   kstDayIndex,
@@ -199,6 +205,14 @@ function visibleReviews(reviews: readonly Review[]): Review[] {
   return reviews.filter((r) => !deletedReviewIds.has(r.id));
 }
 
+/**
+ * 사용자에게 보이는 가게 — 숨긴 것은 뺀다(신고 3회 자동 숨김·운영자 조작·사장님 삭제, spec 5).
+ * **삭제가 아니라 숨김이라** 데이터는 남고 관리자 화면에서만 보인다. `visibleReviews`와 같은 규칙이다.
+ */
+function visiblePlaces(places: readonly Place[]): Place[] {
+  return places.filter((p) => p.hiddenAt === undefined);
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -254,7 +268,8 @@ export function getPlaces(
   filter: PlaceFilter = {},
   now: DateInput = Date.now(),
 ): Promise<Place[]> {
-  const { places, reviews } = dataset(now);
+  const { reviews } = dataset(now);
+  const places = visiblePlaces(dataset(now).places);
   const q = normalizeQuery(filter.query ?? "");
   const ratings = ratingsByPlace(visibleReviews(reviews));
   return Promise.resolve(
@@ -274,7 +289,7 @@ export function getPlaceById(
   now: DateInput = Date.now(),
 ): Promise<Place | undefined> {
   const { places, reviews } = dataset(now);
-  const place = places.find((p) => p.id === id);
+  const place = visiblePlaces(places).find((p) => p.id === id);
   return Promise.resolve(place && withRating(place, ratingsByPlace(visibleReviews(reviews))));
 }
 
@@ -284,7 +299,7 @@ export function getPlaceDetail(
   now: DateInput,
 ): Promise<PlaceDetail | undefined> {
   const { places, reviews } = dataset(now);
-  const place = places.find((p) => p.id === id);
+  const place = visiblePlaces(places).find((p) => p.id === id);
   if (!place) return Promise.resolve(undefined);
   const visible = visibleReviews(reviews);
   return Promise.resolve({
@@ -325,7 +340,8 @@ export function getSeasonStats(
   const nowMs = toMs(now);
   const weekStart = startOfWeekKst(now);
   const dayStart = startOfDayKst(now);
-  const visible = new Set(places.map((p) => p.id));
+  // 숨긴 가게의 확인은 시즌 카운터에서도 빠진다 — 사용자에게 없는 가게다
+  const visible = new Set(visiblePlaces(places).map((p) => p.id));
 
   const counts = new Map<string, { count: number; latest: number }>();
   let todayCheckinCount = 0;
@@ -440,8 +456,10 @@ export async function reportPhoto(input: {
   photoId: string;
   reason: PhotoReportReason;
 }): Promise<void> {
-  photoReportSchema.parse(input);
+  const parsed = photoReportSchema.parse(input);
+  const actor = currentSession.userId;
   await simulateWrite();
+  pushReport({ kind: "photo_report", placeId: parsed.placeId, photoId: parsed.photoId, reason: parsed.reason, actor });
 }
 
 /**
@@ -692,6 +710,13 @@ export async function deleteAccount(): Promise<Session> {
     delete rest.actor;
     placeEdits[i] = rest;
   }
+  // 신고·요청도 운영 기록이라 남기고 개인 식별자만 뗀다 (이력·checkins와 같은 규칙)
+  for (const [i, report] of reports.entries()) {
+    if (report.actor !== me) continue;
+    const rest: Report = { ...report };
+    delete rest.actor;
+    reports[i] = rest;
+  }
   bookmarksByUser.delete(me);
   kakaoNickname = KAKAO_MOCK_NICKNAME;
   currentSession = newAnonymousSession();
@@ -849,8 +874,8 @@ export function getMyReviews(now: DateInput): Promise<MyReview[]> {
 
 /** 내 활동 > 내 제보 — 현재 세션이 제보한 가게(최신순). */
 export function getMyReports(now: DateInput): Promise<Place[]> {
-  const mine = dataset(now)
-    .places.filter((p) => p.reporterId === currentSession.userId)
+  const mine = visiblePlaces(dataset(now).places)
+    .filter((p) => p.reporterId === currentSession.userId)
     .sort((a, b) => toMs(b.createdAt ?? b.lastCheckedAt) - toMs(a.createdAt ?? a.lastCheckedAt));
   return Promise.resolve(mine);
 }
@@ -866,8 +891,10 @@ const placeFlagSchema = z.object({
  * 가장 싼 도배 경로라 속도 제한 자리: 핀당 일 1 (Phase 6 Upstash, spec 스팸 4겹 2).
  */
 export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
-  placeFlagSchema.parse(input);
+  const parsed = placeFlagSchema.parse(input);
+  const actor = currentSession.userId;
   await simulateWrite();
+  pushReport({ kind: "place_flag", placeId: parsed.placeId, reason: parsed.reason, actor });
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1021,8 +1048,11 @@ export async function reportPlace(input: {
   placeId: string;
   reason: PlaceReportReason;
 }): Promise<void> {
-  placeReportSchema.parse(input);
+  const parsed = placeReportSchema.parse(input);
+  const actor = currentSession.userId;
   await simulateWrite();
+  const report = pushReport({ kind: "place_report", placeId: parsed.placeId, reason: parsed.reason, actor });
+  autoHideIfReported(report.placeId);
 }
 
 /**
@@ -1047,8 +1077,17 @@ export const ownerRequestSchema = z.object({
 export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
 
 export async function submitOwnerRequest(input: OwnerRequestInput): Promise<void> {
-  ownerRequestSchema.parse(input);
+  const parsed = ownerRequestSchema.parse(input);
+  const actor = currentSession.userId;
   await simulateWrite();
+  pushReport({
+    kind: "owner_request",
+    placeId: parsed.placeId,
+    ownerKind: parsed.kind,
+    contact: parsed.contact,
+    message: parsed.message,
+    actor,
+  });
 }
 
 const photoUploadSchema = z.object({
@@ -1092,4 +1131,227 @@ export async function addPlacePhotos(
   data.places = data.places.map((p) => (p.id === place.id ? place : p));
   // 파생 평점을 얹어 돌려준다 (submitSuggestion과 같은 이유)
   return withRating(place, ratingsByPlace(visibleReviews(data.reviews)));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   관리자 /admin (spec 4.4·4.5 · design 화면 10)
+   목 단계의 저장소는 이 모듈의 메모리다. Phase 6에서 reports 테이블 + RLS로 바뀐다.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 목 단계의 관리자 스위치 — **dev에서만 켜진다.** URL 쿼리로 켜지 않는 이유는 프로덕션에서 열리면 안 되기
+ * 때문이다(`?mock=error`가 production에서 무시되는 것과 같은 결). 실제 판정은 Phase 6 `profiles.is_admin`.
+ */
+export function setAdmin(on: boolean): Promise<Session> {
+  if (process.env.NODE_ENV === "production") return Promise.resolve(currentSession);
+  currentSession = { ...currentSession, isAdmin: on };
+  return Promise.resolve(currentSession);
+}
+
+/** 신고 3회면 자동 숨김 (spec 5). **같은 사람의 반복은 1로 센다** — 혼자 세 번 눌러 남의 가게를 내리지 못하게. */
+export const AUTO_HIDE_REPORT_COUNT = 3;
+
+/**
+ * 마지막 방어선. 프론트 게이트(`/admin`의 `notFound()`)는 장식이고 진짜 판정은 Phase 6 서버·RLS다 —
+ * 목 단계에도 쓰기 함수마다 세워 두어 "화면만 가리면 된다"는 습관이 안 생기게 한다(spec 4.5).
+ */
+function requireAdmin(): void {
+  if (currentSession.isAdmin !== true) throw new Error("forbidden");
+}
+
+/** 한 데이터셋 안에서 가게 하나를 갈아끼운다. 없으면 던진다. */
+function patchPlaceSync(data: Dataset, placeId: string, patch: (place: Place) => Place): Place {
+  const current = data.places.find((p) => p.id === placeId);
+  if (!current) throw new Error("place not found");
+  const next = patch(current);
+  data.places = data.places.map((p) => (p.id === placeId ? next : p));
+  return next;
+}
+
+/**
+ * 모든 날짜 캐시에 같은 변경을 건다 — 숨김·확인은 "언제 보느냐"와 무관한 운영 상태라
+ * `now`가 다른 데이터셋에서 되살아나면 안 된다(`deleteAccount`와 같은 규칙).
+ */
+function patchPlaceEverywhere(placeId: string, patch: (place: Place) => Place): Place {
+  let result: Place | null = null;
+  for (const data of datasetCache.values()) {
+    if (!data.places.some((p) => p.id === placeId)) continue;
+    result = patchPlaceSync(data, placeId, patch);
+  }
+  if (!result) throw new Error("place not found");
+  return result;
+}
+
+let reportRowSeq = 0;
+const reports: Report[] = [];
+
+function pushReport(input: Omit<Report, "id" | "at" | "status">): Report {
+  reportRowSeq += 1;
+  // 접수 시각은 목이라 실제 시각을 쓴다 — 사용자 쓰기의 `now`(서버 렌더 시각)와 달리 관리자만 읽는 값이다
+  const report: Report = { ...input, id: `rp-local-${String(reportRowSeq)}`, at: new Date().toISOString(), status: "open" };
+  reports.push(report);
+  return report;
+}
+
+/** 가게 신고가 서로 다른 사람 3명에게서 오면 숨긴다. 이미 숨겨져 있으면 아무것도 하지 않는다. */
+function autoHideIfReported(placeId: string): void {
+  const actors = new Set(
+    reports
+      .filter((r) => r.kind === "place_report" && r.placeId === placeId && r.status !== "dismissed")
+      .map((r) => r.actor ?? r.id), // 탈퇴로 actor가 떨어진 건 각각 한 사람으로 본다
+  );
+  if (actors.size < AUTO_HIDE_REPORT_COUNT) return;
+  const at = new Date().toISOString();
+  for (const data of datasetCache.values()) {
+    data.places = data.places.map((p) => (p.id === placeId && p.hiddenAt === undefined ? { ...p, hiddenAt: at } : p));
+  }
+}
+
+/** 신고·요청 목록 — 최신순. `kind`로 거르면 종류 칩 한 줄이 된다. */
+export function getReports(filter: { kind?: ReportKind; status?: ReportStatus } = {}): Promise<Report[]> {
+  const rows = reports
+    .filter((r) => (filter.kind ? r.kind === filter.kind : true))
+    .filter((r) => (filter.status ? r.status === filter.status : true));
+  return Promise.resolve([...rows].reverse());
+}
+
+/** 처리함·무시함으로 넘긴다. **원하는 상태를 받는다**(토글 아님, CLAUDE.md 쓰기 규칙). */
+export async function resolveReport(id: string, status: ReportStatus): Promise<Report> {
+  requireAdmin();
+  await simulateWrite();
+  const i = reports.findIndex((r) => r.id === id);
+  if (i < 0) throw new Error("report not found");
+  const next = { ...reports[i], status } as Report;
+  reports[i] = next;
+  return next;
+}
+
+/** 사후 확인 — 배지만 찍는다. "새로 제보됨" 라벨(`isNew`)은 건드리지 않는다(decisions 2026-09-08). */
+export async function confirmPlace(placeId: string, now: DateInput): Promise<Place> {
+  requireAdmin();
+  await simulateWrite();
+  return patchPlaceEverywhere(placeId, (p) => ({ ...p, verifiedAt: new Date(toMs(now)).toISOString() }));
+}
+
+/** 숨김·복구 — 삭제가 아니다(spec 5). 복구하면 `removedByOwner` 표시도 함께 지운다. */
+export async function setPlaceHidden(
+  placeId: string,
+  hidden: boolean,
+  now: DateInput,
+  options: { byOwner?: boolean } = {},
+): Promise<Place> {
+  requireAdmin();
+  await simulateWrite();
+  return patchPlaceEverywhere(placeId, (p) => {
+    if (!hidden) {
+      const rest: Place = { ...p };
+      delete rest.hiddenAt;
+      delete rest.removedByOwner;
+      return rest;
+    }
+    return {
+      ...p,
+      hiddenAt: new Date(toMs(now)).toISOString(),
+      ...(options.byOwner === true && { removedByOwner: true }),
+    };
+  });
+}
+
+/**
+ * 검색 탭의 삭제 — **소프트다**. spec 5가 "재제보 시 관리자에게 경고 표시"를 요구하므로 기록이 남아야 한다.
+ * 사장님 요청으로 내린 것은 `removedByOwner`가 붙어 재제보 때 구분된다.
+ */
+export function deletePlace(placeId: string, now: DateInput, byOwner = false): Promise<Place> {
+  return setPlaceHidden(placeId, true, now, { byOwner });
+}
+
+/**
+ * 수정 되돌리기 — `PlaceEdit.before`를 그대로 덮는다. **되돌린 것도 이력에 남아 다시 되돌릴 수 있다**(대칭).
+ * 그래서 확인 모달이 없다(파괴적인 건 삭제뿐).
+ */
+export async function revertPlaceEdit(editId: string, now: DateInput): Promise<Place> {
+  requireAdmin();
+  const actor = currentSession.userId;
+  await simulateWrite();
+  const edit = placeEdits.find((e) => e.id === editId);
+  if (!edit) throw new Error("edit not found");
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === edit.placeId);
+  if (!current) throw new Error("place not found");
+  const before: PlaceEdit["before"] = {
+    hoursNote: current.hoursNote,
+    addressRoad: current.addressRoad,
+    menus: current.menus,
+    sides: current.sides,
+  };
+  const place = patchPlaceSync(data, edit.placeId, (p) => ({ ...p, ...edit.before }));
+  editSeq += 1;
+  placeEdits.push({
+    id: `ed-local-${String(editSeq)}`,
+    placeId: place.id,
+    at: new Date(toMs(now)).toISOString(),
+    actor,
+    field: edit.field,
+    before,
+  });
+  return place;
+}
+
+/** 검색 탭 — 숨긴 가게도 보여야 한다(복구하려면 찾아야 하니까). 상호 부분 일치, 최대 30. */
+export function searchPlacesForAdmin(query: string, now: DateInput): Promise<Place[]> {
+  const q = normalizeQuery(query);
+  if (q === "") return Promise.resolve([]);
+  const rows = dataset(now)
+    .places.filter((p) => normalizeQuery(p.name).includes(q))
+    .slice(0, 30);
+  return Promise.resolve(rows);
+}
+
+function countByDay(items: readonly { at: string }[], dayStart: number, dayEnd: number): number {
+  return items.filter((i) => {
+    const t = toMs(i.at);
+    return t >= dayStart && t < dayEnd;
+  }).length;
+}
+
+/** 관리자 통계 — 우리 DB로 셀 수 있는 것만(design 화면 10-5). Phase 6에선 이 함수만 SQL 집계로 바뀐다. */
+export function getAdminStats(now: DateInput): Promise<AdminStats> {
+  const data = dataset(now);
+  const reviews = visibleReviews(data.reviews);
+  const reported = data.places.filter((p) => p.source === "report" && p.createdAt !== undefined);
+  const day = 86_400_000;
+  const todayStart = startOfDayKst(now);
+
+  const bucket = (start: number): AdminDayCount => ({
+    date: formatKstDate(start),
+    reports: countByDay(reported.map((p) => ({ at: p.createdAt ?? "" })), start, start + day),
+    checkins: countByDay(data.checkins, start, start + day),
+    reviews: countByDay(reviews, start, start + day),
+    edits: countByDay(placeEdits, start, start + day),
+  });
+
+  const daily: AdminDayCount[] = [];
+  for (let i = 13; i >= 0; i -= 1) daily.push(bucket(todayStart - i * day));
+
+  const actors = new Set<string>();
+  for (const c of data.checkins) if (c.actor) actors.add(c.actor);
+  for (const r of reviews) actors.add(r.authorId);
+  for (const e of placeEdits) if (e.actor) actors.add(e.actor);
+  let anonymous = 0;
+  for (const a of actors) if (a.startsWith("anon-")) anonymous += 1;
+
+  const visible = visiblePlaces(data.places);
+  const topPlaces = [...visible]
+    .sort((a, b) => b.checkCount - a.checkCount)
+    .slice(0, 10)
+    .map((p) => ({ placeId: p.id, name: p.name, checkCount: p.checkCount }));
+
+  return Promise.resolve({
+    openReports: reports.filter((r) => r.status === "open").length,
+    unverified: visible.filter((p) => p.source === "report" && p.verifiedAt === undefined).length,
+    today: daily.at(-1) ?? bucket(todayStart),
+    daily,
+    participants: { anonymous, kakao: actors.size - anonymous },
+    topPlaces,
+  });
 }

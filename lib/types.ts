@@ -66,6 +66,18 @@ export interface Place {
   menus: Menu[];
   sides: Sides;
   source: "seed" | "report";
+  /**
+   * 운영자가 사후 확인한 시각(UTC ISO, spec 4.4·4.5). **배지일 뿐 사용자 화면을 바꾸지 않는다** —
+   * 카드·마커의 "새로 제보됨"은 7일 타이머(`isNew`)이고 "새로 생겼다"는 정보지 "검증했다"가 아니다.
+   */
+  verifiedAt?: string;
+  /**
+   * 숨긴 시각(UTC ISO). 신고 3회 자동 숨김 또는 운영자 조작 — **삭제가 아니라 숨김이라 복구된다**(spec 5).
+   * 사용자 읽기에서는 빠지고 관리자 화면에만 보인다.
+   */
+  hiddenAt?: string;
+  /** 사장님 요청으로 내렸다 — 재제보 시 관리자에게 경고를 띄우는 근거(spec 5). */
+  removedByOwner?: boolean;
   needsReview: boolean;
   lastCheckedAt: string;
   checkCount: number;
@@ -172,6 +184,11 @@ export interface Session {
   provider: AuthProvider;
   /** 카카오 프로필 기본, 수정 가능. 익명은 null. */
   nickname: string | null;
+  /**
+   * 관리자인가 (spec 4.5 `profiles.is_admin`). 목 단계는 dev 전용 토글이고 **URL 쿼리로는 켜지 않는다** —
+   * 프로덕션에서 열리면 안 된다. 프론트 체크는 장식이고 진짜 판정은 Phase 6 서버·RLS다.
+   */
+  isAdmin?: boolean;
 }
 
 /** 신규 패널 [정보가 달라요] 사유 — 사유 시트 4행과 1:1 (design 화면 4 변형 (a)). */
@@ -188,6 +205,31 @@ export type PlaceReportReason = "not_shrimp" | "fake" | "duplicate" | "other";
 
 /** 사장님 요청 종류 — 게재 삭제는 1회 요청으로 즉시 처리(spec 5). */
 export type OwnerRequestKind = "edit" | "remove";
+
+/**
+ * 관리자 "신고·요청" 탭에 모이는 것들 (design 화면 10-2). 넷 다 **사용자가 알려온 일감**이고
+ * "열림 → 처리함/무시함"으로 흐름이 같아 한 테이블·한 탭이다(spec 6 스키마도 `reports` 하나다).
+ */
+export type ReportKind = "place_flag" | "place_report" | "photo_report" | "owner_request";
+export type ReportStatus = "open" | "done" | "dismissed";
+
+export interface Report {
+  id: string;
+  kind: ReportKind;
+  placeId: string;
+  /** 사진 신고만 */
+  photoId?: string;
+  /** 신고·제안 사유 (`PlaceFlagReason` | `PlaceReportReason` | `PhotoReportReason`) */
+  reason?: string;
+  /** 사장님 요청만 — 요청 종류·연락처·내용 */
+  ownerKind?: OwnerRequestKind;
+  contact?: string;
+  message?: string;
+  at: string;
+  /** 낸 사람(익명 id 포함). 탈퇴하면 뗀다 — 다른 기록과 같은 규칙 */
+  actor?: string;
+  status: ReportStatus;
+}
 
 /**
  * 정보 수정 이력 — 영업시간·주소·메뉴·사이드는 **즉시 반영**하고 운영자가 사후에 확인한다
@@ -212,3 +254,28 @@ export interface PlaceDetail {
   place: Place;
   reviews: Review[];
 }
+
+/** 관리자 통계 (design 화면 10-5) — **우리 DB로 셀 수 있는 것만**. 방문자·페이지뷰는 Cloudflare가 본다. */
+export interface AdminDayCount {
+  /** KST 날짜 "2026.09.08" (`formatKstDate`) */
+  date: string;
+  reports: number;
+  checkins: number;
+  reviews: number;
+  edits: number;
+}
+
+export interface AdminStats {
+  /** 탭 배지가 읽는 숙제 수 */
+  openReports: number;
+  unverified: number;
+  /** 오늘(KST) */
+  today: AdminDayCount;
+  /** 최근 14일, 오래된 날부터 */
+  daily: AdminDayCount[];
+  /** 참여한 사람의 종류 — actor id 접두어로 가른다(익명은 `anon-`) */
+  participants: { anonymous: number; kakao: number };
+  /** 확인이 많은 상위 가게 10 */
+  topPlaces: { placeId: string; name: string; checkCount: number }[];
+}
+
