@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toast } from "@/components/ui/toast";
 import { getAdminStats } from "@/lib/data";
 import type { AdminStats } from "@/lib/types";
+import { EditsTab } from "./edits-tab";
 import { PendingTab } from "./pending-tab";
 import { ReportsTab } from "./reports-tab";
+import { SearchTab } from "./search-tab";
 
 export type AdminTab = "pending" | "reports" | "edits" | "search" | "stats";
 
@@ -116,8 +118,8 @@ function AdminShell({ now }: { now: string }) {
         <div className="pt-4">
           {tab === "pending" && <PendingTab now={now} onNotice={showNotice} />}
           {tab === "reports" && <ReportsTab now={now} onNotice={showNotice} />}
-          {tab === "edits" && <AdminTabPlaceholder label="수정 이력" />}
-          {tab === "search" && <AdminTabPlaceholder label="검색" />}
+          {tab === "edits" && <EditsTab now={now} onNotice={showNotice} />}
+          {tab === "search" && <SearchTab now={now} onNotice={showNotice} />}
           {tab === "stats" && <AdminTabPlaceholder label="통계" />}
         </div>
       </div>
