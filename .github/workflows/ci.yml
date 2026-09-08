@@ -110,6 +110,44 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  # Lighthouse 점수를 PR 코멘트로 (roadmap 백로그 — decisions 2026-09-07 "다음 코드 PR에 커밋 하나로").
+  # 지금까지는 아티팩트를 내려받아야 점수가 보였다. check 잡과 나누는 이유는 권한이다: 그 잡은 npx로
+  # Lighthouse 전이 의존성을 받으므로 쓰기 토큰을 같은 환경에 두지 않는다(persist-credentials: false와 같은 이유).
+  # 예산에 걸려 check가 실패했을 때가 점수를 가장 보고 싶은 때라 always()로 돈다.
+  lighthouse-comment:
+    if: always() && github.event_name == 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/lighthouse-comment.mjs
+            scripts/pr-upsert-comment.sh
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        id: reports
+        continue-on-error: true
+        with:
+          name: lighthouse
+          path: .lighthouseci
+
+      - name: Comment Lighthouse table
+        if: steps.reports.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          node scripts/lighthouse-comment.mjs .lighthouseci > comment.md
+          scripts/pr-upsert-comment.sh "$PR" comment.md
+
   # PR → 프리뷰 버전 업로드 (배포 아님). 고정 별칭 preview → https://preview-saeu-map.saeu-map.workers.dev
   # 시크릿이 없으면 실패 대신 건너뛴다 (decisions.md 2026-09-01 자동 배포).
   preview:
@@ -172,14 +210,19 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          set -euo pipefail
           URL=$(grep -oE 'https://preview-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' upload.log | head -1)
           [ -n "$URL" ] || { echo "::error::alias URL not found in upload.log"; exit 1; }
-          BODY="프리뷰: ${URL} (alias \`preview\`, 커밋 ${HEAD_SHA::7}) — 같은 PR의 새 커밋이 이 URL을 덮어씁니다."
-          gh pr comment "$PR" --body "$BODY" --edit-last --create-if-none \
-            || gh pr comment "$PR" --body "$BODY"
+          # 첫 줄은 표식 — 한 PR에 봇 코멘트가 둘이라 --edit-last로는 서로를 덮어쓴다 (2026-09-08)
+          {
+            echo "<!-- preview-url -->"
+            echo "프리뷰: ${URL} (alias \`preview\`, 커밋 ${HEAD_SHA::7}) — 같은 PR의 새 커밋이 이 URL을 덮어씁니다."
+          } > preview-comment.md
+          scripts/pr-upsert-comment.sh "$PR" preview-comment.md
 
   # main push → 프로덕션 배포. check 통과가 선행 조건 (Workers Builds 대신 GH Actions인 이유).
   deploy:
