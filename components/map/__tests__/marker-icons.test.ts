@@ -69,6 +69,17 @@ describe("getPlaceMarkerIcon", () => {
     expect(icon.size).toEqual(new Size(PLACE_MARKER_SIZE, PLACE_MARKER_SIZE));
     expect(icon.anchor).toEqual(new Point(PLACE_MARKER_SIZE / 2, PLACE_MARKER_SIZE / 2));
   });
+  it("신규만 NEW 배지 래퍼를 쓴다 — 앵커는 그대로다", () => {
+    const isNew = getPlaceMarkerIcon(navermaps, { ...base, isNew: true, thumbnailUrl: null });
+    expect(isNew.content).toContain('<span class="saeu-marker__new">NEW</span>');
+    expect(isNew.content).toContain("saeu-marker-wrap");
+    // 래퍼가 마커와 같은 36px이라 좌표 매핑이 안 바뀐다
+    expect(isNew.anchor).toEqual(new Point(PLACE_MARKER_SIZE / 2, PLACE_MARKER_SIZE / 2));
+
+    const notNew = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: null });
+    expect(notNew.content).not.toContain("saeu-marker__new");
+    expect(notNew.content).not.toContain("saeu-marker-wrap");
+  });
   it("같은 모양(썸네일 포함)은 같은 객체를 돌려준다 — 다르면 다른 객체", () => {
     const a = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.webp" });
     const b = getPlaceMarkerIcon(navermaps, { ...base, thumbnailUrl: "/mock/thumb-1.webp" });

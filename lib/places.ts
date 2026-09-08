@@ -72,6 +72,9 @@ export function matchesChips(
       case "bookmarked":
         if (!bookmarkedIds.has(place.id)) return false;
         break;
+      case "new":
+        if (!place.isNew) return false;
+        break;
       case "headButter":
       case "ramen":
       case "friedRice":

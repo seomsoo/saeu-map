@@ -31,6 +31,8 @@ interface PlaceSheetProps {
   count: number;
   /** 보고 있는 지역 — "마포구 일대" / "서울 전체" */
   areaLabel: string;
+  /** 시즌 카운터의 "새로 들어온 집 N곳" 입구 — 신규 필터를 켜고 지도를 그리로 맞춘다 */
+  onShowNew: () => void;
   stats: SeasonStats;
   eventCard: EventCardData | null;
   now: string;
@@ -117,6 +119,7 @@ export function PlaceSheet({
   places,
   count,
   areaLabel,
+  onShowNew,
   stats,
   eventCard,
   now,
@@ -172,7 +175,7 @@ export function PlaceSheet({
           className="lg:hidden"
         />
       </div>
-      <SeasonCounter stats={stats} />
+      <SeasonCounter stats={stats} onShowNew={onShowNew} />
       <Segmented
         label="정렬"
         value={sort}

@@ -467,6 +467,24 @@ export function useMapScreen({
     return PANEL_OCCLUSION_PX + base;
   }, []);
 
+  /**
+   * fitBounds 네 변 여백. 모바일은 상단 스택·시트가 가리는 만큼 비우고, 데스크탑은 네 변 대칭에
+   * 패널 폭만 왼쪽에 더한다. `/gu` 첫 맞춤은 아직 상태가 없어 스냅·모드를 직접 넘긴다.
+   * 세 번째 호출자(신규 핀 맞추기)가 생겨 추출했다 — 마진 계산이 세 곳에서 따로 흐르면 어긋난다.
+   */
+  const fitMargins = useCallback(
+    (base: number, gap: number, forSnap: SheetSnap, forMode: SheetMode) => {
+      const desktop = isDesktopViewport();
+      return {
+        top: desktop ? base : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + gap,
+        bottom: desktop ? base : sheetVisiblePx(forSnap, sheetViewportHeight(), forMode) + gap,
+        left: panelFitLeft(base),
+        right: base,
+      };
+    },
+    [panelFitLeft, topStackRef],
+  );
+
   /*
    * 첫 로드에 위치를 묻지 않는다 — 맥락 없이 뜬 권한 팝업은 반사적으로 거부되고, 거부는 되돌리기가
    * 브라우저마다 다른 미로다. 현위치 FAB을 누를 때만 묻는다(그때의 거부는 의도적 선택이다).
@@ -485,14 +503,10 @@ export function useMapScreen({
     if (initialGu) {
       initialPanDone.current = true;
       programmaticMoveAt.current = performance.now();
-      const desktop = isDesktopViewport();
       const bounds = boundsOf(places.filter((p) => p.gu === initialGu.name));
       if (bounds) {
         mapRef.current.fitBounds(bounds, {
-          top: desktop ? 40 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 24,
-          bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "list") + 24,
-          left: panelFitLeft(40),
-          right: 40,
+          ...fitMargins(40, 24, "half", "list"),
           maxZoom: GU_FIT_MAX_ZOOM,
         });
       } else {
@@ -530,10 +544,9 @@ export function useMapScreen({
     viewport,
     places,
     mapRef,
-    topStackRef,
     visibleStripCenterY,
     stripCenterX,
-    panelFitLeft,
+    fitMargins,
   ]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
@@ -641,18 +654,33 @@ export function useMapScreen({
     });
     const bounds = boundsOf(matches);
     if (!bounds || !mapRef.current) return;
-    // 모바일은 상단 스택·시트가 가리는 만큼 비운다. 데스크탑은 가리는 게 없어 네 변 대칭
-    const desktop = isDesktopViewport();
-    const top = desktop ? 24 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 16;
-    const bottom = desktop ? 24 : sheetVisiblePx(snap, sheetViewportHeight(), mode) + 16;
     mapRef.current.fitBounds(bounds, {
-      top,
-      bottom,
-      left: panelFitLeft(24),
-      right: 24,
+      ...fitMargins(24, 16, snap, mode),
       maxZoom: SEARCH_FIT_MAX_ZOOM,
     });
-  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef, panelFitLeft]);
+  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, fitMargins]);
+
+  /**
+   * 시즌 카운터의 "새로 들어온 집 N곳" 토글 — 숫자를 약속한 자리가 곧 그리로 가는 입구다.
+   *
+   * **지도를 맞추는 것만으로는 부족하다**(2026-09-09 실측): 신규가 16km에 흩어져 있으면 fitBounds가
+   * 줌 11이 되고 거기서 다시 클러스터로 묶여 배지가 하나도 안 보인다. 게다가 목록은 뷰포트 기준이라
+   * 그대로 42곳이다 — 눌렀는데 그 N곳이 어디인지 여전히 모른다. 그래서 **필터를 켜고** 지도도 맞춘다:
+   * 클러스터로 묶이더라도 **목록이 경로를 준다**(카드 탭 → 그 핀).
+   *
+   * 칩 행이 아니라 여기 붙인 이유는 spec 4.1의 칩 5개 상한을 안 건드리기 위해서다. 형태가 "패널이
+   * 아니라 필터"인 건 roadmap 백로그가 못 박아 둔 그대로다.
+   */
+  const showNewPlaces = useCallback(() => {
+    // 토글이 아니라 "켠다" — 이미 켜져 있어도 같은 결과다(해제는 칩 행의 ✕가 갖는다)
+    setChips((prev) => (prev.includes("new") ? prev : [...prev, "new"]));
+    const bounds = boundsOf(places.filter((p) => p.isNew));
+    if (!bounds || !mapRef.current) return;
+    mapRef.current.fitBounds(bounds, {
+      ...fitMargins(24, 16, snap, mode),
+      maxZoom: SEARCH_FIT_MAX_ZOOM,
+    });
+  }, [places, snap, mode, mapRef, fitMargins]);
 
   const dismissEvent = useCallback(() => {
     setEventDismissed(true);
@@ -1039,6 +1067,7 @@ export function useMapScreen({
     sorted,
     inViewCount: inView.length,
     areaLabel,
+    showNewPlaces,
     // /place/[id] 직접 진입은 그 핀·줌 14(현위치 줌과 동일)에서 시작해 공유 링크로 핀이 바로 보인다.
     // 아니면: 위치가 SDK보다 먼저 왔을 때 서울 근교일 때만 그 위치·줌 14 (밖이면 서울 중심 — 결정 "위치 폴백")
     initialCenter: initialPlace ?? initialGu?.center ?? densestCenter ?? SEOUL_CENTER,

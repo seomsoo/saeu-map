@@ -203,6 +203,20 @@ describe("카드 표시용", () => {
   });
 });
 
+describe("matchesChips — new 칩", () => {
+  it("new 칩은 신규 핀만 남긴다", () => {
+    const fresh = makePlace({ id: "a", isNew: true });
+    const old = makePlace({ id: "b", isNew: false });
+    const picked = filterPlaces([fresh, old], {
+      tab: "all",
+      chips: ["new"],
+      query: "",
+      bookmarkedIds: new Set<string>(),
+    });
+    expect(picked.map((p) => p.id)).toEqual(["a"]);
+  });
+});
+
 describe("areaLabel — 시트 제목의 지역", () => {
   const gu = (name: string, n: number) =>
     Array.from({ length: n }, () => makePlace({ gu: name }));

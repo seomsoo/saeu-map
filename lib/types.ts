@@ -124,7 +124,11 @@ export interface Viewport {
 export type TabKey = "all" | "grill" | "raw";
 
 /** 지도 메인 토글 칩 — 사이드 3종 + 찜한 곳 = 4개 (spec 4.1 상한 5개 중, 2026-09-05 신규 칩 제거) */
-export type ChipKey = keyof Sides | "bookmarked";
+/**
+ * 목록·마커를 좁히는 필터. `new`는 칩 행이 아니라 **시즌 카운터의 "새로 들어온 집 N곳"**이 켠다
+ * (칩 5개 상한을 안 건드리고, 숫자를 약속한 자리가 곧 그리로 가는 입구다 — 2026-09-09).
+ */
+export type ChipKey = keyof Sides | "bookmarked" | "new";
 
 /** 정렬: 가까운순(기본) / 최근 확인순 / 확인 많은 순 */
 export type SortKey = "distance" | "recent" | "checks";
