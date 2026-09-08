@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { NotFoundView } from "@/components/ui/not-found-view";
 import { Segmented, type SegmentOption } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Toast } from "@/components/ui/toast";
 import { getAdminStats } from "@/lib/data";
 import type { AdminStats } from "@/lib/types";
+import { PendingTab } from "./pending-tab";
 
 export type AdminTab = "pending" | "reports" | "edits" | "search" | "stats";
 
@@ -35,7 +37,24 @@ function AdminShell({ now }: { now: string }) {
   const { session } = useSession();
   const [tab, setTab] = useState<AdminTab>("pending");
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const admin = session?.isAdmin === true;
+
+  /** 토스트 한 줄 — 지도 화면과 같은 계약(부모가 타이머를 갖는다) */
+  const showNotice = useCallback((message: string) => {
+    setNotice(message);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => {
+      setNotice(null);
+    }, 2400);
+  }, []);
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
 
   // 탭 배지(숙제 수)는 화면을 열 때 한 번 읽는다 — 각 탭이 자기 목록을 따로 읽는다
   useEffect(() => {
@@ -85,12 +104,17 @@ function AdminShell({ now }: { now: string }) {
       <div className="mx-auto w-full max-w-300 px-6 py-4">
         <Segmented label="관리 탭" value={tab} options={options} onChange={setTab} />
         <div className="pt-4">
-          {tab === "pending" && <AdminTabPlaceholder label="사후 확인" />}
+          {tab === "pending" && <PendingTab now={now} onNotice={showNotice} />}
           {tab === "reports" && <AdminTabPlaceholder label="신고·요청" />}
           {tab === "edits" && <AdminTabPlaceholder label="수정 이력" />}
           {tab === "search" && <AdminTabPlaceholder label="검색" />}
           {tab === "stats" && <AdminTabPlaceholder label="통계" />}
         </div>
+      </div>
+
+      {/* 화면 아래 가운데 — 표 위에 겹치지 않게 고정 */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center px-6">
+        <Toast message={notice} />
       </div>
     </main>
   );
