@@ -1,4 +1,5 @@
 import type {
+  BoundsLiteral,
   ChipKey,
   LatLng,
   Menu,
@@ -70,6 +71,9 @@ export function matchesChips(
     switch (chip) {
       case "bookmarked":
         if (!bookmarkedIds.has(place.id)) return false;
+        break;
+      case "new":
+        if (!place.isNew) return false;
         break;
       case "headButter":
       case "ramen":
@@ -236,15 +240,57 @@ export function formatPrice(price: number): string {
 
 /* ────────────────────────── 시트 헤더: 보고 있는 지역 ────────────────────────── */
 
-/** 뷰포트 안 가게가 이 비율 이상이면 "서울 전체"로 본다 */
+/** 뷰포트 안 가게가 이 비율 이상이면 그 시도 "전체"(시도가 여럿이면 "전국")로 본다 */
 const WHOLE_CITY_RATIO = 0.6;
-/** 구가 이만큼 섞이면 "서울 전체" */
+/** 시군구가 이만큼 섞이면 그 시도 "전체" */
 const WHOLE_CITY_GU_COUNT = 8;
+/** 최다 시도가 이 비율 이상이면 나머지는 곁다리로 보고 그 시도로 취급한다 */
+const SIDO_DOMINANT_RATIO = 0.8;
+/**
+ * 뷰포트 가로·세로가 둘 다 이만큼(도) 넘으면 "전국"으로 본다. 남한은 경도 125.9~129.6·위도 33.1~38.6이라
+ * 3°면 "동서로도 남북으로도 나라 규모"가 된다 — 폰 줌 7(4.3°×6.1°)·데스크탑 줌 8(7.9°×3.9°)이 여기 걸리고,
+ * 폰 줌 8(2.1°×3.1°)·데스크탑 줌 9(4.0°×2.0°)는 한 축이 모자라 안 걸린다.
+ */
+const NATIONWIDE_SPAN_DEG = 3;
+/**
+ * 가게 0곳인 뷰포트를 시군구가 아니라 **시도**로 부르는 문턱. 시군구 하나가 대략 0.1~0.3°라
+ * 0.5°를 넘으면 "한 동네"보다 넓게 보고 있다는 뜻이다 — 폰 줌 10(0.54°×0.76°)·데스크탑 줌 10부터 걸리고,
+ * 폰 줌 11(0.27°×0.38°)·데스크탑 줌 12(0.49°×0.25°)는 안 걸린다.
+ */
+const SIDO_SPAN_DEG = 0.5;
 
 /**
- * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트 안 가게의 구 분포로만 정한다(규칙 2).
- * 0곳 → "이 지역" / 전체의 60%↑ 또는 구 8개↑ → "서울 전체" / 구 1개 → 그 구 / 그 외 → 최다 구 + " 일대"
+ * 여러 시도에 같은 이름이 있는 시군구 — 이름만 쓰면 어디인지 모른다. 경계 파일 251개(서울 25 + 전국 226)
+ * 중 30개(12%)가 여기 걸린다: 중구 6(서울 포함)·동구 6·남구 5·서구 5·북구 4·강서구 2(서울/부산)·고성군 2.
+ * 상수인 이유는 `SEOUL_GU`와 같다 — 라벨 한 줄 만들자고 240KB 경계 파일을 읽지 않는다.
+ * **파일과 어긋나면 `places.test.ts`가 잡는다.**
  */
+export const AMBIGUOUS_SIGUNGU: ReadonlySet<string> = new Set([
+  "중구",
+  "동구",
+  "남구",
+  "서구",
+  "북구",
+  "강서구",
+  "고성군",
+]);
+
+/**
+ * 화면에 쓸 시군구 이름. 서울은 그대로("강서구"), 서울 밖에서 이름이 겹치면 시도를 앞에 붙인다("부산 강서구").
+ *
+ * **서울을 생략하는 게 규칙이다** — `Place.gu`가 이미 "괄호가 없으면 서울"이고(decisions 2026-09-04),
+ * 화면에서도 "접두어가 없으면 서울"이 되어 문법이 하나로 맞는다. 서울 우선 제품이라 "서울 강서구"는 과하다.
+ * 접두어를 뒤 괄호가 아니라 앞에 두는 건 뉴스·주소·배달앱이 쓰는 "광주 서구" 순서를 따른 것이다.
+ */
+function sigunguLabel(sido: string, sigungu: string): string {
+  return sido === "서울" || !AMBIGUOUS_SIGUNGU.has(sigungu) ? sigungu : `${sido} ${sigungu}`;
+}
+
+/** 뷰포트 가로·세로가 **둘 다** 이만큼(도) 되나. 데스크탑은 가로만 넓어서 한 축만 보면 과판정된다. */
+function spansAtLeast(bounds: BoundsLiteral, deg: number): boolean {
+  return bounds.east - bounds.west >= deg && bounds.north - bounds.south >= deg;
+}
+
 /** 첫 지도 중심을 고를 때 세는 반경. 줌 12의 가시 영역(약 11.8×9.4km)에 내접한다. */
 const DENSEST_RADIUS_KM = 5;
 
@@ -276,23 +322,82 @@ export function densestPoint(places: readonly Place[]): LatLng | null {
   return { lat: best.lat, lng: best.lng };
 }
 
-export function areaLabel(visible: readonly Place[], total: number): string {
-  if (visible.length === 0) return "이 지역";
-  const counts = new Map<string, number>();
-  for (const p of visible) counts.set(p.gu, (counts.get(p.gu) ?? 0) + 1);
-  if (
-    counts.size >= WHOLE_CITY_GU_COUNT ||
-    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
-  ) {
-    return "서울 전체";
-  }
+/**
+ * `Place.gu`를 시도와 시군구로 쪼갠다 — "마포구" → 서울·마포구, "김포시(경기)" → 경기·김포시,
+ * "창원시 진해구(경남)" → 경남·창원시 진해구. 괄호가 없으면 서울이다(decisions 2026-09-04).
+ */
+function splitGu(gu: string): { sido: string; sigungu: string } {
+  const open = gu.indexOf("(");
+  if (open === -1 || !gu.endsWith(")")) return { sido: "서울", sigungu: gu };
+  return { sido: gu.slice(open + 1, -1), sigungu: gu.slice(0, open) };
+}
+
+/** 가장 많은 키. 동률은 가나다순으로 고정해 지도를 조금 움직일 때마다 라벨이 튀지 않게 한다. */
+function topKey(counts: ReadonlyMap<string, number>): string {
   let top = "";
   let topCount = -1;
-  for (const [gu, count] of counts) {
-    if (count > topCount || (count === topCount && collator.compare(gu, top) < 0)) {
-      top = gu;
+  for (const [key, count] of counts) {
+    if (count > topCount || (count === topCount && collator.compare(key, top) < 0)) {
+      top = key;
       topCount = count;
     }
   }
-  return counts.size === 1 ? top : `${top} 일대`;
+  return top;
+}
+
+/**
+ * 시트 제목용 지역 라벨. 외부 지오코딩 없이 뷰포트와 그 안 가게의 지역 분포로만 정한다(규칙 2).
+ *
+ * **뷰포트가 나라 규모** → "전국" / 0곳 → 지도 중심의 지역(넓게 보면 "부산", 좁게 보면 "해운대구", 모르면
+ * "이 지역") / 최다 시도가 80% 미만 → 최다 시도 + " 일대"("서울 일대") /
+ * 그 시도 안에서: 시군구 8개↑ 또는 전체의 60%↑ → "서울 전체" / 시군구 1개 → 그 시군구("마포구"·"김포시",
+ * 이름이 겹치면 "부산 강서구") /
+ * 그 외 → 최다 시군구 + " 일대".
+ *
+ * **"전국"만 뷰포트로 판정한다.** 시드의 93%가 서울에 몰려 있어 수도권 뷰와 전국 뷰는 *보이는 가게가 거의
+ * 같다* — 분포로는 구별이 안 되고, 60% 문턱으로 잡으면 김포 한 곳이 섞인 기본 화면(줌 12)까지 "전국"이 된다
+ * (2026-09-09에 실제로 그렇게 나왔다). 나머지 칸은 그대로 분포로 정한다: 줌만 보면 같은 줌에서 강남을 보든
+ * 강원을 보든 같은 라벨이 나오기 때문이다.
+ *
+ * 최다 시도 80% 규칙이 곁다리를 걸러낸다 — 서울 37 + 김포 1이면 "서울 전체"고, 서울 20 + 경기 18이면
+ * "서울 일대"다. `bounds`가 없으면(`/gu` SSR 등) "전국"은 나오지 않는다.
+ *
+ * `centerGu`는 **가게가 0곳일 때만** 쓴다(호출자가 `guOfPoint`로 구해 넘긴다 — 우리 경계 폴리곤이라
+ * 외부 API가 아니다). 가게가 있을 때는 중심이 아니라 분포로 정한다: 중심을 쓰면 마포 12곳을 보는 화면이
+ * 중심이 살짝 넘어갔다는 이유로 "서대문구"가 된다.
+ */
+export function areaLabel(
+  visible: readonly Place[],
+  total: number,
+  bounds?: BoundsLiteral,
+  centerGu?: string | null,
+): string {
+  if (bounds && spansAtLeast(bounds, NATIONWIDE_SPAN_DEG)) return "전국";
+  if (visible.length === 0) {
+    if (centerGu === undefined || centerGu === null) return "이 지역";
+    const { sido, sigungu } = splitGu(centerGu);
+    return bounds && spansAtLeast(bounds, SIDO_SPAN_DEG) ? sido : sigunguLabel(sido, sigungu);
+  }
+
+  const bySido = new Map<string, number>();
+  for (const p of visible) {
+    const { sido } = splitGu(p.gu);
+    bySido.set(sido, (bySido.get(sido) ?? 0) + 1);
+  }
+  const sido = topKey(bySido);
+  if ((bySido.get(sido) ?? 0) < visible.length * SIDO_DOMINANT_RATIO) return `${sido} 일대`;
+
+  const bySigungu = new Map<string, number>();
+  for (const p of visible) {
+    const split = splitGu(p.gu);
+    if (split.sido === sido) bySigungu.set(split.sigungu, (bySigungu.get(split.sigungu) ?? 0) + 1);
+  }
+  if (
+    bySigungu.size >= WHOLE_CITY_GU_COUNT ||
+    (total > 0 && visible.length >= total * WHOLE_CITY_RATIO)
+  ) {
+    return `${sido} 전체`;
+  }
+  const top = sigunguLabel(sido, topKey(bySigungu));
+  return bySigungu.size === 1 ? top : `${top} 일대`;
 }

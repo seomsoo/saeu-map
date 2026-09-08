@@ -384,6 +384,28 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(await screen.findByRole("heading", { name: "서울 전체 3곳" })).toBeInTheDocument(); // 3/5 = 60%
   });
 
+  it("시즌 카운터의 '새로 들어온 집'은 입구이고, 상태·해제는 칩 행이 갖는다", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
+    // 켜기 전에는 해제 칩이 없다 — 칩 5개 상한을 상시로 넘지 않는다
+    expect(screen.queryByRole("button", { name: "새로 들어온 집 필터 해제" })).not.toBeInTheDocument();
+
+    const entry = screen.getByRole("button", { name: /새로 들어온 집/ });
+    fireEvent.click(entry);
+    const clear = await screen.findByRole("button", { name: "새로 들어온 집 필터 해제" });
+
+    // 입구는 토글이 아니라 멱등한 "켜기" — 한 번 더 눌러도 켜진 채다
+    fireEvent.click(entry);
+    expect(screen.getByRole("button", { name: "새로 들어온 집 필터 해제" })).toBeInTheDocument();
+
+    fireEvent.click(clear);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: "새로 들어온 집 필터 해제" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("칩 '찜한 곳' → 찜 0곳이면 빈 상태 (칩은 전부 목록을 좁히는 필터다)", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });

@@ -249,8 +249,32 @@ body {
   background: url("/shrimp.webp") center / contain no-repeat;
 }
 /* 신규(7일 이내): 점선 링 */
-.saeu-marker--new {
-  border-style: dashed;
+/* 신규(7일): 마커 위 NEW 배지. 점선 링은 뺐다 — 배지가 같은 말을 더 크게 하므로 링은 카테고리 색으로
+   돌려준다(구이 코랄 / 회 틸). 래퍼가 필요한 이유는 .saeu-marker가 썸네일을 원으로 자르려고
+   overflow: hidden이라 안에 둔 배지가 잘리기 때문이다. 래퍼는 정확히 마커 크기라 앵커가 안 바뀐다. */
+.saeu-marker-wrap {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+.saeu-marker__new {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-max);
+  background: var(--color-brand);
+  color: var(--color-fg-on-brand);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-l-semibold);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  box-shadow: var(--shadow-marker);
+  /* 배지가 아래 마커의 클릭을 뺏지 않는다 — 신규 핀이 이웃 핀을 눌러 가리는 일이 없게 */
+  pointer-events: none;
 }
 /* 6개월 무활동: 투명도만 낮춤 */
 .saeu-marker--inactive {

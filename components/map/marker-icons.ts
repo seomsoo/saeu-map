@@ -69,9 +69,15 @@ export function getPlaceMarkerIcon(
   const inner = thumb
     ? `<img class="saeu-marker__img" src="${thumb}" alt="" draggable="false" />`
     : `<span class="saeu-marker__dot"></span>`;
+  const marker = `<div class="${classes}">${inner}</div>`;
+  // 신규만 래퍼를 씌운다 — 400개 마커 전부에 빈 div를 더하지 않는다.
+  // 배지는 마커 위로 넘치지만 래퍼가 마커와 같은 36px이라 size·anchor는 그대로다.
+  const content = style.isNew
+    ? `<div class="saeu-marker-wrap"><span class="saeu-marker__new">NEW</span>${marker}</div>`
+    : marker;
 
   const icon: naver.maps.HtmlIcon = {
-    content: `<div class="${classes}">${inner}</div>`,
+    content,
     size: new navermaps.Size(PLACE_MARKER_SIZE, PLACE_MARKER_SIZE),
     anchor: new navermaps.Point(PLACE_MARKER_SIZE / 2, PLACE_MARKER_SIZE / 2),
   };

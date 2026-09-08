@@ -228,6 +228,7 @@ function MapScreenBody({
           places={s.sorted}
           count={s.inViewCount}
           areaLabel={s.areaLabel}
+          onShowNew={s.showNewPlaces}
           stats={stats}
           eventCard={eventCard && !s.eventDismissed ? eventCard : null}
           now={now}
