@@ -10,6 +10,7 @@ import { Toast } from "@/components/ui/toast";
 import { getAdminStats } from "@/lib/data";
 import type { AdminStats } from "@/lib/types";
 import { PendingTab } from "./pending-tab";
+import { ReportsTab } from "./reports-tab";
 
 export type AdminTab = "pending" | "reports" | "edits" | "search" | "stats";
 
@@ -114,7 +115,7 @@ function AdminShell({ now }: { now: string }) {
         </div>
         <div className="pt-4">
           {tab === "pending" && <PendingTab now={now} onNotice={showNotice} />}
-          {tab === "reports" && <AdminTabPlaceholder label="신고·요청" />}
+          {tab === "reports" && <ReportsTab now={now} onNotice={showNotice} />}
           {tab === "edits" && <AdminTabPlaceholder label="수정 이력" />}
           {tab === "search" && <AdminTabPlaceholder label="검색" />}
           {tab === "stats" && <AdminTabPlaceholder label="통계" />}
