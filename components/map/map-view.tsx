@@ -611,12 +611,24 @@ const PlaceMarker = memo(function PlaceMarker({
   const handleClick = useCallback(() => {
     onSelect(place.id);
   }, [onSelect, place.id]);
-  // 툴팁 위치는 마커 좌표를 컨테이너 픽셀로 (panTo와 같은 투영). 마우스 위치가 아니라 마커 위에 고정
+  /*
+   * 툴팁 위치는 마커 좌표를 **컨테이너 픽셀**로 (마우스 위치가 아니라 마커 위에 고정).
+   *
+   * `fromCoordToOffset`이 주는 건 컨테이너 좌표가 아니라 **오버레이 pane 좌표**다 — 그 pane은
+   * 지도를 끌 때마다 translate되므로 그 값을 그대로 `left/top`에 쓰면 프리뷰가 엉뚱한 곳에 뜬다
+   * (1440에서 218px 어긋난 걸 실측, 2026-09-08). 그래서 **두 offset의 차**로 바꾼다:
+   * 중심의 offset을 빼면 pane 이동분이 상쇄되고, 컨테이너 중앙(size/2)에 더하면 컨테이너 픽셀이 된다.
+   * 위 `panTo`가 쓰는 식(중앙 기준 offset 차)의 역산이라 같은 투영을 공유한다.
+   */
   const handleMouseover = useCallback(() => {
-    const offset = map
-      .getProjection()
-      .fromCoordToOffset(new navermaps.LatLng(place.lat, place.lng));
-    onHover(place, { x: offset.x, y: offset.y });
+    const projection = map.getProjection();
+    const size = map.getSize();
+    const target = projection.fromCoordToOffset(new navermaps.LatLng(place.lat, place.lng));
+    const center = projection.fromCoordToOffset(map.getCenter());
+    onHover(place, {
+      x: size.width / 2 + (target.x - center.x),
+      y: size.height / 2 + (target.y - center.y),
+    });
   }, [map, navermaps, place, onHover]);
   const handleMouseout = useCallback(() => {
     onHover(place, null);
