@@ -1,3 +1,6 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import Script from "next/script";
 
 /**
@@ -9,9 +12,13 @@ import Script from "next/script";
  *
  * Cloudflare Web Analytics와 **같이 쓴다**: CF는 방문자·유입(쿠키 없이), GA4는 퍼널
  * ("제보를 시작한 사람 중 몇 %가 끝냈나")을 본다 — CF로는 못 보는 값이다.
+ *
+ * **`/admin`에서는 붙이지 않는다**: 운영자의 관리 경로·체류가 Google로 나갈 이유가 없고,
+ * 우리가 보려는 건 사용자 퍼널이지 우리 자신의 클릭이 아니다(security-reviewer 2026-09-08).
  */
 export function GoogleAnalytics({ measurementId }: { measurementId: string | undefined }) {
-  if (measurementId === undefined) return null;
+  const pathname = usePathname();
+  if (measurementId === undefined || pathname.startsWith("/admin")) return null;
   return (
     <>
       <Script

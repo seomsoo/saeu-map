@@ -1,6 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+
+const nav = vi.hoisted(() => ({ pathname: "/" }));
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
 
 // next/script는 로딩 전략을 실제로 태우므로 테스트에선 평범한 태그로 바꾼다
 vi.mock("next/script", () => ({
@@ -12,6 +15,10 @@ vi.mock("next/script", () => ({
 }));
 
 describe("GA4 배선", () => {
+  beforeEach(() => {
+    nav.pathname = "/";
+  });
+
   it("측정 ID가 없으면 아무것도 붙이지 않는다 — dev·프리뷰 수집 0", () => {
     const { container } = render(<GoogleAnalytics measurementId={undefined} />);
     expect(container.querySelectorAll("script")).toHaveLength(0);
@@ -27,5 +34,11 @@ describe("GA4 배선", () => {
     expect(scripts[1]?.textContent).toContain("gtag('config','G-ABC123')");
     // 첫 화면이 그려진 뒤에 받는다 — LCP 예산(error 12s)을 지킨다
     expect(scripts.every((s) => s.getAttribute("strategy") === "lazyOnload")).toBe(true);
+  });
+
+  it("/admin에서는 안 붙는다 — 운영자의 관리 경로가 Google로 나갈 이유가 없다", () => {
+    nav.pathname = "/admin";
+    const { container } = render(<GoogleAnalytics measurementId="G-ABC123" />);
+    expect(container.querySelectorAll("script")).toHaveLength(0);
   });
 });

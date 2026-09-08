@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ADMIN_PAGE_SIZE,
-  AUTO_HIDE_REPORT_COUNT,
+  REPORT_ATTENTION_COUNT,
   MAX_PHOTO_BYTES,
   MAX_PLACE_PHOTOS,
   MOCK_FAILURE_RATE,
@@ -21,6 +21,7 @@ import {
   getPlaceDetail,
   getAdminStats,
   getPlaceEdits,
+  getPlacesForAdmin,
   getReports,
   getPlaces,
   getReviews,
@@ -30,6 +31,7 @@ import {
   confirmPlace,
   deletePlace,
   reportPhoto,
+  openReportCount,
   reportPlace,
   resolveReport,
   revertPlaceEdit,
@@ -1096,25 +1098,35 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
     );
   });
 
-  it("신고 3회 자동 숨김은 **사람 기준**이다 — 혼자 세 번은 안 숨긴다", async () => {
-    const target = (await getPlaces({}, NOW)).find((p) => p.id === "p012") ?? (await getPlaces({}, NOW))[0];
+  it("신고가 쌓여도 **자동으로 숨기지 않는다** — 익명 id 회전이 공짜라 무기가 된다", async () => {
+    const target = (await getPlaces({}, NOW))[0];
     if (!target) throw new Error("no place");
-    for (let i = 0; i < AUTO_HIDE_REPORT_COUNT + 1; i += 1) {
+    // 서로 다른 익명 id로 여러 번 (예전엔 이걸로 남의 가게가 지도에서 사라졌다)
+    for (let i = 0; i < REPORT_ATTENTION_COUNT + 2; i += 1) {
+      await signOut();
       await settle(reportPlace({ placeId: target.id, reason: "fake" }));
     }
     expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(true);
+    expect(await getPlaceById(target.id, NOW)).toBeDefined();
+    // 대신 관리자 화면이 "많이 신고됨"으로 띄울 수를 센다
+    expect(openReportCount(target.id)).toBeGreaterThanOrEqual(REPORT_ATTENTION_COUNT);
+  });
 
-    // 서로 다른 사람 셋이면 숨는다
-    for (let i = 0; i < AUTO_HIDE_REPORT_COUNT; i += 1) {
-      await signOut(); // 새 익명 id
-      await settle(reportPlace({ placeId: target.id, reason: "fake" }));
-    }
+  it("숨김은 운영자가 누른다 — 사용자 읽기에서 빠지고 관리자 검색엔 남는다", async () => {
+    const target = (await getPlaces({}, NOW)).at(-1);
+    if (!target) throw new Error("no place");
+    await setAdmin(true);
+    await settle(setPlaceHidden(target.id, true, NOW));
     expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(false);
     expect(await getPlaceById(target.id, NOW)).toBeUndefined();
     expect(await getPlaceDetail(target.id, NOW)).toBeUndefined();
-    // 관리자 검색에는 보인다 — 복구하려면 찾을 수 있어야 한다
-    await setAdmin(true);
+    // 관리자 조인·검색에는 보인다 — 복구하려면 찾을 수 있어야 한다
     expect((await searchPlacesForAdmin(target.name, NOW)).some((p) => p.id === target.id)).toBe(true);
+    expect((await getPlacesForAdmin(NOW)).some((p) => p.id === target.id)).toBe(true);
+
+    // **날짜가 바뀌어도 풀리지 않는다** — 숨김은 날짜 캐시 밖에 산다
+    const tomorrow = new Date(Date.parse(NOW) + 86_400_000).toISOString();
+    expect((await getPlaces({}, tomorrow)).some((p) => p.id === target.id)).toBe(false);
 
     const restored = await settle(setPlaceHidden(target.id, false, NOW));
     expect("hiddenAt" in restored).toBe(false);

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
-import { ADMIN_PAGE_SIZE, getPlaces, getReports, resolveReport, setPlaceHidden } from "@/lib/data";
+import { ADMIN_PAGE_SIZE, getPlacesForAdmin, getReports, resolveReport, setPlaceHidden } from "@/lib/data";
 import { copyText } from "@/lib/share";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Report, ReportKind } from "@/lib/types";
@@ -90,7 +90,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
   const load = useCallback(async () => {
     const [rows, places] = await Promise.all([
       getReports({ status: "open", now, sinceDays: period, limit }),
-      getPlaces({}, now),
+      getPlacesForAdmin(now),
     ]);
     return rows.map((r) => ({ report: r, place: places.find((p) => p.id === r.placeId) }));
   }, [now, period, limit]);
@@ -149,7 +149,7 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
             <AdminTable label="신고·요청" columns={COLUMNS}>
             {shown.map(({ report, place }) => {
               const busy = pending === report.id;
-              const hidden = place === undefined || place.hiddenAt !== undefined;
+              const hidden = place !== undefined && place.hiddenAt !== undefined;
               return (
                 <AdminRow key={report.id}>
                   <AdminCell>
@@ -159,7 +159,8 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
                     />
                   </AdminCell>
                   <AdminCell className="text-body-m-medium text-fg">
-                    {place?.name ?? "숨겨진 가게"}
+                    {place?.name ?? "없는 가게"}
+                    {hidden && <span className="ml-1.5 text-caption-l-regular text-brand-fg">숨김</span>}
                   </AdminCell>
                   <AdminCell className="text-fg-secondary">{bodyOf(report)}</AdminCell>
                   <AdminCell align="right">

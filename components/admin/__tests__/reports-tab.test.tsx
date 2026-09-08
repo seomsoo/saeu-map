@@ -6,14 +6,14 @@ import { ReportsTab } from "../reports-tab";
 
 const data = vi.hoisted(() => ({
   getReports: vi.fn<(f?: unknown) => Promise<Report[]>>(),
-  getPlaces: vi.fn<(f: unknown, now: string) => Promise<Place[]>>(),
+  getPlacesForAdmin: vi.fn<(now: string) => Promise<Place[]>>(),
   resolveReport: vi.fn<(id: string, status: string) => Promise<Report>>(),
   setPlaceHidden: vi.fn<(id: string, hidden: boolean, now: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   getReports: data.getReports,
-  getPlaces: data.getPlaces,
+  getPlacesForAdmin: data.getPlacesForAdmin,
   resolveReport: data.resolveReport,
   setPlaceHidden: data.setPlaceHidden,
 }));
@@ -40,10 +40,10 @@ function renderTab() {
 describe("신고·요청 탭 (design 화면 10-2)", () => {
   beforeEach(() => {
     data.getReports.mockReset();
-    data.getPlaces.mockReset();
+    data.getPlacesForAdmin.mockReset();
     data.resolveReport.mockReset();
     data.setPlaceHidden.mockReset();
-    data.getPlaces.mockResolvedValue([nara]);
+    data.getPlacesForAdmin.mockResolvedValue([nara]);
   });
 
   it("네 종류가 한 표에 모이고 사유는 사용자 화면과 같은 말로 읽힌다", async () => {
@@ -99,6 +99,17 @@ describe("신고·요청 탭 (design 화면 10-2)", () => {
     expect(data.resolveReport).toHaveBeenCalledWith("rp1", "done");
     // 열린 목록을 다시 읽는다 — 처리한 행은 빠져야 한다
     expect(data.getReports).toHaveBeenCalledTimes(2);
+  });
+
+  it("숨겨진 가게도 상호가 보이고 [복구]가 뜬다 — 오탐을 되돌릴 길이 있어야 한다", async () => {
+    data.getReports.mockResolvedValue([report({ kind: "place_report" })]);
+    data.getPlacesForAdmin.mockResolvedValue([{ ...nara, hiddenAt: NOW }]);
+    renderTab();
+    const table = await screen.findByRole("table", { name: "신고·요청" });
+    // 사용자 읽기로 조인하면 여기서 상호가 사라지고 복구 버튼도 안 나왔다 (security-reviewer 2026-09-08)
+    expect(within(table).getByText("나라수산")).toBeInTheDocument();
+    expect(within(table).getByText("숨김")).toBeInTheDocument();
+    expect(within(table).getByRole("button", { name: "복구" })).toBeInTheDocument();
   });
 
   it("가게 신고에만 [숨김]이 붙고, 이미 숨겨진 가게면 [복구]다", async () => {

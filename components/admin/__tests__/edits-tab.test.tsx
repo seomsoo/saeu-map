@@ -6,13 +6,13 @@ import { EditsTab } from "../edits-tab";
 
 const data = vi.hoisted(() => ({
   getPlaceEdits: vi.fn<() => Promise<PlaceEdit[]>>(),
-  getPlaces: vi.fn<(f: unknown, now: string) => Promise<Place[]>>(),
+  getPlacesForAdmin: vi.fn<(now: string) => Promise<Place[]>>(),
   revertPlaceEdit: vi.fn<(id: string, now: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   getPlaceEdits: data.getPlaceEdits,
-  getPlaces: data.getPlaces,
+  getPlacesForAdmin: data.getPlacesForAdmin,
   revertPlaceEdit: data.revertPlaceEdit,
 }));
 
@@ -44,13 +44,13 @@ function renderTab() {
 describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (design 화면 10-3)", () => {
   beforeEach(() => {
     data.getPlaceEdits.mockReset();
-    data.getPlaces.mockReset();
+    data.getPlacesForAdmin.mockReset();
     data.revertPlaceEdit.mockReset();
   });
 
   it("영업시간·주소는 이전 값과 지금 값을 나란히", async () => {
     data.getPlaceEdits.mockResolvedValue([edit()]);
-    data.getPlaces.mockResolvedValue([
+    data.getPlacesForAdmin.mockResolvedValue([
       makePlace({ id: "nara", name: "나라수산", hoursNote: "새벽 2시까지" }),
     ]);
     renderTab();
@@ -65,7 +65,7 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
 
   it("메뉴는 바뀐 줄만 여러 줄로 — 가격 변경·삭제·추가", async () => {
     data.getPlaceEdits.mockResolvedValue([edit({ field: "menus" })]);
-    data.getPlaces.mockResolvedValue([
+    data.getPlacesForAdmin.mockResolvedValue([
       makePlace({
         id: "nara",
         name: "나라수산",
@@ -89,7 +89,7 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
 
   it("사이드는 켜고 꺼진 것만", async () => {
     data.getPlaceEdits.mockResolvedValue([edit({ field: "sides" })]);
-    data.getPlaces.mockResolvedValue([
+    data.getPlacesForAdmin.mockResolvedValue([
       makePlace({
         id: "nara",
         name: "나라수산",
@@ -109,14 +109,14 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
     const rest: PlaceEdit = { ...withActor };
     delete rest.actor; // 탈퇴하면 actor가 떨어진다
     data.getPlaceEdits.mockResolvedValue([rest]);
-    data.getPlaces.mockResolvedValue([makePlace({ id: "nara", name: "나라수산" })]);
+    data.getPlacesForAdmin.mockResolvedValue([makePlace({ id: "nara", name: "나라수산" })]);
     renderTab();
     expect(await screen.findByText("탈퇴한 사용자")).toBeInTheDocument();
   });
 
   it("되돌리기는 확인 없이 즉시 + 토스트, 그리고 목록을 다시 읽는다(되돌린 것도 이력이다)", async () => {
     data.getPlaceEdits.mockResolvedValue([edit()]);
-    data.getPlaces.mockResolvedValue([makePlace({ id: "nara", name: "나라수산" })]);
+    data.getPlacesForAdmin.mockResolvedValue([makePlace({ id: "nara", name: "나라수산" })]);
     data.revertPlaceEdit.mockResolvedValue(makePlace({ id: "nara", name: "나라수산" }));
     const { onNotice } = renderTab();
     const table = await screen.findByRole("table", { name: "수정 이력" });
@@ -131,7 +131,7 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
   });
 
   it("빈 목록·에러", async () => {
-    data.getPlaces.mockResolvedValue([]);
+    data.getPlacesForAdmin.mockResolvedValue([]);
     data.getPlaceEdits.mockRejectedValueOnce(new Error("forbidden")).mockResolvedValue([]);
     renderTab();
     expect(await screen.findByRole("button", { name: "다시 시도" })).toBeInTheDocument();

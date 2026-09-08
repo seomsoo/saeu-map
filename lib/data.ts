@@ -120,6 +120,14 @@ interface Dataset {
 
 const datasetCache = new Map<number, Dataset>();
 
+/**
+ * 운영 상태(숨김·사후 확인) — **날짜 캐시 밖에 둔다.** `dataset()`은 KST 날짜가 바뀌면 `rawPlaces`에서
+ * 다시 만들기 때문에 캐시 안 객체에만 찍으면 **자정에 숨김이 통째로 풀린다**(security-reviewer 2026-09-08).
+ * `deletedReviewIds`가 id Set으로 살아남는 것과 같은 이유다. Phase 6에선 그냥 컬럼이다.
+ */
+type PlaceOps = Pick<Place, "hiddenAt" | "verifiedAt" | "removedByOwner">;
+const placeOps = new Map<string, PlaceOps>();
+
 function dataset(now: DateInput): Dataset {
   const today = kstDayIndex(now);
   const cached = datasetCache.get(today);
@@ -154,6 +162,8 @@ function dataset(now: DateInput): Dataset {
         ...(createdAt !== undefined && { createdAt }),
         // 신규 라벨은 JSON의 정적 플래그가 아니라 등록 7일 이내로 파생 (spec 5)
         isNew: createdAt !== undefined && isWithinNewWindow(createdAt, now),
+        // 운영 상태는 날짜와 무관하다 — 매일 새로 만드는 이 객체에 덧씌운다
+        ...placeOps.get(raw.id),
       };
     });
 
@@ -377,7 +387,8 @@ export function getSeasonStats(
     weekPlaceCount: counts.size,
     todayCheckinCount,
     topPlace,
-    newPlaceCount: places.filter((p) => p.isNew).length,
+    // 숨긴 신규 가게는 카운터에서도 빠진다 — 사용자에게 없는 가게다
+    newPlaceCount: visiblePlaces(places).filter((p) => p.isNew).length,
   });
 }
 
@@ -415,11 +426,13 @@ export function getGuCenter(name: string): Promise<LatLng | null> {
  * 캐시된 데이터셋의 Place는 새 객체로 교체한다(React state와 참조 동일성 계약).
  * 취소는 없다(spec 5). 핀당 하루 1회 제한은 컴포넌트 상태로(속도 제한 자리, Phase 6 Upstash).
  */
+/* 아래 쓰기 셋(확인·리뷰·수정 제안)과 사진 올리기는 `visiblePlaces`를 지난다 — 숨긴 가게에 쓰면
+   숨김을 풀었을 때 그 사이 값이 살아 있다(security-reviewer 2026-09-08). */
 export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
   const id = idSchema.parse(placeId);
   await simulateWrite();
   const data = dataset(now);
-  const current = data.places.find((p) => p.id === id);
+  const current = visiblePlaces(data.places).find((p) => p.id === id);
   if (!current) throw new Error("place not found");
   // `now`는 목 데이터셋 조회·낙관 표시용이다. Phase 6(Supabase)에서는 확인 시각 `at`을 서버가 정한다 — 클라이언트 값을 저장하지 말 것.
   const at = new Date(toMs(now)).toISOString();
@@ -459,6 +472,8 @@ export async function reportPhoto(input: {
   const parsed = photoReportSchema.parse(input);
   const actor = currentSession.userId;
   await simulateWrite();
+  // 없는 가게로 큐를 채우지 못하게 (setBookmark의 가드와 같은 규칙, security-reviewer 2026-09-08)
+  if (!placeExists(parsed.placeId)) throw new Error("place not found");
   pushReport({ kind: "photo_report", placeId: parsed.placeId, photoId: parsed.photoId, reason: parsed.reason, actor });
 }
 
@@ -710,11 +725,14 @@ export async function deleteAccount(): Promise<Session> {
     delete rest.actor;
     placeEdits[i] = rest;
   }
-  // 신고·요청도 운영 기록이라 남기고 개인 식별자만 뗀다 (이력·checkins와 같은 규칙)
+  // 신고·요청은 운영 기록이라 남기되 **개인 식별자와 연락처를 뗀다** — actor만 떼면 정작 개인정보인
+  // 사장님 연락처·내용이 영구히 남는다(spec 5 "개인 데이터 완전 삭제", security-reviewer 2026-09-08)
   for (const [i, report] of reports.entries()) {
     if (report.actor !== me) continue;
     const rest: Report = { ...report };
     delete rest.actor;
+    delete rest.contact;
+    delete rest.message;
     reports[i] = rest;
   }
   bookmarksByUser.delete(me);
@@ -799,7 +817,7 @@ export async function submitReview(
   if (myReviewOf(parsed.placeId, now)) throw new Error("already reviewed");
   await simulateWrite();
   const data = dataset(now);
-  const current = data.places.find((p) => p.id === parsed.placeId);
+  const current = visiblePlaces(data.places).find((p) => p.id === parsed.placeId);
   if (!current) throw new Error("place not found");
   const at = new Date(toMs(now)).toISOString();
   reviewSeq += 1;
@@ -862,7 +880,8 @@ export async function deleteReview(reviewId: string): Promise<void> {
 /** 내 활동 > 내 리뷰 — 현재 세션이 쓴 리뷰(최신순) + 가게명. 숨긴 가게의 리뷰는 뺀다. */
 export function getMyReviews(now: DateInput): Promise<MyReview[]> {
   const { places, reviews } = dataset(now);
-  const names = new Map(places.map((p) => [p.id, p.name]));
+  // 숨긴 가게의 리뷰는 목록에서 빠진다 — 이름이 남으면 눌렀을 때 404로 간다(security-reviewer 2026-09-08)
+  const names = new Map(visiblePlaces(places).map((p) => [p.id, p.name]));
   const mine = sortReviewsNewest(
     visibleReviews(reviews).filter((r) => r.authorId === currentSession.userId),
   ).flatMap((r) => {
@@ -894,6 +913,7 @@ export async function flagPlace(input: { placeId: string; reason: PlaceFlagReaso
   const parsed = placeFlagSchema.parse(input);
   const actor = currentSession.userId;
   await simulateWrite();
+  if (!placeExists(parsed.placeId)) throw new Error("place not found");
   pushReport({ kind: "place_flag", placeId: parsed.placeId, reason: parsed.reason, actor });
 }
 
@@ -1000,7 +1020,7 @@ export async function submitSuggestion(input: SuggestionInput, now: DateInput): 
   const actor = currentSession.userId;
   await simulateWrite();
   const data = dataset(now);
-  const current = data.places.find((p) => p.id === parsed.placeId);
+  const current = visiblePlaces(data.places).find((p) => p.id === parsed.placeId);
   if (!current) throw new Error("place not found");
 
   const before: PlaceEdit["before"] = {
@@ -1059,8 +1079,8 @@ export async function reportPlace(input: {
   const parsed = placeReportSchema.parse(input);
   const actor = currentSession.userId;
   await simulateWrite();
-  const report = pushReport({ kind: "place_report", placeId: parsed.placeId, reason: parsed.reason, actor });
-  autoHideIfReported(report.placeId);
+  if (!placeExists(parsed.placeId)) throw new Error("place not found");
+  pushReport({ kind: "place_report", placeId: parsed.placeId, reason: parsed.reason, actor });
 }
 
 /**
@@ -1088,6 +1108,7 @@ export async function submitOwnerRequest(input: OwnerRequestInput): Promise<void
   const parsed = ownerRequestSchema.parse(input);
   const actor = currentSession.userId;
   await simulateWrite();
+  if (!placeExists(parsed.placeId)) throw new Error("place not found");
   pushReport({
     kind: "owner_request",
     placeId: parsed.placeId,
@@ -1128,7 +1149,7 @@ export async function addPlacePhotos(
   const actor = currentSession.userId;
   await simulateWrite();
   const data = dataset(now);
-  const current = data.places.find((p) => p.id === parsed.placeId);
+  const current = visiblePlaces(data.places).find((p) => p.id === parsed.placeId);
   if (!current) throw new Error("place not found");
   const room = MAX_PLACE_PHOTOS - current.photos.length;
   if (room <= 0) throw new Error("photo limit reached");
@@ -1156,8 +1177,16 @@ export function setAdmin(on: boolean): Promise<Session> {
   return Promise.resolve(currentSession);
 }
 
-/** 신고 3회면 자동 숨김 (spec 5). **같은 사람의 반복은 1로 센다** — 혼자 세 번 눌러 남의 가게를 내리지 못하게. */
-export const AUTO_HIDE_REPORT_COUNT = 3;
+/**
+ * 신고가 이만큼 쌓이면 관리자 화면에서 **눈에 띄게 표시한다**(spec 5의 "신고 3회").
+ *
+ * **자동으로 숨기지는 않는다**(2026-09-08 뒤집음). 원래는 3회면 숨겼는데 security-reviewer가
+ * 그게 무기가 된다는 걸 보여줬다: 익명 id는 로그아웃·새로고침마다 새로 나오고 **회전 비용이 0**이라
+ * 한 사람이 세 번 눌러 남의 가게를 모든 사용자 지도에서 지울 수 있었다. actor 기준 중복 제거는
+ * 그 앞에서 무력하다. 자동 숨김은 **spec 5 스팸 4겹(Turnstile·속도 제한·기기 식별)이 선 뒤에야 성립한다**
+ * — Phase 6로 미루고, 그때까지는 운영자가 보고 누른다(오탐을 되돌릴 사람이 항상 있는 편이 낫다).
+ */
+export const REPORT_ATTENTION_COUNT = 3;
 
 /**
  * 관리자 목록이 한 번에 가져오는 최대 행 수. **양 제한이 없으면 이력이 쌓일수록 표가 통째로 그려져
@@ -1202,8 +1231,8 @@ function patchPlaceSync(data: Dataset, placeId: string, patch: (place: Place) =>
 }
 
 /**
- * 모든 날짜 캐시에 같은 변경을 건다 — 숨김·확인은 "언제 보느냐"와 무관한 운영 상태라
- * `now`가 다른 데이터셋에서 되살아나면 안 된다(`deleteAccount`와 같은 규칙).
+ * 운영 상태를 바꾼다 — **`placeOps` 맵이 진실이고** 이미 만들어진 날짜 캐시들에 같은 값을 덧씌운다.
+ * 맵에 안 남기면 다음 날 `dataset()`이 원본에서 다시 만들면서 숨김이 풀린다(security-reviewer 2026-09-08).
  */
 function patchPlaceEverywhere(placeId: string, patch: (place: Place) => Place): Place {
   let result: Place | null = null;
@@ -1212,6 +1241,11 @@ function patchPlaceEverywhere(placeId: string, patch: (place: Place) => Place): 
     result = patchPlaceSync(data, placeId, patch);
   }
   if (!result) throw new Error("place not found");
+  const ops: PlaceOps = {};
+  if (result.hiddenAt !== undefined) ops.hiddenAt = result.hiddenAt;
+  if (result.verifiedAt !== undefined) ops.verifiedAt = result.verifiedAt;
+  if (result.removedByOwner === true) ops.removedByOwner = true;
+  placeOps.set(placeId, ops);
   return result;
 }
 
@@ -1226,18 +1260,11 @@ function pushReport(input: Omit<Report, "id" | "at" | "status">): Report {
   return report;
 }
 
-/** 가게 신고가 서로 다른 사람 3명에게서 오면 숨긴다. 이미 숨겨져 있으면 아무것도 하지 않는다. */
-function autoHideIfReported(placeId: string): void {
-  const actors = new Set(
-    reports
-      .filter((r) => r.kind === "place_report" && r.placeId === placeId && r.status !== "dismissed")
-      .map((r) => r.actor ?? r.id), // 탈퇴로 actor가 떨어진 건 각각 한 사람으로 본다
-  );
-  if (actors.size < AUTO_HIDE_REPORT_COUNT) return;
-  const at = new Date().toISOString();
-  for (const data of datasetCache.values()) {
-    data.places = data.places.map((p) => (p.id === placeId && p.hiddenAt === undefined ? { ...p, hiddenAt: at } : p));
-  }
+/** 이 가게에 열려 있는 가게 신고 수 — 관리자 화면이 "많이 신고됨"을 띄우는 잣대다(숨기지는 않는다). */
+export function openReportCount(placeId: string): number {
+  return reports.filter(
+    (r) => r.kind === "place_report" && r.placeId === placeId && r.status === "open",
+  ).length;
 }
 
 /**
@@ -1312,8 +1339,10 @@ export function deletePlace(placeId: string, now: DateInput, byOwner = false): P
  * 그래서 확인 모달이 없다(파괴적인 건 삭제뿐).
  */
 export async function revertPlaceEdit(editId: string, now: DateInput): Promise<Place> {
-  await requireAdmin();
+  // 행위자는 **첫 await 앞에서** 잡는다 — requireAdmin이 Phase 6에서 실제 왕복이 되면
+  // 그 사이 바뀐 세션이 이력의 actor로 남는다 (CLAUDE.md 쓰기 규칙, security-reviewer 2026-09-08)
   const actor = currentSession.userId;
+  await requireAdmin();
   await simulateWrite();
   const edit = placeEdits.find((e) => e.id === editId);
   if (!edit) throw new Error("edit not found");
@@ -1343,6 +1372,16 @@ export async function revertPlaceEdit(editId: string, now: DateInput): Promise<P
  * 검색 탭 — **숨긴 가게도 보여야 한다**(복구하려면 찾을 수 있어야 하니까). 상호 부분 일치, 최대 30.
  * 사용자 검색(`getPlaces`)과 달리 숨김을 걸러내지 않으므로 게이트가 필요하다.
  */
+/**
+ * 관리자 화면이 가게를 조인할 때 쓰는 읽기 — **숨긴 가게가 들어 있다.**
+ * 사용자 읽기(`getPlaces`)로 조인하면 숨겨진 가게가 `undefined`가 되어 상호도, [복구] 버튼도 사라진다
+ * → 자동/수동 숨김의 오탐을 되돌릴 길이 없어진다(security-reviewer 2026-09-08).
+ */
+export async function getPlacesForAdmin(now: DateInput): Promise<Place[]> {
+  await requireAdmin();
+  return [...dataset(now).places];
+}
+
 export async function searchPlacesForAdmin(query: string, now: DateInput): Promise<Place[]> {
   await requireAdmin();
   const q = normalizeQuery(query);

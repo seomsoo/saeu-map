@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ADMIN_PAGE_SIZE, getPlaceEdits, getPlaces, revertPlaceEdit } from "@/lib/data";
+import { ADMIN_PAGE_SIZE, getPlaceEdits, getPlacesForAdmin, revertPlaceEdit } from "@/lib/data";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place, PlaceEdit } from "@/lib/types";
 import {
@@ -46,7 +46,7 @@ export function EditsTab({ now, onNotice }: { now: string; onNotice: (m: string)
   const load = useCallback(async () => {
     const [edits, places] = await Promise.all([
       getPlaceEdits({ now, sinceDays: period, limit }),
-      getPlaces({}, now),
+      getPlacesForAdmin(now),
     ]);
     return edits.map((edit) => ({ edit, place: places.find((p) => p.id === edit.placeId) }));
   }, [now, period, limit]);
