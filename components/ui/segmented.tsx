@@ -3,6 +3,8 @@ import { cx } from "@/lib/cx";
 export interface SegmentOption<K extends string> {
   key: K;
   label: string;
+  /** 라벨 오른쪽 숙제 수 — 0·없음이면 안 그린다 (관리자 탭, design 화면 10) */
+  badge?: number | undefined;
 }
 
 interface SegmentedProps<K extends string> {
@@ -44,6 +46,16 @@ export function Segmented<K extends string>({
             )}
           >
             {option.label}
+            {option.badge !== undefined && option.badge > 0 && (
+              <span
+                className={cx(
+                  "ml-1 rounded-max px-1.5 text-caption-l-medium tabular-nums",
+                  selected ? "bg-brand-tint text-brand-fg" : "bg-bg text-fg-tertiary",
+                )}
+              >
+                {option.badge}
+              </span>
+            )}
           </button>
         );
       })}
