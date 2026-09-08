@@ -4,21 +4,28 @@ import { Button } from "@/components/ui/button";
 import { ChipButton } from "@/components/ui/chip";
 import { TextField } from "@/components/ui/text-field";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
+import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import { SIDE_KEYS, SIDE_LABELS } from "@/lib/places";
 import type { Sides } from "@/lib/types";
 import { PhotoPicker } from "./photo-picker";
 import { StepFrame } from "./step-frame";
 
 export const HOURS_NOTE_MAX = 80;
+/** 붙여넣기 링크 상한 — naver.me 단축·place 전체 URL 모두 넉넉히 들어간다 */
+export const NAVER_URL_MAX = 200;
+export const NAVER_URL_ERROR = "네이버 지도 링크만 넣을 수 있어요";
 
 interface StepExtrasProps {
   photos: readonly File[];
   sides: Sides;
   hoursNote: string;
+  /** 사용자가 붙여넣은 네이버 지도 링크(선택) */
+  naverPlaceUrl: string;
   submitting: boolean;
   onPhotosChange: (files: File[]) => void;
   onSidesChange: (sides: Sides) => void;
   onHoursNoteChange: (value: string) => void;
+  onNaverPlaceUrlChange: (value: string) => void;
   onBack: () => void;
   onSubmit: () => void;
 }
@@ -31,15 +38,23 @@ export function StepExtras({
   photos,
   sides,
   hoursNote,
+  naverPlaceUrl,
   submitting,
   onPhotosChange,
   onSidesChange,
   onHoursNoteChange,
+  onNaverPlaceUrlChange,
   onBack,
   onSubmit,
 }: StepExtrasProps) {
+  const naverUrl = naverPlaceUrl.trim();
+  // 붙여넣는 즉시 알려준다 — 등록 버튼까지 갔다가 실패하면 어디가 틀렸는지 모른다
+  const naverUrlError = naverUrl !== "" && !isAllowedNaverPlaceUrl(naverUrl) ? NAVER_URL_ERROR : null;
   const hasExtras =
-    photos.length > 0 || SIDE_KEYS.some((key) => sides[key]) || hoursNote.trim().length > 0;
+    photos.length > 0 ||
+    SIDE_KEYS.some((key) => sides[key]) ||
+    hoursNote.trim().length > 0 ||
+    naverUrl !== "";
   const label = submitting ? "등록 중…" : hasExtras ? "등록하기" : "건너뛰고 등록";
 
   return (
@@ -53,7 +68,7 @@ export function StepExtras({
           variant="brand"
           size="xl"
           className="w-full"
-          disabled={submitting}
+          disabled={submitting || naverUrlError !== null}
           aria-busy={submitting || undefined}
           onClick={onSubmit}
         >
@@ -96,6 +111,25 @@ export function StepExtras({
         }}
         autoComplete="off"
       />
+
+      {/* 사용자가 붙여넣은 링크만 저장한다 — 좌표로 주소·플레이스를 받아오는 건 지도 API 약관이 막는다
+          (규칙 2, decisions 2026-09-08). 이 값이 있으면 상세에 "네이버에서 사진 보기"가 살아난다 */}
+      <TextField
+        className="mt-7"
+        label="네이버 지도 링크"
+        placeholder="네이버 지도 → 공유 → 링크 복사"
+        inputMode="url"
+        maxLength={NAVER_URL_MAX}
+        value={naverPlaceUrl}
+        error={naverUrlError}
+        onChange={(e) => {
+          onNaverPlaceUrlChange(e.target.value);
+        }}
+        autoComplete="off"
+      />
+      <p className="mt-1.5 text-caption-l-regular text-fg-tertiary">
+        넣어주시면 상세에서 네이버 사진을 바로 볼 수 있어요
+      </p>
     </StepFrame>
   );
 }

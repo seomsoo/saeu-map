@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AddressHit } from "@/components/map/map-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
@@ -15,6 +15,16 @@ vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
   return { ...original, submitReport: dataMocks.submitReport, getGuOfPoint: dataMocks.getGuOfPoint };
+});
+
+/**
+ * 구 경계 파일(서울 60KB + 전국 180KB)은 **첫 사용 때 동적 import**된다. 그 비용이 `findBy`의 기본
+ * 1초 창 안에 들어오면 부하가 걸린 머신에서 깜빡인다(Stop 훅에서 발화 — 2026-09-08).
+ * 검사할 것은 판정 결과지 모듈 로딩이 아니므로 스위트 시작 전에 한 번 데워 둔다(모듈 캐시라 한 번뿐).
+ */
+beforeAll(async () => {
+  await dataMocks.getGuOfPoint({ lat: 37.5571, lng: 126.9245 }); // 서울 파일
+  await dataMocks.getGuOfPoint({ lat: 34.0, lng: 125.0 }); // 전국 파일(한국 밖 판정 경로)
 });
 
 const NOW = "2026-09-04T12:00:00+09:00";
@@ -74,10 +84,13 @@ describe("ReportPanel 1단계 — 가게 이름", () => {
     expect(screen.getByRole("button", { name: "새로 등록하기" })).toBeInTheDocument();
   });
 
-  it("두 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
+  it("한 글자부터 우리 DB를 맞춰 최대 5행, 행에 '이미 있어요'·구·카테고리", () => {
     renderPanel();
     const input = screen.getByRole("textbox", { name: "가게 이름" });
+    // 한 글자부터 뜬다 (2026-09-08) — 빈 입력에서만 목록이 없다
     fireEvent.change(input, { target: { value: "새" } });
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "" } });
     expect(screen.queryByRole("list", { name: "이미 있는 가게" })).toBeNull();
     fireEvent.change(input, { target: { value: "새우집" } });
     expect(within(screen.getByRole("list", { name: "이미 있는 가게" })).getAllByRole("listitem")).toHaveLength(5);
@@ -450,6 +463,25 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     expect(screen.queryByRole("button", { name: "사진 추가" })).toBeNull();
   });
 
+  it("네이버 지도 링크(선택): 허용 링크는 그대로 넘어가고, 아닌 링크는 그 자리에서 막는다", () => {
+    renderStep4();
+    const field = screen.getByRole("textbox", { name: "네이버 지도 링크" });
+
+    // 사용자가 붙여넣은 값만 저장한다(규칙 2) — 허용 호스트가 아니면 등록 자체를 막는다
+    fireEvent.change(field, { target: { value: "https://example.com/shop/1" } });
+    expect(screen.getByText("네이버 지도 링크만 넣을 수 있어요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "등록하기" })).toBeDisabled();
+
+    // 지도 앱 [공유 → 링크 복사]가 주는 단축 링크
+    fireEvent.change(field, { target: { value: "https://naver.me/xAbC1234" } });
+    expect(screen.queryByText("네이버 지도 링크만 넣을 수 있어요")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "등록하기" }));
+    expect(dataMocks.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({ naverPlaceUrl: "https://naver.me/xAbC1234" }),
+      NOW,
+    );
+  });
+
   it("등록 성공: 스키마 입력(이름·핀·메뉴·사이드·영업시간·사진·중복 후보)으로 submitReport → onCreated + 완료", async () => {
     const created = makePlace({ id: "r001", name: "테스트 새우집", source: "report", isNew: true });
     let resolve: (place: Place) => void = () => {};
@@ -478,6 +510,7 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
         hoursNote: " 새벽 2시까지 ",
         photos: [expect.objectContaining({ name: "a.jpg" })],
         duplicateOf: null,
+        naverPlaceUrl: "",
       },
       NOW,
     );

@@ -60,3 +60,10 @@ __pycache__/
 
 # lighthouse ci
 .lighthouseci/
+
+# 브라우저 도구가 리포 루트에 떨구는 산출물 (Playwright MCP evaluate의 filename) — PNG·JPEG와 같은 결
+/*.json
+!package.json
+!tsconfig.json
+!lighthouserc.json
+!open-next.config.json

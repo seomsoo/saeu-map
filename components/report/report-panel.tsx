@@ -151,6 +151,7 @@ export function ReportPanel({
           photos={draft.photos}
           sides={draft.sides}
           hoursNote={draft.hoursNote}
+          naverPlaceUrl={draft.naverPlaceUrl}
           submitting={submitting}
           onPhotosChange={(photos) => {
             patch({ photos });
@@ -160,6 +161,9 @@ export function ReportPanel({
           }}
           onHoursNoteChange={(hoursNote) => {
             patch({ hoursNote });
+          }}
+          onNaverPlaceUrlChange={(naverPlaceUrl) => {
+            patch({ naverPlaceUrl });
           }}
           onBack={onBack}
           onSubmit={() => {

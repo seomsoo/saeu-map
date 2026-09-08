@@ -11,7 +11,8 @@ export const NAME_SIMILARITY_MIN = 0.85;
 /** 핀 자리 근접 검사 — 상호와 무관하게 이 안에 기존 가게가 있으면 묻는다(같은 건물·옆 점포 거리, decisions 2026-09-04 보완). */
 export const PIN_OVERLAP_KM = 0.03;
 /** 1단계 자동완성은 두 글자부터 (design 화면 3-1). */
-export const NAME_MATCH_MIN_CHARS = 2;
+/** 자동완성은 **한 글자부터** 뜬다 — 다른 지도 앱과 같은 기대치다(2026-09-08). 결과는 아래 limit으로 잘린다. */
+export const NAME_MATCH_MIN_CHARS = 1;
 export const NAME_MATCH_LIMIT = 5;
 
 export type PlaceLike = Pick<Place, "name" | "lat" | "lng">;
@@ -19,6 +20,29 @@ export type PlaceLike = Pick<Place, "name" | "lat" | "lng">;
 /** collect.py `norm_name`: 공백·기호를 떼고 소문자로. */
 export function normalizeName(s: string): string {
   return s.replace(/[\s\-.()&'·,]/g, "").toLowerCase();
+}
+
+const CHOSEONG = [
+  "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ",
+  "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
+] as const;
+const HANGUL_BASE = 0xac00;
+const HANGUL_LAST = 0xd7a3;
+
+/** "나라수산" → "ㄴㄹㅅㅅ". 한글이 아닌 글자는 그대로 둔다(영문·숫자 상호도 같이 검색된다). */
+export function choseongOf(s: string): string {
+  return Array.from(s)
+    .map((ch) => {
+      const code = ch.charCodeAt(0) - HANGUL_BASE;
+      if (ch.charCodeAt(0) < HANGUL_BASE || ch.charCodeAt(0) > HANGUL_LAST) return ch;
+      return CHOSEONG[Math.floor(code / 588)] ?? ch;
+    })
+    .join("");
+}
+
+/** 사용자가 초성만 친 경우("ㄴㄹㅅㅅ") — 그때만 초성 인덱스로 찾는다 */
+function isChoseongOnly(token: string): boolean {
+  return /^[\u3131-\u314e]+$/.test(token);
 }
 
 /**
@@ -134,6 +158,14 @@ export function findOverlapping(point: LatLng, places: readonly Place[]): Place 
 }
 
 /** 1단계 자동완성: 정규화한 질의(두 글자 이상)가 상호에 포함되는 가게를 닮은 순으로 최대 5곳. */
+/**
+ * 1단계 가게명 자동완성 (spec 4.3-1). **중복 판정(`same_place`)과는 다른 함수다** — 여기는 느슨해도
+ * 되고, 거기는 엄격해야 한다. 세 가지를 받아준다 (2026-09-08 사용자 지적 "너무 빡빡하다"):
+ *   1. **한 글자부터** (`NAME_MATCH_MIN_CHARS`)
+ *   2. **띄어쓴 토큰은 순서 무관** — "목동 홍초장"이 "홍초장 목동점"을 찾는다
+ *   3. **초성** — "ㄴㄹㅅㅅ"이 "나라수산"을 찾는다(초성만 친 토큰에만 적용, 오검색을 늘리지 않게)
+ * 정렬은 전체 문자열 유사도 순이고 limit으로 자른다.
+ */
 export function findNameMatches(
   query: string,
   places: readonly Place[],
@@ -141,10 +173,23 @@ export function findNameMatches(
 ): Place[] {
   const q = normalizeName(query);
   if (Array.from(q).length < NAME_MATCH_MIN_CHARS) return [];
+  const tokens = query.split(/\s+/).map(normalizeName).filter(Boolean);
+  const allChoseong = tokens.length > 0 && tokens.every(isChoseongOnly);
   return places
-    .map((place) => ({ place, name: normalizeName(place.name) }))
-    .filter(({ name }) => name.includes(q))
-    .map(({ place, name }) => ({ place, ratio: similarityRatio(q, name) }))
+    .map((place) => {
+      const name = normalizeName(place.name);
+      return { place, name, choseong: choseongOf(name) };
+    })
+    .filter(({ name, choseong }) =>
+      tokens.every((token) =>
+        isChoseongOnly(token) ? choseong.includes(token) : name.includes(token),
+      ),
+    )
+    // 초성 질의는 초성끼리 비교해야 "얼마나 닮았나"가 뜻을 갖는다(한글 이름과 직접 비교하면 전부 0)
+    .map(({ place, name, choseong }) => ({
+      place,
+      ratio: similarityRatio(q, allChoseong ? choseong : name),
+    }))
     .sort((x, y) => y.ratio - x.ratio)
     .slice(0, limit)
     .map(({ place }) => place);

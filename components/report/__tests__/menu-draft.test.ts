@@ -11,7 +11,7 @@ describe("priceDigits / formatPriceInput", () => {
   it("숫자만 남기고 표시는 천 단위 구분", () => {
     expect(priceDigits("3만원")).toBe("3");
     expect(priceDigits("35,000")).toBe("35000");
-    expect(priceDigits("1234567890123")).toBe("123456789"); // 9자리 상한
+    expect(priceDigits("1234567890123")).toBe("123456"); // 십만 원대(6자리) 상한 — 오타로 0을 더 쳐도 안 늘어난다
     expect(formatPriceInput("35000")).toBe("35,000");
     expect(formatPriceInput("")).toBe("");
   });

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useRef } from "react";
 import { ActivityPanel } from "@/components/activity/activity-panel";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
@@ -54,8 +55,8 @@ function reloadPage() {
  * 세션(익명/카카오)과 로그인 시트는 SessionProvider가 갖고, 화면 훅은 `useSession()`으로 읽는다(화면 5).
  *
  * **데스크탑(1024~, 화면 6~9)은 같은 DOM의 그릇만 CSS로 바꾼다**: 상단 스택 + 시트를 감싼 래퍼가 모바일에선
- * `display: contents`(있는 듯 없는 듯), lg에선 왼쪽 400px 패널이 되고 지도는 나머지를 채운다. 시트의 fixed·transform은
- * globals.css 데스크탑 블록이 지운다. JS(`isDesktop`)는 데스크탑에만 있는 요소 셋(브랜드 행 [＋ 제보]·줌 컨트롤·툴팁)만 가른다.
+ * `display: contents`(있는 듯 없는 듯), lg에선 지도 위에 떠 있는 420px 패널이 되고 지도는 두 그릇 모두 풀블리드다. 시트의 fixed·transform은
+ * globals.css 데스크탑 블록이 지운다. JS(`isDesktop`)는 데스크탑에만 있는 요소(브랜드 줄 [＋ 제보]·줌 컨트롤·토스트 자리)만 가른다.
  */
 export default function MapScreen(props: MapScreenProps) {
   return (
@@ -98,13 +99,13 @@ function MapScreenBody({
   );
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim lg:flex">
+    <div className="relative h-dvh w-full overflow-hidden bg-bg-dim">
       {/* 8. 지도 — 스크립트 실패(ErrorBoundary)·인증 실패(navermap_authFailure) 모두 같은 에러 상태.
           에러 시 지도를 언마운트하지 않고 위에 덮는다: 인증 실패 뒤 SDK의 map.destroy()가 내부에서 throw해
           라우트 에러로 번지기 때문(workerd 프리뷰 :8788에서 재현).
           z-0: 스태킹 컨텍스트를 만들어 SDK의 로고·컨트롤(높은 z-index)이 시트 위로 새지 않게 한다.
-          데스크탑: 패널 오른쪽 나머지(order-last — DOM은 지도가 먼저, 화면은 패널이 왼쪽). */}
-      <div className="absolute inset-0 z-0 lg:relative lg:order-last lg:min-w-0 lg:flex-1">
+          데스크탑도 같은 풀블리드다 — 패널이 그 위에 떠 있다 (design 화면 6 v3, decisions 2026-09-08). */}
+      <div className="absolute inset-0 z-0">
         <ErrorBoundary onError={s.handleMapError} fallback={() => null}>
           <NaverMapProvider onMissingConfig={s.handleMissingConfig}>
             <MapView
@@ -158,8 +159,10 @@ function MapScreenBody({
         )}
       </div>
 
-      {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로). 데스크탑: 왼쪽 400px 컬럼 */}
-      <div className="contents lg:flex lg:h-full lg:w-100 lg:shrink-0 lg:flex-col lg:border-r lg:border-line-hairline lg:bg-bg">
+      {/* 패널 래퍼 — 모바일: display contents(상단 스택은 absolute, 시트는 fixed 그대로).
+          데스크탑: 지도 위에 떠 있는 카드(여백 16·폭 420·라운드 20·shadow-panel).
+          폭·여백은 lib/layout.ts의 PANEL_* 상수와 같아야 한다 — 지도 기하가 그 값으로 보정한다 */}
+      <div className="contents lg:absolute lg:inset-y-4 lg:left-4 lg:z-10 lg:flex lg:w-105 lg:flex-col lg:overflow-hidden lg:rounded-20 lg:bg-bg lg:shadow-panel">
         {/* 1~2. 지도 위 상단 스택: 검색 블록 + 칩 행. 빈 곳은 지도 터치가 통과한다.
             제보 중엔 두 층을 숨긴다 — 지도는 핀을 맞추는 용도뿐이고 우리 DB 검색과 주소 검색이 같이 보이면 안 된다(design 화면 3).
             내 활동 패널이 열린 동안도 숨긴다(화면 5). 데스크탑에선 패널 안 정적 블록이다 */}
@@ -167,12 +170,25 @@ function MapScreenBody({
           ref={topStackRef}
           className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 [&>*]:pointer-events-auto lg:static lg:shrink-0"
         >
-          {/* 브랜드 행 (design 화면 6): 모바일에선 sr-only h1만(워드마크는 화면에서 뺐다), 데스크탑에선 워드마크 + [＋ 제보]
-              (화면 유일 채운 레드 — 목록 모드에만. 상세는 [길찾기], 제보 2단계는 [여기가 맞아요]가 그 자리) */}
-          <div className="sr-only lg:not-sr-only lg:flex lg:h-14 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
-            <h1 className="text-title-s-semibold text-fg">새우맵</h1>
+          {/* 브랜드 줄 (design 화면 6 v3): 모바일에선 sr-only h1만(워드마크는 화면에서 뺐다),
+              데스크탑에선 워드마크 + [＋ 제보] **아웃라인**. 채운 레드는 목록 끝 CTA 한 곳이다 —
+              워드마크와 레드 버튼이 한 줄에서 경쟁하지 않게 (decisions 2026-09-08) */}
+          <div className="sr-only lg:not-sr-only lg:flex lg:h-13 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
+            <h1 className="text-title-s-semibold text-fg">
+              {/* 워드마크 에셋(사용자 제작 원본 색 그대로 — 브랜드 레드로 맞추면 그림이 죽는다, 2026-09-08).
+                  모바일에선 h1이 sr-only라 alt가 곧 이름이다 */}
+              <Image
+                src="/wordmark.webp"
+                alt="새우맵"
+                width={137}
+                height={60}
+                priority
+                draggable={false}
+                className="h-6.5 w-auto"
+              />
+            </h1>
             {isDesktop && s.mode === "list" && (
-              <Button variant="brand" size="pill" onClick={s.openReport}>
+              <Button variant="outline" size="pill" onClick={s.openReport}>
                 <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
                 제보
               </Button>
@@ -189,19 +205,21 @@ function MapScreenBody({
                   trailing={<ProfileButton session={session} onClick={s.openMe} />}
                 />
               </div>
-              {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다. 데스크탑은 패널 안이라 두 줄로 랩 */}
-              <div className="no-scrollbar flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5 lg:flex-wrap lg:overflow-visible lg:pb-2">
+              {/* 칩 행 전체가 함께 가로 스크롤 — 드롭다운 목록은 포털이라 잘리지 않는다.
+                  **데스크탑은 지도 위 한 층**(design 화면 6 v3): DOM은 패널 안에 두고 `lg:fixed`로 지도 위로 올린다.
+                  fixed는 조상 overflow에 잘리지 않으므로 패널의 overflow-hidden을 통과한다 —
+                  단 패널에 transform이 생기면 기준이 패널로 바뀐다(그래서 패널은 transform을 갖지 않는다).
+                  left는 PANEL_OCCLUSION(436) + 20 = 456 = lg:left-114 */}
+              <div className="no-scrollbar pointer-events-none flex touch-pan-x gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pl-safe-left-or-5 pr-safe-right-or-5 [&_button]:pointer-events-auto lg:fixed lg:top-5 lg:left-114 lg:z-20 lg:max-w-160 lg:flex-wrap lg:gap-2 lg:overflow-visible lg:p-0 lg:[&_button]:shadow-float">
                 <CategoryDropdown tab={s.tab} onChange={s.setTab} />
                 <FilterChips chips={s.chips} onToggle={s.toggleChip} />
               </div>
             </>
           )}
-          {/* 토스트: 모바일은 스택 마지막 층, 데스크탑은 화면 아래 가운데(패널 안에서 내용을 밀지 않게). 없을 땐 래퍼도 없다 — 빈 래퍼가 gap을 먹는다 */}
-          {s.notice && (
-            <div className="lg:pointer-events-none lg:absolute lg:inset-x-0 lg:bottom-8 lg:z-30">
-              <Toast message={s.notice} />
-            </div>
-          )}
+          {/* 토스트(모바일) — 스택 마지막 층. 없을 땐 래퍼도 없다: 빈 래퍼가 gap을 먹는다.
+              데스크탑 토스트는 셸 루트에 따로 단다 — 떠 있는 패널이 absolute라 그 안에 두면
+              "화면 아래 가운데"가 패널 기준이 되어 패널 안에 뜬다 */}
+          {!isDesktop && s.notice && <Toast message={s.notice} />}
         </div>
 
         {/* 3~7. 바텀시트 (+ FAB 줄). 상세·제보가 열리면 FAB는 숨긴다 — 채운 레드는 시트 안 한 곳뿐 */}
@@ -215,6 +233,7 @@ function MapScreenBody({
           now={now}
           origin={s.origin}
           selectedId={s.selectedId}
+          bookmarkedIds={s.bookmarkedIds}
           sort={s.sort}
           snap={s.snap}
           mode={s.mode}
@@ -293,6 +312,7 @@ function MapScreenBody({
           onDismissReport={s.cancelReport}
           onDismissMe={s.closeMe}
           onSelect={s.selectFromCard}
+          onToggleBookmark={s.toggleBookmark}
           onHover={s.hoverPlace}
           onDismissEvent={s.dismissEvent}
           onClearFilters={s.clearFilters}
@@ -300,6 +320,19 @@ function MapScreenBody({
           onRetry={reloadPage}
         />
       </div>
+
+      {/* 토스트(데스크탑) — **패널 안 바닥**에 목록 위로 떠오른다(Gmail 문법).
+          안내는 대부분 패널에서 한 행동의 결과라, 지금 보고 있는 곳에 떠야 놓치지 않는다.
+          패널 밖(셸 루트)에 두고 좌표만 패널과 맞춘다 — 패널은 overflow-hidden이라 안에 넣으면 그림자가 잘린다.
+          자리는 CSS와 lib/layout.ts의 PANEL_* 상수가 같은 값이어야 한다 */}
+      {isDesktop && s.notice && (
+        <div className="pointer-events-none absolute bottom-8 left-4 z-30 w-105 px-4">
+          <Toast
+            message={s.notice}
+            className="saeu-toast-in py-2.5 text-body-m-medium shadow-card"
+          />
+        </div>
+      )}
     </div>
   );
 }

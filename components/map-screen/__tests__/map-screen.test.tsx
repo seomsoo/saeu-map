@@ -5,11 +5,14 @@ import type { ReactNode } from "react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import type { MyReview, Place, Session } from "@/lib/types";
 import type { ReportInput } from "@/lib/data";
-import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
+import { DESKTOP_MEDIA_QUERY, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import { BOOKMARK_NUDGE_NOTICE } from "../use-map-screen";
 import MapScreen from "../map-screen";
 
 /* ── react-naver-maps 전체를 가짜로. 지도 SDK 없이 화면 동작만 검증한다. ── */
+/** 가짜 투영의 배율 — 테스트가 픽셀 보정을 도(degree)로 되짚을 때 쓴다 */
+const PX_PER_DEG = 100;
+
 const fake = vi.hoisted(() => {
   class LatLng {
     constructor(
@@ -68,9 +71,11 @@ const fake = vi.hoisted(() => {
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
     getSize: () => new Size(390, 844),
+    /* 선형 투영(1도 = PX_PER_DEG px) — 상수 투영이면 screenX·screenY 보정이 좌표에 안 남아
+       "패널만큼 밀었나"를 검증할 수 없다 (data:2026-09-08 데스크탑 리디자인) */
     getProjection: () => ({
-      fromCoordToOffset: () => new Point(195, 400),
-      fromOffsetToCoord: (p: Point) => new LatLng(p.y, p.x),
+      fromCoordToOffset: (c: LatLng) => new Point(c.lng() * PX_PER_DEG, c.lat() * PX_PER_DEG),
+      fromOffsetToCoord: (p: Point) => new LatLng(p.y / PX_PER_DEG, p.x / PX_PER_DEG),
     }),
   };
   return { navermaps, map, listeners };
@@ -90,15 +95,15 @@ const dataMocks = vi.hoisted(() => ({
   getMyReports: vi.fn<(now: string) => Promise<Place[]>>(),
   /** 찜은 메모리 Set 가짜 — 진짜는 존재하는 가게만 받는데 시드(nara 등)는 목 JSON에 없다 */
   bookmarks: new Set<string>(),
-  toggleBookmark: vi.fn<(id: string) => Promise<string[]>>(),
+  setBookmark: vi.fn<(id: string, bookmarked: boolean) => Promise<string[]>>(),
   getBookmarkedPlaceIds: vi.fn<() => Promise<string[]>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
-  dataMocks.toggleBookmark.mockImplementation((id) => {
-    if (dataMocks.bookmarks.has(id)) dataMocks.bookmarks.delete(id);
-    else dataMocks.bookmarks.add(id);
+  dataMocks.setBookmark.mockImplementation((id, bookmarked) => {
+    if (bookmarked) dataMocks.bookmarks.add(id);
+    else dataMocks.bookmarks.delete(id);
     return Promise.resolve([...dataMocks.bookmarks]);
   });
   dataMocks.getBookmarkedPlaceIds.mockImplementation(() => Promise.resolve([...dataMocks.bookmarks]));
@@ -112,7 +117,7 @@ vi.mock("@/lib/data", async (importOriginal) => {
     signOut: dataMocks.signOut,
     getMyReviews: dataMocks.getMyReviews,
     getMyReports: dataMocks.getMyReports,
-    toggleBookmark: dataMocks.toggleBookmark,
+    setBookmark: dataMocks.setBookmark,
     getBookmarkedPlaceIds: dataMocks.getBookmarkedPlaceIds,
   };
 });
@@ -235,7 +240,13 @@ const stats = {
   weekPlaceCount: 47,
   todayCheckinCount: 12,
   topPlace: { id: "nara", name: "나라수산", count: 3 },
+  newPlaceCount: 2,
 };
+/** SSR HTML을 사람이 읽는 문장으로 — 태그와 React가 넣는 <!-- --> 구분자를 지운다 */
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, "");
+}
+
 const eventCard = {
   id: "ev",
   title: "새우 까주기 테스트",
@@ -700,6 +711,65 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     });
   });
 
+  it("카드 하트는 즉시 채워지고(낙관), 실패하면 되돌아오며 토스트가 뜬다", async () => {
+    // 하트는 사진 카드에만 있다(콤팩트 행은 오른쪽 열이 확인 라벨 하나) — 시드에 사진을 한 장 준다
+    renderScreen({
+      places: seed().map((p) => (p.id === "nara" ? { ...p, thumbnailUrl: "/mock/thumb-1.webp" } : p)),
+    });
+    await screen.findByRole("list", { name: "가게 목록" });
+    const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
+    // 낙관: 응답을 기다리지 않고 지금 바뀐다 (UI 완성 기준 "쓰기는 상태 변화까지")
+    let resolveToggle: ((ids: string[]) => void) | undefined;
+    dataMocks.setBookmark.mockImplementationOnce(
+      () => new Promise<string[]>((resolve) => (resolveToggle = resolve)),
+    );
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "true");
+    act(() => {
+      resolveToggle?.(["nara"]);
+    });
+    await waitFor(() => {
+      expect(heart()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    // 실패: 하트가 되돌아오고 토스트가 뜬다
+    dataMocks.setBookmark.mockImplementationOnce(() => Promise.reject(new Error("mock write failed")));
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "false"); // 낙관적으로 해제
+    expect(await screen.findByText("찜을 저장하지 못했어요")).toBeInTheDocument();
+    expect(heart()).toHaveAttribute("aria-pressed", "true"); // 롤백
+  });
+
+  it("하트 연타: 늦게 온 첫 응답이 마지막 의도를 뒤집지 않는다 (Codex PR #10 #2)", async () => {
+    renderScreen({
+      places: seed().map((p) => (p.id === "nara" ? { ...p, thumbnailUrl: "/mock/thumb-1.webp" } : p)),
+    });
+    await screen.findByRole("list", { name: "가게 목록" });
+    const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
+
+    // 첫 클릭은 응답을 붙잡아 둔다
+    let resolveFirst: ((ids: string[]) => void) | undefined;
+    dataMocks.setBookmark.mockImplementationOnce(
+      () => new Promise<string[]>((resolve) => (resolveFirst = resolve)),
+    );
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "true");
+
+    // 두 번째 클릭 — 마지막 의도는 "해제"다. 토글이 아니라 원하는 상태를 보낸다(멱등)
+    dataMocks.setBookmark.mockImplementationOnce(() => Promise.resolve([]));
+    fireEvent.click(heart());
+    expect(heart()).toHaveAttribute("aria-pressed", "false");
+    expect(dataMocks.setBookmark).toHaveBeenLastCalledWith("nara", false);
+
+    // 이제 첫 요청이 늦게 성공한다 — 순번이 지났으므로 화면을 되돌리면 안 된다
+    act(() => {
+      resolveFirst?.(["nara"]);
+    });
+    await waitFor(() => {
+      expect(heart()).toHaveAttribute("aria-pressed", "false");
+    });
+  });
+
   it("다녀왔다면 성공 → 닫은 뒤 카드도 '오늘 확인'·확인 수 반영", async () => {
     const naraSeed = seed().find((p) => p.id === "nara");
     if (!naraSeed) throw new Error("seed expected");
@@ -778,11 +848,11 @@ describe("MapScreen — 화면 3 제보 플로우 진입·히스토리", () => {
     expect(screen.getByRole("button", { name: "제보" })).toBeInTheDocument();
   });
 
-  it("1단계: 두 글자부터 '이미 있어요' 매치, 탭하면 플로우가 닫히고 그 상세로 (제보 엔트리를 상세로 교체)", async () => {
+  it("1단계: 한 글자부터 '이미 있어요' 매치, 탭하면 플로우가 닫히고 그 상세로 (제보 엔트리를 상세로 교체)", async () => {
     await openReport();
     const input = screen.getByRole("textbox", { name: "가게 이름" });
     fireEvent.change(input, { target: { value: "나" } });
-    expect(screen.queryByRole("list", { name: "이미 있는 가게" })).toBeNull();
+    expect(screen.getByRole("list", { name: "이미 있는 가게" })).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "나라" } });
     const row = within(screen.getByRole("list", { name: "이미 있는 가게" })).getByRole("button", {
       name: /나라수산/,
@@ -1109,9 +1179,9 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
 
   it("익명: 프로필 → 로그인 시트 → 카카오 → 패널(상단 두 층·FAB 숨김, 찜 탭, 마커는 찜한 곳만) → ✕로 닫힘", async () => {
     // 찜 2곳은 세션과 무관한 진짜 목(클라이언트 메모리)에 둔다
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
-    await toggleBookmark("hana");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
+    await setBookmark("hana", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const profile = screen.getByRole("button", { name: "내 활동" });
@@ -1140,13 +1210,13 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     fireEvent.click(screen.getByRole("button", { name: "내 활동 닫기" }));
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
-    await toggleBookmark("hana"); // 되돌린다
+    await setBookmark("hana", false); // 되돌린다
   });
 
   it("패널의 찜 카드 탭 → 상세(/place) → 뒤로가기 → 패널로 복귀, 한 번 더 → 목록", async () => {
     dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 세션이 카카오로 로드된 뒤 눌러야 시트 없이 바로 열린다
@@ -1169,7 +1239,7 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     });
     expect(screen.getByRole("region", { name: "가게 목록" })).toBeInTheDocument();
     expect(back).not.toHaveBeenCalled();
-    await toggleBookmark("nara");
+    await setBookmark("nara", true);
   });
 
   it("로그아웃 → 패널 닫힘 + 토스트 + 프로필은 익명 아이콘", async () => {
@@ -1204,8 +1274,8 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     expect(screen.queryByRole("status")).toBeNull();
     await bookmarkIn(/노량진수산시장 하나수산, 동작구/);
     expect(screen.getByRole("status")).toHaveTextContent(BOOKMARK_NUDGE_NOTICE);
-    const { toggleBookmark } = await import("@/lib/data");
-    for (const id of ["nara", "changwoo", "hana"]) await toggleBookmark(id);
+    const { setBookmark } = await import("@/lib/data");
+    for (const id of ["nara", "changwoo", "hana"]) await setBookmark(id, true);
   });
 });
 
@@ -1234,8 +1304,8 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
   };
 
   it("내 활동에서는 활성 탭의 가게만 마커로 — 옛 선택은 끼워 넣지 않는다 (Codex PR #8 #3)", async () => {
-    const { toggleBookmark } = await import("@/lib/data");
-    await toggleBookmark("nara");
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 찜하지 않은 가게를 열었다 닫으면 selectedId만 남는다
@@ -1246,7 +1316,7 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     await waitFor(() => {
       expect(screen.getAllByTestId("marker").map((m) => m.textContent)).toEqual(["나라수산"]);
     });
-    await toggleBookmark("nara");
+    await setBookmark("nara", true);
   });
 
   it("내 활동 ✕는 우리 엔트리를 빼고 닫는다 — 클릭 이벤트가 source로 새면 엔트리가 남는다", async () => {
@@ -1314,7 +1384,14 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     expect(fake.map.setZoom).toHaveBeenLastCalledWith(11, true);
   });
 
-  it("데스크탑: 카드 탭의 지도 이동은 오프셋 없이 핀을 컨테이너 중앙에 (가리는 시트가 없다)", async () => {
+  /** 떠 있는 패널이 가리는 만큼 가로 중앙이 오른쪽으로 밀린다 → 지도 중심은 그만큼 왼쪽으로 (design 화면 6 v3) */
+  function expectedCenterLng(placeLng: number): number {
+    const screenX = (PANEL_OCCLUSION_PX + window.innerWidth) / 2;
+    const mapWidth = 390; // 가짜 map.getSize()
+    return placeLng - (screenX - mapWidth / 2) / PX_PER_DEG;
+  }
+
+  it("데스크탑: 카드 탭은 떠 있는 패널만큼 가로를 보정한다 (안 하면 선택 마커가 패널 뒤로 숨는다)", async () => {
     desktop();
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
@@ -1322,10 +1399,12 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
     const target = fake.map.panTo.mock.lastCall?.[0] as { lat(): number; lng(): number };
-    expect([target.lat(), target.lng()]).toEqual([37.54, 126.95]);
+    // 세로는 가리는 게 없어 그대로(핀의 위도), 가로만 패널 폭의 절반만큼 왼쪽으로
+    expect(target.lat()).toBeCloseTo(37.54, 6);
+    expect(target.lng()).toBeCloseTo(expectedCenterLng(126.95), 6);
   });
 
-  it("데스크탑: 검색 Enter의 fitBounds는 네 변 24 대칭 (모바일은 상단 스택·시트만큼 비운다)", async () => {
+  it("데스크탑: 검색 Enter의 fitBounds는 왼쪽만 패널만큼 더 준다 (모바일은 상단 스택·시트만큼 비운다)", async () => {
     desktop();
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
@@ -1336,7 +1415,7 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     expect(fake.map.fitBounds).toHaveBeenLastCalledWith(expect.anything(), {
       top: 24,
       bottom: 24,
-      left: 24,
+      left: PANEL_OCCLUSION_PX + 24,
       right: 24,
       maxZoom: 16,
     });
@@ -1355,12 +1434,33 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     fireEvent.pointerLeave(card, { pointerType: "mouse" });
     expect(marker().getAttribute("data-icon")).not.toContain("saeu-marker--hovered");
 
+    // 프리뷰는 150ms 지연 뒤에 뜬다 — 지도를 가로지르는 동안 줄줄이 번쩍이지 않게 (design 화면 6 v3)
     fireEvent.mouseEnter(marker());
-    const tooltip = screen.getByRole("tooltip");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    const tooltip = await screen.findByRole("tooltip");
     expect(within(tooltip).getByText("나라수산")).toBeInTheDocument();
     expect(within(tooltip).getByText("생새우소금구이 1kg 60,000원")).toBeInTheDocument();
+    // 이탈은 300ms 유예 — 마커 사이를 옮길 때 깜빡이지 않게
     fireEvent.mouseLeave(marker());
-    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+  });
+
+  it("마커를 눌러 선택하면 이미 떠 있던 프리뷰도 닫힌다 (Codex PR #10 #3)", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "가게 목록" });
+    vi.spyOn(window.history, "pushState").mockImplementation(() => {});
+    const marker = () => screen.getByText("나라수산", { selector: '[data-testid="marker"]' });
+
+    fireEvent.mouseEnter(marker());
+    await screen.findByRole("tooltip");
+    // 마우스를 안 움직인 채 클릭 — mouseout이 없고 panTo는 drag·zoom 이벤트를 내지 않는다
+    fireEvent.click(marker());
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
   });
 
   it("데스크탑: 상세를 열면 [＋ 제보]가 사라지고([길찾기]가 그 화면의 채운 레드) [목록]으로 돌아온다", async () => {
@@ -1386,19 +1486,23 @@ describe("/gu/[name] — 같은 지도 화면을 그 구에 맞춰 (decisions 20
     seed().map((p) => (p.gu === "마포구" ? p : { ...p, addressRoad: null, addressJibun: null }));
 
   it("SSR: 지도가 뜨기 전에도 그 구 가게 목록과 헤더 '마포구 1곳'이 HTML에 들어간다 (크롤러용)", () => {
-    // React가 텍스트 사이에 넣는 <!-- --> 구분자를 지우고 사람이 읽는 문장으로 비교한다
-    const html = renderToString(
-      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
-    ).replaceAll("<!-- -->", "");
+    // 태그·주석을 지우고 사람이 읽는 문장으로 비교한다 (헤드라인의 숫자는 색 때문에 span으로 갈라져 있다)
+    const html = stripTags(
+      renderToString(
+        <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={MAPO} />,
+      ),
+    );
     expect(html).toContain("마포구 1곳");
     expect(html).toContain("나라수산");
     expect(html).not.toContain("365활새우 창우수산");
   });
 
   it("SSR: 가게 0곳인 구는 헤더 '서초구 0곳' + 빈 상태(제보 유도)", () => {
-    const html = renderToString(
-      <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
-    ).replaceAll("<!-- -->", "");
+    const html = stripTags(
+      renderToString(
+        <MapScreen now={NOW} places={guSeed()} stats={stats} eventCard={null} bookmarkedIds={[]} initialGu={SEOCHO} />,
+      ),
+    );
     expect(html).toContain("서초구 0곳");
     expect(html).toContain("이 동네엔 아직 없어요");
   });

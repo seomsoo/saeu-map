@@ -45,7 +45,7 @@ const day = (d: number) => new Date(Date.parse(NOW) - d * 86_400_000).toISOStrin
 
 const photo = (n: number): Photo => ({
   id: `nara-p${String(n)}`,
-  url: `/mock/photo-${String(n)}.svg`,
+  url: `/mock/photo-${String(((n - 1) % 2) + 1)}.webp`,
   uploadedAt: day(n),
 });
 
@@ -532,7 +532,7 @@ describe("리뷰 — 3개 이상일 때만 평균 별점, 로딩·에러·재시
     two.unmount();
 
     renderDetail(nara(), {
-      initialReviews: [review(5), review(4), review(5, { photoUrl: "/mock/thumb-1.svg", nickname: "뚝섬러버" })],
+      initialReviews: [review(5), review(4), review(5, { photoUrl: "/mock/thumb-1.webp", nickname: "뚝섬러버" })],
     });
     expect(screen.getByLabelText("평균 별점 4.7점")).toHaveTextContent("4.7");
     expect(screen.getAllByRole("img", { name: /별점 \d점/ })).toHaveLength(3);

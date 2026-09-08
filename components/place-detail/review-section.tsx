@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { StarIcon } from "@/components/ui/icons/star-icon";
+import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRating, ratingSummary } from "@/lib/reviews";
@@ -159,7 +159,7 @@ export function ReviewSection({
             className="flex items-center gap-1 text-body-m-semibold text-fg tabular-nums"
             aria-label={`평균 별점 ${formatRating(summary.average)}점`}
           >
-            <StarIcon className="size-4" />
+            <ShrimpIcon className="size-4.5 translate-y-px text-brand-fg" />
             {formatRating(summary.average)}
           </p>
         )}

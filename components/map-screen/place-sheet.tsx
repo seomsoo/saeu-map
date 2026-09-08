@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { DropdownChip } from "@/components/ui/dropdown-chip";
 import { OutlineButton } from "@/components/ui/outline-button";
+import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assertNever } from "@/lib/assert-never";
 import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
@@ -35,6 +37,8 @@ interface PlaceSheetProps {
   /** 거리 기준점 — 내 위치 또는 지도 중심. null이면 거리 숨김 */
   origin: LatLng | null;
   selectedId: string | null;
+  /** 찜한 가게 id — 카드 하트 상태 */
+  bookmarkedIds: readonly string[];
   sort: SortKey;
   snap: SheetSnap;
   /** list = 목록 / detail = 상세(화면 2) / report = 제보(화면 3). 목록 본문은 그동안 hidden으로 유지된다(스크롤·스냅 복원). */
@@ -56,6 +60,8 @@ interface PlaceSheetProps {
   /** 내 활동 헤더 ✕ */
   onDismissMe?: (() => void) | undefined;
   onSelect: (id: string) => void;
+  /** 카드 하트 — 익명도 토글된다 */
+  onToggleBookmark: (id: string) => void;
   /** 데스크탑 카드 hover → 마커 확대 */
   onHover: (id: string | null) => void;
   onDismissEvent: () => void;
@@ -116,6 +122,7 @@ export function PlaceSheet({
   now,
   origin,
   selectedId,
+  bookmarkedIds,
   sort,
   snap,
   mode,
@@ -130,6 +137,7 @@ export function PlaceSheet({
   onDismissReport,
   onDismissMe,
   onSelect,
+  onToggleBookmark,
   onHover,
   onDismissEvent,
   onClearFilters,
@@ -144,12 +152,16 @@ export function PlaceSheet({
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
         {status === "ready" ? (
-          <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums">
-            {areaLabel} {count}곳
+          // 데스크탑은 폭이 남아 헤드라인을 한 단 키운다 (design 화면 6 v3)
+          <h2 className="min-w-0 truncate text-title-s-semibold text-fg tabular-nums lg:text-title-m-bold">
+            {areaLabel}{" "}
+            {/* 숫자만 브랜드색 — 헤드라인에서 눈이 먼저 가야 하는 값이다 (design 화면 6 v3) */}
+            <span className="text-brand-fg">{count}곳</span>
           </h2>
         ) : (
           <Skeleton className="h-7 w-32" />
         )}
+        {/* 정렬 — 모바일은 세로 예산 때문에 텍스트 트리거, 데스크탑은 세 갈래가 한눈에 보이는 세그먼트 */}
         <DropdownChip
           label="정렬"
           value={sort}
@@ -157,9 +169,17 @@ export function PlaceSheet({
           onChange={onSortChange}
           appearance="text"
           align="end"
+          className="lg:hidden"
         />
       </div>
       <SeasonCounter stats={stats} />
+      <Segmented
+        label="정렬"
+        value={sort}
+        options={SORT_OPTIONS}
+        onChange={onSortChange}
+        className="mt-3 hidden lg:flex"
+      />
     </div>
   );
 
@@ -191,7 +211,7 @@ export function PlaceSheet({
         {eventCard && <EventCard card={eventCard} onDismiss={onDismissEvent} />}
 
         {status === "loading" && (
-          <ul aria-busy="true" aria-label="가게 목록 불러오는 중" className="divide-y divide-line-hairline">
+          <ul aria-busy="true" aria-label="가게 목록 불러오는 중">
             <PlaceCardSkeleton />
             <PlaceCardSkeleton />
             <PlaceCardSkeleton />
@@ -209,19 +229,32 @@ export function PlaceSheet({
         {status === "ready" && places.length === 0 && renderEmpty(emptyKind, onReport, onClearFilters)}
 
         {status === "ready" && places.length > 0 && (
-          <ul aria-label="가게 목록" className="divide-y divide-line-hairline pb-safe-bottom-or-3">
-            {places.map((place) => (
-              <PlaceCard
-                key={place.id}
-                place={place}
-                now={now}
-                origin={origin}
-                selected={place.id === selectedId}
-                onSelect={onSelect}
-                onHoverChange={onHover}
-              />
-            ))}
-          </ul>
+          <>
+            {/* 카드 사이는 헤어라인이 아니라 여백으로 나눈다 (design 화면 1 카드, 2026-09-08) */}
+            <ul aria-label="가게 목록" className="pb-safe-bottom-or-3">
+              {places.map((place) => (
+                <PlaceCard
+                  key={place.id}
+                  place={place}
+                  now={now}
+                  origin={origin}
+                  selected={place.id === selectedId}
+                  onSelect={onSelect}
+                  onHoverChange={onHover}
+                  bookmarked={bookmarkedIds.includes(place.id)}
+                  onToggleBookmark={onToggleBookmark}
+                />
+              ))}
+            </ul>
+            {/* 목록 끝 제보 CTA — 다 훑고 "여긴 없네" 하는 순간이 제보 동기가 가장 높다.
+                데스크탑만: 모바일은 FAB 줄의 [＋ 제보]가 그 자리다(채운 레드는 화면당 한 곳) */}
+            <div className="hidden px-5 pt-1 pb-8 lg:block">
+              <Button variant="brand" size="xl" className="w-full" onClick={onReport}>
+                {REPORT_ACTION_ICON}
+                아는 새우집 제보하기
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </BottomSheet>

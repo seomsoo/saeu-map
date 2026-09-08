@@ -41,9 +41,15 @@ export const MENU_ERRORS = {
   count: "몇 마리인지 알려주세요",
 } as const;
 
+/**
+ * 가격 입력 자릿수 상한 — **십만 원대까지(999,999원)**. 새우 한 판·1kg이 백만 원을 넘을 일이 없어
+ * 9자리(억 단위)를 받을 이유가 없다. 오타(0 하나 더)를 그 자리에서 막는다 (2026-09-08).
+ */
+export const PRICE_MAX_DIGITS = 6;
+
 /** 입력에서 숫자만 남긴다 ("3만원" → "3", "35,000" → "35000") */
 export function priceDigits(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 9);
+  return value.replace(/\D/g, "").slice(0, PRICE_MAX_DIGITS);
 }
 
 /** 표시용 천 단위 구분 — 값은 숫자만 갖는다 */

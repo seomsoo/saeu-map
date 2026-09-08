@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
  * satori는 Tailwind 클래스·CSS 변수를 모르므로 **인라인 스타일 + hex**다. 값은 docs/design.md 토큰 표를 그대로 옮긴 것
  * (gray-900 #191F28 · gray-600 #6B7684 · gray-500 #8B95A1 · gray-100 #F2F4F6 · red-500 #F04A28 · coral #F0885C · teal #14957B).
  * 셋 다 같은 뼈대: 위 = 작은 눈썹 줄 + 큰 제목 + 보조 두 줄 / 아래 = 왼쪽 브랜드(레드 점 + 새우맵), 오른쪽 마커 모티프.
- * 사진은 넣지 않는다(외부 fetch 없음, 로고 에셋 대기).
+ * 사진은 넣지 않는다(외부 fetch 없음). 루트만 새우 아트를 data URI로 인라인한다 — 가게·구 카드는 카테고리색 모티프라 구이 편향 그림이 맞지 않는다.
  */
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
@@ -27,7 +27,7 @@ export type ShareCardProps =
       category: keyof typeof CATEGORY_COLOR;
     }
   | { variant: "gu"; name: string; count: number; /** 상호 최대 3곳, 없으면 null */ names: string | null }
-  | { variant: "root"; /** 배포 시점의 가게 수 */ count: number };
+  | { variant: "root"; /** 배포 시점의 가게 수 */ count: number; /** 새우 아트 data URI — lib/og/art.ts */ art: string };
 
 const root: CSSProperties = {
   width: "100%",
@@ -161,7 +161,8 @@ export function ShareCard(props: ShareCardProps) {
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <Brand caption={`가게 ${props.count}곳`} />
-        <ClusterMotif count={props.count} />
+        {/* eslint-disable-next-line @next/next/no-img-element -- satori는 next/image를 모른다 */}
+        <img src={props.art} width={200} height={190} alt="" />
       </div>
     </div>
   );

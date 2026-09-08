@@ -33,9 +33,10 @@ import {
   toMs,
 } from "./time";
 import { matchesQuery, normalizeQuery } from "./places";
-import { sortReviewsNewest } from "./reviews";
+import { ratingSummary, sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
 import { guCenter, guOfPoint } from "./gu";
+import { isAllowedNaverPlaceUrl } from "./naver-links";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -213,19 +214,47 @@ export interface PlaceFilter {
   query?: string;
 }
 
+/**
+ * 핀별 평점 — 리뷰 3개 미만은 아예 넣지 않는다(spec 4.2-9). 삭제된 리뷰는 이미 걸러진 목록이 온다.
+ * Phase 6에서 이 함수만 SQL 집계(뷰·집계 컬럼)로 바뀐다.
+ */
+function ratingsByPlace(reviews: readonly Review[]): Map<string, { count: number; average: number }> {
+  const byPlace = new Map<string, Review[]>();
+  for (const r of reviews) {
+    const list = byPlace.get(r.placeId);
+    if (list) list.push(r);
+    else byPlace.set(r.placeId, [r]);
+  }
+  const out = new Map<string, { count: number; average: number }>();
+  for (const [placeId, list] of byPlace) {
+    const summary = ratingSummary(list);
+    if (summary.average !== null) out.set(placeId, { count: summary.count, average: summary.average });
+  }
+  return out;
+}
+
+/** 평점이 있는 핀에만 얹는다 — 없는 핀은 원본 그대로(카드가 그 줄을 안 그린다) */
+function withRating(place: Place, ratings: Map<string, { count: number; average: number }>): Place {
+  const rating = ratings.get(place.id);
+  return rating ? { ...place, rating } : place;
+}
+
 export function getPlaces(
   filter: PlaceFilter = {},
   now: DateInput = Date.now(),
 ): Promise<Place[]> {
-  const { places } = dataset(now);
+  const { places, reviews } = dataset(now);
   const q = normalizeQuery(filter.query ?? "");
+  const ratings = ratingsByPlace(visibleReviews(reviews));
   return Promise.resolve(
-    places.filter((p) => {
-      if (filter.tag && !p.tags.includes(filter.tag)) return false;
-      if (filter.gu && p.gu !== filter.gu) return false;
-      if (filter.isNew !== undefined && p.isNew !== filter.isNew) return false;
-      return matchesQuery(p, q);
-    }),
+    places
+      .filter((p) => {
+        if (filter.tag && !p.tags.includes(filter.tag)) return false;
+        if (filter.gu && p.gu !== filter.gu) return false;
+        if (filter.isNew !== undefined && p.isNew !== filter.isNew) return false;
+        return matchesQuery(p, q);
+      })
+      .map((p) => withRating(p, ratings)),
   );
 }
 
@@ -233,7 +262,9 @@ export function getPlaceById(
   id: string,
   now: DateInput = Date.now(),
 ): Promise<Place | undefined> {
-  return Promise.resolve(dataset(now).places.find((p) => p.id === id));
+  const { places, reviews } = dataset(now);
+  const place = places.find((p) => p.id === id);
+  return Promise.resolve(place && withRating(place, ratingsByPlace(visibleReviews(reviews))));
 }
 
 /** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id는 undefined. `now`는 서버가 내려준 값. */
@@ -244,9 +275,11 @@ export function getPlaceDetail(
   const { places, reviews } = dataset(now);
   const place = places.find((p) => p.id === id);
   if (!place) return Promise.resolve(undefined);
+  const visible = visibleReviews(reviews);
   return Promise.resolve({
-    place,
-    reviews: sortReviewsNewest(visibleReviews(reviews).filter((r) => r.placeId === id)),
+    // 목록·상세가 같은 계약을 갖게 평점을 얹는다(상세 화면은 자기 리뷰로 다시 세지만, 이 값이 카드·마커로도 흐른다)
+    place: withRating(place, ratingsByPlace(visible)),
+    reviews: sortReviewsNewest(visible.filter((r) => r.placeId === id)),
   });
 }
 
@@ -317,6 +350,7 @@ export function getSeasonStats(
     weekPlaceCount: counts.size,
     todayCheckinCount,
     topPlace,
+    newPlaceCount: places.filter((p) => p.isNew).length,
   });
 }
 
@@ -372,7 +406,8 @@ export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
     ...data.checkins,
     { placeId: id, type: "visited", at, actor: currentSession.userId },
   ];
-  return updated;
+  // 평점은 읽을 때 붙이므로 쓰기 응답에도 같이 붙인다 — 낙관 갱신(patchPlace)이 카드의 평점을 지우면 안 된다
+  return withRating(updated, ratingsByPlace(visibleReviews(data.reviews)));
 }
 
 /** 사진 신고 사유 — 뷰어 신고 시트의 4행과 1:1 (design 화면 2 변형 (e)). */
@@ -405,7 +440,8 @@ export async function reportPhoto(input: {
  */
 export const reportMenuSchema = z.object({
   name: z.string().trim().min(1).max(30),
-  price: z.number().int().min(100),
+  // 십만 원대까지 — 화면 입력 상한(PRICE_MAX_DIGITS = 6자리)과 같은 값. UI 제한만으론 검증이 아니다
+  price: z.number().int().min(100).max(999_999),
   unit: z.enum(["kg", "g", "pan", "count", "none"]),
   unitRaw: z.string().trim().max(10).nullable(),
   /** true = 새우회 줄("새우회도 팔아요"), false = 구이 줄 */
@@ -426,6 +462,15 @@ export const reportInputSchema = z.object({
     .max(MAX_PLACE_PHOTOS),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
   duplicateOf: idSchema.nullable(),
+  /**
+   * 4단계 선택 — **사용자가 붙여넣은** 네이버 지도 링크(공유 → 링크 복사). 상세의 "네이버에서 사진 보기"가 이 값을 쓴다.
+   * 규칙 2에 걸리지 않는다: API 응답이 아니라 사용자 입력이다(카카오 공식 답변도 "직접 입력한 값"은 예외로 둔다 — decisions 2026-09-08).
+   * 허용 호스트만 통과시킨다(`isAllowedNaverPlaceUrl` — 표시 경로와 같은 방어선).
+   */
+  naverPlaceUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isAllowedNaverPlaceUrl(v), "네이버 지도 링크만 넣을 수 있어요"),
 });
 
 export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
@@ -459,7 +504,7 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     nearestStation: null,
     tags,
     specialist: false, // 제보 핀은 전문점 판정 없음 (spec 2 가공 규칙)
-    naverPlaceUrl: null,
+    naverPlaceUrl: report.naverPlaceUrl || null,
     photos: [],
     thumbnailUrl: null,
     hoursNote: report.hoursNote || null,
@@ -492,16 +537,25 @@ function placeExists(id: string): boolean {
 }
 
 /** 찜 토글 (spec 5 "찜") — 현재 세션 기준. 확인일은 갱신하지 않는다. 현재 찜 목록을 돌려준다. */
-export function toggleBookmark(placeId: string): Promise<string[]> {
+/**
+ * 찜 설정 — **토글이 아니라 원하는 상태를 받는다**(멱등). 연타가 겹쳐도 마지막 의도가 이긴다:
+ * 토글은 "지금 상태의 반대"라 요청 두 개가 겹치면 서버가 사용자의 마지막 의도와 반대로 끝날 수 있다
+ * (Codex PR #10 #2). Phase 6의 insert/delete와도 같은 모양이다.
+ * 다른 쓰기와 같은 계약(지연 400ms · 10% 실패)이라 화면이 낙관 업데이트와 롤백을 다 보여준다.
+ * 속도 제한 자리: 사용자당 초당 N — Phase 6 Upstash(spec 스팸 4겹 2).
+ */
+export async function setBookmark(placeId: string, bookmarked: boolean): Promise<string[]> {
   // 검증 실패도 throw가 아니라 reject로 (쓰기 함수는 전부 같은 계약)
-  return Promise.resolve(placeId).then((raw) => {
-    const id = idSchema.parse(raw);
-    if (!placeExists(id)) throw new Error("place not found");
-    const mine = bookmarksOf(currentSession.userId);
-    if (mine.has(id)) mine.delete(id);
-    else mine.add(id);
-    return [...mine];
-  });
+  const id = idSchema.parse(placeId);
+  if (!placeExists(id)) throw new Error("place not found");
+  // 행위자는 **지연 전에** 잡는다 — await 뒤에 읽으면 그 사이 바뀐 세션의 찜을 건드린다.
+  // 훅의 세션 가드는 응답만 버릴 뿐 이미 일어난 쓰기는 못 되돌린다 (Codex PR #10 #1).
+  const userId = currentSession.userId;
+  await simulateWrite();
+  const mine = bookmarksOf(userId);
+  if (bookmarked) mine.add(id);
+  else mine.delete(id);
+  return [...mine];
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

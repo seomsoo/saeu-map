@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { OG_SIZE, ShareCard } from "@/components/og/share-card";
 import { getPlaces } from "@/lib/data";
+import { shrimpPotArt } from "@/lib/og/art";
 import { ogFonts } from "@/lib/og/font";
 
 export const alt = "새우맵 — 서울 새우구이 지도";
@@ -12,6 +13,6 @@ export const contentType = "image/png";
  * (decisions 2026-09-07). 가게 수는 배포 시점 값이다.
  */
 export default async function Image() {
-  const [places, fonts] = await Promise.all([getPlaces(), ogFonts()]);
-  return new ImageResponse(<ShareCard variant="root" count={places.length} />, { ...size, fonts });
+  const [places, fonts, art] = await Promise.all([getPlaces(), ogFonts(), shrimpPotArt()]);
+  return new ImageResponse(<ShareCard variant="root" count={places.length} art={art} />, { ...size, fonts });
 }

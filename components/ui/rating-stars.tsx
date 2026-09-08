@@ -1,10 +1,12 @@
-import { StarIcon } from "@/components/ui/icons/star-icon";
+import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { clampRating } from "@/lib/reviews";
 import { cx } from "@/lib/cx";
 
 const STARS = [1, 2, 3, 4, 5] as const;
 
-/** 별 5개 — 채운 별 잉크, 빈 별 헤어라인 색(gray-200). 채운 별은 인라인 SVG(에셋 목록). */
+/** 별점 5칸 — 채움 브랜드 레드(red-600), 빔 헤어라인 색(gray-200). 모양은 새우다(2026-09-07).
+ * 12·14px에선 형태가 뭉개서 16px(size-4)까지 올렸다 — 별보다 복잡한 실루엣의 값이다.
+ * 접근 이름은 "별점 N점" 그대로(바뀐 건 UI뿐). */
 export function RatingStars({
   rating,
   size = "sm",
@@ -22,9 +24,9 @@ export function RatingStars({
       className={cx("inline-flex items-center gap-0.5", className)}
     >
       {STARS.map((n) => (
-        <StarIcon
+        <ShrimpIcon
           key={n}
-          className={cx(size === "sm" ? "size-3" : "size-4", n <= filled ? "text-fg" : "text-line")}
+          className={cx(size === "sm" ? "size-4" : "size-5", n <= filled ? "text-brand-fg" : "text-line")}
         />
       ))}
     </span>

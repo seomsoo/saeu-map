@@ -28,6 +28,15 @@ export function SeasonCounter({ stats }: { stats: SeasonStats }) {
       <span className="shrink-0">
         이번 주 <strong className="font-semibold text-fg">{stats.weekPlaceCount}</strong>곳
       </span>
+      {/* 셋째 조각은 데스크탑만 — 모바일 세로·가로 예산에서 캡션이 두 줄이 된다 (design 화면 6 v3) */}
+      {stats.newPlaceCount > 0 && (
+        <>
+          <span className="hidden h-2.5 w-px shrink-0 bg-line-strong lg:block" aria-hidden="true" />
+          <span className="hidden shrink-0 lg:inline">
+            새로 들어온 집 <strong className="font-semibold text-fg">{stats.newPlaceCount}</strong>곳
+          </span>
+        </>
+      )}
     </p>
   );
 }

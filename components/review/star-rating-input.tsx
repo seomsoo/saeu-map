@@ -1,4 +1,4 @@
-import { StarIcon } from "@/components/ui/icons/star-icon";
+import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { cx } from "@/lib/cx";
 
 const STARS = [1, 2, 3, 4, 5] as const;
@@ -28,7 +28,7 @@ export function StarRatingInput({ value, onChange }: StarRatingInputProps) {
           }}
           className="press flex size-11 items-center justify-center"
         >
-          <StarIcon className={cx("size-8", n <= value ? "text-fg" : "text-line")} />
+          <ShrimpIcon className={cx("size-9", n <= value ? "text-brand-fg" : "text-line")} />
         </button>
       ))}
     </div>

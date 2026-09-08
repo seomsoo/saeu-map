@@ -66,6 +66,11 @@ export interface Place {
   checkCount: number;
   isNew: boolean;
   createdAt?: string;
+  /**
+   * 카드·마커가 쓰는 평점 요약 — **리뷰 3개 이상일 때만** 채워진다(spec 4.2-9 "3개 미만 평균 숨김").
+   * 집계는 lib/data.ts가 한다(규칙 1) — Phase 6에서 그 함수만 SQL 집계로 바뀐다.
+   */
+  rating?: { count: number; average: number };
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
   /** 제보한 세션 userId — 내 활동 > 내 제보(spec 5). 시드는 없다. */
@@ -126,6 +131,8 @@ export interface SeasonStats {
   todayCheckinCount: number;
   /** 이번 주 최다 확인 가게 (없으면 null) */
   topPlace: { id: string; name: string; count: number } | null;
+  /** 등록 7일 이내(= isNew) 가게 수 — 데스크탑 카운터 캡션의 셋째 조각 (design 화면 6 v3) */
+  newPlaceCount: number;
 }
 
 export interface Review {

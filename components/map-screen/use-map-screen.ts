@@ -23,7 +23,7 @@ import { buildPlaceIndex, type ClusterItem } from "@/lib/cluster";
 import {
   getBookmarkedPlaceIds,
   getGuOfPoint,
-  toggleBookmark as requestToggleBookmark,
+  setBookmark as requestSetBookmark,
 } from "@/lib/data";
 import {
   isDetailHistoryState,
@@ -32,7 +32,7 @@ import {
   type SaeuHistoryState,
 } from "@/lib/history-state";
 import { boundsOf, inBounds, SEOUL_CENTER } from "@/lib/geo";
-import { isDesktopViewport } from "@/lib/layout";
+import { isDesktopViewport, PANEL_OCCLUSION_PX } from "@/lib/layout";
 import {
   areaLabel as computeAreaLabel,
   densestPoint,
@@ -201,6 +201,26 @@ export function useMapScreen({
   }, [meOpen]);
   /** 사용자가 핀을 옮긴 뒤에는 늦게 온 위치로 핀을 덮어쓰지 않는다 */
   const pinTouchedRef = useRef(false);
+  /** 늦게 온 쓰기 응답이 "아직 그 세션인가"를 볼 수 있게 (CLAUDE.md 비동기 결과 규칙) */
+  const sessionRef = useRef<string | null>(null);
+  /** 핸들러가 재구독 없이 현재 찜 목록을 읽는다(연타의 방향 판정) */
+  const bookmarkedIdsRef = useRef<readonly string[]>(initialBookmarkedIds);
+  /**
+   * 낙관 토글이 진행 중인 가게 → 그 시점의 희망 상태. 재로드(세션 바뀜)가 이 항목을 되살리거나
+   * 지우지 않게 결과에 덮어씌운다 — 성공·실패 **양쪽에서** 표식을 지운다 (CLAUDE.md 낙관 업데이트 규칙).
+   */
+  const pendingBookmarksRef = useRef(new Map<string, boolean>());
+  /** 가게별 요청 순번 — 연타로 겹친 요청 중 **마지막 것의 응답만** 화면에 앉힌다 (Codex PR #10 #2) */
+  const bookmarkSeqRef = useRef(new Map<string, number>());
+  /** 서버 목록에 진행 중인 낙관 상태를 얹는다 */
+  const withPendingBookmarks = useCallback((ids: readonly string[]): string[] => {
+    const next = new Set(ids);
+    for (const [id, wanted] of pendingBookmarksRef.current) {
+      if (wanted) next.add(id);
+      else next.delete(id);
+    }
+    return [...next];
+  }, []);
   /** 늦게 오는 위치 응답이 호출 시점의 시트 상태를 봐야 한다 — 클로저 값은 낡는다 */
   const snapRef = useRef<SheetSnap>("half");
   const modeRef = useRef<SheetMode>("list");
@@ -219,12 +239,18 @@ export function useMapScreen({
   // 서버가 준 초기값으로 시작하므로 status는 ready에서 출발하고, 세션이 바뀔 때만 다시 읽는다(내 활동 찜 탭의 4상태).
   const sessionUserId = session?.userId ?? null;
   useEffect(() => {
+    sessionRef.current = sessionUserId;
+  }, [sessionUserId]);
+  useEffect(() => {
+    bookmarkedIdsRef.current = bookmarkedIds;
+  }, [bookmarkedIds]);
+  useEffect(() => {
     if (sessionUserId === null || bookmarksLoaded?.userId === sessionUserId) return;
     let alive = true;
     getBookmarkedPlaceIds().then(
       (ids) => {
         if (!alive) return;
-        setBookmarkedIds(ids);
+        setBookmarkedIds(withPendingBookmarks(ids));
         setBookmarksLoaded({ userId: sessionUserId, ok: true });
       },
       () => {
@@ -234,7 +260,7 @@ export function useMapScreen({
     return () => {
       alive = false;
     };
-  }, [sessionUserId, bookmarksLoaded]);
+  }, [sessionUserId, bookmarksLoaded, withPendingBookmarks]);
 
   /** 내 활동 찜 탭의 4상태 — 아직 이 세션의 찜을 못 읽었으면 로딩, 실패면 에러 */
   const bookmarksStatus: LoadStatus =
@@ -396,6 +422,19 @@ export function useMapScreen({
     [visibleStripCenterY],
   );
 
+  /* ── 데스크탑은 떠 있는 패널이 지도 왼쪽을 덮는다 — 가시 영역의 가로 중앙은 그만큼 오른쪽이다.
+     모바일은 패널이 없으니 undefined = 컨테이너 중앙 (design 화면 6 v3) ── */
+  const stripCenterX = useCallback((): number | undefined => {
+    if (!isDesktopViewport()) return undefined;
+    return (PANEL_OCCLUSION_PX + window.innerWidth) / 2;
+  }, []);
+
+  /** fitBounds 왼쪽 마진 — 패널이 가리는 만큼 더 준다 */
+  const panelFitLeft = useCallback((base: number): number => {
+    if (!isDesktopViewport()) return base;
+    return PANEL_OCCLUSION_PX + base;
+  }, []);
+
   /*
    * 첫 로드에 위치를 묻지 않는다 — 맥락 없이 뜬 권한 팝업은 반사적으로 거부되고, 거부는 되돌리기가
    * 브라우저마다 다른 미로다. 현위치 FAB을 누를 때만 묻는다(그때의 거부는 의도적 선택이다).
@@ -420,38 +459,50 @@ export function useMapScreen({
         mapRef.current.fitBounds(bounds, {
           top: desktop ? 40 : (topStackRef.current?.getBoundingClientRect().bottom ?? 0) + 24,
           bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "list") + 24,
-          left: 40,
+          left: panelFitLeft(40),
           right: 40,
           maxZoom: GU_FIT_MAX_ZOOM,
         });
       } else {
         mapRef.current.focus(initialGu.center, GU_ZOOM, {
+          screenX: stripCenterX(),
           screenY: visibleStripCenterY("half", "list"),
         });
       }
       return;
     }
-    // 데스크탑: SDK가 defaultCenter를 컨테이너 중앙에 놓는데 그게 곧 보이는 지도의 중앙이다 — 옮길 게 없다
-    if (isDesktopViewport()) {
-      initialPanDone.current = true;
-      return;
-    }
+    // 데스크탑도 옮긴다 — v2(붙은 패널)에선 지도 컬럼 중앙이 곧 가시 중앙이었지만,
+    // v3의 떠 있는 패널은 지도 위를 덮으므로 가로를 그만큼 밀어야 한다 (design 화면 6 v3)
     if (initialPlaceId) {
       const place = places.find((p) => p.id === initialPlaceId);
       if (!place) return;
       initialPanDone.current = true;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+      mapRef.current.panTo(place, {
+        screenX: stripCenterX(),
+        screenY: visibleStripCenterY("half", "detail"),
+      });
       return;
     }
     initialPanDone.current = true;
     programmaticMoveAt.current = performance.now();
     // 첫 페인트라 애니메이션 없이 — 지도가 뜨자마자 미끄러지면 안 된다
     mapRef.current.panTo(viewport.center, {
+      screenX: stripCenterX(),
       screenY: visibleStripCenterY("half", "list"),
       animate: false,
     });
-  }, [initialPlaceId, initialGu, viewport, places, mapRef, topStackRef, visibleStripCenterY]);
+  }, [
+    initialPlaceId,
+    initialGu,
+    viewport,
+    places,
+    mapRef,
+    topStackRef,
+    visibleStripCenterY,
+    stripCenterX,
+    panelFitLeft,
+  ]);
 
   /* ── 상세 열기/닫기 (화면 2: 탭=요약, 스와이프=닫기) + URL 동기화 ── */
   const openDetail = useCallback(
@@ -483,10 +534,13 @@ export function useMapScreen({
       }
       if (mapRef.current) {
         programmaticMoveAt.current = performance.now();
-        mapRef.current.panTo(place, { screenY: visibleStripCenterY("half", "detail") });
+        mapRef.current.panTo(place, {
+          screenX: stripCenterX(),
+          screenY: visibleStripCenterY("half", "detail"),
+        });
       }
     },
-    [places, snap, detailId, mapRef, visibleStripCenterY],
+    [places, snap, detailId, mapRef, visibleStripCenterY, stripCenterX],
   );
 
   const closeDetail = useCallback((source: "ui" | "history" = "ui") => {
@@ -512,11 +566,20 @@ export function useMapScreen({
 
   const handleClusterClick = useCallback(
     (clusterId: number, center: LatLng) => {
-      if (reportStepRef.current !== null) return; // 제보 중엔 클러스터도 보이기만 (마커와 같은 규칙)
+      const step = reportStepRef.current;
+      // 2단계에선 클러스터도 **지도의 그 자리**다 — 여기서 빠져나가면 마커가 덮은 지역을 눌렀을 때
+      // 아무 일도 안 일어나 "핀이 안 꽂힌다"가 된다(마커가 지도의 상당 부분을 덮는다, 2026-09-08).
+      // 개별 마커는 그대로 중복 의심 후보로 간다(design 화면 3 변형 (a)).
+      if (step === 2) {
+        pinTouchedRef.current = true;
+        setReportPin(center);
+        return;
+      }
+      if (step !== null) return; // 다른 단계에선 클러스터도 보이기만
       const zoom = Math.min(index.getExpansionZoom(clusterId), 19);
-      mapRef.current?.focus(center, zoom, { screenY: stripCenterY() });
+      mapRef.current?.focus(center, zoom, { screenX: stripCenterX(), screenY: stripCenterY() });
     },
-    [index, mapRef, stripCenterY],
+    [index, mapRef, stripCenterY, stripCenterX],
   );
 
   const toggleChip = useCallback((chip: ChipKey) => {
@@ -553,11 +616,11 @@ export function useMapScreen({
     mapRef.current.fitBounds(bounds, {
       top,
       bottom,
-      left: 24,
+      left: panelFitLeft(24),
       right: 24,
       maxZoom: SEARCH_FIT_MAX_ZOOM,
     });
-  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef]);
+  }, [places, tab, chips, query, bookmarked, snap, mode, mapRef, topStackRef, panelFitLeft]);
 
   const dismissEvent = useCallback(() => {
     setEventDismissed(true);
@@ -584,10 +647,11 @@ export function useMapScreen({
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
       mapRef.current.focus(point, REPORT_ZOOM, {
+        screenX: stripCenterX(),
         screenY: visibleStripCenterY("half", "report"),
       });
     },
-    [mapRef, visibleStripCenterY],
+    [mapRef, visibleStripCenterY, stripCenterX],
   );
 
   /** 단계 이동 + 스냅(2단계만 요약). 2단계 첫 진입에 핀을 세운다: 현 위치 → 보던 지도 중심 → 서울 중심 */
@@ -685,12 +749,12 @@ export function useMapScreen({
       mapRef.current.fitBounds(bounds, {
         top: desktop ? 40 : 72,
         bottom: desktop ? 40 : sheetVisiblePx("half", sheetViewportHeight(), "report") + 24,
-        left: 40,
+        left: panelFitLeft(40),
         right: 40,
         maxZoom: REPORT_ZOOM,
       });
     },
-    [reportPin, mapRef],
+    [reportPin, mapRef, panelFitLeft],
   );
 
   /** 1단계 매치·2단계 [이 가게예요]·완료 [내 핀 보러가기]·"리뷰도 남겨볼래요?" — 플로우를 닫고 그 가게 상세로(엔트리 교체) */
@@ -746,9 +810,28 @@ export function useMapScreen({
   /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts, 세션별). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
   const toggleBookmark = useCallback(
     (id: string) => {
-      requestToggleBookmark(id).then(
+      // 요청 시점의 세션을 기억한다 — 토글 중 로그아웃·승계·탈퇴가 끼면 늦게 온 이전 사용자의 목록이
+      // 새 세션 화면에 앉는다(목은 지연 400ms라 창이 넉넉하고, Phase 6 왕복에선 더 넓다).
+      const requestedFor = session?.userId ?? null;
+      // 연타에도 방향이 맞게: 진행 중인 낙관 상태가 있으면 그것을, 없으면 화면 목록을 기준으로 뒤집는다
+      const now = pendingBookmarksRef.current.get(id) ?? bookmarkedIdsRef.current.includes(id);
+      const wanted = !now;
+      pendingBookmarksRef.current.set(id, wanted);
+      const seq = (bookmarkSeqRef.current.get(id) ?? 0) + 1;
+      bookmarkSeqRef.current.set(id, seq);
+      /** 더 최신 클릭이 있으면 이 응답은 버린다 — 중간 상태를 앉히거나 남의 표식을 지우지 않게 */
+      const stale = () => bookmarkSeqRef.current.get(id) !== seq;
+      // 낙관 업데이트 — 하트는 누르는 즉시 바뀐다(쓰기는 상태 변화까지, UI 완성 기준)
+      setBookmarkedIds((prev) =>
+        wanted ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((x) => x !== id),
+      );
+      // 토글이 아니라 **원하는 상태**를 보낸다(멱등) — 겹쳐도 마지막 의도가 이긴다
+      requestSetBookmark(id, wanted).then(
         (ids) => {
-          setBookmarkedIds(ids);
+          if (stale()) return;
+          pendingBookmarksRef.current.delete(id);
+          if (requestedFor !== null && requestedFor !== sessionRef.current) return;
+          setBookmarkedIds(withPendingBookmarks(ids));
           if (
             session?.provider === "anonymous" &&
             ids.length === BOOKMARK_NUDGE_AT &&
@@ -760,11 +843,18 @@ export function useMapScreen({
           }
         },
         () => {
+          if (stale()) return;
+          pendingBookmarksRef.current.delete(id);
+          if (requestedFor !== null && requestedFor !== sessionRef.current) return;
+          // 롤백 — 되돌릴 때 이미 들어와 있는지 보고 중복을 만들지 않는다
+          setBookmarkedIds((prev) =>
+            wanted ? prev.filter((x) => x !== id) : prev.includes(id) ? prev : [...prev, id],
+          );
           showNotice("찜을 저장하지 못했어요");
         },
       );
     },
-    [session, showNotice],
+    [session, showNotice, withPendingBookmarks],
   );
 
   /* ── 내 활동 패널 (화면 5): 시트 me 모드, 히스토리 엔트리 하나(URL은 /) ── */
@@ -873,10 +963,13 @@ export function useMapScreen({
       setUserLocation(res.point);
       if (!mapRef.current) return;
       programmaticMoveAt.current = performance.now();
-      mapRef.current.focus(res.point, USER_ZOOM, { screenY: stripCenterY() });
+      mapRef.current.focus(res.point, USER_ZOOM, {
+        screenX: stripCenterX(),
+        screenY: stripCenterY(),
+      });
       setFollowing(true);
     });
-  }, [mapRef, showNotice, stripCenterY]);
+  }, [mapRef, showNotice, stripCenterY, stripCenterX]);
 
   return {
     // 상태
