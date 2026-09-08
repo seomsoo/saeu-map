@@ -855,11 +855,13 @@ describe("submitSuggestion — 값 제안 (즉시 반영 + 이력)", () => {
     const target = (await getPlaces({}, NOW)).find((p) => p.hoursNote !== null);
     if (!target) throw new Error("no place with hours");
     await settle(submitSuggestion({ field: "hours", placeId: target.id, hoursNote: "새벽 3시까지" }, NOW));
+    await setAdmin(true); // 이력 읽기는 운영 기록이라 관리자만
     const [latest] = await getPlaceEdits();
     expect(latest).toMatchObject({ placeId: target.id, field: "hours" });
     expect(latest?.before.hoursNote).toBe(target.hoursNote);
     expect(latest?.actor).toMatch(/^anon-/);
     expect(latest?.at).toBe(new Date(Date.parse(NOW)).toISOString());
+    await setAdmin(false);
   });
 
   it("실패는 reject하고 값도 그대로, 검증 실패는 지연도 타지 않는다", async () => {
@@ -1063,7 +1065,9 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
   });
 
   it("네 입구가 모두 신고·요청 목록에 쌓인다 (그전엔 검증만 하고 버렸다)", async () => {
+    await setAdmin(true);
     const before = (await getReports()).length;
+    await setAdmin(false); // 내는 건 사용자다
     await settle(flagPlace({ placeId: "p019", reason: "closed" }));
     await settle(reportPlace({ placeId: "p019", reason: "duplicate" }));
     await settle(reportPhoto({ placeId: "p018", photoId: "p018-p1", reason: "spam" }));
@@ -1075,6 +1079,7 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
         message: "폐업했습니다",
       }),
     );
+    await setAdmin(true);
     const rows = await getReports();
     expect(rows).toHaveLength(before + 4);
     // 최신순
@@ -1107,15 +1112,20 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
     expect(await getPlaceById(target.id, NOW)).toBeUndefined();
     expect(await getPlaceDetail(target.id, NOW)).toBeUndefined();
     // 관리자 검색에는 보인다 — 복구하려면 찾을 수 있어야 한다
+    await setAdmin(true);
     expect((await searchPlacesForAdmin(target.name, NOW)).some((p) => p.id === target.id)).toBe(true);
 
-    await setAdmin(true);
     const restored = await settle(setPlaceHidden(target.id, false, NOW));
     expect("hiddenAt" in restored).toBe(false);
     expect((await getPlaces({}, NOW)).some((p) => p.id === target.id)).toBe(true);
   });
 
-  it("쓰기는 관리자만 — 프론트 게이트를 우회해도 여기서 막힌다", async () => {
+  it("읽기·쓰기 모두 관리자만 — 프론트 게이트를 우회해도 여기서 막힌다", async () => {
+    // 읽기도 막는다: 신고 목록엔 사장님 연락처(개인정보)와 낸 사람의 익명 id가 들어 있다
+    await expect(getReports()).rejects.toThrow("forbidden");
+    await expect(getPlaceEdits()).rejects.toThrow("forbidden");
+    await expect(getAdminStats(NOW)).rejects.toThrow("forbidden");
+    await expect(searchPlacesForAdmin("새우", NOW)).rejects.toThrow("forbidden");
     await expect(resolveReport("rp-local-1", "done")).rejects.toThrow("forbidden");
     await expect(confirmPlace("p019", NOW)).rejects.toThrow("forbidden");
     await expect(setPlaceHidden("p019", true, NOW)).rejects.toThrow("forbidden");
@@ -1183,6 +1193,7 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
   });
 
   it("통계는 우리 DB로 셀 수 있는 것만 — 14일 버킷과 숙제 수", async () => {
+    await setAdmin(true);
     const stats = await getAdminStats(NOW);
     expect(stats.daily).toHaveLength(14);
     expect(stats.daily.at(-1)?.date).toBe(formatKstDate(NOW));
@@ -1197,9 +1208,9 @@ describe("관리자 — 신고·요청 저장, 권한, 사후 확인·숨김·�
 
   it("처리함·무시함은 원하는 상태를 받는다 (토글이 아니다)", async () => {
     await settle(flagPlace({ placeId: "p019", reason: "menu" }));
+    await setAdmin(true);
     const [row] = await getReports();
     if (!row) throw new Error("no report");
-    await setAdmin(true);
     expect((await settle(resolveReport(row.id, "done"))).status).toBe("done");
     // 같은 값을 다시 보내도 뒤집히지 않는다 (멱등)
     expect((await settle(resolveReport(row.id, "done"))).status).toBe("done");

@@ -953,9 +953,14 @@ export type SuggestionInput = z.infer<typeof suggestionSchema>;
 let editSeq = 0;
 const placeEdits: PlaceEdit[] = [];
 
-/** 사후 확인 탭이 최신순으로 읽는다 (spec 4.5). 되돌리기는 `before`를 그대로 쓰면 된다. */
-export function getPlaceEdits(): Promise<PlaceEdit[]> {
-  return Promise.resolve([...placeEdits].reverse());
+/**
+ * 수정 이력 탭이 최신순으로 읽는다 (spec 4.5). 되돌리기는 `before`를 그대로 쓰면 된다.
+ * **읽기에도 게이트를 세운다** — 누가 무엇을 고쳤는지는 운영 기록이고, 게이트 없는 읽기를 여기 두면
+ * Phase 6이 그 모양을 그대로 베낀다(그때는 RLS가 유일한 방어선이 된다).
+ */
+export async function getPlaceEdits(): Promise<PlaceEdit[]> {
+  await requireAdmin();
+  return [...placeEdits].reverse();
 }
 
 /** 제보 입력 한 줄 → 저장되는 메뉴. `submitReport`와 같은 모양이어야 한다. */
@@ -1155,8 +1160,10 @@ export const AUTO_HIDE_REPORT_COUNT = 3;
  * 마지막 방어선. 프론트 게이트(`/admin`의 `notFound()`)는 장식이고 진짜 판정은 Phase 6 서버·RLS다 —
  * 목 단계에도 쓰기 함수마다 세워 두어 "화면만 가리면 된다"는 습관이 안 생기게 한다(spec 4.5).
  */
-function requireAdmin(): void {
+async function requireAdmin(): Promise<void> {
   if (currentSession.isAdmin !== true) throw new Error("forbidden");
+  // Phase 6에서는 여기가 실제 왕복이 된다(서버가 `profiles.is_admin`을 읽는다) — 그래서 async다
+  await Promise.resolve();
 }
 
 /** 한 데이터셋 안에서 가게 하나를 갈아끼운다. 없으면 던진다. */
@@ -1207,17 +1214,23 @@ function autoHideIfReported(placeId: string): void {
   }
 }
 
-/** 신고·요청 목록 — 최신순. `kind`로 거르면 종류 칩 한 줄이 된다. */
-export function getReports(filter: { kind?: ReportKind; status?: ReportStatus } = {}): Promise<Report[]> {
+/**
+ * 신고·요청 목록 — 최신순. `kind`로 거르면 종류 칩 한 줄이 된다.
+ * **가장 민감한 읽기다**: 사장님 요청의 연락처(개인정보)와 낸 사람의 익명 id가 들어 있다.
+ */
+export async function getReports(
+  filter: { kind?: ReportKind; status?: ReportStatus } = {},
+): Promise<Report[]> {
+  await requireAdmin();
   const rows = reports
     .filter((r) => (filter.kind ? r.kind === filter.kind : true))
     .filter((r) => (filter.status ? r.status === filter.status : true));
-  return Promise.resolve([...rows].reverse());
+  return [...rows].reverse();
 }
 
 /** 처리함·무시함으로 넘긴다. **원하는 상태를 받는다**(토글 아님, CLAUDE.md 쓰기 규칙). */
 export async function resolveReport(id: string, status: ReportStatus): Promise<Report> {
-  requireAdmin();
+  await requireAdmin();
   await simulateWrite();
   const i = reports.findIndex((r) => r.id === id);
   if (i < 0) throw new Error("report not found");
@@ -1228,7 +1241,7 @@ export async function resolveReport(id: string, status: ReportStatus): Promise<R
 
 /** 사후 확인 — 배지만 찍는다. "새로 제보됨" 라벨(`isNew`)은 건드리지 않는다(decisions 2026-09-08). */
 export async function confirmPlace(placeId: string, now: DateInput): Promise<Place> {
-  requireAdmin();
+  await requireAdmin();
   await simulateWrite();
   return patchPlaceEverywhere(placeId, (p) => ({ ...p, verifiedAt: new Date(toMs(now)).toISOString() }));
 }
@@ -1240,7 +1253,7 @@ export async function setPlaceHidden(
   now: DateInput,
   options: { byOwner?: boolean } = {},
 ): Promise<Place> {
-  requireAdmin();
+  await requireAdmin();
   await simulateWrite();
   return patchPlaceEverywhere(placeId, (p) => {
     if (!hidden) {
@@ -1260,6 +1273,7 @@ export async function setPlaceHidden(
 /**
  * 검색 탭의 삭제 — **소프트다**. spec 5가 "재제보 시 관리자에게 경고 표시"를 요구하므로 기록이 남아야 한다.
  * 사장님 요청으로 내린 것은 `removedByOwner`가 붙어 재제보 때 구분된다.
+ * 권한은 `setPlaceHidden`이 세운다(여기서 또 세우면 같은 검사가 두 번이다).
  */
 export function deletePlace(placeId: string, now: DateInput, byOwner = false): Promise<Place> {
   return setPlaceHidden(placeId, true, now, { byOwner });
@@ -1270,7 +1284,7 @@ export function deletePlace(placeId: string, now: DateInput, byOwner = false): P
  * 그래서 확인 모달이 없다(파괴적인 건 삭제뿐).
  */
 export async function revertPlaceEdit(editId: string, now: DateInput): Promise<Place> {
-  requireAdmin();
+  await requireAdmin();
   const actor = currentSession.userId;
   await simulateWrite();
   const edit = placeEdits.find((e) => e.id === editId);
@@ -1297,14 +1311,17 @@ export async function revertPlaceEdit(editId: string, now: DateInput): Promise<P
   return place;
 }
 
-/** 검색 탭 — 숨긴 가게도 보여야 한다(복구하려면 찾아야 하니까). 상호 부분 일치, 최대 30. */
-export function searchPlacesForAdmin(query: string, now: DateInput): Promise<Place[]> {
+/**
+ * 검색 탭 — **숨긴 가게도 보여야 한다**(복구하려면 찾을 수 있어야 하니까). 상호 부분 일치, 최대 30.
+ * 사용자 검색(`getPlaces`)과 달리 숨김을 걸러내지 않으므로 게이트가 필요하다.
+ */
+export async function searchPlacesForAdmin(query: string, now: DateInput): Promise<Place[]> {
+  await requireAdmin();
   const q = normalizeQuery(query);
-  if (q === "") return Promise.resolve([]);
-  const rows = dataset(now)
+  if (q === "") return [];
+  return dataset(now)
     .places.filter((p) => normalizeQuery(p.name).includes(q))
     .slice(0, 30);
-  return Promise.resolve(rows);
 }
 
 function countByDay(items: readonly { at: string }[], dayStart: number, dayEnd: number): number {
@@ -1315,7 +1332,8 @@ function countByDay(items: readonly { at: string }[], dayStart: number, dayEnd: 
 }
 
 /** 관리자 통계 — 우리 DB로 셀 수 있는 것만(design 화면 10-5). Phase 6에선 이 함수만 SQL 집계로 바뀐다. */
-export function getAdminStats(now: DateInput): Promise<AdminStats> {
+export async function getAdminStats(now: DateInput): Promise<AdminStats> {
+  await requireAdmin();
   const data = dataset(now);
   const reviews = visibleReviews(data.reviews);
   const reported = data.places.filter((p) => p.source === "report" && p.createdAt !== undefined);
@@ -1346,12 +1364,12 @@ export function getAdminStats(now: DateInput): Promise<AdminStats> {
     .slice(0, 10)
     .map((p) => ({ placeId: p.id, name: p.name, checkCount: p.checkCount }));
 
-  return Promise.resolve({
+  return {
     openReports: reports.filter((r) => r.status === "open").length,
     unverified: visible.filter((p) => p.source === "report" && p.verifiedAt === undefined).length,
     today: daily.at(-1) ?? bucket(todayStart),
     daily,
     participants: { anonymous, kakao: actors.size - anonymous },
     topPlaces,
-  });
+  };
 }
