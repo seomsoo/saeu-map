@@ -17,6 +17,7 @@ import type {
   Place,
   PlaceDetail,
   PlaceFlagReason,
+  PlaceReportReason,
   PlaceTag,
   Review,
   SeasonStats,
@@ -448,13 +449,20 @@ export const reportMenuSchema = z.object({
   raw: z.boolean(),
 });
 
+/** 사이드 3종 — 제보(화면 3-4)와 상세의 사이드 제안(화면 2-6)이 같은 모양을 쓴다. */
+const sidesSchema = z.object({
+  headButter: z.boolean(),
+  ramen: z.boolean(),
+  friedRice: z.boolean(),
+});
+
 /** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 주소는 받지 않는다 — 구는 좌표로 판정(전국). 좌표 범위는 한국 대략 상자. */
 export const reportInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
   menus: z.array(reportMenuSchema).min(1).max(2),
-  sides: z.object({ headButter: z.boolean(), ramen: z.boolean(), friedRice: z.boolean() }),
+  sides: sidesSchema,
   hoursNote: z.string().trim().max(80),
   /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */
   photos: z
@@ -477,6 +485,31 @@ export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
 export type ReportInput = z.infer<typeof reportInputSchema>;
 
 let reportSeq = 0;
+let photoSeq = 0;
+
+/**
+ * 목 단계의 사진 "저장소" — 브라우저 메모리다. `createObjectURL`로 만든 URL을 **일부러 revoke하지 않는다**:
+ * `PhotoPicker`는 자기 목록의 URL을 언마운트 때 revoke하므로, 그 URL을 그대로 `Place.photos`에 넣으면
+ * 시트가 닫히는 순간 사진이 깨진다(decisions 2026-09-08). 새로고침하면 사라지는 건 제보로 만든 가게와
+ * 같은 수준이고, 진짜 저장소(NCP → R2)는 Phase 6이다.
+ * 서버(SSR·OG 빌드)에는 이 API가 없으므로 `null`을 돌려주고 호출자가 사진 없이 진행한다.
+ */
+function retainPhotoUrl(file: File): string | null {
+  if (typeof URL.createObjectURL !== "function") return null;
+  return URL.createObjectURL(file);
+}
+
+/** 고른 파일을 `Photo[]`로. URL을 못 만드는 환경(서버)에서는 그 장을 조용히 버린다. */
+function toPhotos(placeId: string, files: readonly File[], uploadedAt: string): Photo[] {
+  const photos: Photo[] = [];
+  for (const file of files) {
+    const url = retainPhotoUrl(file);
+    if (url === null) continue;
+    photoSeq += 1;
+    photos.push({ id: `${placeId}-u${String(photoSeq)}`, url, uploadedAt });
+  }
+  return photos;
+}
 
 /**
  * 제보 등록 (spec 4.3, 5 "모든 제보 즉시 노출"). 성공하면 만들어진 Place를 돌려주고 데이터셋 끝에 붙인다.
@@ -491,10 +524,13 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
   const data = dataset(now);
   const createdAt = new Date(toMs(now)).toISOString();
   reportSeq += 1;
+  const id = `r${String(reportSeq).padStart(3, "0")}`;
+  // 고른 사진을 버리지 않는다(2026-09-08) — 등록 직후 상세가 "아직 사진이 없어요"로 뜨던 자리다
+  const photos = toPhotos(id, report.photos, createdAt);
   const tags: PlaceTag[] = ["grill"];
   if (report.menus.some((m) => m.raw)) tags.push("raw");
   const place: Place = {
-    id: `r${String(reportSeq).padStart(3, "0")}`,
+    id,
     name: report.name,
     gu,
     addressRoad: null,
@@ -505,8 +541,8 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     tags,
     specialist: false, // 제보 핀은 전문점 판정 없음 (spec 2 가공 규칙)
     naverPlaceUrl: report.naverPlaceUrl || null,
-    photos: [],
-    thumbnailUrl: null,
+    photos,
+    thumbnailUrl: photos[0]?.url ?? null,
     hoursNote: report.hoursNote || null,
     menus: report.menus.map((m) => ({
       raw: m.name,
@@ -703,6 +739,8 @@ export async function submitReview(
   if (!current) throw new Error("place not found");
   const at = new Date(toMs(now)).toISOString();
   reviewSeq += 1;
+  // 고른 사진은 리뷰 행 썸네일이 된다(2026-09-08) — 그전엔 버려져 `photoUrl`이 늘 비어 있었다
+  const photoUrl = parsed.photo === null ? null : retainPhotoUrl(parsed.photo);
   const review: Review = {
     id: `rv-local-${String(reviewSeq)}`,
     placeId: parsed.placeId,
@@ -711,6 +749,7 @@ export async function submitReview(
     text: parsed.text,
     nickname: currentSession.nickname ?? KAKAO_MOCK_NICKNAME,
     at,
+    ...(photoUrl !== null && { photoUrl }),
   };
   const place: Place = { ...current, checkCount: current.checkCount + 1, lastCheckedAt: at };
   data.reviews = [...data.reviews, review];
@@ -790,4 +829,113 @@ const placeFlagSchema = z.object({
 export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<void> {
   placeFlagSchema.parse(input);
   await simulateWrite();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   값 제안 · 가게 신고 · 사장님 요청 · 사진 올리기 (design 화면 2 "상세의 쓰기 표면")
+   2026-09-08 — 상세에 남아 있던 "준비 중이에요" 입구 7곳을 실제 쓰기로 바꾼다.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 필드별 수정 제안(spec 4.2 "수정 제안은 즉시 반영이 아니라 승인 큐 경유").
+ * **주소는 사용자가 직접 친 값만 받는다** — 지오코더 응답은 절대 규칙 2로 저장할 수 없다
+ * (`naverPlaceUrl`과 같은 판례, decisions 2026-09-08). 그래서 화면에도 자동완성이 없다.
+ */
+export const suggestionSchema = z.discriminatedUnion("field", [
+  z.object({
+    field: z.literal("hours"),
+    placeId: idSchema,
+    // 제보 4단계 `hoursNote`와 같은 상한 — 같은 값을 두 곳에서 다르게 받지 않는다
+    hoursNote: z.string().trim().min(1).max(80),
+  }),
+  z.object({
+    field: z.literal("address"),
+    placeId: idSchema,
+    addressRoad: z.string().trim().min(2).max(60),
+  }),
+  z.object({ field: z.literal("menus"), placeId: idSchema, menus: z.array(reportMenuSchema).min(1).max(2) }),
+  z.object({ field: z.literal("sides"), placeId: idSchema, sides: sidesSchema }),
+]);
+export type SuggestionInput = z.infer<typeof suggestionSchema>;
+
+/**
+ * 수정 제안 접수 — `flagPlace`·`reportPhoto`와 같은 계약(검증 + 지연만). 큐·관리자 화면은 Phase 6.
+ * **돌려줄 Place가 없는 게 요점이다**: 승인 전에는 화면 값이 그대로라 낙관적 업데이트를 하지 않는다
+ * (그래서 시트가 누르기 전에 "확인 후 반영돼요"라고 말한다 — design 화면 2).
+ * 익명도 보낼 수 있다(spec 5 "수정 제안은 익명 가능"). 속도 제한 자리: 핀당 일 N — Phase 6 Upstash.
+ */
+export async function submitSuggestion(input: SuggestionInput): Promise<void> {
+  suggestionSchema.parse(input);
+  await simulateWrite();
+}
+
+const placeReportSchema = z.object({
+  placeId: idSchema,
+  reason: z.enum(["not_shrimp", "fake", "duplicate", "other"]),
+});
+
+/**
+ * 가게 신고 접수 (spec 5 "신고 3회 → 자동 숨김", 스팸 4겹 2 "신고 일 10").
+ * 사유에 "문 닫았어요"가 없는 건 그게 `flagPlace`(정보 수정 제안)의 사유이기 때문이다 —
+ * 신고는 "이 등록 자체가 잘못됐다", 수정 제안은 "값이 틀렸다"로 갈린다(decisions 2026-09-08).
+ */
+export async function reportPlace(input: {
+  placeId: string;
+  reason: PlaceReportReason;
+}): Promise<void> {
+  placeReportSchema.parse(input);
+  await simulateWrite();
+}
+
+/**
+ * 사장님 정보 수정·게재 삭제 요청 (spec 4.2-9 "연락 창구 상시 노출", spec 5 "1회 요청으로 즉시 처리").
+ * **연락처가 필수**인 이유: "24시간 내 처리"는 회신할 곳이 있어야 성립한다(decisions 2026-09-08).
+ * 목 단계에는 저장할 곳이 없어 검증 + 지연만 한다 — reports 테이블·텔레그램 알림은 Phase 6.
+ */
+export const ownerRequestSchema = z.object({
+  placeId: idSchema,
+  kind: z.enum(["edit", "remove"]),
+  contact: z.string().trim().min(5).max(60),
+  message: z.string().trim().max(300),
+});
+export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
+
+export async function submitOwnerRequest(input: OwnerRequestInput): Promise<void> {
+  ownerRequestSchema.parse(input);
+  await simulateWrite();
+}
+
+const photoUploadSchema = z.object({
+  placeId: idSchema,
+  files: z
+    .array(z.instanceof(File).refine((f) => f.type.startsWith("image/"), "이미지 파일만"))
+    .min(1)
+    .max(MAX_PLACE_PHOTOS),
+});
+
+/**
+ * 사진 올리기 — **수정 제안과 달리 즉시 반영이다**(spec 4.2 "예외: 사진(즉시), 다녀왔어요(즉시)").
+ * 그래서 갱신된 Place를 돌려준다: 호출자가 스트립·카드·마커를 바로 맞춘다.
+ * 10장 상한은 UI(＋ 타일이 안내 타일로 바뀜)에도 있지만 여기가 마지막 방어선이고,
+ * 남은 자리보다 많이 고르면 앞에서부터 채운다. MIME은 클라이언트가 정하는 값이라 위조 가능 —
+ * 서버 sharp 재인코딩(spec 스팸 4겹 3)이 진짜 방어선이다.
+ */
+export async function addPlacePhotos(
+  placeId: string,
+  files: readonly File[],
+  now: DateInput,
+): Promise<Place> {
+  const parsed = photoUploadSchema.parse({ placeId, files: [...files] });
+  await simulateWrite();
+  const data = dataset(now);
+  const current = data.places.find((p) => p.id === parsed.placeId);
+  if (!current) throw new Error("place not found");
+  const room = MAX_PLACE_PHOTOS - current.photos.length;
+  if (room <= 0) throw new Error("photo limit reached");
+  const uploadedAt = new Date(toMs(now)).toISOString();
+  const photos = [...current.photos, ...toPhotos(parsed.placeId, parsed.files.slice(0, room), uploadedAt)];
+  // 대표 = photos[0].url — 첫 장이 올라간 가게는 카드·마커 썸네일도 이때 생긴다
+  const place: Place = { ...current, photos, thumbnailUrl: photos[0]?.url ?? null };
+  data.places = data.places.map((p) => (p.id === place.id ? place : p));
+  return place;
 }

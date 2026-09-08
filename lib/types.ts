@@ -172,6 +172,18 @@ export interface Session {
 /** 신규 패널 [정보가 달라요] 사유 — 사유 시트 4행과 1:1 (design 화면 4 변형 (a)). */
 export type PlaceFlagReason = "location" | "menu" | "closed" | "other";
 
+/** 상세의 값 제안 입구 — 필드별 수정 제안(spec 4.2 "수정 제안은 승인 큐 경유"). */
+export type SuggestField = "hours" | "address" | "menus" | "sides";
+
+/**
+ * 가게 신고 사유 — **이 등록 자체가 잘못됐다**(spec 5 "신고 3회 → 자동 숨김").
+ * 값이 틀린 건 `PlaceFlagReason`(정보 수정 제안)이 받는다 — 그래서 "문 닫았어요"가 여기 없다.
+ */
+export type PlaceReportReason = "not_shrimp" | "fake" | "duplicate" | "other";
+
+/** 사장님 요청 종류 — 게재 삭제는 1회 요청으로 즉시 처리(spec 5). */
+export type OwnerRequestKind = "edit" | "remove";
+
 /** 상세 화면 데이터 묶음 — 가게 + 그 가게 리뷰(최신순). */
 export interface PlaceDetail {
   place: Place;
