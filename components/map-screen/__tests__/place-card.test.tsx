@@ -113,17 +113,28 @@ describe("PlaceCard", () => {
     expect(screen.getByLabelText("별점 4.6점, 리뷰 12개")).toBeInTheDocument();
   });
 
-  it("찜 하트는 카드 버튼의 형제 — 눌러도 onSelect가 불리지 않고 aria-pressed가 상태를 말한다", () => {
+  it("찜 하트는 사진 카드에만, 카드 버튼의 형제 — 눌러도 onSelect가 불리지 않고 aria-pressed가 상태를 말한다", () => {
     const onToggleBookmark = vi.fn();
-    const { place, onSelect, unmount } = renderCard({ onToggleBookmark });
+    // 콤팩트 행에는 하트가 없다 — 오른쪽 열은 확인 라벨 하나다(사진 모서리 같은 앵커가 없다)
+    const compact = renderCard({ onToggleBookmark });
+    expect(screen.queryByRole("button", { name: /찜/ })).toBeNull();
+    compact.unmount();
+
+    // renderCard가 돌려주는 place는 기본 픽스처라, 덮어쓴 사진 카드는 따로 들고 id를 확인한다
+    const photoPlace = makePlace({
+      name: "나라수산",
+      gu: "마포구",
+      thumbnailUrl: "/mock/thumb-1.webp",
+    });
+    const { onSelect, unmount } = renderCard({ onToggleBookmark, place: photoPlace });
     const heart = screen.getByRole("button", { name: "나라수산 찜하기" });
     expect(heart).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(heart);
-    expect(onToggleBookmark).toHaveBeenCalledWith(place.id);
+    expect(onToggleBookmark).toHaveBeenCalledWith(photoPlace.id);
     expect(onSelect).not.toHaveBeenCalled();
     unmount();
 
-    renderCard({ onToggleBookmark, bookmarked: true });
+    renderCard({ onToggleBookmark, bookmarked: true, place: photoPlace });
     expect(screen.getByRole("button", { name: "나라수산 찜 해제" })).toHaveAttribute(
       "aria-pressed",
       "true",

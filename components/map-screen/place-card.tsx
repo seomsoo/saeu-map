@@ -80,25 +80,28 @@ function Rating({ place }: { place: Place }) {
   );
 }
 
-/** "850m · 마포구 · 새우구이 │ 〔2〕당산역 200m" — 거리와 역이 훑어보기의 두 축이다. */
+/**
+ * "850m · 마포구 · 새우구이 · 〔2〕당산역" — 한 줄에 **거리는 하나만** 둔다.
+ * 역까지의 거리(상세에는 있다)를 여기 붙이면 뜻이 다른 숫자 둘("나까지"·"역까지")이 나란히 서서
+ * 읽을 때마다 구분해야 한다 (2026-09-08).
+ */
 function MetaLine({ place, origin }: { place: Place; origin: LatLng | null }) {
   const distance = origin ? formatDistance(distanceKm(place, origin)) : null;
   const categories = place.tags.map((tag) => TAG_LABELS[tag]).join(" · ");
   const station = place.nearestStation;
   return (
-    <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-caption-l-regular text-fg-secondary tabular-nums">
+    <p className="mt-1.5 flex min-w-0 items-center gap-x-1 text-caption-l-regular text-fg-secondary tabular-nums">
       <span className="truncate">
         {distance && <span className="font-medium text-fg">{distance} · </span>}
         {place.gu} · {categories}
+        {station && " · "}
       </span>
       {station && (
-        // 구분 헤어라인은 역 묶음 **안**에 둔다 — 형제로 두면 줄이 접힐 때 앞줄 끝에 홀로 남는다
         <span className="flex shrink-0 items-center gap-1">
-          <span className="mr-0.5 h-2.5 w-px bg-line-strong" aria-hidden="true" />
           {numericLines(station.lines).map((line) => (
             <SubwayBadge key={line} line={line} />
           ))}
-          {station.name} {formatDistance(station.distanceM / 1000)}
+          {station.name}
         </span>
       )}
     </p>
@@ -184,9 +187,6 @@ export const PlaceCard = memo(function PlaceCard({
         className={cx(
           cardClass,
           trailing !== undefined && "pr-14",
-          // 콤팩트 행의 하트는 글자와 같은 줄에 겹친다 — 하트(32) + 간격(8)만큼 자리를 비운다.
-          // 사진 카드의 하트는 사진 위에 있어 글자를 침범하지 않는다.
-          !photo && onToggleBookmark && "pr-10",
         )}
       >
         {photo ? (
@@ -233,9 +233,10 @@ export const PlaceCard = memo(function PlaceCard({
       {trailing !== undefined && (
         <div className="absolute top-1/2 right-5 -translate-y-1/2">{trailing}</div>
       )}
-      {/* 하트는 카드 버튼의 **형제**다 — 버튼 안에 버튼을 넣지 않는다.
-          자리는 카드 여백에서 계산한다: li px-3(12) + 카드 p-2(8) = 사진 모서리, 거기서 8 안쪽 */}
-      {onToggleBookmark && (
+      {/* 하트는 **사진 카드에만** — 사진 모서리라는 앵커가 있어야 액션이 자리를 갖는다.
+          콤팩트 행의 오른쪽 열은 상태(확인 라벨) 하나로 두고, 찜은 상세에서 (2026-09-08).
+          카드 버튼의 **형제**다(버튼 안에 버튼 금지). 자리는 카드 여백에서: li px-3(12) + 카드 p-2(8) = 사진 모서리, 거기서 8 안쪽 */}
+      {photo && onToggleBookmark && (
         <button
           type="button"
           aria-label={`${place.name} ${bookmarked ? "찜 해제" : "찜하기"}`}
@@ -243,10 +244,7 @@ export const PlaceCard = memo(function PlaceCard({
           onClick={() => {
             onToggleBookmark(place.id);
           }}
-          className={cx(
-            "absolute z-1 flex size-8 items-center justify-center rounded-max",
-            photo ? "top-5 right-7 bg-bg shadow-float" : "top-1/2 right-5 -translate-y-1/2",
-          )}
+          className="absolute top-5 right-7 z-1 flex size-8 items-center justify-center rounded-max bg-bg shadow-float"
         >
           <span
             className={cx(

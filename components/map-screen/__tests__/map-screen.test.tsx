@@ -712,7 +712,10 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
   });
 
   it("카드 하트는 즉시 채워지고(낙관), 실패하면 되돌아오며 토스트가 뜬다", async () => {
-    renderScreen();
+    // 하트는 사진 카드에만 있다(콤팩트 행은 오른쪽 열이 확인 라벨 하나) — 시드에 사진을 한 장 준다
+    renderScreen({
+      places: seed().map((p) => (p.id === "nara" ? { ...p, thumbnailUrl: "/mock/thumb-1.webp" } : p)),
+    });
     await screen.findByRole("list", { name: "가게 목록" });
     const heart = () => screen.getByRole("button", { name: /나라수산 찜/ });
     // 낙관: 응답을 기다리지 않고 지금 바뀐다 (UI 완성 기준 "쓰기는 상태 변화까지")
