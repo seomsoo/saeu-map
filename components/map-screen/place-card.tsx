@@ -181,7 +181,13 @@ export const PlaceCard = memo(function PlaceCard({
         aria-label={`${place.name}, ${place.gu}`}
         onPointerEnter={onHoverChange && hover(place.id)}
         onPointerLeave={onHoverChange && hover(null)}
-        className={cx(cardClass, trailing !== undefined && "pr-14")}
+        className={cx(
+          cardClass,
+          trailing !== undefined && "pr-14",
+          // 콤팩트 행의 하트는 글자와 같은 줄에 겹친다 — 하트(32) + 간격(8)만큼 자리를 비운다.
+          // 사진 카드의 하트는 사진 위에 있어 글자를 침범하지 않는다.
+          !photo && onToggleBookmark && "pr-10",
+        )}
       >
         {photo ? (
           <>

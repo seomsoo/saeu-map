@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useRef } from "react";
 import { ActivityPanel } from "@/components/activity/activity-panel";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
@@ -173,7 +174,19 @@ function MapScreenBody({
               데스크탑에선 워드마크 + [＋ 제보] **아웃라인**. 채운 레드는 목록 끝 CTA 한 곳이다 —
               워드마크와 레드 버튼이 한 줄에서 경쟁하지 않게 (decisions 2026-09-08) */}
           <div className="sr-only lg:not-sr-only lg:flex lg:h-13 lg:items-center lg:justify-between lg:pl-safe-left-or-5 lg:pr-safe-right-or-5">
-            <h1 className="text-title-s-semibold text-fg">새우맵</h1>
+            <h1 className="text-title-s-semibold text-fg">
+              {/* 워드마크 에셋(사용자 제작 원본 색 그대로 — 브랜드 레드로 맞추면 그림이 죽는다, 2026-09-08).
+                  모바일에선 h1이 sr-only라 alt가 곧 이름이다 */}
+              <Image
+                src="/wordmark.webp"
+                alt="새우맵"
+                width={137}
+                height={60}
+                priority
+                draggable={false}
+                className="h-6.5 w-auto"
+              />
+            </h1>
             {isDesktop && s.mode === "list" && (
               <Button variant="outline" size="pill" onClick={s.openReport}>
                 <span className="icon-[ci--add-plus] size-4" aria-hidden="true" />
