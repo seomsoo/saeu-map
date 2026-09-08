@@ -341,6 +341,7 @@ describe("submitReport — 제보 등록 (목 쓰기)", () => {
     hoursNote: "",
     photos: [],
     duplicateOf: null,
+    naverPlaceUrl: "",
   });
   const image = (name: string) => new File(["x"], name, { type: "image/jpeg" });
 
@@ -461,6 +462,7 @@ const reportInput = (): ReportInput => ({
   hoursNote: "",
   photos: [],
   duplicateOf: null,
+  naverPlaceUrl: "",
 });
 
 describe("세션 — 익명 기본, 카카오 로그인 승계, 로그아웃·닉네임", () => {

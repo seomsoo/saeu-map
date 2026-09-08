@@ -36,6 +36,7 @@ import { matchesQuery, normalizeQuery } from "./places";
 import { ratingSummary, sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
 import { guCenter, guOfPoint } from "./gu";
+import { isAllowedNaverPlaceUrl } from "./naver-links";
 
 import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
@@ -461,6 +462,15 @@ export const reportInputSchema = z.object({
     .max(MAX_PLACE_PHOTOS),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
   duplicateOf: idSchema.nullable(),
+  /**
+   * 4단계 선택 — **사용자가 붙여넣은** 네이버 지도 링크(공유 → 링크 복사). 상세의 "네이버에서 사진 보기"가 이 값을 쓴다.
+   * 규칙 2에 걸리지 않는다: API 응답이 아니라 사용자 입력이다(카카오 공식 답변도 "직접 입력한 값"은 예외로 둔다 — decisions 2026-09-08).
+   * 허용 호스트만 통과시킨다(`isAllowedNaverPlaceUrl` — 표시 경로와 같은 방어선).
+   */
+  naverPlaceUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isAllowedNaverPlaceUrl(v), "네이버 지도 링크만 넣을 수 있어요"),
 });
 
 export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
@@ -494,7 +504,7 @@ export async function submitReport(input: ReportInput, now: DateInput): Promise<
     nearestStation: null,
     tags,
     specialist: false, // 제보 핀은 전문점 판정 없음 (spec 2 가공 규칙)
-    naverPlaceUrl: null,
+    naverPlaceUrl: report.naverPlaceUrl || null,
     photos: [],
     thumbnailUrl: null,
     hoursNote: report.hoursNote || null,

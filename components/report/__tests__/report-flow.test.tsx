@@ -460,6 +460,25 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     expect(screen.queryByRole("button", { name: "사진 추가" })).toBeNull();
   });
 
+  it("네이버 지도 링크(선택): 허용 링크는 그대로 넘어가고, 아닌 링크는 그 자리에서 막는다", async () => {
+    renderStep4();
+    const field = screen.getByRole("textbox", { name: "네이버 지도 링크" });
+
+    // 사용자가 붙여넣은 값만 저장한다(규칙 2) — 허용 호스트가 아니면 등록 자체를 막는다
+    fireEvent.change(field, { target: { value: "https://example.com/shop/1" } });
+    expect(screen.getByText("네이버 지도 링크만 넣을 수 있어요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "등록하기" })).toBeDisabled();
+
+    // 지도 앱 [공유 → 링크 복사]가 주는 단축 링크
+    fireEvent.change(field, { target: { value: "https://naver.me/xAbC1234" } });
+    expect(screen.queryByText("네이버 지도 링크만 넣을 수 있어요")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "등록하기" }));
+    expect(dataMocks.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({ naverPlaceUrl: "https://naver.me/xAbC1234" }),
+      NOW,
+    );
+  });
+
   it("등록 성공: 스키마 입력(이름·핀·메뉴·사이드·영업시간·사진·중복 후보)으로 submitReport → onCreated + 완료", async () => {
     const created = makePlace({ id: "r001", name: "테스트 새우집", source: "report", isNew: true });
     let resolve: (place: Place) => void = () => {};
@@ -488,6 +507,7 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
         hoursNote: " 새벽 2시까지 ",
         photos: [expect.objectContaining({ name: "a.jpg" })],
         duplicateOf: null,
+        naverPlaceUrl: "",
       },
       NOW,
     );

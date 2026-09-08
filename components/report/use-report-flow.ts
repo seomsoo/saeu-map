@@ -20,6 +20,8 @@ export interface ReportDraft {
   photos: File[];
   sides: Sides;
   hoursNote: string;
+  /** 사용자가 붙여넣은 네이버 지도 링크(선택, 4단계) — 상세의 "네이버에서 사진 보기"가 쓴다 */
+  naverPlaceUrl: string;
 }
 
 const EMPTY_DRAFT: ReportDraft = {
@@ -31,6 +33,7 @@ const EMPTY_DRAFT: ReportDraft = {
   photos: [],
   sides: { headButter: false, ramen: false, friedRice: false },
   hoursNote: "",
+  naverPlaceUrl: "",
 };
 
 /** 3단계 값에서 스키마 입력 — 검증이 안 되면 null(그 단계로 돌려보낸다) */
@@ -74,6 +77,7 @@ export function useReportFlow() {
             sides: draft.sides,
             hoursNote: draft.hoursNote,
             photos: draft.photos,
+            naverPlaceUrl: draft.naverPlaceUrl,
             duplicateOf: draft.duplicateOf,
           },
           now,
