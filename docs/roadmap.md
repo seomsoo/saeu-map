@@ -76,7 +76,7 @@
 
 ## Phase 6 — 백엔드 교체
 - [ ] 스키마 확정 (checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제)
-- [ ] convert_seed.py 전체 452곳 임포트 (needsReview·excluded 37곳 검수 반영)
+- [ ] convert_seed.py 전체 452곳 임포트 (needsReview·excluded 37곳 검수 반영) + **메뉴 정제**: 이름 잔재 제거("새우머리튀김 0"·프로모션 문구·이름에 박힌 가격)와 단위 재파싱 — 목 50곳 기준 단위 74%가 미파싱이다 (decisions 2026-09-08)
 - [ ] lib/data.ts → Supabase 교체, 익명 auth + 카카오 linkIdentity
 - [ ] RLS + RLS 테스트, Turnstile, Upstash 속도 제한, sharp 업로드(NCP)
 - [ ] /admin 4탭을 실 DB에 연결(화면 자체는 Phase 5.5에서 만든다 — 사후 확인 탭 = 구 심판대, 행 구성·낙관 확인 로직은 커밋 cb32d18에서 꺼내 쓴다), 텔레그램 알림, Sentry, 익명 정리 크론, 캐시(revalidate)
