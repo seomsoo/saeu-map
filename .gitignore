@@ -67,3 +67,6 @@ __pycache__/
 !tsconfig.json
 !lighthouserc.json
 !open-next.config.json
+
+# OSM Overpass 응답 캐시 (scripts/add_nearest_station.py --cache .osm)
+.osm/

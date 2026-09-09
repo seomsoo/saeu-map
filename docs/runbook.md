@@ -70,6 +70,23 @@ gh secret set SUPABASE_SECRET_KEY < …     # 값은 파일·stdin으로만
 gh variable set SUPABASE_URL --body …
 ```
 
+## 3b. 시드 넣기 (한 번, 그리고 크롤을 다시 했을 때)
+
+```
+# 1) 크롤 CSV → 시드 JSON (수집일을 @로 준다 — "○일 전 확인"의 기준)
+python3 scripts/convert_seed.py --out supabase/seed/places.json --report \
+  ~/saewoo-map/saewoo_seoul.csv@2026-08-27 ~/saewoo-map/probe_busan.csv@2026-09-09 ~/saewoo-map/probe_gwangju.csv@2026-09-09
+# 2) 역·출구 CSV (OSM, 서울·부산·광주. 캐시가 있으면 재질의 없음)
+python3 scripts/add_nearest_station.py --cache .osm
+# 3) DB에 넣기 — 이미 있는 seed_ref는 건드리지 않는다(사용자 수정 보존). 로컬은 supabase status -o env의 값
+SUPABASE_URL=… SUPABASE_SECRET_KEY=… node scripts/import-seed.mjs            # --dry-run으로 먼저
+# 4) 로컬·CI 샘플 seed.sql 재생성(가게 60 + 근처 역)
+python3 scripts/convert_seed.py --out /tmp/sample.json --sample 60 <같은 입력…>
+node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.csv > supabase/seed.sql
+```
+
+검수 필요(`needs_review`)로 들어간 가게는 `hidden_at`이 찍혀 지도에 안 보인다. 관리자 검색 탭 "검수 필요" 필터에서 [플레이스 열기]로 30초 보고 [복구]하면 그 자리에서 지도에 뜬다. 안 살릴 건 그대로 두면 된다.
+
 ## 4. 공개값 네 가지 습관
 
 브라우저로 나가는 값(규칙 7 목록)은 "열쇠"가 아니라 "명찰"이다. 그래도:

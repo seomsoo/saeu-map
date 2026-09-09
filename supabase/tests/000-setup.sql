@@ -5,7 +5,7 @@ grant usage on schema tests to anon, authenticated;
 
 -- auth.users 행을 만든다(트리거가 profiles를 만든다). 익명이면 is_anonymous = true.
 create or replace function tests.create_user(p_id uuid, p_anonymous boolean, p_nickname text default null)
-returns uuid language plpgsql as $$
+returns uuid language plpgsql set search_path = '' as $$
 begin
   insert into auth.users (id, instance_id, aud, role, is_anonymous, raw_user_meta_data, raw_app_meta_data, created_at, updated_at)
   values (p_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', p_anonymous,
@@ -17,21 +17,21 @@ $$;
 
 -- 이 사용자로 요청하는 척: role + JWT 클레임(sub·is_anonymous). RLS·auth.uid()·auth.jwt()가 이걸 읽는다.
 create or replace function tests.authenticate_as(p_id uuid, p_anonymous boolean default false)
-returns void language plpgsql as $$
+returns void language plpgsql set search_path = '' as $$
 begin
   perform set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated', 'is_anonymous', p_anonymous)::text, true);
   execute 'set local role authenticated';
 end;
 $$;
 
-create or replace function tests.authenticate_anon() returns void language plpgsql as $$
+create or replace function tests.authenticate_anon() returns void language plpgsql set search_path = '' as $$
 begin
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
   execute 'set local role anon';
 end;
 $$;
 
-create or replace function tests.clear_auth() returns void language plpgsql as $$
+create or replace function tests.clear_auth() returns void language plpgsql set search_path = '' as $$
 begin
   execute 'reset role';
   perform set_config('request.jwt.claims', '', true);
@@ -39,7 +39,7 @@ end;
 $$;
 
 -- 요청 IP 해시 흉내(private.request_ip_hash가 읽는 헤더)
-create or replace function tests.set_ip(p_hash text) returns void language plpgsql as $$
+create or replace function tests.set_ip(p_hash text) returns void language plpgsql set search_path = '' as $$
 begin
   perform set_config('request.headers', json_build_object('x-ip-hash', p_hash)::text, true);
 end;
@@ -47,7 +47,7 @@ $$;
 
 -- 보이는 가게 하나(postgres로 만든다). 시드가 없는 테스트 트랜잭션 안에서 쓴다.
 create or replace function tests.create_place(p_name text default '테스트새우', p_hidden boolean default false)
-returns uuid language plpgsql as $$
+returns uuid language plpgsql set search_path = '' as $$
 declare v_id uuid;
 begin
   insert into public.places (name, gu, lat, lng, tags, menus, sides, source, hidden_at)
