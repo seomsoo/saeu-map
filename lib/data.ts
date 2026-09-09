@@ -114,6 +114,11 @@ export const MOCK_WRITE_DELAY_MS = 400;
  * 리사이즈(spec 6)를 하면 실제 저장본은 이보다 훨씬 작다 — 이건 "말도 안 되는 파일"을 막는 문이다.
  */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/**
+ * 제보 한 건에 담는 메뉴 줄 수 — 구이 1(필수) + 회 1(선택) + 기타 3.
+ * 크롤 가게의 메뉴가 중앙값 3줄·최대 5줄이라 그 분포와 맞춘다 (2026-09-09).
+ */
+export const REPORT_MENU_MAX = 5;
 /** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 — 목 50곳 최대가 5줄이라 여유롭게 */
 export const MAX_MENU_EDITS = 20;
 export const MOCK_FAILURE_RATE = 0.1;
@@ -581,7 +586,7 @@ export const reportInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
-  menus: z.array(reportMenuSchema).min(1).max(2),
+  menus: z.array(reportMenuSchema).min(1).max(REPORT_MENU_MAX),
   sides: sidesSchema,
   hoursNote: z.string().trim().max(80),
   /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */

@@ -335,6 +335,44 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     expect(screen.getAllByRole("alert")).toHaveLength(2);
   });
 
+  it("[＋ 메뉴 추가]로 기타 줄을 넣을 수 있다 — 카테고리는 묻지 않는다(이름·가격·단위만)", () => {
+    renderPanel({ step: 3 });
+    fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+
+    expect(screen.getByText("메뉴 2")).toBeInTheDocument();
+    // 기타 줄의 필드는 구이 줄과 같은 셋뿐이다 — "구이/회/기타" 같은 선택은 없다
+    expect(screen.getAllByRole("textbox", { name: "메뉴명" })).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "기타" })).toBeNull();
+  });
+
+  it("기타 줄을 반쯤 채우면 [다음]을 막는다 — 조용히 버리지 않는다", () => {
+    const { props } = renderPanel({ step: 3 });
+    fill("", "왕새우 소금구이", "35000");
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+    fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+    const names = screen.getAllByRole("textbox", { name: "메뉴명" });
+    fireEvent.change(names[1] as HTMLElement, { target: { value: "새우튀김" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(props.onStepChange).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("alert").map((a) => a.textContent)).toEqual([
+      "가격을 숫자로 알려주세요",
+      "단위를 골라주세요",
+    ]);
+  });
+
+  it("[삭제]로 기타 줄을 빼고, 상한(5줄)에 닿으면 추가 버튼이 사라진다", () => {
+    renderPanel({ step: 3 });
+    const add = () => screen.queryByRole("button", { name: "＋ 메뉴 추가" });
+    // 구이 1 + 기타 4 = 5줄
+    for (let i = 0; i < 4; i += 1) fireEvent.click(add() as HTMLElement);
+    expect(add()).toBeNull();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "삭제" })[0] as HTMLElement);
+    expect(add()).not.toBeNull();
+    expect(screen.getAllByRole("textbox", { name: "메뉴명" })).toHaveLength(4);
+  });
+
   it("가격은 숫자만 받아 천 단위로 보여주고, 채우면 4단계로. 값은 단계를 오가도 남는다", () => {
     const { props, rerender } = renderPanel({ step: 3 });
     fill("", "왕새우 소금구이", "3만5천원");
@@ -462,6 +500,34 @@ describe("ReportPanel 4단계 — 선택 항목 + 등록", () => {
     fireEvent.change(input, { target: { files: Array.from({ length: 12 }, (_, i) => image(`${String(i)}.jpg`)) } });
     expect(screen.getByText("10/10")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "사진 추가" })).toBeNull();
+  });
+
+  it("3단계에서 넣은 기타 줄이 등록 입력의 메뉴로 그대로 간다", () => {
+    const view = renderStep2("테스트 새우집", MAPO);
+    view.goto(3);
+    fireEvent.change(screen.getByRole("textbox", { name: "메뉴명" }), { target: { value: "왕새우 소금구이" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "가격" }), { target: { value: "35000" } });
+    fireEvent.click(screen.getByRole("button", { name: "1kg" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+    const names = screen.getAllByRole("textbox", { name: "메뉴명" });
+    const prices = screen.getAllByRole("textbox", { name: "가격" });
+    fireEvent.change(names[1] as HTMLElement, { target: { value: "새우튀김" } });
+    fireEvent.change(prices[1] as HTMLElement, { target: { value: "15000" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "단위 없음" })[1] as HTMLElement);
+
+    view.goto(4);
+    fireEvent.click(screen.getByRole("button", { name: "건너뛰고 등록" }));
+    expect(dataMocks.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        menus: [
+          expect.objectContaining({ name: "왕새우 소금구이", price: 35000, raw: false }),
+          // 기타 줄도 raw=false다 — 카테고리 태그는 "새우회도 팔아요" 토글만 건드린다
+          expect.objectContaining({ name: "새우튀김", price: 15000, unit: "none", raw: false }),
+        ],
+      }),
+      NOW,
+    );
   });
 
   it("네이버 지도 링크(선택): 허용 링크는 그대로 넘어가고, 아닌 링크는 그 자리에서 막는다", () => {
