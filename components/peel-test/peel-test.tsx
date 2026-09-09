@@ -115,7 +115,7 @@ export function PeelTest({
   }
 
   return (
-    <div className="flex flex-1 flex-col pt-2">
+    <div className="flex min-h-0 flex-1 flex-col pt-2">
       {/* 숫자 "3/6"이 아니라 칸으로 읽힌다 — 제보 퍼널의 진행 세그먼트와 같은 문법(design 화면 3·11) */}
       <div
         role="progressbar"
@@ -138,18 +138,22 @@ export function PeelTest({
 
       {/* key가 문항 id라 넘어갈 때마다 새로 마운트되며 떠오른다 — 6문항이 같은 자리에서 갈아끼워지는 화면이라
           전환이 없으면 글자만 바뀐 것처럼 보인다(2026-09-09) */}
-      <div key={question.id} className="flex flex-1 flex-col justify-center gap-5">
+      <div key={question.id} className="flex min-h-0 flex-1 flex-col justify-center gap-5">
         {/* 문항마다 그 장면의 일러스트. 없는 문항은 그림 없이 그린다(엉뚱한 장면보다 낫다) */}
         {art && (
-          <Image
-            src={art}
-            alt=""
-            width={400}
-            height={400}
-            priority
-            draggable={false}
-            className="saeu-rise saeu-q-art mx-auto object-contain"
-          />
+          // 남는 세로를 일러스트가 가져간다: 702에서 크게, 480에서 알아서 줄어 [이전]까지 한 화면에 든다.
+          // 고정 높이는 둘 중 하나를 포기하게 된다(2026-09-09). max-h-64는 데스크탑에서 너무 커지지 않게.
+          <span className="flex min-h-0 flex-1 items-center justify-center">
+            <Image
+              src={art}
+              alt=""
+              width={400}
+              height={400}
+              priority
+              draggable={false}
+              className="saeu-rise h-full max-h-64 min-h-20 w-auto object-contain"
+            />
+          </span>
         )}
         <div className="saeu-rise flex flex-col gap-1">
           <p className="flex items-center gap-1 text-caption-l-medium text-brand-fg tabular-nums">

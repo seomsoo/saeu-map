@@ -479,13 +479,6 @@ body {
   }
 }
 
-/* 문항 일러스트 높이 — **짧은 화면에서 [이전]까지 한 화면에 들어와야 한다**(design 화면 11 "문항은 스크롤 없이").
-   폭 기준 브레이크포인트로는 390과 320을 못 가르므로 높이를 뷰포트에 묶는다: 656에서 112, 480에서 72. */
-.saeu-q-art {
-  height: min(7rem, 15vh);
-  width: auto;
-}
-
 /* "결과 만드는 중" — 기다리는 자리라 **반복한다**(한 번만 튀는 .saeu-pop과 다른 용도). */
 .saeu-bob {
   animation: saeu-bob 1.2s ease-in-out infinite;

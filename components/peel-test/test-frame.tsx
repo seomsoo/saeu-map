@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
  */
 export function TestFrame({ children }: { children: ReactNode }) {
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-brand-tint pt-safe-top pb-safe-bottom-or-3">
+    <main className="relative flex h-dvh flex-col overflow-hidden bg-brand-tint pt-safe-top pb-safe-bottom-or-3">
       {/* 배경 장식 — `shrimp.webp` 알파 마스크를 red-50으로 칠한 실루엣. 별점 마크와 같은 문법이라
           새 에셋이 필요 없고, 카드 뒤에 깔려 화면이 비어 보이지 않게 한다. */}
       <span
@@ -39,8 +39,13 @@ export function TestFrame({ children }: { children: ReactNode }) {
         </Link>
       </header>
 
-      <div className="relative mx-auto flex w-full max-w-120 flex-1 flex-col px-4 pb-3">
-        <div className="flex flex-1 flex-col rounded-20 bg-bg px-5 py-6 shadow-card">{children}</div>
+      {/* **그릇을 뷰포트에 묶는다**(`h-dvh` + `min-h-0`): 페이지가 늘어나면 문항 화면의 flex-1 일러스트가
+          줄어들 곳이 없어 320×480에서 [이전]이 밀려난다. 긴 결과는 카드 안에서 스크롤한다 — 바탕 틴트와
+          워드마크가 고정돼 오히려 읽기 좋다 (2026-09-09). */}
+      <div className="relative mx-auto flex w-full max-w-120 min-h-0 flex-1 flex-col px-4 pb-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-20 bg-bg px-5 py-6 shadow-card">
+          {children}
+        </div>
       </div>
     </main>
   );
