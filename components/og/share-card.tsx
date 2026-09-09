@@ -27,7 +27,20 @@ export type ShareCardProps =
       category: keyof typeof CATEGORY_COLOR;
     }
   | { variant: "gu"; name: string; count: number; /** 상호 최대 3곳, 없으면 null */ names: string | null }
-  | { variant: "root"; /** 배포 시점의 가게 수 */ count: number; /** 새우 아트 data URI — lib/og/art.ts */ art: string };
+  | { variant: "root"; /** 배포 시점의 가게 수 */ count: number; /** 새우 아트 data URI — lib/og/art.ts */ art: string }
+  | {
+      /** 까주기 테스트 — 표지·유형·궁합 초대·궁합 결과가 같은 뼈대를 쓴다 (spec 8 · design 화면 11) */
+      variant: "test";
+      /** 눈썹 한 줄 */
+      eyebrow: string;
+      /** 유형 이름 또는 관계 한 줄 */
+      title: string;
+      sub: string;
+      /** 새우 아트 data URI — 점수가 있으면 대신 레드 원이 온다 */
+      art: string;
+      /** 궁합 점수(0~100). 유형·표지 카드에는 없다 */
+      score?: number | undefined;
+    };
 
 const root: CSSProperties = {
   width: "100%",
@@ -85,7 +98,7 @@ function PinMotif({ category }: { category: keyof typeof CATEGORY_COLOR }) {
   );
 }
 
-/** 클러스터 마커(레드 원 + 가게 수)를 160px로 */
+/** 클러스터 마커(레드 원 + 숫자)를 160px로. 구 카드는 가게 수, 궁합 카드는 점수를 담는다 */
 function ClusterMotif({ count }: { count: number }) {
   return (
     <div
@@ -148,6 +161,28 @@ export function ShareCard(props: ShareCardProps) {
           <Brand caption="서울 새우구이 지도" />
           {/* 0곳인 구에 "0" 클러스터는 말이 안 된다 — 모티프 없이 */}
           {props.count > 0 && <ClusterMotif count={props.count} />}
+        </div>
+      </div>
+    );
+  }
+  if (props.variant === "test") {
+    return (
+      <div style={root}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <Text size={28} color={GRAY_600}>{props.eyebrow}</Text>
+          {/* 유형 이름이 14자까지라 76이 아니라 64다 — 말줄임 없이 한 줄에 들어간다 */}
+          <Text size={64} weight={700} style={oneLine}>{props.title}</Text>
+          <Text size={32} color={GRAY_600} style={oneLine}>{props.sub}</Text>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <Brand caption="서울 새우구이 지도" />
+          {props.score === undefined ? (
+            // 유형 캐릭터는 정사각 400이라 루트 카드(200×190)보다 크게 앉힌다 — 공유 카드의 주인공이다
+            // eslint-disable-next-line @next/next/no-img-element -- satori는 next/image를 모른다
+            <img src={props.art} width={260} height={260} alt="" />
+          ) : (
+            <ClusterMotif count={props.score} />
+          )}
         </div>
       </div>
     );

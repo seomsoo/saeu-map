@@ -283,3 +283,62 @@ export interface AdminStats {
   topPlaces: { placeId: string; name: string; checkCount: number }[];
 }
 
+
+/* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
+
+/** 축 A 까준다↔받는다. 축 B는 `PlaceTag`와 같은 값이라(구이·회) 따로 만들지 않는다. */
+export type PeelRole = "peel" | "served";
+export type PeelSlug = "jipge" | "sonjil" | "wansik" | "chojang";
+/** 궁합 4종 — 두 유형의 축에서 도출한다(decisions 2026-09-09). 조합 16벌 카피를 쓰지 않는다. */
+export type PeelMatchKey = "R1" | "R2" | "R3" | "R4";
+
+export interface PeelQuestion {
+  id: string;
+  /** 이 문항이 재는 축. 축당 3문항이라 동점이 없다. */
+  axis: "role" | "taste";
+  text: string;
+  /** [0]이 앞쪽 값(까준다·새우구이), [1]이 뒤쪽 값(받는다·생새우회)을 민다. 짧게 — 고민이 길면 이탈한다. */
+  choices: [string, string];
+}
+
+export interface PeelType {
+  slug: PeelSlug;
+  role: PeelRole;
+  taste: PlaceTag;
+  /** "묵묵히 까주는 집게형" */
+  name: string;
+  /** "집게형" — 매트릭스 칸처럼 좁은 자리용 */
+  shortName: string;
+  /** 이름 아래 한 줄 */
+  tagline: string;
+  /** 결과 카드의 해시태그 3개 — 국내 유형 테스트의 공통 문법이고, 캡처해 공유할 거리를 만든다 */
+  tags: string[];
+  description: string;
+  /** 둘째 문단 — "조심할 점" */
+  caution: string;
+  /** 잘 맞는 유형(결과의 미니 카드) */
+  partner: PeelSlug;
+}
+
+export interface PeelMatch {
+  key: PeelMatchKey;
+  /** 0~100. 네 단계 고정값이라 가짜 정밀도가 없다. */
+  score: number;
+  title: string;
+  description: string;
+}
+
+/** 테스트 콘텐츠 전체 — `lib/mock/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
+export interface PeelTest {
+  title: string;
+  subtitle: string;
+  /** "20초면 끝나요" */
+  duration: string;
+  /** 궁합 초대 화면·카드의 카피. `eyebrow`의 `{name}`이 상대 유형 이름으로 바뀐다. */
+  invite: { eyebrow: string; subtitle: string; ogEyebrow: string };
+  /** 표지 공유 카드의 큰 제목 — 화면 제목("새우 까주기 테스트")과 다르다 */
+  ogIntroTitle: string;
+  questions: PeelQuestion[];
+  types: PeelType[];
+  matches: PeelMatch[];
+}

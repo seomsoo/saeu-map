@@ -36,7 +36,7 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 
 ## 스타일 (docs/design.md 공통 블록·토큰 표가 원본 — 2026-09-02 버틸까 디자인 언어 채택)
 - 라이트 모드 우선. 색은 전부 CSS 변수 토큰으로 — Figma 변수와 1:1(Primitive 램프 + Semantic 역할). 다크는 Semantic만 두 번째 벌.
-- 임의값 금지: `text-[13px]`·`#hex`·`rounded-[8px]` 대신 토큰 유틸(`text-body-m-medium`, `bg-bg-sunken`, `rounded-8`)만. 텍스트는 스타일 12종만 (globals.css가 기본 팔레트·라운드·그림자·텍스트 스케일을 지워 둠).
+- 임의값 금지: `text-[13px]`·`#hex`·`rounded-[8px]` 대신 토큰 유틸(`text-body-m-medium`, `bg-bg-sunken`, `rounded-8`)만. 텍스트는 스타일 12종만 (globals.css가 기본 팔레트·라운드·그림자·텍스트 스케일을 지워 둠). **예외 하나**: 까주기 테스트(화면 11) 전용 `display-l`·`display-m`·`read-l` — 바이럴 장치라 히어로·문단 스케일이 따로 필요했다(2026-09-09). 그 화면 밖에서는 쓰지 않는다.
 - 브랜드 레드 #F04A28: **채운 레드 버튼은 화면당 한 곳**. 활성 칩·라벨은 틴트(red-10 배경 + red-600 글자), 클러스터 마커는 레드 원. 카테고리 색: 새우구이(구이) #F0885C / 생새우회(회) #14957B (**마커 링만** — 사진 없는 자리는 카테고리와 무관한 새우 플레이스홀더다). **별점 마크는 별이 아니라 새우**(채움 brand-fg·빔 gray-200, shrimp.webp 알파를 마스크로). 화면 라벨은 "새우구이"·"생새우회".
 - Pretendard self-host, 자간 -2%·행간 140%. 가격·거리·단위는 tabular numbers.
 - 라운드 6/8/12/20/pill. 헤어라인 보더. 그림자는 지도 위에 뜨는 요소·시트 상단에만 옅게(float/upper/fab/marker). 칩은 pill 아웃라인 기본, 활성만 틴트.

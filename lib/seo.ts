@@ -1,8 +1,9 @@
 import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
+import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
 import { primaryMenuLine, TAG_LABELS } from "./places";
 import { relativeCheckLabel } from "./time";
-import type { Place } from "./types";
+import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
 
 /**
  * SEO 문자열 — 순수 함수(spec 4.6). 페이지의 generateMetadata·sitemap이 부르고, 테스트는 여기만 본다.
@@ -97,6 +98,91 @@ export function guMeta(name: string, places: readonly Place[]): Metadata {
   };
 }
 
+/* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
+
+/**
+ * 테스트 공유 카드 — 한 라우트가 `intro`·유형·`with-유형`·`유형-유형` 25장을 빌드 시 굽는다
+ * (app/og/test/[slug]/route.tsx, decisions 2026-09-09).
+ */
+export function peelOgImagePath(slug: string): string {
+  return `/og/test/${slug}`;
+}
+
+function peelOgImage(slug: string, alt: string) {
+  return { images: [{ url: peelOgImagePath(slug), width: 1200, height: 630, alt }] };
+}
+
+export function peelTestMeta(content: PeelTest): Metadata {
+  const description = `${content.subtitle}. ${content.duration}`;
+  return {
+    title: content.title,
+    description,
+    alternates: { canonical: "/test" },
+    openGraph: {
+      title: content.title,
+      description,
+      url: "/test",
+      type: "website",
+      ...peelOgImage("intro", `${content.title} 공유 카드`),
+    },
+  };
+}
+
+export function peelTypeMeta(type: PeelType): Metadata {
+  const description = `${type.tagline}. ${type.description}`;
+  const path = peelTypePath(type.slug);
+  return {
+    title: type.name,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title: type.name,
+      description,
+      url: path,
+      type: "website",
+      ...peelOgImage(type.slug, `${type.name} 공유 카드`),
+    },
+  };
+}
+
+/**
+ * 초대·궁합은 **공유 링크로만 사는 얇은 페이지**라 색인하지 않는다(decisions 2026-09-09).
+ * OG는 그대로 붙는다 — 색인과 공유 카드는 다른 문제다.
+ */
+export function peelInviteMeta(type: PeelType): Metadata {
+  const title = `${type.name}과 궁합 보기`;
+  const description = "질문 6개를 풀면 둘의 궁합이 나와요";
+  return {
+    title,
+    description,
+    robots: { index: false, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: peelInvitePath(type.slug),
+      type: "website",
+      ...peelOgImage(`with-${type.slug}`, `${type.name} 궁합 신청 카드`),
+    },
+  };
+}
+
+export function peelMatchMeta(a: PeelType, b: PeelType, match: PeelMatch): Metadata {
+  const title = `${a.name}과 ${b.name}의 궁합 ${match.score}`;
+  const description = `${match.title}. ${match.description}`;
+  return {
+    title,
+    description,
+    robots: { index: false, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: peelMatchPath(a.slug, b.slug),
+      type: "website",
+      ...peelOgImage(`${a.slug}-${b.slug}`, "궁합 공유 카드"),
+    },
+  };
+}
+
 /** sitemap: 홈 + 가게 전부(확인일이 갱신 시각) + 서울 25구(가게 0곳 포함 — 런칭 글 "구별 카드 25장"의 자리) */
 export function sitemapEntries(base: URL, places: readonly Place[], now: string): MetadataRoute.Sitemap {
   const at = (path: string) => new URL(path, base).toString();
@@ -113,6 +199,14 @@ export function sitemapEntries(base: URL, places: readonly Place[], now: string)
       lastModified: new Date(now),
       changeFrequency: "weekly" as const,
       priority: 0.6,
+    })),
+    // 까주기 테스트 표지 + 유형 결과 4장. 초대·궁합 20개는 공유 링크로만 사는 얇은 페이지라 뺀다(noindex)
+    { url: at("/test"), lastModified: new Date(now), changeFrequency: "monthly" as const, priority: 0.5 },
+    ...PEEL_SLUGS.map((slug) => ({
+      url: at(peelTypePath(slug)),
+      lastModified: new Date(now),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
     })),
   ];
 }
