@@ -44,8 +44,8 @@ export function PeelResultView({
         <TypeArt slug={type.slug} className="saeu-pop" />
         <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-1">
           <p className="text-caption-l-medium text-fg-tertiary">당신은</p>
-          <h1 className="text-title-m-bold text-fg">{type.name}</h1>
-          <p className="text-body-l-regular text-fg-secondary">{type.tagline}</p>
+          <h1 className="text-display-l text-fg">{type.name}</h1>
+          <p className="text-body-l-medium text-fg-secondary">{type.tagline}</p>
         </div>
         {/* 해시태그 — 국내 유형 테스트의 공통 문법이고, 캡처 한 장에 성격이 다 담긴다 */}
         <ul className="saeu-rise saeu-rise-3 flex flex-wrap justify-center gap-1.5">
@@ -60,12 +60,16 @@ export function PeelResultView({
         </ul>
       </div>
 
-      <div className="saeu-rise saeu-rise-4 flex flex-col gap-2 rounded-16 bg-bg-dim px-4 py-4">
-        <p className="text-body-m-regular text-fg">{type.description}</p>
-        <p className="text-body-m-regular text-fg-secondary">{type.caution}</p>
+      {/* 결과 본문은 읽히는 게 값이다 — 14px/1.4(정보형)에서 16px/1.7(읽기용 read-l)로 올렸다 */}
+      <div className="saeu-rise saeu-rise-4 flex flex-col gap-3 rounded-16 bg-bg-dim px-4 py-4">
+        <p className="text-read-l text-fg">{type.description}</p>
+        <p className="flex flex-col gap-0.5 text-read-l text-fg-secondary">
+          <span className="text-caption-l-semibold text-fg-tertiary">조심할 점</span>
+          {type.caution}
+        </p>
       </div>
 
-      <p className="flex items-center gap-2 rounded-16 border border-line-brand bg-brand-tint px-4 py-3.5 text-body-m-medium text-brand-fg">
+      <p className="flex items-center gap-2 rounded-16 border border-line-brand bg-brand-tint px-4 py-3.5 text-body-l-medium text-brand-fg">
         <ShrimpIcon className="size-4 shrink-0" />
         잘 맞는 유형은 {partner.name}
       </p>
@@ -73,7 +77,7 @@ export function PeelResultView({
       <TypeMatrix types={types} mine={type.slug} />
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-body-l-semibold text-fg">이 유형에 어울리는 새우집</h2>
+        <h2 className="text-title-s-semibold text-fg">이 유형에 어울리는 새우집</h2>
         {places.length === 0 ? (
           <EmptyState
             title="아직 어울리는 집을 못 찾았어요"

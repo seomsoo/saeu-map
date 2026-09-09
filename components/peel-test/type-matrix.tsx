@@ -24,7 +24,7 @@ const LABEL_COLUMN = "w-16 shrink-0";
 export function TypeMatrix({ types, mine }: { types: PeelType[]; mine: PeelSlug }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-body-l-semibold text-fg">네 유형 중 내 자리</h2>
+      <h2 className="text-title-s-semibold text-fg">네 유형 중 내 자리</h2>
 
       <div className="flex items-center gap-1.5">
         <span className={LABEL_COLUMN} />

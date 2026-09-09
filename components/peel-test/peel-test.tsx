@@ -73,12 +73,16 @@ export function PeelTest({
               {content.invite.eyebrow.replace("{name}", partner.name)}
             </p>
           )}
-          <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-1">
-            <h1 className="text-title-m-bold text-fg">{content.title}</h1>
-            <p className="text-body-l-regular text-fg-secondary">
+          <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-2">
+            <h1 className="text-display-l text-fg">{content.title}</h1>
+            <p className="text-body-l-medium text-fg-secondary">
               {partner ? content.invite.subtitle : content.subtitle}
             </p>
-            <p className="text-caption-l-regular text-fg-tertiary">{content.duration}</p>
+            {/* 소요 시간은 문장이 아니라 배지다 — 회색 한 줄로 두면 안 읽히고, 짧다는 게 시작의 이유다 */}
+            <p className="flex items-center gap-1 rounded-max bg-bg-sunken px-3 py-1 text-caption-l-medium text-fg-secondary">
+              <span aria-hidden="true" className="icon-[ci--timer] size-3.5" />
+              {content.duration}
+            </p>
           </div>
           {/* 유형 미리보기 — 뭘 받게 되는지 보여야 시작 버튼을 누른다. 표지 아래 공백도 이걸로 채운다 */}
           <div className="saeu-rise saeu-rise-3 mt-2 flex flex-col items-center gap-2">
@@ -143,7 +147,7 @@ export function PeelTest({
             질문 {index + 1}
             <span className="text-fg-placeholder">/ {content.questions.length}</span>
           </p>
-          <h1 className="text-title-m-bold text-fg">{question.text}</h1>
+          <h1 className="text-display-m text-fg">{question.text}</h1>
         </div>
         <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
           {question.choices.map((choice, i) => (
@@ -171,13 +175,11 @@ export function PeelTest({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={back}
-        className="hit-44 mb-2 self-start text-caption-l-regular text-fg-tertiary"
-      >
+      {/* 되돌아가기는 실수했을 때 유일한 출구다 — 12px 회색 글자로 두면 안 보이고 안 눌린다(2026-09-09) */}
+      <Button variant="outline" size="pill" className="mb-2 self-start" onClick={back}>
+        <span aria-hidden="true" className="icon-[ci--chevron-left] -ml-1 size-4" />
         이전
-      </button>
+      </Button>
     </div>
   );
 }

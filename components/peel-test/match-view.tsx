@@ -83,13 +83,13 @@ export function PeelMatchView({
           <span>{partner.name}</span>
         </p>
         <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
-          <h1 className="text-title-m-bold text-fg">{match.title}</h1>
-          <p className="text-body-m-regular text-fg-secondary">{match.description}</p>
+          <h1 className="text-display-m text-fg">{match.title}</h1>
+          <p className="text-read-l text-fg-secondary">{match.description}</p>
         </div>
       </div>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-body-l-semibold text-fg">둘이 같이 갈 새우집</h2>
+        <h2 className="text-title-s-semibold text-fg">둘이 같이 갈 새우집</h2>
         {places.length === 0 ? (
           <EmptyState
             title="아직 둘 다 만족할 집을 못 찾았어요"
