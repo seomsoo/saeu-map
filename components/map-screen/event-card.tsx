@@ -36,15 +36,18 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
       ) : (
         <div className={bodyClass}>{body}</div>
       )}
-      {/* 새우 아트가 카드 밖으로 살짝 잘려 나간다 — 장면이 있어야 배너로 읽힌다 */}
+      {/* 아트가 카드 밖으로 살짝 잘려 나간다 — 장면이 있어야 배너로 읽힌다.
+          기본 새우가 아니라 **테스트 3번 문항에서 잘라낸 장면**(껍질을 쥔 새우)이다: 배너 문구가 "까주기"인데
+          그냥 새우가 있으면 겉돈다. 4:3 원본을 그대로 쓰면 100px 모서리에서 뭉개서 새우만 잘라 세로로 세웠고,
+          머리가 왼쪽 위에 오는 구도라 오른쪽 위 닫기 ✕와 겹치지 않는다. 기울이지 않는다 (2026-09-09). */}
       <Image
-        src="/shrimp.webp"
+        src="/peel-test/banner.webp"
         alt=""
-        width={92}
-        height={92}
+        width={375}
+        height={400}
         draggable={false}
         aria-hidden="true"
-        className="pointer-events-none absolute -right-2 -bottom-4 size-23 -rotate-12 object-contain"
+        className="pointer-events-none absolute -right-2 -bottom-4 h-24 w-auto object-contain"
       />
       {/* hit-44는 unlayered CSS라 position:relative가 absolute 유틸을 이긴다 — 자리는 래퍼가 잡는다 */}
       <span className="absolute top-2.5 right-2.5 z-1">
