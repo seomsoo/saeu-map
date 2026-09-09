@@ -177,8 +177,9 @@ export function ShareCard(props: ShareCardProps) {
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <Brand caption="서울 새우구이 지도" />
           {props.score === undefined ? (
+            // 유형 캐릭터는 정사각 400이라 루트 카드(200×190)보다 크게 앉힌다 — 공유 카드의 주인공이다
             // eslint-disable-next-line @next/next/no-img-element -- satori는 next/image를 모른다
-            <img src={props.art} width={200} height={190} alt="" />
+            <img src={props.art} width={260} height={260} alt="" />
           ) : (
             <ClusterMotif count={props.score} />
           )}
