@@ -32,6 +32,24 @@ export const TYPE_ART: Record<PeelSlug, string> = {
   chojang: "/shrimp.webp",
 };
 
+/* ── 경로 ─────────────────────────────────────────────────────────────────
+ * `lib/seo.ts`가 아니라 여기 있는 이유: seo는 서버 전용(t3-env)이고 이 경로들은
+ * 결과 화면의 공유 버튼(클라이언트)도 쓴다.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export function peelTypePath(slug: PeelSlug): string {
+  return `/test/${slug}`;
+}
+
+/** 궁합 초대 링크 — 이걸 공유하면 친구가 풀고 궁합으로 떨어진다(decisions 2026-09-09) */
+export function peelInvitePath(slug: PeelSlug): string {
+  return `/test/with/${slug}`;
+}
+
+export function peelMatchPath(a: PeelSlug, b: PeelSlug): string {
+  return `/test/${a}/${b}`;
+}
+
 export function isPeelSlug(value: string): value is PeelSlug {
   return (PEEL_SLUGS as readonly string[]).includes(value);
 }

@@ -1,8 +1,9 @@
 import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
+import { peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
 import { primaryMenuLine, TAG_LABELS } from "./places";
 import { relativeCheckLabel } from "./time";
-import type { PeelMatch, PeelSlug, PeelTest, PeelType, Place } from "./types";
+import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
 
 /**
  * SEO 문자열 — 순수 함수(spec 4.6). 페이지의 generateMetadata·sitemap이 부르고, 테스트는 여기만 본다.
@@ -98,19 +99,6 @@ export function guMeta(name: string, places: readonly Place[]): Metadata {
 }
 
 /* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
-
-export function peelTypePath(slug: PeelSlug): string {
-  return `/test/${slug}`;
-}
-
-/** 궁합 초대 링크 — 이걸 공유하면 친구가 풀고 궁합으로 떨어진다(decisions 2026-09-09) */
-export function peelInvitePath(slug: PeelSlug): string {
-  return `/test/with/${slug}`;
-}
-
-export function peelMatchPath(a: PeelSlug, b: PeelSlug): string {
-  return `/test/${a}/${b}`;
-}
 
 export function peelTestMeta(content: PeelTest): Metadata {
   const description = `${content.subtitle}. ${content.duration}`;
