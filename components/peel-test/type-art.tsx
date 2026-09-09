@@ -33,12 +33,13 @@ export function TypeArt({
         className,
       )}
     >
+      {/* priority를 주지 않는다: 궁합 화면은 같은 파일을 두 번 그려서 preload가 하나 남고
+          "preloaded but not used" 경고가 뜬다(2026-09-09 콘솔 실측). 138px webp라 얻는 것도 없다. */}
       <Image
         src={TYPE_ART[slug]}
         alt=""
         width={138}
         height={138}
-        priority
         draggable={false}
         className={cx("size-3/5 object-contain", TILT[slug])}
       />
