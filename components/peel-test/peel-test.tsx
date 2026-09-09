@@ -132,12 +132,18 @@ export function PeelTest({
 
       {/* key가 문항 id라 넘어갈 때마다 새로 마운트되며 떠오른다 — 6문항이 같은 자리에서 갈아끼워지는 화면이라
           전환이 없으면 글자만 바뀐 것처럼 보인다(2026-09-09) */}
-      <div key={question.id} className="flex flex-1 flex-col justify-center gap-6 pb-16">
+      <div key={question.id} className="relative flex flex-1 flex-col justify-center gap-6 pb-16">
+        {/* 문항 화면은 글자 두 줄과 버튼 둘뿐이라 비어 보인다 — 카드 안에 옅은 새우를 한 마리 깐다 */}
+        <span
+          aria-hidden="true"
+          className="shrimp-mask pointer-events-none absolute -top-2 -right-6 size-36 rotate-12 text-brand-tint"
+        />
         <div className="saeu-rise flex flex-col gap-1">
-          <p className="text-caption-l-medium text-brand-fg tabular-nums">
+          <p className="flex items-center gap-1 text-caption-l-medium text-brand-fg tabular-nums">
             질문 {index + 1}
+            <span className="text-fg-placeholder">/ {content.questions.length}</span>
           </p>
-          <h1 className="text-title-s-semibold text-fg">{question.text}</h1>
+          <h1 className="text-title-m-bold text-fg">{question.text}</h1>
         </div>
         <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
           {question.choices.map((choice, i) => (
@@ -147,7 +153,7 @@ export function PeelTest({
               onClick={() => {
                 choose(i);
               }}
-              className="press group flex h-14 items-center gap-3 rounded-12 border border-line bg-bg px-4 text-left text-body-l-medium text-fg transition-colors hover:border-brand-fg hover:bg-brand-tint hover:text-brand-fg active:border-brand-fg active:bg-brand-tint active:text-brand-fg"
+              className="press group flex h-16 items-center gap-3 rounded-16 border border-line bg-bg px-4 text-left text-body-l-medium text-fg transition-colors hover:border-brand-fg hover:bg-brand-tint hover:text-brand-fg active:border-brand-fg active:bg-brand-tint active:text-brand-fg"
             >
               <span
                 aria-hidden="true"
@@ -155,7 +161,11 @@ export function PeelTest({
               >
                 {i + 1}
               </span>
-              {choice}
+              <span className="flex-1">{choice}</span>
+              <span
+                aria-hidden="true"
+                className="icon-[ci--chevron-right] size-4 shrink-0 text-fg-placeholder transition-colors group-hover:text-brand-fg"
+              />
             </button>
           ))}
         </div>

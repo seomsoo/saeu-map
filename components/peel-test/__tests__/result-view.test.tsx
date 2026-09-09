@@ -23,7 +23,13 @@ const wansik = typeOf("wansik");
 
 function view(places: Place[] = [makePlace({ id: "p1", name: "나라수산" })]) {
   return render(
-    <PeelResultView type={jipge} partner={wansik} places={places} now={NOW} />,
+    <PeelResultView
+      type={jipge}
+      partner={wansik}
+      types={test.types}
+      places={places}
+      now={NOW}
+    />,
   );
 }
 
@@ -38,6 +44,18 @@ describe("결과 화면", () => {
     expect(screen.getByText(jipge.tagline)).toBeInTheDocument();
     expect(screen.getByText(jipge.description)).toBeInTheDocument();
     expect(screen.getByText(jipge.caution)).toBeInTheDocument();
+  });
+
+  it("네 유형 매트릭스에서 내 자리를 표시한다", () => {
+    view();
+    expect(screen.getByRole("heading", { name: "네 유형 중 내 자리" })).toBeInTheDocument();
+    for (const type of test.types) expect(screen.getByText(type.shortName)).toBeInTheDocument();
+    expect(screen.getByText(jipge.shortName).closest("[aria-current]")).not.toBeNull();
+  });
+
+  it("해시태그 3개를 보여준다", () => {
+    view();
+    for (const tag of jipge.tags) expect(screen.getByText(tag)).toBeInTheDocument();
   });
 
   it("잘 맞는 유형을 알려준다", () => {

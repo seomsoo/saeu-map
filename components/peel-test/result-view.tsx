@@ -12,6 +12,7 @@ import { peelInvitePath, peelTypePath } from "@/lib/peel-test";
 import { sharePath, shareUrl } from "@/lib/share";
 import type { PeelType, Place } from "@/lib/types";
 import { TypeArt } from "./type-art";
+import { TypeMatrix } from "./type-matrix";
 
 /**
  * 결과 (design 화면 11-3). 유형 캐릭터로 공유를 얻고 **추천 3곳으로 지도에 흘려보낸다** —
@@ -23,11 +24,14 @@ import { TypeArt } from "./type-art";
 export function PeelResultView({
   type,
   partner,
+  types,
   places,
   now,
 }: {
   type: PeelType;
   partner: PeelType;
+  /** 매트릭스에 네 유형이 다 필요하다 */
+  types: PeelType[];
   places: Place[];
   now: string;
 }) {
@@ -65,6 +69,8 @@ export function PeelResultView({
         <ShrimpIcon className="size-4 shrink-0" />
         잘 맞는 유형은 {partner.name}
       </p>
+
+      <TypeMatrix types={types} mine={type.slug} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-body-l-semibold text-fg">이 유형에 어울리는 새우집</h2>

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { PeelResultView } from "@/components/peel-test/result-view";
 import { TestFrame } from "@/components/peel-test/test-frame";
-import { getPeelType, getPeelTypePlaces } from "@/lib/data";
+import { getPeelTest, getPeelType, getPeelTypePlaces } from "@/lib/data";
 import { decodePeelSlug } from "@/lib/peel-test";
 import { peelTypeMeta } from "@/lib/seo";
 
@@ -35,15 +35,22 @@ export default async function PeelResultPage({ params }: ResultPageProps) {
 
   await connection();
   const now = new Date().toISOString();
-  const [places, partner] = await Promise.all([
+  const [places, partner, content] = await Promise.all([
     getPeelTypePlaces(slug, now),
     getPeelType(found.partner),
+    getPeelTest(),
   ]);
   if (!partner) notFound();
 
   return (
     <TestFrame>
-      <PeelResultView type={found} partner={partner} places={places} now={now} />
+      <PeelResultView
+        type={found}
+        partner={partner}
+        types={content.types}
+        places={places}
+        now={now}
+      />
     </TestFrame>
   );
 }

@@ -307,6 +307,8 @@ export interface PeelType {
   taste: PlaceTag;
   /** "묵묵히 까주는 집게형" */
   name: string;
+  /** "집게형" — 매트릭스 칸처럼 좁은 자리용 */
+  shortName: string;
   /** 이름 아래 한 줄 */
   tagline: string;
   /** 결과 카드의 해시태그 3개 — 국내 유형 테스트의 공통 문법이고, 캡처해 공유할 거리를 만든다 */
