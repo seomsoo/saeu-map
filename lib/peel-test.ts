@@ -22,15 +22,20 @@ const SLUG_BY_AXES: Record<PeelRole, Record<PlaceTag, PeelSlug>> = {
 };
 
 /**
- * 유형 아트. **캐릭터 4장이 오면 이 4줄만 바꾼다**(decisions 2026-09-09) — 그때까지는 넷 다 같은 새우고
- * 화면에서 기울기로만 갈린다. 파일이 없을 때의 폴백은 두지 않는다: 조용히 다른 그림이 나가는 게 더 나쁘다.
+ * 유형 캐릭터 (2026-09-09 투입). 화면은 webp 320(15KB), **OG 카드는 PNG 400** — satori가 webp를 못 읽을 수
+ * 있어 두 벌이다(`{slug}-og.png`). 폴백은 두지 않는다: 파일이 없으면 조용히 다른 그림이 나가는 게 더 나쁘다.
  */
 export const TYPE_ART: Record<PeelSlug, string> = {
-  jipge: "/shrimp.webp",
-  sonjil: "/shrimp.webp",
-  wansik: "/shrimp.webp",
-  chojang: "/shrimp.webp",
+  jipge: "/peel-test/jipge.webp",
+  sonjil: "/peel-test/sonjil.webp",
+  wansik: "/peel-test/wansik.webp",
+  chojang: "/peel-test/chojang.webp",
 };
+
+/** OG 카드용 파일명 — `lib/og/art.ts`가 `public/` 아래에서 읽어 data URI로 인라인한다 */
+export function typeOgArtFile(slug: PeelSlug): string {
+  return `peel-test/${slug}-og.png`;
+}
 
 /* ── 경로 ─────────────────────────────────────────────────────────────────
  * `lib/seo.ts`가 아니라 여기 있는 이유: seo는 서버 전용(t3-env)이고 이 경로들은

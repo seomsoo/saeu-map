@@ -1,9 +1,9 @@
 import { ImageResponse } from "next/og";
 import { OG_SIZE, ShareCard, type ShareCardProps } from "@/components/og/share-card";
 import { getPeelTest } from "@/lib/data";
-import { shrimpPotArt } from "@/lib/og/art";
+import { ogArt, shrimpPotArt } from "@/lib/og/art";
 import { ogFonts } from "@/lib/og/font";
-import { PEEL_SLUGS, isPeelSlug, matchKey } from "@/lib/peel-test";
+import { PEEL_SLUGS, isPeelSlug, matchKey, typeOgArtFile } from "@/lib/peel-test";
 import type { PeelTest } from "@/lib/types";
 
 /** 슬러그 25개 밖은 렌더하지 않고 404 — 런타임 satori 경로를 남기지 않는다 */
@@ -22,8 +22,11 @@ export function generateStaticParams() {
   ];
 }
 
-/** 아트를 뺀 카드 — 슬러그 판정이 폰트·아트 로드보다 먼저다(security-reviewer 2026-09-09) */
-type TestCard = Omit<Extract<ShareCardProps, { variant: "test" }>, "art">;
+/**
+ * 아트를 뺀 카드 — 슬러그 판정이 폰트·아트 로드보다 먼저다(security-reviewer 2026-09-09).
+ * `artFile`은 그 카드가 쓸 PNG(유형 카드는 그 유형의 캐릭터, 표지·궁합은 냄비 새우).
+ */
+type TestCard = Omit<Extract<ShareCardProps, { variant: "test" }>, "art"> & { artFile?: string };
 
 /** `intro` · `jipge` · `with-jipge` · `jipge-wansik` 네 모양을 한 라우트가 받는다. 유형 슬러그에는 `-`가 없다. */
 function cardFor(content: PeelTest, slug: string): TestCard | null {
@@ -46,6 +49,7 @@ function cardFor(content: PeelTest, slug: string): TestCard | null {
       eyebrow: content.invite.ogEyebrow,
       title: invited.name,
       sub: content.invite.subtitle,
+      artFile: typeOgArtFile(invited.slug),
     };
   }
 
@@ -67,7 +71,13 @@ function cardFor(content: PeelTest, slug: string): TestCard | null {
 
   const type = typeOf(slug);
   return type
-    ? { variant: "test", eyebrow: content.title, title: type.name, sub: type.tagline }
+    ? {
+        variant: "test",
+        eyebrow: content.title,
+        title: type.name,
+        sub: type.tagline,
+        artFile: typeOgArtFile(type.slug),
+      }
     : null;
 }
 
@@ -76,6 +86,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   // 슬러그부터 판정한다(구 카드 라우트와 같은 순서) — 모르는 슬러그에 폰트·아트를 태우지 않는다
   const card = cardFor(await getPeelTest(), slug);
   if (!card) return new Response("Not found", { status: 404 });
-  const [fonts, art] = await Promise.all([ogFonts(), shrimpPotArt()]);
-  return new ImageResponse(<ShareCard {...card} art={art} />, { ...OG_SIZE, fonts });
+  const { artFile, ...props } = card;
+  const [fonts, art] = await Promise.all([
+    ogFonts(),
+    artFile ? ogArt(artFile) : shrimpPotArt(),
+  ]);
+  return new ImageResponse(<ShareCard {...props} art={art} />, { ...OG_SIZE, fonts });
 }

@@ -4,19 +4,12 @@ import { TYPE_ART } from "@/lib/peel-test";
 import type { PeelSlug } from "@/lib/types";
 
 /**
- * 유형 아트 (design 화면 11). **캐릭터 4장이 오기 전까지는 넷 다 같은 새우**라 기울기로만 갈린다
- * (decisions 2026-09-09) — 그림이 오면 `TYPE_ART` 4줄만 바뀌고 이 컴포넌트는 그대로다.
+ * 유형 캐릭터 (design 화면 11). 네 장이 각자 장면을 갖는다(집게·접시·받아먹기·초장) — 구도가 이미 잡혀 있어
+ * **기울이지 않는다**(2026-09-09 에셋 투입 전에는 같은 새우를 회전으로 갈랐다).
  *
  * 원 바탕은 회색(`bg-bg-sunken`)이 아니라 **브랜드 틴트**다: 결과가 주인공인 화면이라 정보형 회색이면
  * 밋밋하고, 틴트는 활성 칩·잘 맞는 유형 카드와 같은 문법이라 새 색을 만들지 않는다(2026-09-09).
  */
-const TILT: Record<PeelSlug, string> = {
-  jipge: "-rotate-12",
-  sonjil: "rotate-6",
-  wansik: "rotate-12",
-  chojang: "-rotate-6",
-};
-
 /** sm 44(표지의 유형 미리보기 4개) · md 100(궁합에 둘이 나란히) · lg 160(결과의 주인공, design 화면 11-3) */
 const SIZE = { sm: "size-11", md: "size-25", lg: "size-40" } as const;
 
@@ -42,10 +35,10 @@ export function TypeArt({
       <Image
         src={TYPE_ART[slug]}
         alt=""
-        width={138}
-        height={138}
+        width={320}
+        height={320}
         draggable={false}
-        className={cx("size-3/5 object-contain", TILT[slug])}
+        className="size-4/5 object-contain"
       />
     </div>
   );
