@@ -151,7 +151,7 @@ export function PeelTest({
               height={400}
               priority
               draggable={false}
-              className="saeu-rise h-full max-h-64 min-h-20 w-auto object-contain"
+              className="saeu-rise h-full max-h-64 min-h-16 w-auto object-contain"
             />
           </span>
         )}
@@ -189,7 +189,7 @@ export function PeelTest({
       </div>
 
       {/* 되돌아가기는 실수했을 때 유일한 출구다 — 12px 회색 글자로 두면 안 보이고 안 눌린다(2026-09-09) */}
-      <Button variant="outline" size="pill" className="mb-2 self-start" onClick={back}>
+      <Button variant="outline" size="pill" className="mt-6 mb-1 self-start" onClick={back}>
         <span aria-hidden="true" className="icon-[ci--chevron-left] -ml-1 size-4" />
         이전
       </Button>

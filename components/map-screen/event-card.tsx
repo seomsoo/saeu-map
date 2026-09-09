@@ -36,20 +36,17 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
       ) : (
         <div className={bodyClass}>{body}</div>
       )}
-      {/* 아트가 카드 밖으로 살짝 잘려 나간다 — 장면이 있어야 배너로 읽힌다.
-          기본 새우가 아니라 **테스트 3번 문항에서 잘라낸 장면**(껍질을 쥔 새우)이다: 배너 문구가 "까주기"인데
-          그냥 새우가 있으면 겉돈다. 4:3 원본을 그대로 쓰면 100px 모서리에서 뭉개서 새우만 잘라 세로로 세웠고,
-          머리가 왼쪽 위에 오는 구도라 오른쪽 위 닫기 ✕와 겹치지 않는다. 기울이지 않는다.
-          **카드(75px)보다 크게 잡으면 위·아래·오른쪽이 다 잘려 "잘린 그림"으로 읽힌다** — 세로 가운데에
-          온전히 넣는다(옛 기본 새우는 실루엣이라 잘려도 됐지만 이 그림은 꼬리가 잘린다, 2026-09-09). */}
+      {/* 배너 아트 = 테스트 3번 문항 장면(껍질 무더기 + 껍질을 쥔 새우). 배너 문구가 "까주기"라
+          기본 새우는 겉돌았다(2026-09-09). **자르지 않는다**: 카드(75px)보다 크게 잡거나 원본을 잘라 쓰면
+          꼬리·집게발이 잘려 "잘린 그림"으로 읽힌다 — 세로 가운데에 장면 전체를 넣는다. 기울기 없음. */}
       <Image
-        src="/peel-test/banner.webp"
+        src="/peel-test/q3.webp"
         alt=""
-        width={375}
-        height={400}
+        width={400}
+        height={320}
         draggable={false}
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-2 h-16 w-auto -translate-y-1/2 object-contain"
+        className="pointer-events-none absolute top-1/2 right-9 h-18 w-auto -translate-y-1/2 object-contain"
       />
       {/* hit-44는 unlayered CSS라 position:relative가 absolute 유틸을 이긴다 — 자리는 래퍼가 잡는다 */}
       <span className="absolute top-2.5 right-2.5 z-1">
