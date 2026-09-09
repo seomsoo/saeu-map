@@ -83,7 +83,7 @@ export function PeelMatchView({
           <span>{partner.name}</span>
         </p>
         <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
-          <h1 className="text-display-m text-fg">{match.title}</h1>
+          <h1 className="text-display-m text-fg text-balance break-keep">{match.title}</h1>
           <p className="text-read-l text-fg-secondary">{match.description}</p>
         </div>
       </div>

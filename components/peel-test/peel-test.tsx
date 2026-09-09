@@ -74,7 +74,7 @@ export function PeelTest({
             </p>
           )}
           <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-2">
-            <h1 className="text-display-l text-fg">{content.title}</h1>
+            <h1 className="text-display-l text-fg text-balance break-keep">{content.title}</h1>
             <p className="text-body-l-medium text-fg-secondary">
               {partner ? content.invite.subtitle : content.subtitle}
             </p>
@@ -147,7 +147,7 @@ export function PeelTest({
             질문 {index + 1}
             <span className="text-fg-placeholder">/ {content.questions.length}</span>
           </p>
-          <h1 className="text-display-m text-fg">{question.text}</h1>
+          <h1 className="text-display-m text-fg break-keep">{question.text}</h1>
         </div>
         <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
           {question.choices.map((choice, i) => (

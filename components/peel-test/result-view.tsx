@@ -44,7 +44,7 @@ export function PeelResultView({
         <TypeArt slug={type.slug} className="saeu-pop" />
         <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-1">
           <p className="text-caption-l-medium text-fg-tertiary">당신은</p>
-          <h1 className="text-display-l text-fg">{type.name}</h1>
+          <h1 className="text-display-l text-fg text-balance break-keep">{type.name}</h1>
           <p className="text-body-l-medium text-fg-secondary">{type.tagline}</p>
         </div>
         {/* 해시태그 — 국내 유형 테스트의 공통 문법이고, 캡처 한 장에 성격이 다 담긴다 */}
