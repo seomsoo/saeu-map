@@ -2,7 +2,7 @@ import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
 import { primaryMenuLine, TAG_LABELS } from "./places";
 import { relativeCheckLabel } from "./time";
-import type { Place } from "./types";
+import type { PeelMatch, PeelSlug, PeelTest, PeelType, Place } from "./types";
 
 /**
  * SEO 문자열 — 순수 함수(spec 4.6). 페이지의 generateMetadata·sitemap이 부르고, 테스트는 여기만 본다.
@@ -94,6 +94,68 @@ export function guMeta(name: string, places: readonly Place[]): Metadata {
       // 파일 컨벤션 대신 명시 — 한글 세그먼트의 프리렌더 이미지가 정적 서빙에서 404였다 (decisions 2026-09-07)
       ...(image && { images: [{ url: image, width: 1200, height: 630, alt: `${name} 새우구이 공유 카드` }] }),
     },
+  };
+}
+
+/* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
+
+export function peelTypePath(slug: PeelSlug): string {
+  return `/test/${slug}`;
+}
+
+/** 궁합 초대 링크 — 이걸 공유하면 친구가 풀고 궁합으로 떨어진다(decisions 2026-09-09) */
+export function peelInvitePath(slug: PeelSlug): string {
+  return `/test/with/${slug}`;
+}
+
+export function peelMatchPath(a: PeelSlug, b: PeelSlug): string {
+  return `/test/${a}/${b}`;
+}
+
+export function peelTestMeta(content: PeelTest): Metadata {
+  const description = `${content.subtitle}. ${content.duration}`;
+  return {
+    title: content.title,
+    description,
+    alternates: { canonical: "/test" },
+    openGraph: { title: content.title, description, url: "/test", type: "website" },
+  };
+}
+
+export function peelTypeMeta(type: PeelType): Metadata {
+  const description = `${type.tagline}. ${type.description}`;
+  const path = peelTypePath(type.slug);
+  return {
+    title: type.name,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title: type.name, description, url: path, type: "website" },
+  };
+}
+
+/**
+ * 초대·궁합은 **공유 링크로만 사는 얇은 페이지**라 색인하지 않는다(decisions 2026-09-09).
+ * OG는 그대로 붙는다 — 색인과 공유 카드는 다른 문제다.
+ */
+export function peelInviteMeta(type: PeelType): Metadata {
+  const title = `${type.name}과 궁합 보기`;
+  const description = "질문 6개를 풀면 둘의 궁합이 나와요";
+  return {
+    title,
+    description,
+    robots: { index: false, follow: true },
+    openGraph: { title, description, url: peelInvitePath(type.slug), type: "website" },
+  };
+}
+
+export function peelMatchMeta(a: PeelType, b: PeelType, match: PeelMatch): Metadata {
+  const title = `${a.name}과 ${b.name}의 궁합 ${match.score}`;
+  const description = `${match.title}. ${match.description}`;
+  return {
+    title,
+    description,
+    robots: { index: false, follow: true },
+    openGraph: { title, description, url: peelMatchPath(a.slug, b.slug), type: "website" },
   };
 }
 
