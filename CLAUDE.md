@@ -15,9 +15,9 @@
 - docs/design.md — 화면별 레이아웃·스타일 스펙 + 디자인 토큰 표
 - docs/decisions.md — 결정 로그 (여기 없는 결정은 미정이다. 임의로 정하지 말고 물어라)
 
-## 지금 단계
-UI 먼저, 백엔드 나중. 모든 데이터는 lib/mock/의 JSON을 lib/data.ts 함수로 읽는다.
-Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
+## 지금 단계 (Phase 6 — 백엔드 교체, docs/plans/phase6-backend.md)
+UI는 끝났다. 백엔드를 Supabase로 붙이는 중이다. **Supabase를 아는 파일은 `lib/server/`뿐**(`import "server-only"`). 컴포넌트·훅은 여전히 `lib/data.ts`만 부르고, `lib/data.ts`는 서버에선 `lib/server`를 직접, 클라이언트에선 Server Action을 부른다. **브라우저에 supabase-js를 싣지 않는다**(decisions 2026-09-10).
+목 JSON(`lib/mock/`)은 플랜 커밋 4에서 지운다 — 그 전까지 목 규칙(컨벤션의 날짜 캐시 항목)은 유효하다. 설정값 JSON(이벤트 카드·까주기 테스트)은 목이 아니라 `lib/content/`로 옮긴다.
 
 ## 라이브러리·버전
 - 버전 특정 문법이나 사용법이 불확실하면(Next.js, Tailwind, 네이버 지도 SDK, Supabase 등) 기억에 의존하지 말고 **context7으로 최신 문서를 확인한 뒤** 작성하라. 특히 마이너 라이브러리일수록.
@@ -26,13 +26,13 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 - next/image 최적화는 끈다(unoptimized). 사진은 업로드 시 리사이즈본을 만들므로 플랫폼 이미지 최적화(과금 대상)를 쓰지 않는다. 배포는 Cloudflare Workers(`pnpm deploy`) — decisions.md 2026-09-01.
 
 ## 절대 규칙 (위반 = 작업 실패. 순차적으로 린트·훅으로 승격해 기계적으로 막는다 — 위반 패턴 발견 시 규칙 추가를 제안하라)
-1. 컴포넌트에서 데이터 직접 접근 금지. 모든 읽기/쓰기는 lib/data.ts 함수 경유. (나중에 이 파일만 Supabase로 교체한다)
+1. 컴포넌트에서 데이터 직접 접근 금지. 모든 읽기/쓰기는 lib/data.ts 함수 경유. (Phase 6: 이 파일 뒤에 `lib/server/`가 붙는다 — 컴포넌트는 여전히 이 파일만 안다)
 2. 네이버·카카오 API 응답을 파일·DB·Place·전역 상태에 저장하는 코드 금지. 화면에 그리는 동안만 드는 컴포넌트 임시 상태(주소 검색 제안 목록)는 허용 — 닫히면 버리고, 남기는 건 사용자가 확정한 값(핀 좌표)뿐(decisions 2026-09-04). 지도 SDK 표시용 라이브 호출만.
-3. 외부 이미지 도메인(pstatic.net, kakaocdn 등) 사용 금지. 이미지는 우리 스토리지(목 단계: /public)만.
+3. 외부 이미지 도메인(pstatic.net, kakaocdn 등) 사용 금지. 이미지는 우리 스토리지(/public, Phase 6부터 `/photos/<key>` = R2 서빙 라우트)만.
 4. localStorage/sessionStorage 사용 금지. 상태는 메모리, 지속은 (나중에) 서버.
 5. 시크릿을 코드에 박지 마라. .env만.
 6. dangerouslySetInnerHTML 금지 (리뷰·코멘트는 유저 입력이다).
-7. service_role 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, Supabase anon 키, 카카오 JS 키(공유용), GA4 측정 ID)만 — 목록 밖 추가는 리뷰에서 잡는다.
+7. secret key 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, 카카오 JS 키(공유용), GA4 측정 ID, Turnstile site key, Sentry DSN)만 — 목록 밖 추가는 리뷰에서 잡는다. **Supabase 키는 publishable도 목록 밖이다**(브라우저에 supabase-js가 없다 — decisions 2026-09-10).
 
 ## 스타일 (docs/design.md 공통 블록·토큰 표가 원본 — 2026-09-02 버틸까 디자인 언어 채택)
 - 라이트 모드 우선. 색은 전부 CSS 변수 토큰으로 — Figma 변수와 1:1(Primitive 램프 + Semantic 역할). 다크는 Semantic만 두 번째 벌.
