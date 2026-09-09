@@ -6,6 +6,9 @@ import { afterEach } from "vitest";
 process.env["NEXT_PUBLIC_NCP_CLIENT_ID"] ??= "test-client-id";
 process.env["SUPABASE_URL"] ??= "http://127.0.0.1:54321";
 process.env["SUPABASE_PUBLISHABLE_KEY"] ??= "test-publishable";
+process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"] ??= "1x00000000000000000000BB";
+process.env["TURNSTILE_SECRET_KEY"] ??= "1x0000000000000000000000000000000AA";
+process.env["IP_HASH_SALT"] ??= "test-salt-0000000000";
 
 // globals: false 라서 RTL 자동 cleanup이 등록되지 않는다 → 직접 등록 (테스트 간 DOM 누적 방지)
 afterEach(() => {

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { TurnstileHost } from "@/components/auth/turnstile-host";
 import { env } from "@/lib/env";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/seo";
 import "./globals.css";
@@ -39,6 +40,7 @@ export default function RootLayout({
           href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"
         />
         {children}
+        <TurnstileHost />
         <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_ID} />
       </body>
     </html>

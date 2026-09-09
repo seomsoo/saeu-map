@@ -26,6 +26,7 @@ import type {
   Session,
 } from "./types";
 import * as actions from "./server/actions";
+import { turnstileToken } from "./turnstile-client";
 import type { Result } from "./server/actions";
 import type { ReportInput, ReviewInput, ReviewPatch } from "./schemas";
 
@@ -41,6 +42,11 @@ const rawPeelTest = peelTestJson as PeelTest;
 function unwrap<T>(result: Result<T>): T {
   if (result.ok) return result.value;
   throw new Error(result.error);
+}
+
+/** 쓰기마다 Turnstile 토큰 한 장(브라우저). 서버에서 쓰기를 부를 일은 없다 — 빈 토큰은 문에서 거부된다. */
+function token(): Promise<string> {
+  return typeof window === "undefined" ? Promise.resolve("") : turnstileToken();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -129,7 +135,9 @@ export function getGuCenter(name: string): Promise<LatLng | null> {
 
 export const getSession = actions.getSession;
 export const signOut = actions.signOut;
-export const deleteAccount = actions.deleteAccount;
+export async function deleteAccount(): Promise<Session> {
+  return actions.deleteAccount(await token());
+}
 
 /**
  * 카카오 로그인 시작 — OAuth 페이지 URL을 돌려준다. 호출자(로그인 시트)가 그리로 이동하고,
@@ -138,7 +146,7 @@ export const deleteAccount = actions.deleteAccount;
 export const signInWithKakao = actions.signInWithKakao;
 
 export async function updateNickname(nickname: string): Promise<Session> {
-  return unwrap(await actions.updateNickname(nickname));
+  return unwrap(await actions.updateNickname(nickname, await token()));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -146,40 +154,40 @@ export async function updateNickname(nickname: string): Promise<Session> {
  * ════════════════════════════════════════════════════════════════════════ */
 
 export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
-  return unwrap(await actions.checkIn(placeId, String(now)));
+  return unwrap(await actions.checkIn(placeId, await token(), String(now)));
 }
 
 export async function setBookmark(placeId: string, bookmarked: boolean): Promise<string[]> {
-  return unwrap(await actions.setBookmark(placeId, bookmarked));
+  return unwrap(await actions.setBookmark(placeId, bookmarked, await token()));
 }
 
 /** 제보 등록. 고른 사진은 액션에 실리지 않는다 — 업로드는 플랜 커밋 6(R2 + Images)에서 붙는다. */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const { photos: _photos, ...payload } = input;
-  return unwrap(await actions.submitReport(payload, String(now)));
+  return unwrap(await actions.submitReport(payload, await token(), String(now)));
 }
 
 export async function submitSuggestion(
   input: Parameters<typeof actions.submitSuggestion>[0],
   now: DateInput,
 ): Promise<Place> {
-  return unwrap(await actions.submitSuggestion(input, String(now)));
+  return unwrap(await actions.submitSuggestion(input, await token(), String(now)));
 }
 
 export async function reportPhoto(input: Parameters<typeof actions.reportPhoto>[0]): Promise<void> {
-  unwrap(await actions.reportPhoto(input));
+  unwrap(await actions.reportPhoto(input, await token()));
 }
 
 export async function flagPlace(input: Parameters<typeof actions.flagPlace>[0]): Promise<void> {
-  unwrap(await actions.flagPlace(input));
+  unwrap(await actions.flagPlace(input, await token()));
 }
 
 export async function reportPlace(input: Parameters<typeof actions.reportPlace>[0]): Promise<void> {
-  unwrap(await actions.reportPlace(input));
+  unwrap(await actions.reportPlace(input, await token()));
 }
 
 export async function submitOwnerRequest(input: Parameters<typeof actions.submitOwnerRequest>[0]): Promise<void> {
-  unwrap(await actions.submitOwnerRequest(input));
+  unwrap(await actions.submitOwnerRequest(input, await token()));
 }
 
 /** 사진 올리기 — 저장소(R2)는 플랜 커밋 6. 그때까지는 실패로 돌려 화면이 롤백·토스트를 보인다. */
@@ -190,15 +198,15 @@ export function addPlacePhotos(_placeId: string, _files: readonly File[], _now: 
 /** 리뷰 등록. 사진은 액션에 실리지 않는다(커밋 6). */
 export async function submitReview(input: ReviewInput, now: DateInput): Promise<{ review: Review; place: Place }> {
   const { photo: _photo, ...payload } = input;
-  return unwrap(await actions.submitReview(payload, String(now)));
+  return unwrap(await actions.submitReview(payload, await token(), String(now)));
 }
 
 export async function updateReview(reviewId: string, patch: ReviewPatch, now: DateInput): Promise<Review> {
-  return unwrap(await actions.updateReview(reviewId, patch, String(now)));
+  return unwrap(await actions.updateReview(reviewId, patch, await token(), String(now)));
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
-  unwrap(await actions.deleteReview(reviewId));
+  unwrap(await actions.deleteReview(reviewId, await token()));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

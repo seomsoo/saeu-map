@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminClient, userClient } from "@/lib/server/supabase";
+import { isReadOnly } from "@/lib/server/write-gate";
 
 /**
  * 카카오 OAuth 콜백 (decisions 2026-09-10 "OAuth + 서버 병합").
@@ -18,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
     target.searchParams.set("login", status);
     return NextResponse.redirect(target);
   };
-  if (!code) return back("fail");
+  if (!code || isReadOnly()) return back("fail");
 
   const db = await userClient();
   const before = await db.auth.getClaims();

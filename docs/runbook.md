@@ -47,7 +47,7 @@
    - 플랫폼 → Web 사이트 도메인에 실서비스·프리뷰·`http://localhost:3000`.
    - 두 값을 `.env.local`에 `SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID=`·`SUPABASE_AUTH_EXTERNAL_KAKAO_SECRET=`로 넣고 **"넣었다"고만 알려준다** — 로컬은 `supabase/config.toml`이 그 이름으로 읽고(`[auth.external.kakao] enabled = true`로 바꾼다), 실서비스는 내가 `supabase config push`로 올린다. 값은 채팅에 적지 않는다.
    - 로컬에서 처음 카카오로 로그인한 뒤 관리자로 만들기: `psql … -c "update public.profiles set is_admin = true where id = '<uid>'"` (uid는 Studio → Authentication → Users).
-3. **Turnstile 위젯** (커밋 5 전) — dash.cloudflare.com → Turnstile → Add widget. 이름 "saeu-map", 호스트명에 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`·`localhost`. 모드 **Managed**(위젯은 우리가 `execute` 모드로 보이지 않게 돌린다). Site key·Secret key를 `.env`에.
+3. **Turnstile 위젯** (프리뷰 배포 전 — 로컬·CI는 Cloudflare 공개 더미 키를 쓴다: site `1x00000000000000000000BB`(보이지 않고 항상 통과)·secret `1x0000000000000000000000000000000AA`(항상 통과). 실패 경로를 보고 싶으면 secret을 `2x…AA`로) — dash.cloudflare.com → Turnstile → Add widget. 이름 "saeu-map", 호스트명에 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`·`localhost`. 모드 **Managed**(위젯은 우리가 `execute` 모드로 보이지 않게 돌린다). Site key·Secret key를 `.env`에.
 4. **디스코드 웹훅** (커밋 7 전) — 알림 받을 채널 → 채널 편집 → 연동 → 웹훅 → 새 웹훅 → URL 복사 → `.env`의 `DISCORD_WEBHOOK_URL`.
 5. **Sentry 프로젝트** (커밋 9 전) — sentry.io → Create Project → Next.js. DSN을 `.env`에. Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘.
 

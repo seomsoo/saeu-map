@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(14);
 
 select tests.create_user('00000000-0000-0000-0000-00000000a003', true) as anon1 \gset
 select tests.create_user('00000000-0000-0000-0000-00000000a004', true) as banned \gset
@@ -32,6 +32,7 @@ select is((select hidden_at is not null from public.places where id = :'banned_p
 -- 관리자: 신고를 보고 처리, 가게 합치기
 select tests.authenticate_as(:'admin1', false);
 select is((select count(*)::int from public.reports where place_id = :'p_from'), 2, '관리자는 신고를 본다');
+select is((select ip_hash from public.reports where place_id = :'p_from' and kind = 'place_report' and actor = :'anon1'), 'ip-r', '신고 행에 요청 IP 해시가 찍힌다');
 update public.reports set status = 'done', resolved_at = now() where place_id = :'p_from' and kind = 'place_report';
 select is((select status from public.reports where place_id = :'p_from' and kind = 'place_report'), 'done', '관리자가 처리한다');
 select tests.clear_auth();

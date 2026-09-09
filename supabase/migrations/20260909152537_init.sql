@@ -313,6 +313,14 @@ begin
 end;
 $$;
 
+-- 신고 행에 요청 IP 해시를 찍는다 — "신고 3회"를 사람 기준으로 세려면 actor(익명 회전 가능) 말고 IP도 있어야 한다(decisions 2026-09-08). 24시간 해시라 개인 식별은 못 한다
+create or replace function private.stamp_ip_hash() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  new.ip_hash := private.request_ip_hash();
+  return new;
+end;
+$$;
+
 -- 가게당 사진 10장 (MAX_PLACE_PHOTOS) — UI·액션이 먼저 막고 여기가 마지막 방어선
 create or replace function private.enforce_photo_cap() returns trigger language plpgsql security definer set search_path = '' as $$
 begin
@@ -402,6 +410,8 @@ create trigger photos_rate after insert on public.photos
 
 create trigger reports_shadow before insert on public.reports
   for each row execute function private.drop_if_shadow_banned();
+create trigger reports_stamp_ip before insert on public.reports
+  for each row execute function private.stamp_ip_hash();
 create trigger reports_rate after insert on public.reports
   for each row execute function private.log_rate_event('@kind', 'place_id');
 

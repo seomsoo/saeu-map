@@ -16,9 +16,17 @@ export const env = createEnv({
     SUPABASE_URL: z.url({ protocol: /^https?$/ }),
     SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+    /** Turnstile 서버 검증 키. 로컬·CI는 테스트 키(`1x…AA` 항상 통과 — runbook). */
+    TURNSTILE_SECRET_KEY: z.string().min(1),
+    /** 속도 제한용 IP 해시 salt — 아무 긴 문자열. 새면 교체만 하면 된다(해시는 24시간이면 쓸모를 다한다). */
+    IP_HASH_SALT: z.string().min(16),
+    /** 프리뷰 워커만 "1" — 모든 쓰기·로그인·익명 생성을 거부한다(prod DB를 보는 프리뷰, decisions 2026-09-10). */
+    PREVIEW_READONLY: z.enum(["1"]).optional(),
   },
   client: {
     NEXT_PUBLIC_NCP_CLIENT_ID: z.string().min(1),
+    /** Turnstile 위젯 site key — 공개값(위젯을 그리려면 브라우저가 안다). 콘솔에서 호스트명으로 묶는다(규칙 7 허용 목록). */
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1),
     /**
      * GA4 측정 ID (`G-XXXXXXX`). **비우면 스크립트를 아예 안 붙인다** — dev·프리뷰에서 수치가 섞이지 않게,
      * 그리고 런칭 전까지는 아무것도 수집하지 않게. 공개 값이라 NEXT_PUBLIC_ 허용 목록에 있다(규칙 7).
@@ -33,6 +41,10 @@ export const env = createEnv({
     SUPABASE_URL: process.env["SUPABASE_URL"],
     SUPABASE_PUBLISHABLE_KEY: process.env["SUPABASE_PUBLISHABLE_KEY"],
     SUPABASE_SECRET_KEY: process.env["SUPABASE_SECRET_KEY"],
+    TURNSTILE_SECRET_KEY: process.env["TURNSTILE_SECRET_KEY"],
+    IP_HASH_SALT: process.env["IP_HASH_SALT"],
+    PREVIEW_READONLY: process.env["PREVIEW_READONLY"],
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
     NEXT_PUBLIC_GA_ID: process.env["NEXT_PUBLIC_GA_ID"],
   },

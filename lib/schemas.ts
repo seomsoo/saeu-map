@@ -4,6 +4,7 @@
  * DB 쪽 상한(가게당 사진 10장·메뉴 5줄·후기 500자)은 supabase/migrations에도 같은 숫자로 박혀 있다 — 여기가 UI의 첫 방어선, DB가 마지막.
  */
 import { z } from "zod";
+import { BANNED_MESSAGE, hasBannedWord, hasUrl, URL_MESSAGE } from "./content-filter";
 import { isAllowedNaverPlaceUrl } from "./naver-links";
 import type { PlaceTag } from "./types";
 
@@ -29,6 +30,11 @@ export const ADMIN_PAGE_SIZE = 100;
 
 /** 가게 id·사진 id·리뷰 id 공통 형태(uuid). */
 export const idSchema = z.uuid();
+
+/** 익명이 즉시 반영하는 자유 텍스트 — 링크·욕설을 폼과 액션이 같은 판정으로 막는다(spec 5 스팸 4겹 3) */
+function cleanText<T extends z.ZodType<string>>(schema: T) {
+  return schema.refine((v) => !hasUrl(v), URL_MESSAGE).refine((v) => !hasBannedWord(v), BANNED_MESSAGE);
+}
 
 export interface PlaceFilter {
   tag?: PlaceTag;
@@ -60,7 +66,7 @@ export const photoReportSchema = z.object({
  * kg·g는 숫자만("1", "500"), 한판·반판·N마리는 표기 자체, 단위 없음은 null.
  */
 export const reportMenuSchema = z.object({
-  name: z.string().trim().min(1).max(30),
+  name: cleanText(z.string().trim().min(1).max(30)),
   price: z.number().int().min(100).max(999_999),
   unit: z.enum(["kg", "g", "pan", "count", "none"]),
   unitRaw: z.string().trim().max(10).nullable(),
@@ -82,12 +88,12 @@ const imageFileSchema = z
 
 /** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 구는 좌표로 판정(전국). 좌표 범위는 한국 대략 상자. */
 export const reportInputSchema = z.object({
-  name: z.string().trim().min(1).max(40),
+  name: cleanText(z.string().trim().min(1).max(40)),
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
   menus: z.array(reportMenuSchema).min(1).max(REPORT_MENU_MAX),
   sides: sidesSchema,
-  hoursNote: z.string().trim().max(80),
+  hoursNote: cleanText(z.string().trim().max(80)),
   /** 4단계 미리보기까지 고른 파일. 서버 액션은 이 배열을 받지 않는다(별도 업로드 — 플랜 커밋 6). */
   photos: z.array(imageFileSchema).max(MAX_PLACE_PHOTOS),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
@@ -117,14 +123,15 @@ export const nicknameSchema = z
       .string()
       .min(2)
       .max(12)
-      .regex(/^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u),
+      .regex(/^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u)
+      .refine((v) => !hasBannedWord(v), BANNED_MESSAGE),
   );
 
 /** 리뷰 입력(design 화면 5 변형 (b)): 별점 필수, 후기 선택 500자, 사진 1장 선택. */
 export const reviewInputSchema = z.object({
   placeId: idSchema,
   rating: z.number().int().min(1).max(5),
-  text: z.string().trim().max(500),
+  text: cleanText(z.string().trim().max(500)),
   photo: imageFileSchema.nullable(),
 });
 export type ReviewInput = z.infer<typeof reviewInputSchema>;
@@ -145,12 +152,12 @@ export const suggestionSchema = z.discriminatedUnion("field", [
   z.object({
     field: z.literal("hours"),
     placeId: idSchema,
-    hoursNote: z.string().trim().min(1).max(80),
+    hoursNote: cleanText(z.string().trim().min(1).max(80)),
   }),
   z.object({
     field: z.literal("address"),
     placeId: idSchema,
-    addressRoad: z.string().trim().min(2).max(60),
+    addressRoad: cleanText(z.string().trim().min(2).max(60)),
   }),
   /** 메뉴는 바뀐 것만 보낸다(decisions 2026-09-08). */
   z
@@ -190,7 +197,7 @@ export const ownerRequestSchema = z.object({
     .string()
     .transform((v) => v.normalize("NFKC").replaceAll(/[\u0000-\u001f\u007f]/gu, " ").trim())
     .pipe(z.string().min(5).max(60)),
-  message: z.string().trim().max(300),
+  message: cleanText(z.string().trim().max(300)),
 });
 export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
 

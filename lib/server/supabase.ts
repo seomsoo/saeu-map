@@ -14,9 +14,11 @@ import { env } from "@/lib/env";
 
 export type Db = SupabaseClient<Database>;
 
-export async function userClient(): Promise<Db> {
+/** `ipHash`는 쓰기 문(write-gate)이 준다 — PostgREST가 request.headers로 넘기고 DB의 rate_ok가 읽는다 */
+export async function userClient(options: { ipHash?: string } = {}): Promise<Db> {
   const store = await cookies();
   return createServerClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
+    ...(options.ipHash !== undefined && { global: { headers: { "x-ip-hash": options.ipHash } } }),
     cookies: {
       getAll() {
         return store.getAll();

@@ -57,6 +57,7 @@ import type {
 import { toAdminPlace, toPhoto, toPlace, toReview } from "./rows";
 import { ensureUser, readSession, requireKakao, VISITOR } from "./session";
 import { adminClient, type Db, userClient } from "./supabase";
+import { isReadOnly, openWriteGate } from "./write-gate";
 
 /** 쓰기 실패 — 컴포넌트가 분기하는 코드만. 그 밖은 throw(generic). */
 export type FailCode =
@@ -67,7 +68,9 @@ export type FailCode =
   | "place not found"
   | "photo limit reached"
   | "forbidden"
-  | "outside korea";
+  | "outside korea"
+  | "read only"
+  | "bot check failed";
 export type Result<T> = { ok: true; value: T } | { ok: false; error: FailCode };
 const fail = (error: FailCode): Result<never> => ({ ok: false, error });
 const okay = <T>(value: T): Result<T> => ({ ok: true, value });
@@ -203,6 +206,7 @@ export async function getSession(): Promise<Session> {
  * `next`는 돌아올 경로(같은 사이트의 경로만).
  */
 export async function signInWithKakao(next: string): Promise<string> {
+  if (isReadOnly()) throw new Error("read only");
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
   const db = await userClient();
   const redirectTo = new URL("/auth/callback", siteUrl(env.SITE_URL));
@@ -223,8 +227,10 @@ export async function signOut(): Promise<Session> {
 }
 
 /** 탈퇴 (spec 5) — 카카오만. 개인 데이터 삭제는 secret key RPC(admin_delete_user)가 한 트랜잭션으로. */
-export async function deleteAccount(): Promise<Session> {
-  const db = await userClient();
+export async function deleteAccount(turnstile: string): Promise<Session> {
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) throw new Error(gate.failure);
+  const { db } = gate;
   const uid = await requireKakao(db);
   const { error } = await adminClient().rpc("admin_delete_user", { p_uid: uid });
   if (error) throw new Error("delete failed");
@@ -232,9 +238,11 @@ export async function deleteAccount(): Promise<Session> {
   return VISITOR;
 }
 
-export async function updateNickname(nickname: string): Promise<Result<Session>> {
+export async function updateNickname(nickname: string, turnstile: string): Promise<Result<Session>> {
   const next = nicknameSchema.parse(nickname);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   let uid: string;
   try {
     uid = await requireKakao(db);
@@ -257,9 +265,11 @@ async function placeOrFail(db: Db, id: string): Promise<Result<Place>> {
 }
 
 /** "다녀왔어요" 확인 +1 — 핀당 하루 1회는 DB 유니크 인덱스가 막는다(23505 → already checked). */
-export async function checkIn(placeId: string, _now?: string): Promise<Result<Place>> {
+export async function checkIn(placeId: string, turnstile: string, _now?: string): Promise<Result<Place>> {
   const id = idSchema.parse(placeId);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   const actor = await ensureUser(db);
   const { error } = await db.from("checkins").insert({ place_id: id, actor, type: "visited" });
   if (error) return fail(error.code === "23505" ? "already checked" : "place not found");
@@ -267,9 +277,11 @@ export async function checkIn(placeId: string, _now?: string): Promise<Result<Pl
 }
 
 /** 찜 설정 — 원하는 상태를 받는다(멱등). 현재 찜 목록을 돌려준다. */
-export async function setBookmark(placeId: string, bookmarked: boolean): Promise<Result<string[]>> {
+export async function setBookmark(placeId: string, bookmarked: boolean, turnstile: string): Promise<Result<string[]>> {
   const id = idSchema.parse(placeId);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   const userId = await ensureUser(db);
   // ON CONFLICT DO NOTHING — DO UPDATE는 UPDATE 권한이 필요한데 bookmarks에는 insert·delete만 열어 뒀다(멱등은 이걸로 충분)
   const { error } = bookmarked
@@ -284,11 +296,13 @@ export async function setBookmark(placeId: string, bookmarked: boolean): Promise
 }
 
 /** 제보 등록 (spec 4.3). 구는 좌표로 판정하고 한국 밖(바다)이면 거부. 사진은 별도 업로드. 시간당 5은 RPC가 센다. */
-export async function submitReport(input: ReportPayload, _now?: string): Promise<Result<Place>> {
+export async function submitReport(input: ReportPayload, turnstile: string, _now?: string): Promise<Result<Place>> {
   const report = reportPayloadSchema.parse(input);
   const gu = await guOfPoint(report);
   if (gu === null) return fail("outside korea");
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   await ensureUser(db);
   const tags: Place["tags"] = report.menus.some((m) => m.raw) ? ["grill", "raw"] : ["grill"];
   const sides = (Object.keys(report.sides) as (keyof typeof report.sides)[]).filter((k) => report.sides[k]);
@@ -309,9 +323,11 @@ export async function submitReport(input: ReportPayload, _now?: string): Promise
 }
 
 /** 값 제안 — 즉시 반영 + 이력(DB 트리거). 메뉴는 현재 줄에 편집을 적용한 전체를 보낸다. */
-export async function submitSuggestion(input: SuggestionInput, _now?: string): Promise<Result<Place>> {
+export async function submitSuggestion(input: SuggestionInput, turnstile: string, _now?: string): Promise<Result<Place>> {
   const parsed = suggestionSchema.parse(input);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   await ensureUser(db);
   let value: unknown;
   switch (parsed.field) {
@@ -341,7 +357,7 @@ export async function submitSuggestion(input: SuggestionInput, _now?: string): P
 }
 
 async function insertReport(
-  db: Db,
+  turnstile: string,
   row: {
     kind: ReportKind;
     place_id: string;
@@ -352,19 +368,21 @@ async function insertReport(
     message?: string;
   },
 ): Promise<Result<void>> {
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   const actor = await ensureUser(db);
   const { error } = await db.from("reports").insert({ ...row, actor });
   if (error) return fail(error.code === "42501" ? "rate limited" : "place not found");
   return okay(undefined);
 }
 
-export async function reportPhoto(input: {
-  placeId: string;
-  photoId: string;
-  reason: PhotoReportReason;
-}): Promise<Result<void>> {
+export async function reportPhoto(
+  input: { placeId: string; photoId: string; reason: PhotoReportReason },
+  turnstile: string,
+): Promise<Result<void>> {
   const parsed = photoReportSchema.parse(input);
-  return insertReport(await userClient(), {
+  return insertReport(turnstile, {
     kind: "photo_report",
     place_id: parsed.placeId,
     photo_id: parsed.photoId,
@@ -372,19 +390,25 @@ export async function reportPhoto(input: {
   });
 }
 
-export async function flagPlace(input: { placeId: string; reason: PlaceFlagReason }): Promise<Result<void>> {
+export async function flagPlace(
+  input: { placeId: string; reason: PlaceFlagReason },
+  turnstile: string,
+): Promise<Result<void>> {
   const parsed = placeFlagSchema.parse(input);
-  return insertReport(await userClient(), { kind: "place_flag", place_id: parsed.placeId, reason: parsed.reason });
+  return insertReport(turnstile, { kind: "place_flag", place_id: parsed.placeId, reason: parsed.reason });
 }
 
-export async function reportPlace(input: { placeId: string; reason: PlaceReportReason }): Promise<Result<void>> {
+export async function reportPlace(
+  input: { placeId: string; reason: PlaceReportReason },
+  turnstile: string,
+): Promise<Result<void>> {
   const parsed = placeReportSchema.parse(input);
-  return insertReport(await userClient(), { kind: "place_report", place_id: parsed.placeId, reason: parsed.reason });
+  return insertReport(turnstile, { kind: "place_report", place_id: parsed.placeId, reason: parsed.reason });
 }
 
-export async function submitOwnerRequest(input: OwnerRequestInput): Promise<Result<void>> {
+export async function submitOwnerRequest(input: OwnerRequestInput, turnstile: string): Promise<Result<void>> {
   const parsed = ownerRequestSchema.parse(input);
-  return insertReport(await userClient(), {
+  return insertReport(turnstile, {
     kind: "owner_request",
     place_id: parsed.placeId,
     owner_kind: parsed.kind,
@@ -404,10 +428,13 @@ async function reviewById(db: Db, id: string): Promise<Review | null> {
 
 export async function submitReview(
   input: ReviewPayload,
+  turnstile: string,
   _now?: string,
 ): Promise<Result<{ review: Review; place: Place }>> {
   const parsed = reviewPayloadSchema.parse(input);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   let uid: string;
   try {
     uid = await requireKakao(db);
@@ -425,10 +452,17 @@ export async function submitReview(
   return okay({ review, place: place.value });
 }
 
-export async function updateReview(reviewId: string, patch: ReviewPatch, _now?: string): Promise<Result<Review>> {
+export async function updateReview(
+  reviewId: string,
+  patch: ReviewPatch,
+  turnstile: string,
+  _now?: string,
+): Promise<Result<Review>> {
   const id = idSchema.parse(reviewId);
   const changes = reviewPatchSchema.parse(patch);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   try {
     await requireKakao(db);
   } catch {
@@ -444,9 +478,11 @@ export async function updateReview(reviewId: string, patch: ReviewPatch, _now?: 
   return review ? okay(review) : fail("forbidden");
 }
 
-export async function deleteReview(reviewId: string): Promise<Result<void>> {
+export async function deleteReview(reviewId: string, turnstile: string): Promise<Result<void>> {
   const id = idSchema.parse(reviewId);
-  const db = await userClient();
+  const gate = await openWriteGate(turnstile);
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
   const { data, error } = await db
     .from("reviews")
     .update({ deleted_at: new Date().toISOString() })
@@ -518,6 +554,7 @@ export async function getReports(
 
 export async function resolveReport(id: string, status: ReportStatus): Promise<Result<Report>> {
   const parsed = resolveReportSchema.parse({ id, status });
+  if (isReadOnly()) return fail("read only");
   const db = await userClient();
   const { data, error } = await db
     .from("reports")
@@ -560,6 +597,7 @@ async function adminPlaceWithPhotos(db: Db, id: string): Promise<Result<Place>> 
 /** 사후 확인 — 배지만 찍는다. "새로 제보됨"(is_new)은 건드리지 않는다. */
 export async function confirmPlace(placeId: string, _now?: string): Promise<Result<Place>> {
   const id = idSchema.parse(placeId);
+  if (isReadOnly()) return fail("read only");
   const db = await userClient();
   const { data, error } = await db
     .from("places")
@@ -578,6 +616,7 @@ export async function setPlaceHidden(
   options: { byOwner?: boolean } = {},
 ): Promise<Result<Place>> {
   const id = idSchema.parse(placeId);
+  if (isReadOnly()) return fail("read only");
   const db = await userClient();
   const patch = hidden
     ? { hidden_at: new Date().toISOString(), ...(options.byOwner === true && { removed_by_owner: true }) }
@@ -594,6 +633,7 @@ export async function deletePlace(placeId: string, now?: string, byOwner = false
 /** 신고된 사진 내리기 — 사진만 빼고 가게는 그대로. */
 export async function deletePlacePhoto(placeId: string, photoId: string): Promise<Result<Place>> {
   const place = idSchema.parse(placeId);
+  if (isReadOnly()) return fail("read only");
   const photo = idSchema.parse(photoId);
   const db = await userClient();
   const { data, error } = await db
@@ -666,6 +706,7 @@ export async function getPlaceEdits(filter: AdminListFilter = {}): Promise<Place
 /** 되돌리기 — before를 그대로 덮는다. 트리거가 이 변경도 이력에 남기므로 다시 되돌릴 수 있다(대칭). */
 export async function revertPlaceEdit(editId: string, _now?: string): Promise<Result<Place>> {
   const id = idSchema.parse(editId);
+  if (isReadOnly()) return fail("read only");
   const db = await userClient();
   const { data: row, error } = await db.from("place_edits").select("*").eq("id", id).maybeSingle();
   if (error || !row) return fail("forbidden");
