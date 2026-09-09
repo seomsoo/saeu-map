@@ -114,6 +114,16 @@ export const MOCK_WRITE_DELAY_MS = 400;
  * 리사이즈(spec 6)를 하면 실제 저장본은 이보다 훨씬 작다 — 이건 "말도 안 되는 파일"을 막는 문이다.
  */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/**
+ * 제보 한 건에 담는 메뉴 줄 수 — 구이 1(필수) + 회 1(선택) + 기타 3.
+ * 크롤 가게의 메뉴가 중앙값 3줄·최대 5줄이라 그 분포와 맞춘다 (2026-09-09).
+ */
+export const REPORT_MENU_MAX = 5;
+/**
+ * 그중 기타 줄 상한. **회 토글과 무관하게 고정**한다 — 남는 자리로 계산하면 기타를 4줄 채운 뒤
+ * "새우회도 팔아요"를 켜는 순간 6줄이 되고, 스키마에 걸려 사용자는 이유 모를 실패를 본다 (2026-09-09).
+ */
+export const REPORT_EXTRA_MENU_MAX = REPORT_MENU_MAX - 2;
 /** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 — 목 50곳 최대가 5줄이라 여유롭게 */
 export const MAX_MENU_EDITS = 20;
 export const MOCK_FAILURE_RATE = 0.1;
@@ -581,7 +591,7 @@ export const reportInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
-  menus: z.array(reportMenuSchema).min(1).max(2),
+  menus: z.array(reportMenuSchema).min(1).max(REPORT_MENU_MAX),
   sides: sidesSchema,
   hoursNote: z.string().trim().max(80),
   /** 4단계 미리보기까지 고른 파일. 목 단계에는 저장소가 없어 버린다(Phase 6). */
@@ -640,6 +650,10 @@ function toPhotos(placeId: string, files: readonly File[], uploadedAt: string, u
  * 제보 등록 (spec 4.3, 5 "모든 제보 즉시 노출"). 성공하면 만들어진 Place를 돌려주고 데이터셋 끝에 붙인다.
  * 구는 좌표로 판정하고 한국 밖(바다)이면 지연 전에 거부한다. 주소·최근접역은 비워 둔다(Phase 6 서버 파생).
  * `now`는 목 데이터셋 조회·등록 시각용이다 — Phase 6에서는 서버가 정한다(checkIn과 같은 계약).
+ */
+/**
+ * 제보 등록 — 익명이 **핀 자체를 만드는** 가장 비싼 쓰기다.
+ * 속도 제한 자리: 기기·IP당 일 N — Phase 6 Upstash(spec 스팸 4겹 2). 다른 쓰기와 같은 자리에 둔다.
  */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const report = reportInputSchema.parse(input);

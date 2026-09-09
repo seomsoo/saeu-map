@@ -62,6 +62,9 @@ export function ReportPanel({
     draft,
     patch,
     patchMenu,
+    addExtraMenu,
+    patchExtraMenu,
+    removeExtraMenu,
     isDuplicateDismissed,
     dismissDuplicate,
     submitting,
@@ -130,6 +133,10 @@ export function ReportPanel({
           grill={draft.grill}
           rawToo={draft.rawToo}
           raw={draft.raw}
+          extras={draft.extras}
+          onAddExtra={addExtraMenu}
+          onChangeExtra={patchExtraMenu}
+          onRemoveExtra={removeExtraMenu}
           onChangeGrill={(changes) => {
             patchMenu("grill", changes);
           }}

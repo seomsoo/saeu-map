@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { submitReport, type ReportMenuInput } from "@/lib/data";
+import { REPORT_EXTRA_MENU_MAX, submitReport, type ReportMenuInput } from "@/lib/data";
 import type { LatLng, Place, Sides } from "@/lib/types";
 import { EMPTY_MENU_DRAFT, validateMenuDraft, type MenuDraft } from "./menu-draft";
 
@@ -16,6 +16,11 @@ export interface ReportDraft {
   rawToo: boolean;
   /** 3단계 회 줄 (rawToo일 때만 검증·저장) */
   raw: MenuDraft;
+  /**
+   * 3단계 기타 줄 — 이름·가격·단위만 받는다(2026-09-09). 카테고리를 고르게 하지 않는 이유는
+   * `Place.menus`에 줄별 카테고리를 저장하는 자리가 없고, 회 여부는 위 토글이 담당하기 때문이다.
+   */
+  extras: MenuDraft[];
   /** 4단계 — 전부 선택 사항 */
   photos: File[];
   sides: Sides;
@@ -30,6 +35,7 @@ const EMPTY_DRAFT: ReportDraft = {
   grill: EMPTY_MENU_DRAFT,
   rawToo: false,
   raw: EMPTY_MENU_DRAFT,
+  extras: [],
   photos: [],
   sides: { headButter: false, ramen: false, friedRice: false },
   hoursNote: "",
@@ -40,9 +46,19 @@ const EMPTY_DRAFT: ReportDraft = {
 function menusOf(draft: ReportDraft): ReportMenuInput[] | null {
   const grill = validateMenuDraft(draft.grill, false);
   if (!grill.menu) return null;
-  if (!draft.rawToo) return [grill.menu];
-  const raw = validateMenuDraft(draft.raw, true);
-  return raw.menu ? [grill.menu, raw.menu] : null;
+  const menus: ReportMenuInput[] = [grill.menu];
+  if (draft.rawToo) {
+    const raw = validateMenuDraft(draft.raw, true);
+    if (!raw.menu) return null;
+    menus.push(raw.menu);
+  }
+  // 기타 줄은 구이·회가 아니라 그냥 한 줄이다 — raw=false로 검증하고 태그에는 영향을 주지 않는다
+  for (const extra of draft.extras) {
+    const line = validateMenuDraft(extra, false);
+    if (!line.menu) return null;
+    menus.push(line.menu);
+  }
+  return menus;
 }
 
 export function useReportFlow() {
@@ -97,6 +113,26 @@ export function useReportFlow() {
     setDraft((prev) => ({ ...prev, [line]: { ...prev[line], ...changes } }));
   }, []);
 
+  /** 기타 줄 — 상한을 넘기면 아무 일도 하지 않는다. 회 토글과 무관한 고정값이라 토글로 깨지지 않는다 */
+  const addExtraMenu = useCallback(() => {
+    setDraft((prev) =>
+      prev.extras.length >= REPORT_EXTRA_MENU_MAX
+        ? prev
+        : { ...prev, extras: [...prev.extras, EMPTY_MENU_DRAFT] },
+    );
+  }, []);
+
+  const patchExtraMenu = useCallback((index: number, changes: Partial<MenuDraft>) => {
+    setDraft((prev) => ({
+      ...prev,
+      extras: prev.extras.map((line, i) => (i === index ? { ...line, ...changes } : line)),
+    }));
+  }, []);
+
+  const removeExtraMenu = useCallback((index: number) => {
+    setDraft((prev) => ({ ...prev, extras: prev.extras.filter((_, i) => i !== index) }));
+  }, []);
+
   const dismissDuplicate = useCallback((id: string) => {
     dismissedDuplicateIds.current.add(id);
   }, []);
@@ -107,6 +143,9 @@ export function useReportFlow() {
     draft,
     patch,
     patchMenu,
+    addExtraMenu,
+    patchExtraMenu,
+    removeExtraMenu,
     isDuplicateDismissed,
     dismissDuplicate,
     submitting,
