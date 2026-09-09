@@ -449,7 +449,7 @@ comment on view public.reviews_public is '보이는 리뷰 + 작성자 닉네임
 create or replace function public.submit_report(
   p_name text, p_lat double precision, p_lng double precision, p_gu text,
   p_tags text[], p_menus jsonb, p_sides text[], p_hours_note text,
-  p_naver_place_url text, p_duplicate_of uuid
+  p_naver_place_url text, p_duplicate_of uuid default null
 ) returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   v_uid uuid := (select auth.uid());

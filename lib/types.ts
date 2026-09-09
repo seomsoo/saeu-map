@@ -96,9 +96,11 @@ export interface Place {
 
 export interface Checkin {
   placeId: string;
-  type: "visited" | "menu_verified";
+  /** visited = 다녀왔어요, review = 리뷰 등록(리뷰도 확인이다), seed = 크롤 수집일 */
+  type: "visited" | "review" | "seed";
   at: string;
-  actor: string;
+  /** 탈퇴하면 null(집계는 남는다) */
+  actor: string | null;
 }
 
 export interface LatLng {
@@ -184,7 +186,8 @@ export type AuthProvider = "anonymous" | "kakao";
  * 익명 가능 = 다녀왔어요·제보·찜(기기 한정) / 카카오 필요 = 리뷰·내 활동.
  */
 export interface Session {
-  userId: string;
+  /** null = 아직 아무 기록도 없는 방문자 — 첫 쓰기에서 익명 유저가 만들어진다(decisions 2026-09-10) */
+  userId: string | null;
   provider: AuthProvider;
   /** 카카오 프로필 기본, 수정 가능. 익명은 null. */
   nickname: string | null;
@@ -328,7 +331,7 @@ export interface PeelMatch {
   description: string;
 }
 
-/** 테스트 콘텐츠 전체 — `lib/mock/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
+/** 테스트 콘텐츠 전체 — `lib/content/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
 export interface PeelTest {
   title: string;
   subtitle: string;

@@ -23,7 +23,7 @@ const data = vi.hoisted(() => ({
   checkIn: vi.fn<(id: string, now: string) => Promise<Place>>(),
   reportPhoto: vi.fn<(input: PhotoReport) => Promise<void>>(),
   getSession: vi.fn<() => Promise<Session>>(),
-  signInWithKakao: vi.fn<() => Promise<Session>>(),
+  signInWithKakao: vi.fn<(next: string) => Promise<string>>(),
   submitReview: vi.fn<(input: ReviewInput, now: string) => Promise<{ review: Review; place: Place }>>(),
   updateReview: vi.fn<(id: string, patch: ReviewPatch, now: string) => Promise<Review>>(),
   deleteReview: vi.fn<(id: string) => Promise<void>>(),
@@ -35,6 +35,8 @@ const data = vi.hoisted(() => ({
 }));
 
 // 상수(MAX_PLACE_PHOTOS)는 진짜 값을 쓰고 쓰기 함수만 가짜로 — 상한을 테스트에 두 번 적지 않는다
+const nav = vi.hoisted(() => ({ assignLocation: vi.fn<(url: string) => void>() }));
+vi.mock("@/lib/navigate", () => ({ assignLocation: nav.assignLocation }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   getPlaceDetail: data.getPlaceDetail,
@@ -131,7 +133,8 @@ beforeEach(() => {
   data.getSession.mockReset();
   data.getSession.mockResolvedValue(ANON);
   data.signInWithKakao.mockReset();
-  data.signInWithKakao.mockResolvedValue(KAKAO);
+  data.signInWithKakao.mockResolvedValue("https://kauth.kakao.com/oauth/authorize?state=x");
+  nav.assignLocation.mockReset();
   data.submitReview.mockReset();
   data.updateReview.mockReset();
   data.deleteReview.mockReset();
@@ -806,15 +809,19 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
     });
   });
 
-  it("익명이 [리뷰 남기기] → 로그인 시트, 로그인하면 바로 리뷰 폼", async () => {
+  it("익명이 [리뷰 남기기] → 로그인 시트 → 카카오 = OAuth로 이동(돌아올 곳에 intent=review). 복귀는 autoReview가 받는다", async () => {
+    window.history.replaceState(null, "", "/place/nara");
     renderDetail(nara(), { initialReviews: [] });
     fireEvent.click(screen.getByRole("button", { name: "리뷰 남기기" }));
     const login = await screen.findByRole("dialog", { name: "카카오로 로그인" });
     expect(login).toHaveTextContent("리뷰를 남기려면 로그인이 필요해요");
     expect(screen.queryByRole("dialog", { name: "리뷰 남기기" })).toBeNull();
     fireEvent.click(within(login).getByRole("button", { name: "카카오로 시작하기" }));
-    expect(await screen.findByRole("dialog", { name: "리뷰 남기기" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "카카오로 로그인" })).toBeNull();
+    await waitFor(() => {
+      expect(nav.assignLocation).toHaveBeenCalledWith("https://kauth.kakao.com/oauth/authorize?state=x");
+    });
+    expect(data.signInWithKakao).toHaveBeenCalledWith("/place/nara?intent=review");
+    expect(screen.queryByRole("dialog", { name: "리뷰 남기기" })).toBeNull();
   });
 
   it("[나중에 할게요]면 폼이 열리지 않는다", async () => {

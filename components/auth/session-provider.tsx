@@ -20,7 +20,7 @@ import {
 } from "@/lib/data";
 import { pushOverlayHistoryEntry } from "@/lib/history-state";
 import type { Session } from "@/lib/types";
-import { LoginSheet, type LoginReason } from "./login-sheet";
+import { LOGIN_FAILED_MESSAGE, LoginSheet, type LoginReason } from "./login-sheet";
 
 export interface SessionContextValue {
   /** null = 아직 모름(첫 로드). 그동안 프로필 버튼은 익명 아이콘. */
@@ -38,6 +38,14 @@ export interface SessionContextValue {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
+
+/** 첫 렌더에서 주소의 `login=fail&intent=…`를 읽는다(SSR에는 window가 없다 → null) */
+function readFailedIntent(): LoginReason | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("login") !== "fail") return null;
+  return params.get("intent") === "review" ? "review" : "me";
+}
 
 interface Prompt {
   reason: LoginReason;
@@ -57,11 +65,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   /** 닫히는 중에 정해진 결과 — popstate 정리 뒤 resolve한다 */
   const resultRef = useRef(false);
 
+  /** 콜백이 `login=fail`로 돌려보냈다 — 같은 이유의 시트를 오류 줄과 함께 다시 연다(`login=ok`는 지도 화면이 intent로 이어 간다) */
+  const [failedReason, setFailedReason] = useState<LoginReason | null>(readFailedIntent);
+
   useEffect(() => {
     let alive = true;
     void getSession().then((s) => {
       if (alive) setSession(s);
     });
+    // 주소의 login·intent를 지운다 — 새로고침에 시트가 또 뜨지 않게 (상태는 위 초기값이 이미 읽었다)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") === "fail") {
+      params.delete("login");
+      params.delete("intent");
+      const rest = params.toString();
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+    }
     return () => {
       alive = false;
     };
@@ -104,16 +123,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [closePrompt],
   );
 
-  const handleSignedIn = useCallback(
-    (next: Session) => {
-      setSession(next);
-      settle(true);
-    },
-    [settle],
-  );
   const handleDismiss = useCallback(() => {
     settle(false);
   }, [settle]);
+  const dismissFailed = useCallback(() => {
+    setFailedReason(null);
+  }, []);
+
+  /** OAuth를 시작한다 — 돌아올 곳은 지금 경로 + 하려던 일(intent). 콜백이 `login=ok`를 붙여 보내면 화면이 이어 간다 */
+  const startKakao = useCallback((reason: LoginReason) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("intent", reason);
+    return signInWithKakao(`${url.pathname}${url.search}`);
+  }, []);
 
   const signOut = useCallback(async () => {
     setSession(await requestSignOut());
@@ -134,11 +156,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     <SessionContext.Provider value={value}>
       {children}
       {prompt && (
+        <LoginSheet reason={prompt.reason} signIn={() => startKakao(prompt.reason)} onDismiss={handleDismiss} />
+      )}
+      {!prompt && failedReason && (
         <LoginSheet
-          reason={prompt.reason}
-          signIn={signInWithKakao}
-          onSignedIn={handleSignedIn}
-          onDismiss={handleDismiss}
+          reason={failedReason}
+          initialError={LOGIN_FAILED_MESSAGE}
+          signIn={() => startKakao(failedReason)}
+          onDismiss={dismissFailed}
         />
       )}
     </SessionContext.Provider>

@@ -18,7 +18,7 @@
 
 ## 지금 단계 (Phase 6 — 백엔드 교체, docs/plans/phase6-backend.md)
 UI는 끝났다. 백엔드를 Supabase로 붙이는 중이다. **Supabase를 아는 파일은 `lib/server/`뿐**(`import "server-only"`). 컴포넌트·훅은 여전히 `lib/data.ts`만 부르고, `lib/data.ts`는 서버에선 `lib/server`를 직접, 클라이언트에선 Server Action을 부른다. **브라우저에 supabase-js를 싣지 않는다**(decisions 2026-09-10).
-목 JSON(`lib/mock/`)은 플랜 커밋 4에서 지운다 — 그 전까지 목 규칙(컨벤션의 날짜 캐시 항목)은 유효하다. 설정값 JSON(이벤트 카드·까주기 테스트)은 목이 아니라 `lib/content/`로 옮긴다.
+목 JSON(`lib/mock/`)은 지웠다(커밋 4). 설정값 JSON(이벤트 카드·까주기 테스트)은 `lib/content/`. 쓰기 액션은 예상 실패를 값(`Result`)으로 돌려주고 `lib/data.ts`가 throw로 바꾼다 — 프로덕션의 Next는 액션의 오류 메시지를 지우기 때문이다. 로컬 개발은 `pnpm db:start` 뒤 `pnpm dev`(.env.local에 로컬 Supabase 값).
 
 ## 라이브러리·버전
 - 버전 특정 문법이나 사용법이 불확실하면(Next.js, Tailwind, 네이버 지도 SDK, Supabase 등) 기억에 의존하지 말고 **context7으로 최신 문서를 확인한 뒤** 작성하라. 특히 마이너 라이브러리일수록.

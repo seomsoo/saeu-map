@@ -22,7 +22,7 @@ export async function generateStaticParams() {
  */
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const detail = await getPlaceDetail(id, Date.now());
+  const detail = await getPlaceDetail(id, new Date().toISOString());
   if (!detail) return new Response("Not found", { status: 404 });
   const { place } = detail;
   const fonts = await ogFonts();

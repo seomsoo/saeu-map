@@ -7,9 +7,11 @@ import { LOGIN_FAILED_MESSAGE } from "../login-sheet";
 
 const data = vi.hoisted(() => ({
   getSession: vi.fn<() => Promise<Session>>(),
-  signInWithKakao: vi.fn<() => Promise<Session>>(),
+  signInWithKakao: vi.fn<(next: string) => Promise<string>>(),
   signOut: vi.fn<() => Promise<Session>>(),
 }));
+const nav = vi.hoisted(() => ({ assignLocation: vi.fn<(url: string) => void>() }));
+vi.mock("@/lib/navigate", () => ({ assignLocation: nav.assignLocation }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   getSession: data.getSession,
@@ -69,8 +71,9 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
 
   beforeEach(() => {
     data.getSession.mockResolvedValue(ANON);
-    data.signInWithKakao.mockResolvedValue(KAKAO);
+    data.signInWithKakao.mockResolvedValue("https://kauth.kakao.com/oauth/authorize?state=x");
     data.signOut.mockResolvedValue({ ...ANON, userId: "anon-local-2" });
+    nav.assignLocation.mockClear();
     pushState = vi.spyOn(window.history, "pushState");
     // 우리 엔트리를 빼고 popstate를 낸다 — 실제 브라우저의 back()과 같은 순서(정리 → 결과)
     back = vi.spyOn(window.history, "back").mockImplementation(() => {
@@ -103,7 +106,8 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(sessionText()).toBe("anonymous:");
   });
 
-  it("[카카오로 시작하기] → 세션이 카카오가 되고 시트가 닫힌 뒤 true", async () => {
+  it("[카카오로 시작하기] → OAuth URL로 페이지를 옮긴다 (돌아올 곳 = 지금 경로 + intent)", async () => {
+    window.history.replaceState(null, "", "/place/abc");
     renderConsumer();
     await waitFor(() => {
       expect(sessionText()).toBe("anonymous:");
@@ -112,19 +116,38 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     fireEvent.click(screen.getByRole("button", { name: "카카오로 시작하기" }));
     expect(screen.getByRole("button", { name: "로그인 중…" })).toBeDisabled();
     await waitFor(() => {
-      expect(resultText()).toBe("ok");
+      expect(nav.assignLocation).toHaveBeenCalledWith("https://kauth.kakao.com/oauth/authorize?state=x");
     });
-    expect(sessionText()).toBe("kakao:새우헌터");
-    expect(loginDialog()).not.toBeInTheDocument();
-    expect(back).toHaveBeenCalledTimes(1);
+    expect(data.signInWithKakao).toHaveBeenCalledWith("/place/abc?intent=review");
+    // 페이지가 통째로 넘어가므로 시트는 그대로(pending) — 게이트 약속은 콜백의 intent가 대신한다
+    expect(loginDialog()).toBeInTheDocument();
+    expect(resultText()).toBe("");
+  });
 
-    // 이미 카카오면 시트 없이 즉시 true
+  it("이미 카카오면 시트 없이 즉시 true", async () => {
+    data.getSession.mockResolvedValue(KAKAO);
+    renderConsumer();
+    await waitFor(() => {
+      expect(sessionText()).toBe("kakao:새우헌터");
+    });
     fireEvent.click(screen.getByRole("button", { name: "게이트" }));
     await waitFor(() => {
       expect(resultText()).toBe("ok");
     });
     expect(loginDialog()).not.toBeInTheDocument();
-    expect(pushState).toHaveBeenCalledTimes(1);
+    expect(pushState).not.toHaveBeenCalled();
+  });
+
+  it("콜백이 login=fail로 돌아오면 같은 이유의 시트를 오류 줄과 함께 다시 연다", async () => {
+    window.history.replaceState(null, "", "/?login=fail&intent=review");
+    renderConsumer();
+    expect(await screen.findByRole("alert")).toHaveTextContent(LOGIN_FAILED_MESSAGE);
+    expect(loginDialog()).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "나중에 할게요" }));
+    await waitFor(() => {
+      expect(loginDialog()).not.toBeInTheDocument();
+    });
   });
 
   it("로그인 실패면 시트 안 오류 한 줄, 다시 누르면 재시도", async () => {
@@ -140,7 +163,7 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(resultText()).toBe("");
     fireEvent.click(screen.getByRole("button", { name: "카카오로 시작하기" }));
     await waitFor(() => {
-      expect(resultText()).toBe("ok");
+      expect(nav.assignLocation).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -161,24 +184,16 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(back).not.toHaveBeenCalled();
   });
 
-  it("지난 게이트의 성공이 다음 요청에 새지 않는다 (Codex PR #8 #1)", async () => {
+  it("카카오로 이동을 시작한 뒤 뒤로가기로 닫혀도 취소(false)다 — 게이트 결과는 in-page에서 true가 될 길이 없다 (Codex PR #8 #1의 후신)", async () => {
     renderConsumer();
     await waitFor(() => {
       expect(sessionText()).toBe("anonymous:");
     });
-    // 한 번 성공시켜 resultRef를 true로 만든다
     fireEvent.click(screen.getByRole("button", { name: "게이트" }));
     fireEvent.click(screen.getByRole("button", { name: "카카오로 시작하기" }));
     await waitFor(() => {
-      expect(resultText()).toBe("ok");
+      expect(nav.assignLocation).toHaveBeenCalledTimes(1);
     });
-    // 로그아웃 → 다시 게이트 → 뒤로가기로 닫으면 취소(false)여야 한다
-    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
-    await waitFor(() => {
-      expect(sessionText()).toBe("anonymous:");
-    });
-    fireEvent.click(screen.getByRole("button", { name: "게이트" }));
-    expect(loginDialog()).toBeInTheDocument();
     act(() => {
       window.history.replaceState(null, "", "/");
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -186,6 +201,7 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     await waitFor(() => {
       expect(resultText()).toBe("no");
     });
+    expect(loginDialog()).not.toBeInTheDocument();
   });
 
   it("로그아웃하면 새 익명", async () => {

@@ -89,7 +89,7 @@ const dataMocks = vi.hoisted(() => ({
   getGuOfPoint: vi.fn<(point: { lat: number; lng: number }) => Promise<string | null>>(),
   /** 세션은 가짜 — 목의 400ms·10% 실패를 화면 테스트에 끌어오지 않는다 */
   getSession: vi.fn<() => Promise<Session>>(),
-  signInWithKakao: vi.fn<() => Promise<Session>>(),
+  signInWithKakao: vi.fn<(next: string) => Promise<string>>(),
   signOut: vi.fn<() => Promise<Session>>(),
   getMyReviews: vi.fn<(now: string) => Promise<MyReview[]>>(),
   getMyReports: vi.fn<(now: string) => Promise<Place[]>>(),
@@ -98,6 +98,8 @@ const dataMocks = vi.hoisted(() => ({
   setBookmark: vi.fn<(id: string, bookmarked: boolean) => Promise<string[]>>(),
   getBookmarkedPlaceIds: vi.fn<() => Promise<string[]>>(),
 }));
+const nav = vi.hoisted(() => ({ assignLocation: vi.fn<(url: string) => void>() }));
+vi.mock("@/lib/navigate", () => ({ assignLocation: nav.assignLocation }));
 vi.mock("@/lib/data", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/data")>();
   dataMocks.getGuOfPoint.mockImplementation(original.getGuOfPoint);
@@ -280,7 +282,8 @@ beforeEach(() => {
   dataMocks.getSession.mockReset();
   dataMocks.getSession.mockResolvedValue(ANON_SESSION);
   dataMocks.signInWithKakao.mockReset();
-  dataMocks.signInWithKakao.mockResolvedValue(KAKAO_SESSION);
+  dataMocks.signInWithKakao.mockResolvedValue("https://kauth.kakao.com/oauth/authorize?state=x");
+  nav.assignLocation.mockReset();
   dataMocks.signOut.mockReset();
   dataMocks.signOut.mockResolvedValue({ ...ANON_SESSION, userId: "anon-local-2" });
   dataMocks.getMyReviews.mockReset();
@@ -1199,19 +1202,30 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     window.history.replaceState(null, "", "/");
   });
 
-  it("익명: 프로필 → 로그인 시트 → 카카오 → 패널(상단 두 층·FAB 숨김, 찜 탭, 마커는 찜한 곳만) → ✕로 닫힘", async () => {
-    // 찜 2곳은 세션과 무관한 진짜 목(클라이언트 메모리)에 둔다
-    const { setBookmark } = await import("@/lib/data");
-    await setBookmark("nara", true);
-    await setBookmark("hana", true);
+  it("익명: 프로필 → 로그인 시트 → 카카오 = OAuth로 이동(돌아올 곳 = / + intent=me)", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    const profile = screen.getByRole("button", { name: "내 활동" });
-    fireEvent.click(profile);
+    fireEvent.click(screen.getByRole("button", { name: "내 활동" }));
     const login = await screen.findByRole("dialog", { name: "카카오로 로그인" });
     expect(login).toHaveTextContent("로그인하면 찜·리뷰·제보가 기기가 바뀌어도 남아요");
     fireEvent.click(within(login).getByRole("button", { name: "카카오로 시작하기" }));
+    await waitFor(() => {
+      expect(nav.assignLocation).toHaveBeenCalledWith("https://kauth.kakao.com/oauth/authorize?state=x");
+    });
+    expect(dataMocks.signInWithKakao).toHaveBeenCalledWith("/?intent=me");
+    expect(screen.queryByRole("region", { name: "내 활동" })).toBeNull();
+  });
+
+  it("콜백 복귀(?login=ok&intent=me) + 카카오 세션 → 패널이 바로 열린다(상단 두 층·FAB 숨김, 찜 탭, 마커는 찜한 곳만) → ✕로 닫힘", async () => {
+    dataMocks.getSession.mockResolvedValue(KAKAO_SESSION);
+    const { setBookmark } = await import("@/lib/data");
+    await setBookmark("nara", true);
+    await setBookmark("hana", true);
+    window.history.replaceState(null, "", "/?login=ok&intent=me");
+    renderScreen();
+    await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const panel = await screen.findByRole("region", { name: "내 활동" });
+    expect(window.location.search).toBe("");
     expect(panel).toHaveAttribute("data-mode", "me");
     expect(pushState).toHaveBeenLastCalledWith({ saeuMe: true }, "", "/");
     expect(screen.queryByRole("searchbox")).toBeNull();

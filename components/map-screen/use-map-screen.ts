@@ -944,6 +944,28 @@ export function useMapScreen({
     });
   }, [requireLogin]);
 
+  /* ── 카카오 콜백 복귀: `?login=ok&intent=review|me` — 하려던 일을 이어 간다(spec 5 "완료 후 쓰던 화면으로 복귀").
+     페이지가 통째로 카카오에 다녀오므로 requireLogin의 약속은 끊긴다; 콜백이 붙여 준 intent가 그 약속을 대신한다.
+     `login=fail`은 SessionProvider가 받는다(시트를 오류 줄과 함께 다시 연다). ── */
+  const intentRef = useRef<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") !== "ok") return;
+    intentRef.current = params.get("intent");
+    params.delete("login");
+    params.delete("intent");
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+  }, []);
+  useEffect(() => {
+    if (!session || intentRef.current === null) return;
+    const intent = intentRef.current;
+    intentRef.current = null;
+    if (session.provider !== "kakao") return;
+    if (intent === "me") openMe();
+    else if (intent === "review" && detailIdRef.current !== null) setReviewIntentId(detailIdRef.current);
+  }, [session, openMe]);
+
   const closeMe = useCallback((source: "ui" | "history" = "ui") => {
     setMeOpen(false);
     setMePlaceIds([]);

@@ -776,4 +776,10 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **임포트는 멱등이고 덮어쓰지 않는다** — `seed_ref`가 이미 있으면 건너뛴다(사용자가 고친 영업시간·메뉴 보존). 두 번째 실행 "새로 넣을 것 0곳" 확인. 크롤 갱신으로 메뉴를 다시 덮는 옵션은 필요해질 때(YAGNI).
 - **잡은 함정**: 파이썬 `csv` 기본 줄 끝이 `\r\n`이라 헤더가 `lng\r`로 읽혀 lng가 null로 들어갔다(처음엔 쉼표 문제로 오해). `lineterminator="\n"` + 읽는 쪽 `split(/\r?\n/)`. 같은 종류를 또 만나면 CSV는 파이썬 `csv`로만 읽는 규칙으로 승격한다.
 - **로컬·CI seed.sql은 실데이터 샘플 61곳**(서울 60% + 지역 균등 + 검수 필요 1곳) + 근처 역·출구 2,367행(372KB). 목 JSON 기반 시드는 이걸로 대체됐다.
+- **커밋 4 서버 계층(2026-09-10)**: `lib/data.ts`는 얇은 문이 됐다 — 읽기·쓰기 전부 `lib/server/actions.ts`("use server")로, 서버에선 함수 호출·클라이언트에선 POST. **쓰기의 예상 실패는 값(`Result<T>`)으로** 돌려주고 data.ts가 throw로 바꾼다: 프로덕션의 Next는 서버 액션이 던진 오류 메시지를 지워 "already reviewed" 같은 분기가 클라이언트에 못 간다(use-review-form이 그 문자열로 분기한다). `server-only` 패키지는 쓰지 않는다 — vitest(jsdom)에서 import만 해도 던지고, 경계는 eslint boundaries(lib/server는 data.ts와 app 라우트 핸들러만)가 이미 지킨다.
+- **카카오 복귀는 URL이 약속을 대신한다.** `requireLogin`의 Promise는 페이지가 카카오로 넘어가는 순간 끊긴다. 시작할 때 `next = 현재 경로 + ?intent=review|me`를 액션에 주고, 콜백이 `?login=ok|fail`을 붙여 돌려보내면 지도 화면이 `login=ok`의 intent를 이어 가고(`me` → 패널, `review` → 기존 `reviewIntentId`/`autoReview` 경로) SessionProvider가 `login=fail`을 받아 같은 이유의 시트를 오류 줄과 함께 다시 연다. 둘 다 처리 뒤 주소에서 지운다(새로고침에 재발 방지). 전체 페이지 이동은 `lib/navigate.ts`로 감싸 테스트가 목으로 바꾼다.
+- **관리자 게이트는 서버**: `app/admin/page.tsx`가 세션 쿠키로 `me()`를 읽어 아니면 `notFound()`(HTTP 404 확인) + 제목도 관리자에게만. dev 관리자 토글(`setAdmin`)은 삭제 — 로컬 관리자는 첫 로그인 뒤 `profiles.is_admin`을 SQL로 켠다(runbook).
+- **찜 upsert가 UPDATE 권한에 걸렸다**(브라우저 실측): `INSERT … ON CONFLICT DO UPDATE`는 UPDATE 권한이 필요한데 bookmarks에는 insert·delete만 열어 뒀다 → `ignoreDuplicates`(DO NOTHING)로. 실측 한 바퀴: 방문(auth.users 0) → 다녀왔어요 → 익명 유저 1·확인 +1·카드 "오늘 확인" → 찜 저장.
+- **실데이터가 드러낸 것**: (1) 서울 밖 지번에는 번지 없는 값("부산 사하구 다대동")이 있어 `shortJibun`이 원문을 돌려준다 — 테스트를 "잘렸다면 접두어가 없다"로 고쳤다. (2) 역 줄 320px 한 줄 규칙에서 **동대문역사문화공원역(10자 + 배지 3)만** 출구를 떼도 넘친다 — station-line.ts가 이미 "truncate가 받는다"로 적어 둔 극단이고, 테스트가 그 하나를 고정한다(늘면 디자인 판단). 역 라벨 픽스처(`components/place-detail/__tests__/fixtures/stations.json`, distinct 551)는 DB 트리거 결과에서 뽑았다.
+- **테스트**: 목 동작 테스트 71개(`data.test.ts`) 삭제 → 행 매핑·스키마·메뉴 편집 유닛 + pgTAP으로 대체. 585 → **526개**(jsdom) + pgTAP 46.
 

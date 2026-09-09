@@ -9,8 +9,6 @@ import { ReviewForm } from "@/components/review/review-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Segmented } from "@/components/ui/segmented";
-import { Switch } from "@/components/ui/switch";
-import { setAdmin } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import { pushOverlayHistoryEntry } from "@/lib/history-state";
@@ -83,7 +81,7 @@ export function ActivityPanel({
   onAccountDeleted,
   onNotice,
 }: ActivityPanelProps) {
-  const { session, signOut, deleteAccount, updateNickname, refreshSession } = useSession();
+  const { session, signOut, deleteAccount, updateNickname } = useSession();
   const a = useActivity({ now, tab, onNotice });
 
   // 활성 탭의 가게만 지도에 — 탭·목록이 바뀔 때마다 부모에 알린다
@@ -201,28 +199,15 @@ export function ActivityPanel({
             </ul>
           )))}
 
-      {/* dev 전용 — 관리자 화면(/admin)을 열어 보는 스위치. 프로덕션 번들에서는 이 줄이 통째로 사라진다.
-          URL 쿼리로 켜지 않는 이유와 같다: 프로덕션에서 열릴 길을 만들지 않는다(decisions 2026-09-08) */}
-      {process.env.NODE_ENV !== "production" && (
+      {session.isAdmin === true && (
+        /* 관리자만 — 서버가 세션 쿠키로 판정하므로(app/admin) 주소창 직접 진입도 열린다 */
         <div className="mt-6 border-t border-line-hairline px-5 pt-3">
-          <Switch
-            label="관리자 모드 (dev)"
-            checked={session.isAdmin === true}
-            onChange={(on) => {
-              void setAdmin(on).then(() => refreshSession());
-            }}
-          />
-          {session.isAdmin === true && (
-            /* 주소창에 /admin을 직접 치면 열리지 않는다 — 목 세션이 모듈 메모리라 전체 페이지 이동에서
-               초기화된다(규칙 4: 저장소 금지). 소프트 내비게이션이라야 세션이 살아 있다.
-               Phase 6에서는 세션이 쿠키라 직접 진입도 열린다. */
-            <Link
-              href="/admin"
-              className="press mt-2 block text-caption-l-medium text-fg-secondary hit-44"
-            >
-              관리자 화면 열기 →
-            </Link>
-          )}
+          <Link
+            href="/admin"
+            className="press mt-2 block text-caption-l-medium text-fg-secondary hit-44"
+          >
+            관리자 화면 열기 →
+          </Link>
         </div>
       )}
 

@@ -9,6 +9,13 @@ export const env = createEnv({
      * http(s)만: 배포자 값이지만 `javascript:` 같은 스킴이 메타에 그대로 들어가는 길을 닫는다.
      */
     SITE_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /**
+     * Supabase — 셋 다 서버 전용. 브라우저에 supabase-js가 없어 publishable도 NEXT_PUBLIC_이 아니다(규칙 7, decisions 2026-09-10).
+     * secret key는 RLS를 우회한다: 병합·탈퇴·임포트·크론만. 프리뷰 워커에는 주지 않는다(없으면 그 액션만 막힌다).
+     */
+    SUPABASE_URL: z.url({ protocol: /^https?$/ }),
+    SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+    SUPABASE_SECRET_KEY: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_NCP_CLIENT_ID: z.string().min(1),
@@ -23,6 +30,9 @@ export const env = createEnv({
   },
   runtimeEnv: {
     SITE_URL: process.env["SITE_URL"],
+    SUPABASE_URL: process.env["SUPABASE_URL"],
+    SUPABASE_PUBLISHABLE_KEY: process.env["SUPABASE_PUBLISHABLE_KEY"],
+    SUPABASE_SECRET_KEY: process.env["SUPABASE_SECRET_KEY"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
     NEXT_PUBLIC_GA_ID: process.env["NEXT_PUBLIC_GA_ID"],
   },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPlaces } from "@/lib/data";
+import seed from "../../../supabase/seed/places.json";
 import { shortJibun } from "../address";
 
 describe("shortJibun", () => {
@@ -31,16 +31,22 @@ describe("shortJibun", () => {
   });
 });
 
-describe("목 데이터 전수", () => {
-  it("모든 지번이 시·구 없이 짧아지고 원문보다 길어지지 않는다", async () => {
-    const places = await getPlaces({}, "2026-09-01T12:00:00+09:00");
-    const jibun = places.map((p) => p.addressJibun).filter((j): j is string => j !== null);
-    expect(jibun.length).toBeGreaterThan(40);
+describe("시드 데이터 전수 (supabase/seed/places.json — 서울·부산·광주 789곳)", () => {
+  it("모든 지번이 시·구 없이 짧아지고 원문보다 길어지지 않는다", () => {
+    const jibun = (seed as { addressJibun: string | null }[])
+      .map((p) => p.addressJibun)
+      .filter((j): j is string => j !== null);
+    expect(jibun.length).toBeGreaterThan(400);
+    let shortened = 0;
     for (const j of jibun) {
       const short = shortJibun(j);
       expect(short.length, j).toBeLessThanOrEqual(j.length);
-      expect(short, j).not.toMatch(/^서울/);
-      expect(short, j).not.toMatch(/(구|시) /);
+      // 번지가 없는 지번("부산 사하구 다대동")은 원문 그대로다 — 잘라서 틀린 주소를 만들지 않는다
+      if (short === j) continue;
+      shortened += 1;
+      expect(short, j).not.toMatch(/^(서울|부산|광주|경기|전남|인천)/);
+      expect(short, j).not.toMatch(/(구|시|군) /);
     }
+    expect(shortened).toBeGreaterThan(400);
   });
 });

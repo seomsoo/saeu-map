@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getPlaces } from "@/lib/data";
+import stations from "./fixtures/stations.json";
+import { formatDistance } from "@/lib/geo";
 import type { NearestStation } from "@/lib/types";
 import { estWidth, formatStationLine, numericLines } from "../station-line";
 
-const NOW = "2026-09-01T12:00:00+09:00";
 
 /** 265(320 콘텐츠 폭) − 22(핀) − 22(chevron) − 4(추정 과소분). station-line.ts의 예산을 여기 한 번 더 적는다 */
 const BUDGET = 217;
@@ -70,27 +70,23 @@ describe("numericLines", () => {
 
 // 데이터를 다시 구워도 화면이 안 깨지는지 — 특정 id가 아니라 전수 성질로 단언한다
 describe("목 데이터 전수", () => {
-  it("표시되는 역 줄은 배지 폭까지 더해도 320에서 한 줄", async () => {
-    const places = await getPlaces({}, NOW);
-    const shown = places.filter((p) => p.nearestStation !== null);
-    expect(shown.length).toBeGreaterThan(40);
-    for (const p of shown) {
-      const s = p.nearestStation;
-      if (s === null) continue;
-      const width = estWidth(formatStationLine(s)) + BADGE * numericLines(s.lines).length;
-      expect(width, `${p.name} — ${formatStationLine(s)}`).toBeLessThanOrEqual(BUDGET);
+  /** 실데이터(서울·부산·광주)의 최근접역 라벨 — DB 트리거 결과에서 distinct로 뽑았다(fixtures/stations.json, 2026-09-10) */
+  const SHOWN = (stations as NearestStation[]).filter((s) => s.distanceM <= 800);
+  const width = (label: string, s: NearestStation) => estWidth(label) + BADGE * numericLines(s.lines).length;
+
+  it("출구가 있는 역 줄: 한 줄에 들어가면 출구 포함, 넘치면 출구를 뗀다", () => {
+    const withExit = SHOWN.filter((s) => s.exit !== null);
+    expect(withExit.length).toBeGreaterThan(200);
+    for (const s of withExit) {
+      const full = `${s.name} ${String(s.exit)}번출구에서 ${formatDistance(s.distanceM / 1000)}`;
+      const shown = formatStationLine(s);
+      if (width(full, s) <= BUDGET) expect(shown, s.name).toBe(full);
+      else expect(shown, s.name).not.toContain("출구");
     }
   });
 
-  it("폭이 모자란 곳만 출구를 뗀다 — 지금 데이터에선 가산디지털단지역 2곳", async () => {
-    const places = await getPlaces({}, NOW);
-    const dropped = places.filter(
-      (p) => p.nearestStation?.exit != null && !formatStationLine(p.nearestStation).includes("출구"),
-    );
-    // 8자 역명 + 배지 2개만 걸린다. 데이터를 다시 구워 목록이 늘면 예산이 아니라 이 기대치를 확인해라
-    expect(dropped.map((p) => p.nearestStation?.name)).toEqual([
-      "가산디지털단지역",
-      "가산디지털단지역",
-    ]);
+  it("출구를 뗀 뒤에도 넘치는 극단은 동대문역사문화공원역(10자 + 배지 3)뿐 — truncate가 받는다(station-line.ts 주석)", () => {
+    const over = SHOWN.filter((s) => width(formatStationLine(s), s) > BUDGET).map((s) => s.name);
+    expect([...new Set(over)]).toEqual(["동대문역사문화공원역"]);
   });
 });

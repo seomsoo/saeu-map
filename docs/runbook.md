@@ -45,7 +45,8 @@
    - 카카오 로그인 → Redirect URI에 `https://<프로젝트ref>.supabase.co/auth/v1/callback`과 `http://localhost:54321/auth/v1/callback` 둘 다.
    - 동의항목 → **닉네임·프로필 사진 필수**. 이메일은 받지 않는다(비즈 앱 전용이라) → Supabase 쪽에서 "Allow users without an email"을 내가 켠다.
    - 플랫폼 → Web 사이트 도메인에 실서비스·프리뷰·`http://localhost:3000`.
-   - 두 값은 `.env`의 주석 없는 새 줄이 아니라 **나에게 "넣었다"고만 알려준다** — 내가 `supabase config push`로 올린다. (변수 이름은 커밋 4에서 정한다.)
+   - 두 값을 `.env.local`에 `SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID=`·`SUPABASE_AUTH_EXTERNAL_KAKAO_SECRET=`로 넣고 **"넣었다"고만 알려준다** — 로컬은 `supabase/config.toml`이 그 이름으로 읽고(`[auth.external.kakao] enabled = true`로 바꾼다), 실서비스는 내가 `supabase config push`로 올린다. 값은 채팅에 적지 않는다.
+   - 로컬에서 처음 카카오로 로그인한 뒤 관리자로 만들기: `psql … -c "update public.profiles set is_admin = true where id = '<uid>'"` (uid는 Studio → Authentication → Users).
 3. **Turnstile 위젯** (커밋 5 전) — dash.cloudflare.com → Turnstile → Add widget. 이름 "saeu-map", 호스트명에 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`·`localhost`. 모드 **Managed**(위젯은 우리가 `execute` 모드로 보이지 않게 돌린다). Site key·Secret key를 `.env`에.
 4. **디스코드 웹훅** (커밋 7 전) — 알림 받을 채널 → 채널 편집 → 연동 → 웹훅 → 새 웹훅 → URL 복사 → `.env`의 `DISCORD_WEBHOOK_URL`.
 5. **Sentry 프로젝트** (커밋 9 전) — sentry.io → Create Project → Next.js. DSN을 `.env`에. Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘.

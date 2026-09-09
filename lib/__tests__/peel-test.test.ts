@@ -1,4 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Place, PlaceTag } from "../types";
+
+/** 추천은 lib/data.ts가 서버 액션 getPlaces에서 받은 목록을 순위 매긴다 — 그 액션만 픽스처로 바꾼다(DB 없이). */
+const fixture = vi.hoisted(() => {
+  const sides = (n: number) => ({ headButter: n >= 1, ramen: n >= 2, friedRice: n >= 3 });
+  const make = (id: string, tags: PlaceTag[], side: number, specialist: boolean, checkCount = 0): Place => ({
+    id, name: id, gu: "마포구", addressRoad: null, addressJibun: null, lat: 37.5, lng: 127, nearestStation: null,
+    tags, specialist, naverPlaceUrl: null, photos: [], thumbnailUrl: null, hoursNote: null, menus: [],
+    sides: sides(side), source: "seed", needsReview: false, lastCheckedAt: "2026-09-01T00:00:00Z", checkCount, isNew: false,
+  });
+  return [
+    make("g-sides", ["grill"], 3, false, 5),
+    make("g-pro", ["grill"], 0, true, 5),
+    make("g-plain", ["grill"], 1, false, 1),
+    make("r-sides", ["raw"], 2, false, 5),
+    make("r-pro", ["raw"], 0, true, 5),
+    make("r-plain", ["raw"], 0, false, 1),
+    make("both-1", ["grill", "raw"], 0, false, 3),
+    make("both-2", ["grill", "raw"], 0, false, 2),
+    make("both-3", ["grill", "raw"], 0, false, 1),
+  ];
+});
+vi.mock("../server/actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../server/actions")>()),
+  getPlaces: vi.fn((filter?: { tag?: PlaceTag }) =>
+    Promise.resolve(fixture.filter((p) => !filter?.tag || p.tags.includes(filter.tag))),
+  ),
+}));
+
 import { getPeelMatchPlaces, getPeelTest, getPeelType, getPeelTypePlaces } from "../data";
 import { PEEL_PLACE_COUNT, PEEL_SLUGS, TYPE_ART, decodePeelSlug, isPeelSlug, matchKey, scoreAnswers } from "../peel-test";
 import type { PeelSlug } from "../types";

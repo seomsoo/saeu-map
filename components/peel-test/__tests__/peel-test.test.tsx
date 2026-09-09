@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeelTest } from "../peel-test";
-import content from "@/lib/mock/peel-test.json";
+import content from "@/lib/content/peel-test.json";
 import type { PeelTest as PeelTestContent, PeelType } from "@/lib/types";
 
 const push = vi.fn();

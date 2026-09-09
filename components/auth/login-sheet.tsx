@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
-import type { Session } from "@/lib/types";
+import { assignLocation } from "@/lib/navigate";
 
 /** 시트를 띄운 이유 — 캡션이 달라진다 (design 화면 5 변형 (a)) */
 export type LoginReason = "review" | "me";
@@ -18,8 +18,10 @@ export const LOGIN_FAILED_MESSAGE = "로그인하지 못했어요. 다시 시도
 
 interface LoginSheetProps {
   reason: LoginReason;
-  signIn: () => Promise<Session>;
-  onSignedIn: (session: Session) => void;
+  /** 카카오 OAuth 페이지 URL을 받아 온다 — 이 시트가 그리로 페이지를 옮긴다(콜백이 `?login=ok|fail`로 돌려보낸다) */
+  signIn: () => Promise<string>;
+  /** 처음부터 오류 줄을 보인다 — 콜백이 `login=fail`로 돌아왔을 때 */
+  initialError?: string | undefined;
   /** 나중에 할게요·딤·Escape·뒤로가기 — 전부 같은 길 */
   onDismiss: () => void;
 }
@@ -28,9 +30,9 @@ interface LoginSheetProps {
  * 로그인 시트 — 딤 위 바텀 모달: 제목 / 이유별 캡션 / [카카오로 시작하기](카카오 옐로, 이 버튼 한 곳) / 오류 줄 / 나중에 할게요.
  * 카카오 심볼은 커스텀 에셋 대기 — 그 전까지 coolicons `chat`(decisions 2026-09-04 에셋 목록).
  */
-export function LoginSheet({ reason, signIn, onSignedIn, onDismiss }: LoginSheetProps) {
+export function LoginSheet({ reason, signIn, initialError, onDismiss }: LoginSheetProps) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const laterRef = useRef<HTMLButtonElement>(null);
   // 늦게 온 응답이 닫힌 시트를 움직이지 않게 (StrictMode 이중 effect: 본문에서 true)
   const alive = useRef(true);
@@ -46,10 +48,10 @@ export function LoginSheet({ reason, signIn, onSignedIn, onDismiss }: LoginSheet
     setPending(true);
     setError(null);
     signIn().then(
-      (session) => {
+      (url) => {
         if (!alive.current) return;
-        setPending(false);
-        onSignedIn(session);
+        // pending은 그대로 — 페이지가 통째로 카카오로 넘어간다
+        assignLocation(url);
       },
       () => {
         if (!alive.current) return;

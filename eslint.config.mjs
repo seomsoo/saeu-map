@@ -14,6 +14,8 @@ export default tseslint.config(
       "coverage/",
       "*.config.*",
       "cloudflare-env.d.ts",
+      // supabase gen types 산출물(pnpm db:types) — 손으로 고치지 않는다
+      "lib/db/database.types.ts",
     ],
   },
   ...tseslint.configs.strictTypeChecked,
@@ -54,6 +56,11 @@ export default tseslint.config(
     plugins: { "@next/next": nextPlugin },
     rules: {
       ...nextPlugin.configs["core-web-vitals"].rules,
+      // 서버 액션은 컴포넌트 계약(now 인자)을 지키느라 안 쓰는 인자가 생긴다 — `_` 접두로 의도를 표시한다
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
     },
   },
   {
@@ -67,16 +74,18 @@ export default tseslint.config(
       "boundaries/ignore": ["**/__tests__/**", "**/*.test.*", "vitest.setup.ts"],
       // v7: 요소 = 폴더. 첫 매치가 이기므로 구체적인 폴더를 먼저. partialMatch:false = 루트 기준 경로.
       "boundaries/elements": [
-        { type: "mock", pattern: "lib/mock", partialMatch: false },
+        { type: "content", pattern: "lib/content", partialMatch: false },
+        { type: "server", pattern: "lib/server", partialMatch: false },
+        { type: "db", pattern: "lib/db", partialMatch: false },
         { type: "app", pattern: "app", partialMatch: false },
         { type: "components", pattern: "components", partialMatch: false },
         { type: "lib", pattern: "lib", partialMatch: false },
       ],
-      // 단일 파일 분류: lib/data.ts만 mock JSON을 읽을 수 있다.
+      // 단일 파일 분류: lib/data.ts만 설정값 JSON(lib/content)과 서버 계층(lib/server)을 읽을 수 있다.
       "boundaries/files": [{ pattern: "lib/data.ts", category: "data" }],
     },
     rules: {
-      // 의존 방향: app → components → lib. 데이터는 lib/data.ts 경유(절대 규칙 1), 목 JSON은 data.ts만 읽는다.
+      // 의존 방향: app → components → lib. 데이터는 lib/data.ts 경유(절대 규칙 1). lib/server(Supabase)는 data.ts와 app 라우트 핸들러만, lib/content는 data.ts만.
       "boundaries/dependencies": [
         "error",
         {
@@ -89,6 +98,8 @@ export default tseslint.config(
               allow: [
                 { to: { element: { type: "components" } } },
                 { to: { element: { type: "lib" } } },
+                // auth 콜백·사진 서빙 라우트 핸들러만(컴포넌트가 아니라 서버 진입점)
+                { to: { element: { type: "server" } } },
               ],
             },
             {
@@ -109,7 +120,16 @@ export default tseslint.config(
               from: { element: { type: "lib" }, file: { categories: ["data"] } },
               allow: [
                 { to: { element: { type: "lib" } } },
-                { to: { element: { type: "mock" } } },
+                { to: { element: { type: "content" } } },
+                { to: { element: { type: "server" } } },
+              ],
+            },
+            {
+              from: { element: { type: "server" } },
+              allow: [
+                { to: { element: { type: "server" } } },
+                { to: { element: { type: "lib" } } },
+                { to: { element: { type: "db" } } },
               ],
             },
           ],

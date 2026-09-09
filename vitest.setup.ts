@@ -2,6 +2,11 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
+/* 서버 전용 env 기본값 — lib/server/*가 import 경로에 걸려도 createEnv가 죽지 않게. 값은 어디에도 연결되지 않는다. */
+process.env["NEXT_PUBLIC_NCP_CLIENT_ID"] ??= "test-client-id";
+process.env["SUPABASE_URL"] ??= "http://127.0.0.1:54321";
+process.env["SUPABASE_PUBLISHABLE_KEY"] ??= "test-publishable";
+
 // globals: false 라서 RTL 자동 cleanup이 등록되지 않는다 → 직접 등록 (테스트 간 DOM 누적 방지)
 afterEach(() => {
   cleanup();

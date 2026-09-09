@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeelMatchView } from "../match-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
-import content from "@/lib/mock/peel-test.json";
+import content from "@/lib/content/peel-test.json";
 import { matchKey } from "@/lib/peel-test";
 import type { PeelMatch, PeelTest, PeelType, Place } from "@/lib/types";
 
