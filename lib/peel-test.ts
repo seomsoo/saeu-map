@@ -32,6 +32,19 @@ export const TYPE_ART: Record<PeelSlug, string> = {
   chojang: "/peel-test/chojang.webp",
 };
 
+/**
+ * 문항 일러스트 (2026-09-09 투입). 문항 id → 파일. 없는 id는 그림 없이 그린다 —
+ * 폴백으로 아무 그림이나 넣으면 문항과 어긋난 장면이 나간다.
+ */
+export const QUESTION_ART: Record<string, string> = {
+  q1: "/peel-test/q1.webp",
+  q2: "/peel-test/q2.webp",
+  q3: "/peel-test/q3.webp",
+  q4: "/peel-test/q4.webp",
+  q5: "/peel-test/q5.webp",
+  q6: "/peel-test/q6.webp",
+};
+
 /** OG 카드용 파일명 — `lib/og/art.ts`가 `public/` 아래에서 읽어 data URI로 인라인한다 */
 export function typeOgArtFile(slug: PeelSlug): string {
   return `peel-test/${slug}-og.png`;

@@ -1,10 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cx } from "@/lib/cx";
-import { peelMatchPath, peelTypePath, scoreAnswers } from "@/lib/peel-test";
+import { QUESTION_ART, peelMatchPath, peelTypePath, scoreAnswers } from "@/lib/peel-test";
 import type { PeelTest as PeelTestContent, PeelType } from "@/lib/types";
 import { ShrimpArt, TypeArt } from "./type-art";
 
@@ -29,6 +30,7 @@ export function PeelTest({
   const [pending, startTransition] = useTransition();
 
   const question = content.questions[index];
+  const art = question ? QUESTION_ART[question.id] : undefined;
 
   function choose(choice: number) {
     const next = [...answers.slice(0, index), choice];
@@ -136,12 +138,19 @@ export function PeelTest({
 
       {/* key가 문항 id라 넘어갈 때마다 새로 마운트되며 떠오른다 — 6문항이 같은 자리에서 갈아끼워지는 화면이라
           전환이 없으면 글자만 바뀐 것처럼 보인다(2026-09-09) */}
-      <div key={question.id} className="relative flex flex-1 flex-col justify-center gap-6 pb-16">
-        {/* 문항 화면은 글자 두 줄과 버튼 둘뿐이라 비어 보인다 — 카드 안에 옅은 새우를 한 마리 깐다 */}
-        <span
-          aria-hidden="true"
-          className="shrimp-mask pointer-events-none absolute -top-2 -right-6 size-36 rotate-12 text-brand-tint"
-        />
+      <div key={question.id} className="flex flex-1 flex-col justify-center gap-5">
+        {/* 문항마다 그 장면의 일러스트. 없는 문항은 그림 없이 그린다(엉뚱한 장면보다 낫다) */}
+        {art && (
+          <Image
+            src={art}
+            alt=""
+            width={400}
+            height={400}
+            priority
+            draggable={false}
+            className="saeu-rise saeu-q-art mx-auto object-contain"
+          />
+        )}
         <div className="saeu-rise flex flex-col gap-1">
           <p className="flex items-center gap-1 text-caption-l-medium text-brand-fg tabular-nums">
             질문 {index + 1}
