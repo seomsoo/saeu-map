@@ -52,6 +52,8 @@
 
 ## 3. 내가 CLI로 하는 것
 
+로컬은 `pnpm db:start`(Docker Supabase) → `pnpm db:reset`(마이그레이션 + seed) → `pnpm db:test`(pgTAP) → `pnpm db:advisors`(0건). Studio는 http://127.0.0.1:54323.
+
 ```
 # Cloudflare (wrangler 로그인 확인됨 2026-09-10)
 wrangler r2 bucket create saeu-photos

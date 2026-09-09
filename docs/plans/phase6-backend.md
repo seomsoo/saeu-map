@@ -78,6 +78,42 @@ roadmap Phase 6. 지금 상태: 사용자 화면(1~9·11)과 `/admin` 5탭이 �
 | `subway_exits` | `station`, `lines text[]`, `exit`, `lat`, `lng` | 시드 전용 | 정책 없음(`private.nearest_station`만) |
 | `peel_results` | `id bigint identity`, `type text`(4 슬러그), `created_at` | insert만(트리거로 rate_events) | insert anon·authenticated / select 없음(`peel_stats()`만) |
 
+### ERD (로컬 적용·pgTAP 46개 통과본에서 뽑음, 2026-09-10)
+
+```mermaid
+erDiagram
+  auth_users ||--o| profiles : "id (cascade)"
+  auth_users ||--o{ places : "reporter_id (set null)"
+  auth_users ||--o{ checkins : "actor (set null)"
+  auth_users ||--o{ reviews : "author_id (set null)"
+  auth_users ||--o{ bookmarks : "user_id (cascade)"
+  auth_users ||--o{ photos : "uploader_id (set null)"
+  auth_users ||--o{ reports : "actor (set null)"
+  auth_users ||--o{ place_edits : "actor (set null)"
+  places ||--o{ checkins : "place_id (cascade)"
+  places ||--o{ reviews : "place_id"
+  places ||--o{ bookmarks : "place_id"
+  places ||--o{ photos : "place_id"
+  places ||--o{ reports : "place_id"
+  places ||--o{ place_edits : "place_id"
+  places |o--o| places : "duplicate_suspect_of · merged_into"
+  photos |o--o{ reports : "photo_id (사진 신고)"
+
+  profiles { uuid id PK; text nickname; bool is_admin; bool shadow_banned }
+  places { uuid id PK; text seed_ref UK; text name; text gu; float lat; float lng; jsonb nearest_station; text[] tags; jsonb menus; text[] sides; text source; timestamptz verified_at; timestamptz hidden_at; bool removed_by_owner; uuid merged_into }
+  checkins { bigint id PK; uuid place_id FK; uuid actor FK; text type; timestamptz at; date kst_day "unique(place,actor,day) where visited" }
+  reviews { uuid id PK; uuid place_id FK; uuid author_id FK; int rating; text text; text photo_key; timestamptz edited_at; timestamptz deleted_at "unique(place,author) where live" }
+  bookmarks { uuid user_id PK; uuid place_id PK }
+  photos { uuid id PK; uuid place_id FK; text key UK "R2 키"; uuid uploader_id FK; timestamptz removed_at }
+  reports { uuid id PK; text kind; uuid place_id FK; uuid photo_id FK; text reason; text owner_kind; text contact; text message; uuid actor FK; text status; timestamptz resolved_at }
+  place_edits { uuid id PK; uuid place_id FK; uuid actor FK; text field; jsonb before; timestamptz at }
+  rate_events { bigint id PK; text kind; uuid actor; text ip_hash; uuid place_id; timestamptz at "24h 뒤 삭제" }
+  subway_exits { bigint id PK; text station; text[] lines; text exit_no; float lat; float lng }
+  peel_results { bigint id PK; text type; timestamptz created_at }
+```
+
+뷰 `places_public`(places + 확인수·마지막 확인·평점·사진 배열·is_new)과 `reviews_public`(reviews + 닉네임)은 파생이라 그림에 없다. 둘 다 `security_invoker`이고 **표는 공개 열만 컬럼 GRANT**한다(reporter_id·uploader_id·hidden_at·is_admin 등은 GRANT 자체가 없어 API로 못 읽는다) — Supabase advisors가 definer 뷰를 ERROR로 잡아 설계를 이렇게 바꿨다(커밋 2). 관리자 전용 열은 `admin_places()`·`me()` RPC.
+
 `private` 스키마(노출 안 됨): `is_admin()`, `rate_ok(kind)`, `is_shadow_banned()`, `nearest_station(lat,lng)`, `merge_users(from,to)`(secret key 전용), `season_stats()`·`admin_stats()`(RPC로 노출하되 관리자·공개 판정 안에서). 탈퇴 = 리뷰 `deleted_at` + 신고의 `contact/message` null + `auth.admin.deleteUser`(FK `set null`이 나머지를 뗀다) — 목의 `deleteAccount`와 같은 규칙.
 
 Data API 노출은 **`places_public`·`checkins`·`reviews`·`bookmarks`·`photos`·`reports`·`profiles`·`places`(insert/update만)** + RPC 3개. 마이그레이션 끝에 `supabase db advisors` 0건이 완료 조건.
