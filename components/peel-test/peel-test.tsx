@@ -64,24 +64,27 @@ export function PeelTest({
 
   if (!started || !question) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 pb-8 text-center">
-        <ShrimpArt />
-        {partner && (
-          <p className="rounded-12 bg-brand-tint px-3 py-1.5 text-caption-l-regular text-brand-fg">
-            {partner.name}이 궁합을 신청했어요
-          </p>
-        )}
-        <div className="flex flex-col items-center gap-1">
-          <h1 className="text-title-m-bold text-fg">{content.title}</h1>
-          <p className="text-body-l-regular text-fg-secondary">
-            {partner ? "질문 6개를 풀면 둘의 궁합이 나와요" : content.subtitle}
-          </p>
-          <p className="text-caption-l-regular text-fg-tertiary">{content.duration}</p>
+      <div className="flex flex-1 flex-col">
+        {/* 본문은 남는 높이의 가운데, CTA는 바닥 — 제보 퍼널과 같은 문법이다(design 화면 3·11) */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <ShrimpArt />
+          {partner && (
+            <p className="rounded-12 bg-brand-tint px-3 py-1.5 text-caption-l-regular text-brand-fg">
+              {partner.name}이 궁합을 신청했어요
+            </p>
+          )}
+          <div className="flex flex-col items-center gap-1">
+            <h1 className="text-title-m-bold text-fg">{content.title}</h1>
+            <p className="text-body-l-regular text-fg-secondary">
+              {partner ? "질문 6개를 풀면 둘의 궁합이 나와요" : content.subtitle}
+            </p>
+            <p className="text-caption-l-regular text-fg-tertiary">{content.duration}</p>
+          </div>
         </div>
         <Button
           variant="brand"
           size="xl"
-          className="mt-2 w-full"
+          className="mb-2 w-full"
           onClick={() => {
             setStarted(true);
           }}
