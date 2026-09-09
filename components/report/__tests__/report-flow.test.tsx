@@ -372,6 +372,21 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     expect(screen.getAllByRole("textbox", { name: "메뉴명" })).toHaveLength(3);
   });
 
+  it("기타 줄을 지우면 그 줄의 오류도 같이 사라진다 — 남은 줄에 옮겨 붙지 않는다", () => {
+    renderPanel({ step: 3 });
+    fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+    fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+    const names = screen.getAllByRole("textbox", { name: "메뉴명" });
+    // 2번은 빈칸, 3번은 이름을 채운다
+    fireEvent.change(names[2] as HTMLElement, { target: { value: "새우튀김" } });
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getAllByText("메뉴 이름을 알려주세요")).toHaveLength(2); // 구이 줄 + 기타 2번
+
+    fireEvent.click(screen.getByRole("button", { name: "메뉴 2 삭제" }));
+    // 남은 기타 줄(이름이 있는 줄)에 지운 줄의 오류가 붙으면 안 된다
+    expect(screen.getAllByText("메뉴 이름을 알려주세요")).toHaveLength(1);
+  });
+
   it("기타를 꽉 채운 뒤 회를 켜도 스키마 상한(5줄)을 넘지 않는다 — 상한이 토글과 무관해서", () => {
     renderPanel({ step: 3 });
     for (let i = 0; i < 3; i += 1) {

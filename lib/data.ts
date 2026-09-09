@@ -651,6 +651,10 @@ function toPhotos(placeId: string, files: readonly File[], uploadedAt: string, u
  * 구는 좌표로 판정하고 한국 밖(바다)이면 지연 전에 거부한다. 주소·최근접역은 비워 둔다(Phase 6 서버 파생).
  * `now`는 목 데이터셋 조회·등록 시각용이다 — Phase 6에서는 서버가 정한다(checkIn과 같은 계약).
  */
+/**
+ * 제보 등록 — 익명이 **핀 자체를 만드는** 가장 비싼 쓰기다.
+ * 속도 제한 자리: 기기·IP당 일 N — Phase 6 Upstash(spec 스팸 4겹 2). 다른 쓰기와 같은 자리에 둔다.
+ */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const report = reportInputSchema.parse(input);
   // 행위자는 지연 전에 잡는다 — await 뒤에 읽으면 그 사이 바뀐 사용자의 것으로 기록된다(CLAUDE.md 쓰기 규칙)

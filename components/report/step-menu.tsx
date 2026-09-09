@@ -64,6 +64,12 @@ export function StepMenu({
     setErrors((prev) => ({ ...prev, [line]: clearMenuErrors(prev[line], changes) }));
   };
 
+  /** 줄과 오류는 같은 인덱스를 쓴다 — 줄만 지우면 지운 줄의 오류가 아래 줄에 옮겨 붙는다 */
+  const removeExtra = (index: number) => {
+    setErrors((prev) => ({ ...prev, extras: prev.extras.filter((_, i) => i !== index) }));
+    onRemoveExtra(index);
+  };
+
   const clearExtra = (index: number, changes: Partial<MenuDraft>) => {
     setErrors((prev) => ({
       ...prev,
@@ -109,7 +115,7 @@ export function StepMenu({
             <button
               type="button"
               onClick={() => {
-                onRemoveExtra(i);
+                removeExtra(i);
               }}
               aria-label={`메뉴 ${i + 3 - (rawToo ? 0 : 1)} 삭제`}
               className="press hit-44 text-caption-l-medium text-fg-tertiary"
