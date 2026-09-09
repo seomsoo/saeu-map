@@ -28,8 +28,8 @@ export function EventCard({ card, onDismiss }: EventCardProps) {
   return (
     <div className="relative mx-5 mt-1 mb-2 overflow-hidden rounded-16 bg-brand-tint px-4 py-4" aria-label="이벤트">
       {card.href ? (
-        /* 링크 대상은 설정값이고 **없을 수 있다** — 지금 목 설정값이 그렇다(까주기 테스트 `/test`는 Phase 7).
-           없는 곳을 가리키면 카드를 누를 때 404로 떨어진다(2026-09-08). 프리페치는 그때도 끈다. */
+        /* 링크 대상은 설정값이고 **없을 수 있다** — 없으면 아래 안내 카드가 된다. 없는 곳을 가리키면
+           카드를 누를 때 404로 떨어지기 때문이다(2026-09-08). 지금은 `/test`가 있어 링크다(2026-09-09). */
         <Link href={card.href} prefetch={false} className={bodyClass}>
           {body}
         </Link>

@@ -1,6 +1,6 @@
 import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
-import { peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
+import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
 import { primaryMenuLine, TAG_LABELS } from "./places";
 import { relativeCheckLabel } from "./time";
 import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
@@ -100,13 +100,31 @@ export function guMeta(name: string, places: readonly Place[]): Metadata {
 
 /* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
 
+/**
+ * 테스트 공유 카드 — 한 라우트가 `intro`·유형·`with-유형`·`유형-유형` 25장을 빌드 시 굽는다
+ * (app/og/test/[slug]/route.tsx, decisions 2026-09-09).
+ */
+export function peelOgImagePath(slug: string): string {
+  return `/og/test/${slug}`;
+}
+
+function peelOgImage(slug: string, alt: string) {
+  return { images: [{ url: peelOgImagePath(slug), width: 1200, height: 630, alt }] };
+}
+
 export function peelTestMeta(content: PeelTest): Metadata {
   const description = `${content.subtitle}. ${content.duration}`;
   return {
     title: content.title,
     description,
     alternates: { canonical: "/test" },
-    openGraph: { title: content.title, description, url: "/test", type: "website" },
+    openGraph: {
+      title: content.title,
+      description,
+      url: "/test",
+      type: "website",
+      ...peelOgImage("intro", `${content.title} 공유 카드`),
+    },
   };
 }
 
@@ -117,7 +135,13 @@ export function peelTypeMeta(type: PeelType): Metadata {
     title: type.name,
     description,
     alternates: { canonical: path },
-    openGraph: { title: type.name, description, url: path, type: "website" },
+    openGraph: {
+      title: type.name,
+      description,
+      url: path,
+      type: "website",
+      ...peelOgImage(type.slug, `${type.name} 공유 카드`),
+    },
   };
 }
 
@@ -132,7 +156,13 @@ export function peelInviteMeta(type: PeelType): Metadata {
     title,
     description,
     robots: { index: false, follow: true },
-    openGraph: { title, description, url: peelInvitePath(type.slug), type: "website" },
+    openGraph: {
+      title,
+      description,
+      url: peelInvitePath(type.slug),
+      type: "website",
+      ...peelOgImage(`with-${type.slug}`, `${type.name} 궁합 신청 카드`),
+    },
   };
 }
 
@@ -143,7 +173,13 @@ export function peelMatchMeta(a: PeelType, b: PeelType, match: PeelMatch): Metad
     title,
     description,
     robots: { index: false, follow: true },
-    openGraph: { title, description, url: peelMatchPath(a.slug, b.slug), type: "website" },
+    openGraph: {
+      title,
+      description,
+      url: peelMatchPath(a.slug, b.slug),
+      type: "website",
+      ...peelOgImage(`${a.slug}-${b.slug}`, "궁합 공유 카드"),
+    },
   };
 }
 
@@ -163,6 +199,14 @@ export function sitemapEntries(base: URL, places: readonly Place[], now: string)
       lastModified: new Date(now),
       changeFrequency: "weekly" as const,
       priority: 0.6,
+    })),
+    // 까주기 테스트 표지 + 유형 결과 4장. 초대·궁합 20개는 공유 링크로만 사는 얇은 페이지라 뺀다(noindex)
+    { url: at("/test"), lastModified: new Date(now), changeFrequency: "monthly" as const, priority: 0.5 },
+    ...PEEL_SLUGS.map((slug) => ({
+      url: at(peelTypePath(slug)),
+      lastModified: new Date(now),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
     })),
   ];
 }

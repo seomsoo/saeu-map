@@ -1,0 +1,80 @@
+import { ImageResponse } from "next/og";
+import { OG_SIZE, ShareCard, type ShareCardProps } from "@/components/og/share-card";
+import { getPeelTest } from "@/lib/data";
+import { shrimpPotArt } from "@/lib/og/art";
+import { ogFonts } from "@/lib/og/font";
+import { PEEL_SLUGS, isPeelSlug, matchKey } from "@/lib/peel-test";
+import type { PeelTest } from "@/lib/types";
+
+/** 슬러그 25개 밖은 렌더하지 않고 404 — 런타임 satori 경로를 남기지 않는다 */
+export const dynamicParams = false;
+
+/**
+ * 표지 1 + 유형 4 + 궁합 초대 4 + 궁합 결과 16 = **25장을 빌드 시 생성**한다.
+ * 구별 카드와 같은 이유(Workers Free는 요청당 CPU 10ms — decisions 2026-09-07).
+ */
+export function generateStaticParams() {
+  return [
+    { slug: "intro" },
+    ...PEEL_SLUGS.map((slug) => ({ slug })),
+    ...PEEL_SLUGS.map((slug) => ({ slug: `with-${slug}` })),
+    ...PEEL_SLUGS.flatMap((a) => PEEL_SLUGS.map((b) => ({ slug: `${a}-${b}` }))),
+  ];
+}
+
+/** `intro` · `jipge` · `with-jipge` · `jipge-wansik` 네 모양을 한 라우트가 받는다. 유형 슬러그에는 `-`가 없다. */
+function cardFor(content: PeelTest, slug: string, art: string): ShareCardProps | null {
+  const typeOf = (value: string) =>
+    isPeelSlug(value) ? (content.types.find((t) => t.slug === value) ?? null) : null;
+
+  if (slug === "intro") {
+    return {
+      variant: "test",
+      eyebrow: content.title,
+      title: "당신은 까주는 쪽?",
+      sub: `${content.subtitle}. ${content.duration}`,
+      art,
+    };
+  }
+
+  const invited = slug.startsWith("with-") ? typeOf(slug.slice("with-".length)) : null;
+  if (invited) {
+    return {
+      variant: "test",
+      eyebrow: "궁합 신청",
+      title: invited.name,
+      sub: "질문 6개를 풀면 둘의 궁합이 나와요",
+      art,
+    };
+  }
+
+  const [first, second] = slug.split("-");
+  if (first && second) {
+    const mine = typeOf(first);
+    const partner = typeOf(second);
+    if (!mine || !partner) return null;
+    const match = content.matches.find((m) => m.key === matchKey(mine, partner));
+    if (!match) return null;
+    return {
+      variant: "test",
+      eyebrow: content.title,
+      title: match.title,
+      sub: `${mine.name}과 ${partner.name}`,
+      art,
+      score: match.score,
+    };
+  }
+
+  const type = typeOf(slug);
+  return type
+    ? { variant: "test", eyebrow: content.title, title: type.name, sub: type.tagline, art }
+    : null;
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const [content, fonts, art] = await Promise.all([getPeelTest(), ogFonts(), shrimpPotArt()]);
+  const card = cardFor(content, slug, art);
+  if (!card) return new Response("Not found", { status: 404 });
+  return new ImageResponse(<ShareCard {...card} />, { ...OG_SIZE, fonts });
+}

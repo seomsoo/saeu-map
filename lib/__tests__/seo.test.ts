@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeMenu, makePlace } from "./fixtures";
 import { SEOUL_GU } from "../gu";
+import { PEEL_SLUGS } from "../peel-test";
 import {
   DEFAULT_SITE_URL,
   guDescription,
@@ -62,15 +63,21 @@ describe("구 페이지 메타", () => {
 });
 
 describe("sitemap · 사이트 URL", () => {
-  it("홈 + 가게 전부 + 서울 25구. 구 URL은 퍼센트 인코딩, 가게 lastModified는 확인일", () => {
+  it("홈 + 가게 전부 + 서울 25구 + 까주기 테스트 5장. 구 URL은 퍼센트 인코딩, 가게 lastModified는 확인일", () => {
     const entries = sitemapEntries(new URL("https://saeumap.example"), [nara], NOW);
-    expect(entries).toHaveLength(1 + 1 + SEOUL_GU.length);
+    // 홈 1 + 가게 1 + 구 25 + 테스트 표지 1 + 유형 결과 4 (초대·궁합 20개는 noindex라 빠진다)
+    expect(entries).toHaveLength(1 + 1 + SEOUL_GU.length + 1 + PEEL_SLUGS.length);
     expect(entries[0]?.url).toBe("https://saeumap.example/");
     expect(entries[1]).toMatchObject({
       url: "https://saeumap.example/place/nara",
       lastModified: new Date("2026-08-31T03:00:00.000Z"),
     });
     expect(entries.some((e) => e.url === "https://saeumap.example/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC")).toBe(true);
+    expect(entries.some((e) => e.url === "https://saeumap.example/test")).toBe(true);
+    expect(entries.some((e) => e.url === "https://saeumap.example/test/jipge")).toBe(true);
+    // 초대·궁합은 공유 링크로만 산다 — 사이트맵에 없다
+    expect(entries.some((e) => e.url.includes("/test/with/"))).toBe(false);
+    expect(entries.some((e) => e.url === "https://saeumap.example/test/jipge/wansik")).toBe(false);
   });
   it("SITE_URL이 없으면 프로덕션 워커 URL", () => {
     expect(siteUrl(undefined).toString()).toBe(`${DEFAULT_SITE_URL}/`);

@@ -46,7 +46,7 @@ roadmap Phase 7 항목인 까주기 테스트를 **Phase 6(백엔드 교체) 앞
 8. **(권고) 링크 전파 구조 — 공유 버튼이 둘이다.**
    - [결과 공유하기] → `/test/<내유형>` (내 캐릭터 카드)
    - [친구와 궁합 보기] → **`/test/with/<내유형>`을 공유**한다. 친구가 열면 "집게형이 궁합을 신청했어요"가 뜨고, 6문항을 풀면 `/test/<친구유형>/<내유형>`로 떨어진다. **링크 하나가 다음 테스트를 부른다.**
-9. **(권고) 라우트 4개 + OG 24장, 전부 빌드 시 생성.** 구별 카드와 같은 이유(Workers Free는 요청당 CPU 10ms, decisions 2026-09-07). `generateStaticParams` + `dynamicParams = false`라 그 밖은 **진짜 404**.
+9. **(권고) 라우트 4개 + OG 25장, 전부 빌드 시 생성.** 구별 카드와 같은 이유(Workers Free는 요청당 CPU 10ms, decisions 2026-09-07). `generateStaticParams` + `dynamicParams = false`라 그 밖은 **진짜 404**.
 
    | 경로 | 수 | 색인 | OG |
    |---|---|---|---|
@@ -116,7 +116,7 @@ roadmap 규칙("화면이 있는 작업은 design 블록 먼저")대로 화면 1
 SSR로 유형 + 추천 3곳. `PlaceCard` 재사용(`onSelect` → `/place/[id]`). 공유는 `shareUrl`.
 
 ### 5. OG·SEO·배너 — `app/og/test/[slug]/route.tsx` · `components/og/share-card.tsx` · `lib/seo.ts` · `lib/mock/event-card.json`
-슬러그 규칙 하나로 24장(`jipge` / `with-jipge` / `jipge-wansik`). `ShareCard`에 `variant: "test"` 한 벌(제목·보조만 바뀐다). `sitemapEntries`에 `/test` + 결과 4줄. 배너 `href: "/test"` 복구.
+슬러그 규칙 하나로 25장(`jipge` / `with-jipge` / `jipge-wansik`). `ShareCard`에 `variant: "test"` 한 벌(제목·보조만 바뀐다). `sitemapEntries`에 `/test` + 결과 4줄. 배너 `href: "/test"` 복구.
 
 ### 6. 감사 — gap-sweeper(design 화면 11 + spec 8·4.6 전수) · security-reviewer(새 라우트 4개·URL 파라미터 검증·공유 경로) 반영 + 플랜 맨 아래 "## 결과"
 
@@ -141,7 +141,7 @@ SSR로 유형 + 추천 3곳. `PlaceCard` 재사용(`onSelect` → `/place/[id]`)
 3. `feat(test):` 표지·문항 화면 (`/test`, `/test/with/[type]`)
 4. `feat(test):` 결과 화면 + 추천 3곳 + 공유 일반화
 5. `feat(test):` 궁합 결과 화면 + 겸업 집 추천
-6. `feat(test):` OG 24장 + sitemap + 이벤트 배너 href 복구
+6. `feat(test):` OG 25장 + sitemap + 이벤트 배너 href 복구
 7. `fix:` 감사 반영 + 플랜 "## 결과"
 
 ## 범위 밖 (기록)
