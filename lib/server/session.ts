@@ -24,10 +24,19 @@ export async function readSession(db: Db): Promise<Session> {
   return { userId: claims.sub, provider: "kakao", nickname: profile.nickname, isAdmin: profile.isAdmin };
 }
 
-/** 쓰기 직전: 세션이 없으면 익명 유저를 만든다. 액션·라우트 핸들러에서만(쿠키를 심는다). 돌려주는 값은 uid. */
+/**
+ * 쓰기 직전: 세션이 없으면 익명 유저를 만든다. 액션·라우트 핸들러에서만(쿠키를 심는다). 돌려주는 값은 uid.
+ * 세션이 있어도 **유저가 아직 있는지 auth 서버에 묻는다**(getUser) — 유저를 지워도 JWT는 만료 전까지 유효해서(Supabase),
+ * 30일 정리 크론·탈퇴·로컬 db reset 뒤에도 옛 쿠키가 "있는 사람"으로 읽히고 첫 쓰기가 FK 위반으로 죽는다(2026-09-10 workerd 실측).
+ * 그런 세션은 버리고 새 익명으로 시작한다. 왕복 한 번은 쓰기에만 든다(읽기는 getClaims뿐).
+ */
 export async function ensureUser(db: Db): Promise<string> {
   const { data } = await db.auth.getClaims();
-  if (data?.claims.sub) return data.claims.sub;
+  if (data?.claims.sub) {
+    const { data: live, error } = await db.auth.getUser();
+    if (!error) return live.user.id;
+    await db.auth.signOut(); // 죽은 세션 쿠키 정리
+  }
   const { data: signed, error } = await db.auth.signInAnonymously();
   if (error || !signed.user) throw new Error("anonymous sign-in failed");
   return signed.user.id;

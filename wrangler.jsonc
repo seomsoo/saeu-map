@@ -15,6 +15,18 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	// 문 앞 경비 (decisions 2026-09-10, 사용자 선택): 같은 IP의 쓰기 요청을 60초에 20번까지. DB 쪽 rate_events가 진짜 규칙이고
+	// 이건 봇 폭주가 DB까지 안 가게 하는 보조다. 지역별 근사치라 정밀 계산에 쓰지 않는다. next dev에는 없다(컨텍스트 없음 → 통과).
+	"ratelimits": [
+		{
+			"name": "WRITE_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 20,
+				"period": 60
+			}
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name

@@ -56,7 +56,7 @@ import type {
 } from "@/lib/types";
 import { toAdminPlace, toPhoto, toPlace, toReview } from "./rows";
 import { ensureUser, readSession, requireKakao, VISITOR } from "./session";
-import { adminClient, type Db, userClient } from "./supabase";
+import { adminClient, anonClient, type Db, userClient } from "./supabase";
 import { isReadOnly, openWriteGate } from "./write-gate";
 
 /** 쓰기 실패 — 컴포넌트가 분기하는 코드만. 그 밖은 throw(generic). */
@@ -92,11 +92,11 @@ function failFromDb(error: { code?: string } | null): FailCode {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * 읽기 (사용자 세션 클라이언트 — RLS가 숨긴 가게를 거른다)
+ * 읽기 — 공개 데이터는 anon 클라이언트(쿠키 없음, 빌드 시에도 돈다), 내 것은 세션 클라이언트. RLS가 숨긴 가게를 거른다
  * ════════════════════════════════════════════════════════════════════════ */
 
 export async function getPlaces(filter: PlaceFilter = {}, _now?: string): Promise<Place[]> {
-  const db = await userClient();
+  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
   const rows: unknown[] = [];
   // PostgREST max_rows(기본 1000) — 다 받을 때까지 페이지를 넘긴다
   const page = 1000;
@@ -116,7 +116,7 @@ export async function getPlaces(filter: PlaceFilter = {}, _now?: string): Promis
 
 export async function getPlaceById(id: string, _now?: string): Promise<Place | undefined> {
   if (!idSchema.safeParse(id).success) return undefined;
-  const db = await userClient();
+  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
   const { data, error } = await db.from("places_public").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error("place unavailable");
   return data ? toPlace(data) : undefined;
@@ -125,7 +125,7 @@ export async function getPlaceById(id: string, _now?: string): Promise<Place | u
 /** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id·uuid 아님은 undefined. */
 export async function getPlaceDetail(id: string, _now?: string): Promise<PlaceDetail | undefined> {
   if (!idSchema.safeParse(id).success) return undefined;
-  const db = await userClient();
+  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
   const [placeRes, reviewRes] = await Promise.all([
     db.from("places_public").select("*").eq("id", id).maybeSingle(),
     db.from("reviews_public").select("*").eq("place_id", id).order("created_at", { ascending: false }),
@@ -143,7 +143,7 @@ const seasonStatsSchema = z.object({
 });
 
 export async function getSeasonStats(_now?: string): Promise<SeasonStats> {
-  const db = await userClient();
+  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
   const { data, error } = await db.rpc("season_stats");
   if (error) throw new Error("stats unavailable");
   return seasonStatsSchema.parse(data);

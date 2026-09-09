@@ -34,6 +34,18 @@ export async function userClient(options: { ipHash?: string } = {}): Promise<Db>
   });
 }
 
+let anon: Db | null = null;
+/**
+ * 세션 없는 공개 읽기 — anon 역할. places_public·reviews_public·season_stats처럼 누구에게나 같은 값은 쿠키를 읽을 이유가 없고,
+ * **빌드 시(OG 카드 generateStaticParams)에는 cookies()를 부를 수 없다**(2026-09-10 빌드 실패에서 드러남). 요청마다 JWT 검증도 아낀다.
+ */
+export function anonClient(): Db {
+  anon ??= createClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return anon;
+}
+
 export function adminClient(): Db {
   if (!env.SUPABASE_SECRET_KEY) {
     // 프리뷰 워커·로컬 .env 누락 — 병합·탈퇴가 여기서 막힌다(읽기 전용 프리뷰의 의도)

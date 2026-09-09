@@ -12,6 +12,7 @@
 | 캐시 | R2 `saeu-cache` + D1 `saeu-tags` | Cloudflare | D1 읽기 500만/일 |
 | 이미지 변환 | Images 바인딩(업로드 시 1회) | Cloudflare | 5,000장/월, 우리 상한 4,500 |
 | 사람 확인 | Turnstile 위젯 | Cloudflare | 무제한 |
+| 문 앞 경비 | 속도 제한 바인딩 `WRITE_RATE_LIMITER`(IP당 60초 20번, wrangler.jsonc) | Cloudflare Workers | 무료 |
 | 알림 | 디스코드 웹훅 | Discord | 무료 |
 | 에러 | Sentry | sentry.io Free | 5,000건/월 |
 | 로컬 개발 | Docker Supabase | 내 노트북 | 무료 |
@@ -54,6 +55,7 @@
 ## 3. 내가 CLI로 하는 것
 
 로컬은 `pnpm db:start`(Docker Supabase) → `pnpm db:reset`(마이그레이션 + seed) → `pnpm db:test`(pgTAP) → `pnpm db:advisors`(0건). Studio는 http://127.0.0.1:54323.
+워커 런타임 확인은 `npx opennextjs-cloudflare build && npx opennextjs-cloudflare populateCache local && npx wrangler dev --port 8787 --compatibility-flags nodejs_compat` — 마지막 플래그는 `global_fetch_strictly_public`을 빼서 워커가 127.0.0.1의 로컬 Supabase를 부를 수 있게 한다(실서비스 설정은 그대로). 런타임 변수는 `.dev.vars`(gitignore).
 
 ```
 # Cloudflare (wrangler 로그인 확인됨 2026-09-10)
