@@ -283,3 +283,54 @@ export interface AdminStats {
   topPlaces: { placeId: string; name: string; checkCount: number }[];
 }
 
+
+/* ── 까주기 테스트 (spec 8 · design 화면 11) ─────────────────────────────── */
+
+/** 축 A 까준다↔받는다. 축 B는 `PlaceTag`와 같은 값이라(구이·회) 따로 만들지 않는다. */
+export type PeelRole = "peel" | "served";
+export type PeelSlug = "jipge" | "sonjil" | "wansik" | "chojang";
+/** 궁합 4종 — 두 유형의 축에서 도출한다(decisions 2026-09-09). 조합 16벌 카피를 쓰지 않는다. */
+export type PeelMatchKey = "R1" | "R2" | "R3" | "R4";
+
+export interface PeelQuestion {
+  id: string;
+  /** 이 문항이 재는 축. 축당 3문항이라 동점이 없다. */
+  axis: "role" | "taste";
+  text: string;
+  /** [0]이 앞쪽 값(까준다·새우구이), [1]이 뒤쪽 값(받는다·생새우회)을 민다. 짧게 — 고민이 길면 이탈한다. */
+  choices: [string, string];
+}
+
+export interface PeelType {
+  slug: PeelSlug;
+  role: PeelRole;
+  taste: PlaceTag;
+  /** "묵묵히 까주는 집게형" */
+  name: string;
+  /** 이름 아래 한 줄 */
+  tagline: string;
+  description: string;
+  /** 둘째 문단 — "조심할 점" */
+  caution: string;
+  /** 잘 맞는 유형(결과의 미니 카드) */
+  partner: PeelSlug;
+}
+
+export interface PeelMatch {
+  key: PeelMatchKey;
+  /** 0~100. 네 단계 고정값이라 가짜 정밀도가 없다. */
+  score: number;
+  title: string;
+  description: string;
+}
+
+/** 테스트 콘텐츠 전체 — `lib/mock/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
+export interface PeelTest {
+  title: string;
+  subtitle: string;
+  /** "20초면 끝나요" */
+  duration: string;
+  questions: PeelQuestion[];
+  types: PeelType[];
+  matches: PeelMatch[];
+}

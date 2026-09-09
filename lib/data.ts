@@ -16,6 +16,9 @@ import type {
   Menu,
   MyReview,
   NearestStation,
+  PeelSlug,
+  PeelTest,
+  PeelType,
   Photo,
   Place,
   PlaceDetail,
@@ -41,7 +44,8 @@ import {
   startOfWeekKst,
   toMs,
 } from "./time";
-import { matchesQuery, normalizeQuery } from "./places";
+import { SIDE_KEYS, matchesQuery, normalizeQuery } from "./places";
+import { PEEL_PLACE_COUNT } from "./peel-test";
 import { ratingSummary, sortReviewsNewest } from "./reviews";
 import { safeAssetPath } from "./assets";
 import { guCenter, guOfPoint } from "./gu";
@@ -51,6 +55,7 @@ import placesJson from "./mock/places.json";
 import checkinsJson from "./mock/checkins.json";
 import reviewsJson from "./mock/reviews.json";
 import eventCardJson from "./mock/event-card.json";
+import peelTestJson from "./mock/peel-test.json";
 
 /**
  * 한 가게에 붙일 수 있는 사진 수 (decisions 2026-09-03). UI 상수가 아니라 도메인 규칙이라
@@ -97,6 +102,7 @@ const rawPlaces = placesJson as RawPlace[];
 const rawCheckins = checkinsJson as Checkin[];
 const rawReviews = reviewsJson as Review[];
 const rawEventCard = eventCardJson as EventCard;
+const rawPeelTest = peelTestJson as PeelTest;
 
 const MOCK_LATEST_DAY = Math.max(...rawCheckins.map((c) => kstDayIndex(c.at)));
 
@@ -403,6 +409,74 @@ export function getEventCard(
   const inPeriod =
     nowMs >= toMs(rawEventCard.startsAt) && nowMs <= toMs(rawEventCard.endsAt);
   return Promise.resolve(inPeriod ? rawEventCard : null);
+}
+
+/** 까주기 테스트 콘텐츠 — 문항·유형·궁합 카피(spec 8). 이벤트 카드와 같은 설정값 문법이라 카피 수정이 코드 수정이 아니다. */
+export function getPeelTest(): Promise<PeelTest> {
+  return Promise.resolve(rawPeelTest);
+}
+
+export function getPeelType(slug: PeelSlug): Promise<PeelType | null> {
+  return Promise.resolve(rawPeelTest.types.find((t) => t.slug === slug) ?? null);
+}
+
+/** 사이드가 많을수록 손이 가는 집 — 까주는 쪽(축 A)의 가중치다. */
+function sideCount(place: Place): number {
+  return SIDE_KEYS.filter((key) => place.sides[key]).length;
+}
+
+/**
+ * 추천 순위 공통 — 평점(리뷰 3개 이상일 때만 붙는다) → 리뷰 수 → 확인 수 → 이름.
+ * 평점 없는 집이 뒤로 가는 건 의도다: 추천에는 남이 남긴 값이 확인 수보다 낫다.
+ */
+function byRatingThenChecks(a: Place, b: Place): number {
+  return (
+    (b.rating?.average ?? 0) - (a.rating?.average ?? 0) ||
+    (b.rating?.count ?? 0) - (a.rating?.count ?? 0) ||
+    b.checkCount - a.checkCount ||
+    a.name.localeCompare(b.name, "ko")
+  );
+}
+
+/**
+ * 유형에 어울리는 가게 3곳 (design 화면 11-3). 축 B(새우구이·생새우회)로 거르고 축 A로 가른다 —
+ * **까주는 쪽에는 손이 가는 집**(사이드가 많은 집), **받는 쪽에는 차려 주는 집**(전문점).
+ */
+export async function getPeelTypePlaces(
+  slug: PeelSlug,
+  now: DateInput = Date.now(),
+): Promise<Place[]> {
+  const type = await getPeelType(slug);
+  if (!type) return [];
+  const places = await getPlaces({ tag: type.taste }, now);
+  const weight = (p: Place) => (type.role === "peel" ? sideCount(p) : p.specialist ? 1 : 0);
+  return [...places]
+    .sort((a, b) => weight(b) - weight(a) || byRatingThenChecks(a, b))
+    .slice(0, PEEL_PLACE_COUNT);
+}
+
+/**
+ * 둘이 같이 갈 가게 3곳 (design 화면 11-5). **취향이 갈리면 구이·회를 둘 다 하는 집**을 뽑는다 —
+ * 궁합이 실제 쓸모를 낳는 자리다(decisions 2026-09-09). 역할 가중치는 쓰지 않는다: 두 사람이 섞였다.
+ */
+export async function getPeelMatchPlaces(
+  a: PeelSlug,
+  b: PeelSlug,
+  now: DateInput = Date.now(),
+): Promise<Place[]> {
+  const [first, second] = await Promise.all([getPeelType(a), getPeelType(b)]);
+  if (!first || !second) return [];
+  const all = await getPlaces({}, now);
+  const pool =
+    first.taste === second.taste
+      ? all.filter((p) => p.tags.includes(first.taste))
+      : all.filter((p) => p.tags.includes("grill") && p.tags.includes("raw"));
+  const ranked = [...pool].sort(byRatingThenChecks);
+  if (ranked.length >= PEEL_PLACE_COUNT) return ranked.slice(0, PEEL_PLACE_COUNT);
+  // 겸업 집이 모자라면 전체 상위로 채운다 — 빈손으로 돌려보내지 않는다
+  const picked = new Set(ranked.map((p) => p.id));
+  const rest = [...all].filter((p) => !picked.has(p.id)).sort(byRatingThenChecks);
+  return [...ranked, ...rest].slice(0, PEEL_PLACE_COUNT);
 }
 
 /** 현재 세션의 찜 목록. 서버에서는 항상 빈 값(서버 세션은 로그인하지 않는다). */
