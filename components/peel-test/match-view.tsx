@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlaceCard } from "@/components/map-screen/place-card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Toast } from "@/components/ui/toast";
 import { useNotice } from "@/components/ui/use-notice";
@@ -108,7 +108,7 @@ export function PeelMatchView({
         </Button>
         <Link
           href={peelTypePath(mine.slug)}
-          className="press inline-flex h-12 items-center justify-center rounded-12 border border-line bg-bg text-body-m-semibold text-fg"
+          className={buttonVariants({ variant: "outline", size: "xl" })}
         >
           내 결과 보기
         </Link>

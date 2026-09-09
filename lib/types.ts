@@ -330,6 +330,10 @@ export interface PeelTest {
   subtitle: string;
   /** "20초면 끝나요" */
   duration: string;
+  /** 궁합 초대 화면·카드의 카피. `eyebrow`의 `{name}`이 상대 유형 이름으로 바뀐다. */
+  invite: { eyebrow: string; subtitle: string; ogEyebrow: string };
+  /** 표지 공유 카드의 큰 제목 — 화면 제목("새우 까주기 테스트")과 다르다 */
+  ogIntroTitle: string;
   questions: PeelQuestion[];
   types: PeelType[];
   matches: PeelMatch[];

@@ -34,7 +34,7 @@ function cardFor(content: PeelTest, slug: string): TestCard | null {
     return {
       variant: "test",
       eyebrow: content.title,
-      title: "당신은 까주는 쪽?",
+      title: content.ogIntroTitle,
       sub: `${content.subtitle}. ${content.duration}`,
     };
   }
@@ -43,9 +43,9 @@ function cardFor(content: PeelTest, slug: string): TestCard | null {
   if (invited) {
     return {
       variant: "test",
-      eyebrow: "궁합 신청",
+      eyebrow: content.invite.ogEyebrow,
       title: invited.name,
-      sub: "질문 6개를 풀면 둘의 궁합이 나와요",
+      sub: content.invite.subtitle,
     };
   }
 

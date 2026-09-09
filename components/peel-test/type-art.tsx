@@ -14,7 +14,8 @@ const TILT: Record<PeelSlug, string> = {
   chojang: "-rotate-6",
 };
 
-const SIZE = { md: "size-25", lg: "size-30" } as const;
+/** md 100(궁합에 둘이 나란히) · lg 160(결과의 주인공, design 화면 11-3) */
+const SIZE = { md: "size-25", lg: "size-40" } as const;
 
 export function TypeArt({
   slug,

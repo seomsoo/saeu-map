@@ -70,13 +70,13 @@ export function PeelTest({
           <ShrimpArt />
           {partner && (
             <p className="rounded-12 bg-brand-tint px-3 py-1.5 text-caption-l-regular text-brand-fg">
-              {partner.name}이 궁합을 신청했어요
+              {content.invite.eyebrow.replace("{name}", partner.name)}
             </p>
           )}
           <div className="flex flex-col items-center gap-1">
             <h1 className="text-title-m-bold text-fg">{content.title}</h1>
             <p className="text-body-l-regular text-fg-secondary">
-              {partner ? "질문 6개를 풀면 둘의 궁합이 나와요" : content.subtitle}
+              {partner ? content.invite.subtitle : content.subtitle}
             </p>
             <p className="text-caption-l-regular text-fg-tertiary">{content.duration}</p>
           </div>

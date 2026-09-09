@@ -2,42 +2,66 @@
   "title": "새우 까주기 테스트",
   "subtitle": "질문 6개로 알아보는 새우 앞의 나",
   "duration": "20초면 끝나요",
+  "invite": {
+    "eyebrow": "{name}이 궁합을 신청했어요",
+    "subtitle": "질문 6개를 풀면 둘의 궁합이 나와요",
+    "ogEyebrow": "궁합 신청"
+  },
+  "ogIntroTitle": "당신은 까주는 쪽?",
   "questions": [
     {
       "id": "q1",
       "axis": "role",
       "text": "새우가 막 익었다. 젓가락이 먼저 가는 곳은",
-      "choices": ["옆 사람 접시", "내 입"]
+      "choices": [
+        "옆 사람 접시",
+        "내 입"
+      ]
     },
     {
       "id": "q2",
       "axis": "taste",
       "text": "새우 하면 먼저 떠오르는 소리는",
-      "choices": ["지글지글", "사각사각"]
+      "choices": [
+        "지글지글",
+        "사각사각"
+      ]
     },
     {
       "id": "q3",
       "axis": "role",
       "text": "손에 양념 묻는 건",
-      "choices": ["어차피 묻는다", "물티슈부터 찾는다"]
+      "choices": [
+        "어차피 묻는다",
+        "물티슈부터 찾는다"
+      ]
     },
     {
       "id": "q4",
       "axis": "taste",
       "text": "소금 위에 올릴까, 얼음 위에 올릴까",
-      "choices": ["소금", "얼음"]
+      "choices": [
+        "소금",
+        "얼음"
+      ]
     },
     {
       "id": "q5",
       "axis": "role",
       "text": "아무도 집게를 안 든다",
-      "choices": ["내가 든다", "기다린다"]
+      "choices": [
+        "내가 든다",
+        "기다린다"
+      ]
     },
     {
       "id": "q6",
       "axis": "taste",
       "text": "마무리는",
-      "choices": ["볶음밥까지", "매운탕 한 그릇"]
+      "choices": [
+        "볶음밥까지",
+        "매운탕 한 그릇"
+      ]
     }
   ],
   "types": [
