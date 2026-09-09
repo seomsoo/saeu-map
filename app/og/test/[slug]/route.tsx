@@ -22,8 +22,11 @@ export function generateStaticParams() {
   ];
 }
 
+/** 아트를 뺀 카드 — 슬러그 판정이 폰트·아트 로드보다 먼저다(security-reviewer 2026-09-09) */
+type TestCard = Omit<Extract<ShareCardProps, { variant: "test" }>, "art">;
+
 /** `intro` · `jipge` · `with-jipge` · `jipge-wansik` 네 모양을 한 라우트가 받는다. 유형 슬러그에는 `-`가 없다. */
-function cardFor(content: PeelTest, slug: string, art: string): ShareCardProps | null {
+function cardFor(content: PeelTest, slug: string): TestCard | null {
   const typeOf = (value: string) =>
     isPeelSlug(value) ? (content.types.find((t) => t.slug === value) ?? null) : null;
 
@@ -33,7 +36,6 @@ function cardFor(content: PeelTest, slug: string, art: string): ShareCardProps |
       eyebrow: content.title,
       title: "당신은 까주는 쪽?",
       sub: `${content.subtitle}. ${content.duration}`,
-      art,
     };
   }
 
@@ -44,7 +46,6 @@ function cardFor(content: PeelTest, slug: string, art: string): ShareCardProps |
       eyebrow: "궁합 신청",
       title: invited.name,
       sub: "질문 6개를 풀면 둘의 궁합이 나와요",
-      art,
     };
   }
 
@@ -60,21 +61,21 @@ function cardFor(content: PeelTest, slug: string, art: string): ShareCardProps |
       eyebrow: content.title,
       title: match.title,
       sub: `${mine.name}과 ${partner.name}`,
-      art,
       score: match.score,
     };
   }
 
   const type = typeOf(slug);
   return type
-    ? { variant: "test", eyebrow: content.title, title: type.name, sub: type.tagline, art }
+    ? { variant: "test", eyebrow: content.title, title: type.name, sub: type.tagline }
     : null;
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [content, fonts, art] = await Promise.all([getPeelTest(), ogFonts(), shrimpPotArt()]);
-  const card = cardFor(content, slug, art);
+  // 슬러그부터 판정한다(구 카드 라우트와 같은 순서) — 모르는 슬러그에 폰트·아트를 태우지 않는다
+  const card = cardFor(await getPeelTest(), slug);
   if (!card) return new Response("Not found", { status: 404 });
-  return new ImageResponse(<ShareCard {...card} />, { ...OG_SIZE, fonts });
+  const [fonts, art] = await Promise.all([ogFonts(), shrimpPotArt()]);
+  return new ImageResponse(<ShareCard {...card} art={art} />, { ...OG_SIZE, fonts });
 }

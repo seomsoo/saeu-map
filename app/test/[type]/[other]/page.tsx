@@ -41,6 +41,9 @@ export async function generateMetadata({ params }: MatchPageProps): Promise<Meta
  * 궁합 결과 `/test/[type]/[other]` — 앞이 방금 푼 사람, 뒤가 초대한 사람이다(design 화면 11-5).
  * 16조합 전부가 R1~R4 중 하나로 떨어지므로 조합마다 카피를 쓰지 않는다(decisions 2026-09-09).
  * 색인하지 않는다(`peelMatchMeta`) — 공유 링크로만 사는 얇은 페이지다.
+ *
+ * `generateStaticParams`·`dynamicParams`가 없는 것은 의도다: 추천 카드의 상대 시간 때문에 `connection()`으로
+ * 요청 시 렌더해야 한다(결과 페이지와 같은 이유). 슬러그 밖 404는 위 `resolve()`의 `notFound()`가 보장한다.
  */
 export default async function PeelMatchPage({ params }: MatchPageProps) {
   const resolved = await resolve(params);

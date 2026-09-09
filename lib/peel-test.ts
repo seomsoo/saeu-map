@@ -54,14 +54,13 @@ export function isPeelSlug(value: string): value is PeelSlug {
   return (PEEL_SLUGS as readonly string[]).includes(value);
 }
 
-/** URL 세그먼트 → 슬러그. 그 밖(오타·인코딩 깨짐)은 null → 라우트가 404를 낸다. */
+/**
+ * URL 세그먼트 → 슬러그. 그 밖(오타·다른 문자)은 null → 라우트가 404를 낸다.
+ * **`decodeURIComponent`를 부르지 않는다**: Next가 이미 디코드한 `params`가 오므로 한 번 더 풀면
+ * `/test/%256aipge`가 `jipge`로 통과한다(security-reviewer 2026-09-09). 슬러그는 ASCII 4개뿐이라 그대로 대조한다.
+ */
 export function decodePeelSlug(raw: string): PeelSlug | null {
-  try {
-    const value = decodeURIComponent(raw);
-    return isPeelSlug(value) ? value : null;
-  } catch {
-    return null;
-  }
+  return isPeelSlug(raw) ? raw : null;
 }
 
 /**

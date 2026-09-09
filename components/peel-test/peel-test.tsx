@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cx } from "@/lib/cx";
-import { scoreAnswers } from "@/lib/peel-test";
+import { peelMatchPath, peelTypePath, scoreAnswers } from "@/lib/peel-test";
 import type { PeelTest as PeelTestContent, PeelType } from "@/lib/types";
 import { ShrimpArt } from "./type-art";
 
@@ -38,7 +38,7 @@ export function PeelTest({
       return;
     }
     const slug = scoreAnswers(content.questions, next);
-    const path = partner ? `/test/${slug}/${partner.slug}` : `/test/${slug}`;
+    const path = partner ? peelMatchPath(slug, partner.slug) : peelTypePath(slug);
     startTransition(() => {
       router.push(path);
     });
