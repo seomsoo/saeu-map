@@ -9,6 +9,15 @@ import type { PeelTest, PeelType, Place } from "@/lib/types";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
+/** 이 세션에서 직접 풀었는지 — 결과 화면이 방문자와 응시자를 가른다 */
+const flag = vi.hoisted(() => ({ tookTest: false }));
+vi.mock("../session-flag", () => ({
+  markTestFinished: () => {
+    flag.tookTest = true;
+  },
+  useTookTest: () => flag.tookTest,
+}));
+
 const test = content as PeelTest;
 const NOW = "2026-09-09T03:00:00.000Z";
 
@@ -35,6 +44,7 @@ function view(places: Place[] = [makePlace({ id: "p1", name: "나라수산" })])
 
 beforeEach(() => {
   push.mockClear();
+  flag.tookTest = false;
 });
 
 describe("결과 화면", () => {
@@ -99,9 +109,17 @@ describe("공유는 하나 — 초대 링크만 보낸다", () => {
     expect(screen.getByText("친구가 풀면 둘의 궁합이 나와요")).toBeInTheDocument();
   });
 
-  it("공유 링크로 들어온 사람의 입구가 있다", () => {
+  it("공유 링크로 들어온 사람에게는 [나도 해보기] 버튼이 있다", () => {
     view();
     expect(screen.getByRole("link", { name: "나도 해보기" })).toHaveAttribute("href", "/test");
+    expect(screen.queryByRole("link", { name: "다시 하기" })).toBeNull();
+  });
+
+  it("방금 푼 사람에게는 [나도 해보기] 대신 [다시 하기]다", () => {
+    flag.tookTest = true;
+    view();
+    expect(screen.queryByRole("link", { name: "나도 해보기" })).toBeNull();
+    expect(screen.getByRole("link", { name: "다시 하기" })).toHaveAttribute("href", "/test");
   });
 
   it("공유 시트가 없으면 링크를 복사하고 토스트를 띄운다", async () => {

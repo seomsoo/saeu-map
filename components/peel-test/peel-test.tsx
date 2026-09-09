@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cx } from "@/lib/cx";
 import { QUESTION_ART, peelMatchPath, peelTypePath, scoreAnswers } from "@/lib/peel-test";
 import type { PeelTest as PeelTestContent, PeelType } from "@/lib/types";
+import { markTestFinished } from "./session-flag";
 import { ShrimpArt, TypeArt } from "./type-art";
 
 /**
@@ -40,6 +41,8 @@ export function PeelTest({
       return;
     }
     const slug = scoreAnswers(content.questions, next);
+    // 결과 화면이 "방금 푼 사람"과 "공유 링크로 온 사람"을 가르는 표식
+    markTestFinished();
     const path = partner ? peelMatchPath(slug, partner.slug) : peelTypePath(slug);
     startTransition(() => {
       router.push(path);

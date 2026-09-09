@@ -12,6 +12,7 @@ import { peelInvitePath } from "@/lib/peel-test";
 import { cx } from "@/lib/cx";
 import { sharePath, shareUrl } from "@/lib/share";
 import type { PeelType, Place } from "@/lib/types";
+import { useTookTest } from "./session-flag";
 import { TypeArt } from "./type-art";
 import { TypeMatrix } from "./type-matrix";
 
@@ -38,6 +39,8 @@ export function PeelResultView({
 }) {
   const router = useRouter();
   const { notice, showNotice } = useNotice();
+  // 방금 푼 사람에게 "나도 해보기"는 말이 안 된다 — 그 자리를 [다시 하기]로 바꾼다
+  const tookTest = useTookTest();
 
   return (
     <div className="flex flex-1 flex-col gap-6 pt-2 pb-6">
@@ -133,19 +136,29 @@ export function PeelResultView({
         <p className="text-center text-caption-l-regular text-fg-tertiary">
           친구가 풀면 둘의 궁합이 나와요
         </p>
-        {/* 공유 링크로 들어온 사람의 입구. 이게 없으면 "당신은 ○○형"만 보고 나간다 */}
-        <Link
-          href="/test"
-          className={cx(buttonVariants({ variant: "outline", size: "xl" }), "mt-1")}
-        >
-          나도 해보기
-        </Link>
-        <Link
-          href="/"
-          className="hit-44 self-center py-1 text-caption-l-regular text-fg-tertiary"
-        >
-          지도에서 더 보기
-        </Link>
+        {/* 공유 링크로 들어온 사람의 입구. 이게 없으면 "당신은 ○○형"만 보고 나간다.
+            방금 푼 사람에게는 필요 없으므로 아래 텍스트 줄의 [다시 하기]가 대신한다. */}
+        {!tookTest && (
+          <Link
+            href="/test"
+            className={cx(buttonVariants({ variant: "outline", size: "xl" }), "mt-1")}
+          >
+            나도 해보기
+          </Link>
+        )}
+        <div className="flex items-center justify-center">
+          {tookTest && (
+            <>
+              <Link href="/test" className="hit-44 py-1 text-caption-l-regular text-fg-tertiary">
+                다시 하기
+              </Link>
+              <span aria-hidden="true" className="mx-3 h-3 w-px bg-line" />
+            </>
+          )}
+          <Link href="/" className="hit-44 py-1 text-caption-l-regular text-fg-tertiary">
+            지도에서 더 보기
+          </Link>
+        </div>
       </div>
 
       {notice && (
