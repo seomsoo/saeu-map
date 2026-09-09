@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlaceCard } from "@/components/map-screen/place-card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { Toast } from "@/components/ui/toast";
 import { useNotice } from "@/components/ui/use-notice";
-import { peelInvitePath, peelTypePath } from "@/lib/peel-test";
+import { peelInvitePath } from "@/lib/peel-test";
+import { cx } from "@/lib/cx";
 import { sharePath, shareUrl } from "@/lib/share";
 import type { PeelType, Place } from "@/lib/types";
 import { TypeArt } from "./type-art";
@@ -114,17 +115,11 @@ export function PeelResultView({
       </section>
 
       <div className="mt-auto flex flex-col gap-2">
+        {/* 공유는 **하나만** 둔다(2026-09-09): 결과 링크와 초대 링크를 나란히 두니 만든 사람도 차이를 못 읽었다.
+            보내는 건 초대 링크다 — 공유 카드에는 그대로 내 유형과 캐릭터가 뜨고(자랑은 그대로),
+            친구가 열면 풀게 되고 궁합까지 나온다. 링크 하나가 다음 테스트를 부르는 쪽을 남긴다. */}
         <Button
           variant="brand"
-          size="xl"
-          onClick={() => {
-            shareUrl({ title: type.name, path: peelTypePath(type.slug) }, showNotice);
-          }}
-        >
-          결과 공유하기
-        </Button>
-        <Button
-          variant="outline"
           size="xl"
           onClick={() => {
             shareUrl(
@@ -133,8 +128,18 @@ export function PeelResultView({
             );
           }}
         >
-          친구와 궁합 보기
+          친구에게 보내기
         </Button>
+        <p className="text-center text-caption-l-regular text-fg-tertiary">
+          친구가 풀면 둘의 궁합이 나와요
+        </p>
+        {/* 공유 링크로 들어온 사람의 입구. 이게 없으면 "당신은 ○○형"만 보고 나간다 */}
+        <Link
+          href="/test"
+          className={cx(buttonVariants({ variant: "outline", size: "xl" }), "mt-1")}
+        >
+          나도 해보기
+        </Link>
         <Link
           href="/"
           className="hit-44 self-center py-1 text-caption-l-regular text-fg-tertiary"

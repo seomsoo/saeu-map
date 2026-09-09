@@ -77,7 +77,7 @@ describe("결과 화면", () => {
   });
 });
 
-describe("공유 두 갈래", () => {
+describe("공유는 하나 — 초대 링크만 보낸다", () => {
   /** 기기 공유 시트를 세우고 버튼을 눌러 넘어간 url을 돌려준다 */
   function sharedUrlAfter(label: string): string | undefined {
     const share = vi.fn<(data: { title: string; url: string }) => Promise<void>>();
@@ -89,23 +89,30 @@ describe("공유 두 갈래", () => {
     return share.mock.calls[0]?.[0].url;
   }
 
-  it("[결과 공유하기]는 내 유형 링크를 보낸다", () => {
-    expect(sharedUrlAfter("결과 공유하기")).toContain("/test/jipge");
+  it("[친구에게 보내기]는 결과 링크가 아니라 초대 링크다 — 링크 하나가 다음 테스트를 부른다", () => {
+    const url = sharedUrlAfter("친구에게 보내기");
+    expect(url).toContain("/test/with/jipge");
   });
 
-  it("[친구와 궁합 보기]는 초대 링크를 보낸다 — 링크 하나가 다음 테스트를 부른다", () => {
-    expect(sharedUrlAfter("친구와 궁합 보기")).toContain("/test/with/jipge");
+  it("무엇이 일어나는지 버튼 아래 한 줄로 말한다", () => {
+    view();
+    expect(screen.getByText("친구가 풀면 둘의 궁합이 나와요")).toBeInTheDocument();
+  });
+
+  it("공유 링크로 들어온 사람의 입구가 있다", () => {
+    view();
+    expect(screen.getByRole("link", { name: "나도 해보기" })).toHaveAttribute("href", "/test");
   });
 
   it("공유 시트가 없으면 링크를 복사하고 토스트를 띄운다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     view();
-    fireEvent.click(screen.getByRole("button", { name: "결과 공유하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "친구에게 보내기" }));
     await waitFor(() => {
       expect(screen.getByText(LINK_COPIED_NOTICE)).toBeInTheDocument();
     });
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/test/jipge"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/test/with/jipge"));
     vi.unstubAllGlobals();
   });
 });
