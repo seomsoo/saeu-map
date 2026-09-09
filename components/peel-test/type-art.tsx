@@ -6,6 +6,9 @@ import type { PeelSlug } from "@/lib/types";
 /**
  * 유형 아트 (design 화면 11). **캐릭터 4장이 오기 전까지는 넷 다 같은 새우**라 기울기로만 갈린다
  * (decisions 2026-09-09) — 그림이 오면 `TYPE_ART` 4줄만 바뀌고 이 컴포넌트는 그대로다.
+ *
+ * 원 바탕은 회색(`bg-bg-sunken`)이 아니라 **브랜드 틴트**다: 결과가 주인공인 화면이라 정보형 회색이면
+ * 밋밋하고, 틴트는 활성 칩·잘 맞는 유형 카드와 같은 문법이라 새 색을 만들지 않는다(2026-09-09).
  */
 const TILT: Record<PeelSlug, string> = {
   jipge: "-rotate-12",
@@ -14,8 +17,8 @@ const TILT: Record<PeelSlug, string> = {
   chojang: "-rotate-6",
 };
 
-/** md 100(궁합에 둘이 나란히) · lg 160(결과의 주인공, design 화면 11-3) */
-const SIZE = { md: "size-25", lg: "size-40" } as const;
+/** sm 44(표지의 유형 미리보기 4개) · md 100(궁합에 둘이 나란히) · lg 160(결과의 주인공, design 화면 11-3) */
+const SIZE = { sm: "size-11", md: "size-25", lg: "size-40" } as const;
 
 export function TypeArt({
   slug,
@@ -29,7 +32,7 @@ export function TypeArt({
   return (
     <div
       className={cx(
-        "flex shrink-0 items-center justify-center rounded-max bg-bg-sunken",
+        "flex shrink-0 items-center justify-center rounded-max bg-brand-tint",
         SIZE[size],
         className,
       )}
@@ -48,12 +51,21 @@ export function TypeArt({
   );
 }
 
-/** 표지·"결과 만드는 중"이 쓰는 유형 없는 새우 한 마리. 같은 원 안이라 화면이 뛰지 않는다. */
-export function ShrimpArt({ className }: { className?: string | undefined }) {
+/**
+ * 표지·"결과 만드는 중"이 쓰는 유형 없는 새우 한 마리. 같은 원 안이라 화면이 뛰지 않는다.
+ * `bob`을 주면 **새우만** 통통 뛴다(기다리는 자리) — 원까지 흔들면 자리가 출렁인다.
+ */
+export function ShrimpArt({
+  bob = false,
+  className,
+}: {
+  bob?: boolean;
+  className?: string | undefined;
+}) {
   return (
     <div
       className={cx(
-        "flex size-30 shrink-0 items-center justify-center rounded-max bg-bg-sunken",
+        "flex size-30 shrink-0 items-center justify-center rounded-max bg-brand-tint",
         className,
       )}
     >
@@ -64,7 +76,7 @@ export function ShrimpArt({ className }: { className?: string | undefined }) {
         height={138}
         priority
         draggable={false}
-        className="size-3/5 -rotate-12 object-contain"
+        className={cx("size-3/5 object-contain", bob ? "saeu-bob" : "-rotate-12")}
       />
     </div>
   );

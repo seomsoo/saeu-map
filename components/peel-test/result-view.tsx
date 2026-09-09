@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PlaceCard } from "@/components/map-screen/place-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { Toast } from "@/components/ui/toast";
 import { useNotice } from "@/components/ui/use-notice";
 import { peelInvitePath, peelTypePath } from "@/lib/peel-test";
@@ -36,20 +37,32 @@ export function PeelResultView({
   return (
     <div className="flex flex-1 flex-col gap-6 pt-2 pb-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <TypeArt slug={type.slug} />
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-caption-l-regular text-fg-tertiary">당신은</p>
+        <TypeArt slug={type.slug} className="saeu-pop" />
+        <div className="saeu-rise saeu-rise-2 flex flex-col items-center gap-1">
+          <p className="text-caption-l-medium text-fg-tertiary">당신은</p>
           <h1 className="text-title-m-bold text-fg">{type.name}</h1>
           <p className="text-body-l-regular text-fg-secondary">{type.tagline}</p>
         </div>
+        {/* 해시태그 — 국내 유형 테스트의 공통 문법이고, 캡처 한 장에 성격이 다 담긴다 */}
+        <ul className="saeu-rise saeu-rise-3 flex flex-wrap justify-center gap-1.5">
+          {type.tags.map((tag) => (
+            <li
+              key={tag}
+              className="rounded-max border border-line-brand bg-brand-tint px-2.5 py-1 text-caption-l-medium text-brand-fg"
+            >
+              {tag}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="saeu-rise saeu-rise-4 flex flex-col gap-2 rounded-16 bg-bg-dim px-4 py-4">
         <p className="text-body-m-regular text-fg">{type.description}</p>
         <p className="text-body-m-regular text-fg-secondary">{type.caution}</p>
       </div>
 
-      <p className="rounded-12 bg-brand-tint px-4 py-3 text-body-m-medium text-brand-fg">
+      <p className="flex items-center gap-2 rounded-16 border border-line-brand bg-brand-tint px-4 py-3.5 text-body-m-medium text-brand-fg">
+        <ShrimpIcon className="size-4 shrink-0" />
         잘 맞는 유형은 {partner.name}
       </p>
 

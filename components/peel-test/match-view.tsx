@@ -2,15 +2,43 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { PlaceCard } from "@/components/map-screen/place-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Toast } from "@/components/ui/toast";
+import { useMediaQuery } from "@/components/ui/use-media-query";
 import { useNotice } from "@/components/ui/use-notice";
 import { peelMatchPath, peelTypePath } from "@/lib/peel-test";
 import { sharePath, shareUrl } from "@/lib/share";
 import type { PeelMatch, PeelType, Place } from "@/lib/types";
 import { TypeArt } from "./type-art";
+
+/**
+ * 궁합 수가 0에서 차오른다 — 결과를 여는 순간의 재미가 이 화면의 값이다.
+ * 모션을 끈 사용자에게는 처음부터 최종값이다(서버 렌더도 최종값이라 하이드레이션이 흔들리지 않는다).
+ */
+function useCountUp(target: number): number {
+  const animate = useMediaQuery("(prefers-reduced-motion: no-preference)");
+  const [value, setValue] = useState(target);
+
+  useEffect(() => {
+    if (!animate) return;
+    const DURATION_MS = 800;
+    const started = performance.now();
+    let raf = requestAnimationFrame(function tick(now) {
+      const progress = Math.min(1, (now - started) / DURATION_MS);
+      // ease-out cubic — 끝에서 천천히 멎어야 숫자가 읽힌다
+      setValue(Math.round(target * (1 - (1 - progress) ** 3)));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+    };
+  }, [animate, target]);
+
+  return value;
+}
 
 /**
  * 궁합 결과 (design 화면 11-5). 두 유형을 나란히 놓고 가운데에 궁합 수를 둔다.
@@ -31,25 +59,31 @@ export function PeelMatchView({
 }) {
   const router = useRouter();
   const { notice, showNotice } = useNotice();
+  const score = useCountUp(match.score);
 
   return (
     <div className="flex flex-1 flex-col gap-6 pt-2 pb-6">
       <div className="flex flex-col items-center gap-4 text-center">
-        <div className="flex items-center gap-3">
-          <TypeArt slug={mine.slug} size="md" />
-          <span className="text-title-m-bold text-brand-fg tabular-nums" aria-label={`궁합 ${match.score}점`}>
-            {match.score}
+        <div className="flex items-center">
+          <TypeArt slug={mine.slug} size="md" className="saeu-pop" />
+          {/* 점수는 두 아트 사이에 얹힌다 — 채운 레드 원은 클러스터 마커·별점과 같은 결이고
+              "화면당 채운 레드 하나"는 버튼 규칙이라 여기 걸리지 않는다(design 26줄) */}
+          <span
+            className="saeu-pop -mx-3 z-1 flex size-17 items-center justify-center rounded-max bg-brand text-title-s-semibold text-fg-on-brand tabular-nums shadow-card"
+            aria-label={`궁합 ${match.score}점`}
+          >
+            {score}
           </span>
-          <TypeArt slug={partner.slug} size="md" />
+          <TypeArt slug={partner.slug} size="md" className="saeu-pop" />
         </div>
         {/* 두 이름은 가운데 점으로 잇지 않는다(spec 7 카피 톤) — 세로 헤어라인으로 나눈다 */}
-        <p className="flex items-center justify-center gap-2 text-caption-l-regular text-fg-tertiary">
+        <p className="saeu-rise saeu-rise-2 flex items-center justify-center gap-2 text-caption-l-regular text-fg-tertiary">
           <span>{mine.name}</span>
           <span aria-hidden="true" className="h-3 w-px shrink-0 bg-line" />
           <span>{partner.name}</span>
         </p>
-        <div className="flex flex-col gap-2">
-          <h1 className="text-title-s-semibold text-fg">{match.title}</h1>
+        <div className="saeu-rise saeu-rise-2 flex flex-col gap-2">
+          <h1 className="text-title-m-bold text-fg">{match.title}</h1>
           <p className="text-body-m-regular text-fg-secondary">{match.description}</p>
         </div>
       </div>

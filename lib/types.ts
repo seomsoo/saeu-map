@@ -309,6 +309,8 @@ export interface PeelType {
   name: string;
   /** 이름 아래 한 줄 */
   tagline: string;
+  /** 결과 카드의 해시태그 3개 — 국내 유형 테스트의 공통 문법이고, 캡처해 공유할 거리를 만든다 */
+  tags: string[];
   description: string;
   /** 둘째 문단 — "조심할 점" */
   caution: string;
