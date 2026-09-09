@@ -119,6 +119,11 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
  * 크롤 가게의 메뉴가 중앙값 3줄·최대 5줄이라 그 분포와 맞춘다 (2026-09-09).
  */
 export const REPORT_MENU_MAX = 5;
+/**
+ * 그중 기타 줄 상한. **회 토글과 무관하게 고정**한다 — 남는 자리로 계산하면 기타를 4줄 채운 뒤
+ * "새우회도 팔아요"를 켜는 순간 6줄이 되고, 스키마에 걸려 사용자는 이유 모를 실패를 본다 (2026-09-09).
+ */
+export const REPORT_EXTRA_MENU_MAX = REPORT_MENU_MAX - 2;
 /** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 — 목 50곳 최대가 5줄이라 여유롭게 */
 export const MAX_MENU_EDITS = 20;
 export const MOCK_FAILURE_RATE = 0.1;

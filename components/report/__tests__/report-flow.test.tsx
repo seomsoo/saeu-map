@@ -361,16 +361,26 @@ describe("ReportPanel 3단계 — 메뉴와 가격", () => {
     ]);
   });
 
-  it("[삭제]로 기타 줄을 빼고, 상한(5줄)에 닿으면 추가 버튼이 사라진다", () => {
+  it("[삭제]로 기타 줄을 빼고, 기타 상한(3줄)에 닿으면 추가 버튼이 사라진다", () => {
     renderPanel({ step: 3 });
     const add = () => screen.queryByRole("button", { name: "＋ 메뉴 추가" });
-    // 구이 1 + 기타 4 = 5줄
-    for (let i = 0; i < 4; i += 1) fireEvent.click(add() as HTMLElement);
+    for (let i = 0; i < 3; i += 1) fireEvent.click(add() as HTMLElement);
     expect(add()).toBeNull();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "삭제" })[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "메뉴 2 삭제" }));
     expect(add()).not.toBeNull();
-    expect(screen.getAllByRole("textbox", { name: "메뉴명" })).toHaveLength(4);
+    expect(screen.getAllByRole("textbox", { name: "메뉴명" })).toHaveLength(3);
+  });
+
+  it("기타를 꽉 채운 뒤 회를 켜도 스키마 상한(5줄)을 넘지 않는다 — 상한이 토글과 무관해서", () => {
+    renderPanel({ step: 3 });
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "＋ 메뉴 추가" }));
+    }
+    fireEvent.click(screen.getByRole("switch", { name: "새우회도 팔아요" }));
+    // 구이 1 + 회 1 + 기타 3 = 5
+    expect(screen.getAllByRole("textbox", { name: /메뉴명$/ })).toHaveLength(5);
+    expect(screen.queryByRole("button", { name: "＋ 메뉴 추가" })).toBeNull();
   });
 
   it("가격은 숫자만 받아 천 단위로 보여주고, 채우면 4단계로. 값은 단계를 오가도 남는다", () => {

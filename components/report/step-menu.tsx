@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { REPORT_MENU_MAX } from "@/lib/data";
+import { REPORT_EXTRA_MENU_MAX } from "@/lib/data";
 import { MenuFields, MenuLine } from "./menu-fields";
 import { clearMenuErrors, validateMenuDraft, type MenuDraft, type MenuDraftErrors } from "./menu-draft";
 import { StepFrame } from "./step-frame";
@@ -71,7 +71,6 @@ export function StepMenu({
     }));
   };
 
-  const lineCount = (rawToo ? 2 : 1) + extras.length;
 
   return (
     <StepFrame
@@ -112,6 +111,7 @@ export function StepMenu({
               onClick={() => {
                 onRemoveExtra(i);
               }}
+              aria-label={`메뉴 ${i + 3 - (rawToo ? 0 : 1)} 삭제`}
               className="press hit-44 text-caption-l-medium text-fg-tertiary"
             >
               삭제
@@ -129,7 +129,7 @@ export function StepMenu({
         </div>
       ))}
 
-      {lineCount < REPORT_MENU_MAX && (
+      {extras.length < REPORT_EXTRA_MENU_MAX && (
         <button type="button" onClick={onAddExtra} className="press mt-5 text-caption-l-medium text-fg-tertiary hit-44">
           ＋ 메뉴 추가
         </button>

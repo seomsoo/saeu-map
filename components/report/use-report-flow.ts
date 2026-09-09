@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { REPORT_MENU_MAX, submitReport, type ReportMenuInput } from "@/lib/data";
+import { REPORT_EXTRA_MENU_MAX, submitReport, type ReportMenuInput } from "@/lib/data";
 import type { LatLng, Place, Sides } from "@/lib/types";
 import { EMPTY_MENU_DRAFT, validateMenuDraft, type MenuDraft } from "./menu-draft";
 
@@ -113,10 +113,10 @@ export function useReportFlow() {
     setDraft((prev) => ({ ...prev, [line]: { ...prev[line], ...changes } }));
   }, []);
 
-  /** 기타 줄 — 상한(구이·회를 포함해 REPORT_MENU_MAX)을 넘기면 아무 일도 하지 않는다 */
+  /** 기타 줄 — 상한을 넘기면 아무 일도 하지 않는다. 회 토글과 무관한 고정값이라 토글로 깨지지 않는다 */
   const addExtraMenu = useCallback(() => {
     setDraft((prev) =>
-      (prev.rawToo ? 2 : 1) + prev.extras.length >= REPORT_MENU_MAX
+      prev.extras.length >= REPORT_EXTRA_MENU_MAX
         ? prev
         : { ...prev, extras: [...prev.extras, EMPTY_MENU_DRAFT] },
     );
