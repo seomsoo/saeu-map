@@ -488,7 +488,13 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - 현위치 표적(크로스헤어) 아이콘 — coolicons에 없어 `components/ui/icons/crosshair-icon.tsx` 인라인 SVG로 임시 대체
 - ~~새우 로고 워드마크~~ — 2026-09-08 투입 완료(`public/wordmark.webp`, 데스크탑 브랜드 줄). OG·파비콘·홈 아이콘은 2026-09-07에 채웠다
 - ~~카카오 심볼~~ — 2026-09-08 투입 완료(`public/kakao-symbol.png`). 아래 항목 참조.
-- 까주기 테스트 유형 캐릭터 4장(`public/peel-test/{jipge,sonjil,wansik,chojang}.webp`) — 2026-09-09 사용자 제작 중. 그때까지 `shrimp.webp` 변형으로 그리고 `TYPE_ART` 상수만 교체한다
+- **까주기 테스트 유형 캐릭터 4장** (2026-09-09 사용자 제작 중) — `public/peel-test/{jipge,sonjil,wansik,chojang}.png`
+  - **512×512 PNG, 투명 배경**, 사방 안전 여백 6~8%. 화면용 webp는 받아서 변환한다(OG 카드는 satori라 **PNG가 필요**하다 — webp는 못 읽을 수 있다)
+  - 톤은 `shrimp.webp`와 같은 계열: 플랫 채움(코랄~레드), 잉크 점 눈, 그림자·그라데이션 없음. **4장의 시선·크기·선 두께가 같아야 한다** — 결과의 2×2 매트릭스에 나란히 놓인다
+  - 장면: `jipge` 집게를 들고 불판을 보는 새우 / `sonjil` 접시에 회를 가지런히 놓는 새우 / `wansik` 입을 벌려 받아먹는 새우 / `chojang` 초장 종지에 한 점 찍어 보는 새우
+  - 쓰이는 곳 4군데: 결과 히어로(160) · 매트릭스 칸(44) · 표지 미리보기(44) · 궁합 두 마리(100) + OG 카드 25장 중 유형·궁합 20장
+  - 오면 `lib/peel-test.ts`의 `TYPE_ART` 4줄 + OG 라우트의 아트 소스만 바꾼다
+- **(선택) 문항 일러스트 6장** — `public/peel-test/q1.png`…`q6.png`, 256×256 투명. 지금은 카드 안 옅은 새우 워터마크 한 마리로 대신한다. 있으면 문항 화면이 확 산다(글자 두 줄 + 버튼 둘뿐이라 비어 보인다)
 
 ## 2026-09-07 — Codex PR #9 코멘트 2건: P1 반영, P2 보류(실측으로 판단)
 - **P1 `lib/env.ts` 반영**: `.env.example`의 `SITE_URL=`을 빈 채로 복사하면 `""`가 들어와 `z.url().optional()`이 거부하고 앱이 안 뜬다. t3-env `emptyStringAsUndefined: true`(문서가 새 프로젝트에 권하는 옵션) 한 줄 + `lib/__tests__/env.test.ts` 3건(빈 값=없음·있으면 그대로·`javascript:` 거부). 테스트는 jsdom에 window가 있어 t3-env가 클라이언트로 보므로 `vi.stubGlobal("window", undefined)`로 서버로 읽힌다.
