@@ -35,9 +35,17 @@
 			"service": "saeu-map"
 		}
 	],
+	// 사진 업로드 시 1200px webp 재인코딩(EXIF 제거) — 업로드 때 1회만 쓴다(월 5,000장 무료, 앱 상한 4,500). 표시 최적화엔 쓰지 않는다(CLAUDE.md)
 	"images": {
-		// Enable image optimization
-		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
-	}
+	},
+	// R2 두 개: 사진 창고(키만 DB에)·Next 캐시(prerender·unstable_cache). 계정 합산 무료 10GB·읽기 1,000만/월 (decisions 2026-09-10)
+	"r2_buckets": [
+		{ "binding": "PHOTOS", "bucket_name": "saeu-photos" },
+		{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "saeu-cache" }
+	],
+	// revalidateTag용 태그 캐시(온디맨드만 — 시간 기반 ISR·큐 없음)
+	"d1_databases": [
+		{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "saeu-tags", "database_id": "1ff7baa3-cf75-4637-bf90-7cd710ea0ffa" }
+	]
 }

@@ -7,15 +7,18 @@
  * lib/data.ts가 실패 값을 다시 throw로 바꿔 컴포넌트 계약(throw + 토스트)을 유지한다.
  * 속도 제한·섀도 밴·사진 상한은 DB(RLS·트리거·RPC)가 마지막으로 막는다 — 여기서는 그 오류를 코드로 옮길 뿐이다.
  */
+import { unstable_cache, updateTag } from "next/cache";
 import { z } from "zod";
 import type { Json } from "@/lib/db/database.types";
 import { env } from "@/lib/env";
 import { guOfPoint } from "@/lib/gu";
 import { applyMenuEdits, toMenu } from "@/lib/menu-edits";
+import { placePhotoKey, reviewPhotoKey } from "@/lib/photo-key";
 import { matchesQuery, normalizeQuery } from "@/lib/places";
 import {
   ADMIN_PAGE_SIZE,
   type AdminListFilter,
+  MAX_PLACE_PHOTOS,
   idSchema,
   nicknameSchema,
   type OwnerRequestInput,
@@ -23,6 +26,7 @@ import {
   type PhotoReportReason,
   type PlaceFilter,
   photoReportSchema,
+  photoUploadSchema,
   placeFlagSchema,
   placeReportSchema,
   type ReportPayload,
@@ -54,6 +58,7 @@ import type {
   SeasonStats,
   Session,
 } from "@/lib/types";
+import { deletePhotoObject, storePhoto } from "./photos";
 import { toAdminPlace, toPhoto, toPlace, toReview } from "./rows";
 import { ensureUser, readSession, requireKakao, VISITOR } from "./session";
 import { adminClient, anonClient, type Db, userClient } from "./supabase";
@@ -70,7 +75,8 @@ export type FailCode =
   | "forbidden"
   | "outside korea"
   | "read only"
-  | "bot check failed";
+  | "bot check failed"
+  | "not image";
 export type Result<T> = { ok: true; value: T } | { ok: false; error: FailCode };
 const fail = (error: FailCode): Result<never> => ({ ok: false, error });
 const okay = <T>(value: T): Result<T> => ({ ok: true, value });
@@ -95,44 +101,94 @@ function failFromDb(error: { code?: string } | null): FailCode {
  * 읽기 — 공개 데이터는 anon 클라이언트(쿠키 없음, 빌드 시에도 돈다), 내 것은 세션 클라이언트. RLS가 숨긴 가게를 거른다
  * ════════════════════════════════════════════════════════════════════════ */
 
+/* 캐시 태그 (decisions 2026-09-01 비용 방어: 온디맨드만, 시간 기반 없음)
+ *  places  — 핀 목록 전체(가게가 생기거나 공개 열이 바뀌면)
+ *  place:<id> — 그 가게의 상세(확인·리뷰·사진·수정)
+ *  season  — 시즌 카운터(확인·제보) */
+const TAG_PLACES = "places";
+const TAG_SEASON = "season";
+const placeTag = (id: string) => `place:${id}`;
+
+/**
+ * `next build` 중(OG 카드 generateStaticParams·렌더)에는 캐시를 거치지 않는다. 빌드가 만든 unstable_cache 엔트리는
+ * `.next/cache/fetch-cache`에 남아 다음 빌드에 재사용되고 populateCache가 R2에 새 시각으로 실어 보내서,
+ * 그 뒤 updateTag가 만료해도 "새 엔트리"로 읽혔다(workerd 실측 2026-09-10 — 확인 2회가 1회로). 런타임 캐시는 첫 요청에 채운다.
+ */
+const BUILDING = process.env["NEXT_PHASE"] === "phase-production-build";
+function cachedUnlessBuilding<T>(fn: () => Promise<T>, keys: string[], tags: string[]): () => Promise<T> {
+  return BUILDING ? fn : unstable_cache(fn, keys, { tags });
+}
+
+/** 쓰기 직후 캐시 만료 — 서버 액션 안이라 updateTag(읽기-자기-쓰기: 다음 요청이 새 값을 기다린다) */
+function expirePlace(id: string): void {
+  updateTag(TAG_PLACES);
+  updateTag(placeTag(id));
+  updateTag(TAG_SEASON);
+}
+
+/** 핀 목록 전체 — 한 번 캐시하고(R2, 태그 places) 필터는 메모리에서. 공개 읽기라 세션·쿠키 없음(빌드 시에도 돈다). */
+const cachedAllPlaces = cachedUnlessBuilding(
+  async (): Promise<unknown[]> => {
+    const db = anonClient();
+    const rows: unknown[] = [];
+    // PostgREST max_rows(기본 1000) — 다 받을 때까지 페이지를 넘긴다
+    const page = 1000;
+    for (let from = 0; ; from += page) {
+      const { data, error } = await db
+        .from("places_public")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .range(from, from + page - 1);
+      if (error) throw new Error("places unavailable");
+      rows.push(...data);
+      if (data.length < page) break;
+    }
+    return rows;
+  },
+  ["places-all"],
+  [TAG_PLACES],
+);
+
 export async function getPlaces(filter: PlaceFilter = {}, _now?: string): Promise<Place[]> {
-  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
-  const rows: unknown[] = [];
-  // PostgREST max_rows(기본 1000) — 다 받을 때까지 페이지를 넘긴다
-  const page = 1000;
-  for (let from = 0; ; from += page) {
-    let q = db.from("places_public").select("*").order("created_at", { ascending: true }).range(from, from + page - 1);
-    if (filter.tag) q = q.contains("tags", [filter.tag]);
-    if (filter.gu) q = q.eq("gu", filter.gu);
-    if (filter.isNew !== undefined) q = q.eq("is_new", filter.isNew);
-    const { data, error } = await q;
-    if (error) throw new Error("places unavailable");
-    rows.push(...data);
-    if (data.length < page) break;
-  }
   const query = normalizeQuery(filter.query ?? "");
-  return rows.map(toPlace).filter((p) => matchesQuery(p, query));
+  return (await cachedAllPlaces())
+    .map(toPlace)
+    .filter((p) => {
+      if (filter.tag && !p.tags.includes(filter.tag)) return false;
+      if (filter.gu && p.gu !== filter.gu) return false;
+      if (filter.isNew !== undefined && p.isNew !== filter.isNew) return false;
+      return matchesQuery(p, query);
+    });
+}
+
+/** 가게 + 리뷰 원본 행 — 가게마다 태그 place:<id> */
+function cachedDetailRows(id: string) {
+  return cachedUnlessBuilding(
+    async (): Promise<{ place: unknown; reviews: unknown[] } | null> => {
+      const db = anonClient();
+      const [placeRes, reviewRes] = await Promise.all([
+        db.from("places_public").select("*").eq("id", id).maybeSingle(),
+        db.from("reviews_public").select("*").eq("place_id", id).order("created_at", { ascending: false }),
+      ]);
+      if (placeRes.error || reviewRes.error) throw new Error("place unavailable");
+      return placeRes.data ? { place: placeRes.data, reviews: reviewRes.data } : null;
+    },
+    ["place-detail", id],
+    [TAG_PLACES, placeTag(id)],
+  );
 }
 
 export async function getPlaceById(id: string, _now?: string): Promise<Place | undefined> {
   if (!idSchema.safeParse(id).success) return undefined;
-  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
-  const { data, error } = await db.from("places_public").select("*").eq("id", id).maybeSingle();
-  if (error) throw new Error("place unavailable");
-  return data ? toPlace(data) : undefined;
+  const rows = await cachedDetailRows(id)();
+  return rows ? toPlace(rows.place) : undefined;
 }
 
 /** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id·uuid 아님은 undefined. */
 export async function getPlaceDetail(id: string, _now?: string): Promise<PlaceDetail | undefined> {
   if (!idSchema.safeParse(id).success) return undefined;
-  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
-  const [placeRes, reviewRes] = await Promise.all([
-    db.from("places_public").select("*").eq("id", id).maybeSingle(),
-    db.from("reviews_public").select("*").eq("place_id", id).order("created_at", { ascending: false }),
-  ]);
-  if (placeRes.error || reviewRes.error) throw new Error("place unavailable");
-  if (!placeRes.data) return undefined;
-  return { place: toPlace(placeRes.data), reviews: reviewRes.data.map(toReview) };
+  const rows = await cachedDetailRows(id)();
+  return rows ? { place: toPlace(rows.place), reviews: rows.reviews.map(toReview) } : undefined;
 }
 
 const seasonStatsSchema = z.object({
@@ -142,11 +198,18 @@ const seasonStatsSchema = z.object({
   topPlace: z.object({ id: z.string(), name: z.string(), count: z.number() }).nullable(),
 });
 
+const cachedSeasonStats = cachedUnlessBuilding(
+  async (): Promise<unknown> => {
+    const { data, error } = await anonClient().rpc("season_stats");
+    if (error) throw new Error("stats unavailable");
+    return data;
+  },
+  ["season-stats"],
+  [TAG_SEASON],
+);
+
 export async function getSeasonStats(_now?: string): Promise<SeasonStats> {
-  const db = anonClient(); // 공개 읽기 — 세션·쿠키 없음(빌드 시에도 돈다)
-  const { data, error } = await db.rpc("season_stats");
-  if (error) throw new Error("stats unavailable");
-  return seasonStatsSchema.parse(data);
+  return seasonStatsSchema.parse(await cachedSeasonStats());
 }
 
 /** 현재 세션의 찜 목록. 방문자(세션 없음)는 빈 배열 — RLS가 본인 행만 준다. */
@@ -273,6 +336,7 @@ export async function checkIn(placeId: string, turnstile: string, _now?: string)
   const actor = await ensureUser(db);
   const { error } = await db.from("checkins").insert({ place_id: id, actor, type: "visited" });
   if (error) return fail(error.code === "23505" ? "already checked" : "place not found");
+  expirePlace(id);
   return placeOrFail(db, id);
 }
 
@@ -319,6 +383,8 @@ export async function submitReport(input: ReportPayload, turnstile: string, _now
     ...(report.duplicateOf !== null && { p_duplicate_of: report.duplicateOf }),
   });
   if (error) return fail(failFromDb(error));
+  updateTag(TAG_PLACES);
+  updateTag(TAG_SEASON);
   return placeOrFail(db, id);
 }
 
@@ -353,6 +419,7 @@ export async function submitSuggestion(input: SuggestionInput, turnstile: string
     p_value: value as never,
   });
   if (error) return fail(failFromDb(error));
+  expirePlace(parsed.placeId);
   return placeOrFail(db, parsed.placeId);
 }
 
@@ -418,6 +485,77 @@ export async function submitOwnerRequest(input: OwnerRequestInput, turnstile: st
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+ * 사진 (spec 4.2-1 — 즉시 반영, 가게당 10장, 1200px webp 재인코딩)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/** FormData의 문자열 필드만 — 파일이 들어오면 빈 문자열(문에서 거부된다) */
+function formString(form: FormData, name: string): string {
+  const value = form.get(name);
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * 사진 올리기 — FormData(placeId · turnstile · photos[]). 파일은 액션 인자로 직렬화되지 않아 FormData다.
+ * 남은 자리보다 많이 고르면 앞에서부터 채운다. 10장 상한·가게당 시간 10장·월 4,500장은 DB(트리거·RLS)가 마지막으로 막는다.
+ * 저장은 R2 put → photos 행 순서고, 행이 거부되면 객체를 지운다(고아 객체 없음).
+ */
+export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
+  const parsed = photoUploadSchema.parse({ placeId: form.get("placeId"), files: form.getAll("photos") });
+  const gate = await openWriteGate(formString(form, "turnstile"));
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
+  const uploader = await ensureUser(db);
+  const current = await placeOrFail(db, parsed.placeId);
+  if (!current.ok) return current;
+  const room = MAX_PLACE_PHOTOS - current.value.photos.length;
+  if (room <= 0) return fail("photo limit reached");
+  let stored = 0;
+  for (const file of parsed.files.slice(0, room)) {
+    const photoId = crypto.randomUUID();
+    const key = placePhotoKey(parsed.placeId, photoId);
+    const result = await storePhoto(file, key);
+    if (result === "not-image") {
+      if (stored === 0) return fail("not image");
+      break;
+    }
+    const { error } = await db.from("photos").insert({ id: photoId, place_id: parsed.placeId, key, uploader_id: uploader });
+    if (error) {
+      await deletePhotoObject(key);
+      if (stored === 0) return fail(failFromDb(error));
+      break; // 몇 장은 들어갔다 — 그만큼만 반영
+    }
+    stored += 1;
+  }
+  expirePlace(parsed.placeId);
+  return placeOrFail(db, parsed.placeId);
+}
+
+/** 리뷰 사진 붙이기 — 등록 직후 한 장(FormData: reviewId · turnstile · photo). 본인 리뷰만(RLS). */
+export async function attachReviewPhoto(form: FormData): Promise<Result<Review>> {
+  const reviewId = idSchema.parse(form.get("reviewId"));
+  const photo = form.get("photo");
+  if (!(photo instanceof File)) return fail("not image");
+  const gate = await openWriteGate(formString(form, "turnstile"));
+  if ("failure" in gate) return fail(gate.failure);
+  const { db } = gate;
+  try {
+    await requireKakao(db);
+  } catch {
+    return fail("login required");
+  }
+  const key = reviewPhotoKey(reviewId, crypto.randomUUID());
+  if ((await storePhoto(photo, key)) === "not-image") return fail("not image");
+  const { data, error } = await db.from("reviews").update({ photo_key: key }).eq("id", reviewId).select("id, place_id");
+  if (error || data.length === 0) {
+    await deletePhotoObject(key);
+    return fail("forbidden");
+  }
+  for (const row of data) expirePlace(row.place_id);
+  const review = await reviewById(db, reviewId);
+  return review ? okay(review) : fail("forbidden");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
  * 리뷰 (spec 5 — 카카오 필수, 핀당 1, 본인 수정·소프트 삭제)
  * ════════════════════════════════════════════════════════════════════════ */
 
@@ -447,6 +585,7 @@ export async function submitReview(
     .select("id")
     .single();
   if (error) return fail(error.code === "23505" ? "already reviewed" : failFromDb(error));
+  expirePlace(parsed.placeId);
   const [review, place] = await Promise.all([reviewById(db, data.id), placeOrFail(db, parsed.placeId)]);
   if (!review || !place.ok) return fail("place not found");
   return okay({ review, place: place.value });
@@ -475,6 +614,7 @@ export async function updateReview(
     .select("id");
   if (error || data.length === 0) return fail("forbidden");
   const review = await reviewById(db, id);
+  if (review) expirePlace(review.placeId);
   return review ? okay(review) : fail("forbidden");
 }
 
@@ -488,8 +628,9 @@ export async function deleteReview(reviewId: string, turnstile: string): Promise
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null)
-    .select("id");
+    .select("id, place_id");
   if (error || data.length === 0) return fail("forbidden");
+  for (const row of data) expirePlace(row.place_id);
   return okay(undefined);
 }
 
@@ -623,6 +764,7 @@ export async function setPlaceHidden(
     : { hidden_at: null, removed_by_owner: false };
   const { data, error } = await db.from("places").update(patch).eq("id", id).select("id");
   if (error || data.length === 0) return fail("forbidden");
+  expirePlace(id);
   return adminPlaceWithPhotos(db, id);
 }
 
@@ -643,6 +785,7 @@ export async function deletePlacePhoto(placeId: string, photoId: string): Promis
     .eq("place_id", place)
     .select("id");
   if (error || data.length === 0) return fail("forbidden");
+  expirePlace(place);
   return adminPlaceWithPhotos(db, place);
 }
 
@@ -722,6 +865,7 @@ export async function revertPlaceEdit(editId: string, _now?: string): Promise<Re
     .eq("id", edit.place_id)
     .select("id");
   if (updateError || updated.length === 0) return fail("forbidden");
+  expirePlace(edit.place_id);
   return adminPlaceWithPhotos(db, edit.place_id);
 }
 

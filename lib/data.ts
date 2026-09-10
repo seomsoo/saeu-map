@@ -161,10 +161,16 @@ export async function setBookmark(placeId: string, bookmarked: boolean): Promise
   return unwrap(await actions.setBookmark(placeId, bookmarked, await token()));
 }
 
-/** 제보 등록. 고른 사진은 액션에 실리지 않는다 — 업로드는 플랜 커밋 6(R2 + Images)에서 붙는다. */
+/** 제보 등록. 사진은 가게가 생긴 뒤 같은 업로드 길(addPlacePhotos)로 — 업로드가 실패해도 제보는 남는다(사진 없는 가게). */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
-  const { photos: _photos, ...payload } = input;
-  return unwrap(await actions.submitReport(payload, await token(), String(now)));
+  const { photos, ...payload } = input;
+  const place = unwrap(await actions.submitReport(payload, await token(), String(now)));
+  if (photos.length === 0) return place;
+  try {
+    return await addPlacePhotos(place.id, photos, now);
+  } catch {
+    return place;
+  }
 }
 
 export async function submitSuggestion(
@@ -190,15 +196,30 @@ export async function submitOwnerRequest(input: Parameters<typeof actions.submit
   unwrap(await actions.submitOwnerRequest(input, await token()));
 }
 
-/** 사진 올리기 — 저장소(R2)는 플랜 커밋 6. 그때까지는 실패로 돌려 화면이 롤백·토스트를 보인다. */
-export function addPlacePhotos(_placeId: string, _files: readonly File[], _now: DateInput): Promise<Place> {
-  return Promise.reject(new Error("photo storage not ready"));
+/** 사진 올리기 — 파일은 FormData로(액션 인자로 직렬화되지 않는다). 즉시 반영이라 갱신된 Place를 돌려준다. */
+export async function addPlacePhotos(placeId: string, files: readonly File[], _now: DateInput): Promise<Place> {
+  const form = new FormData();
+  form.set("placeId", placeId);
+  form.set("turnstile", await token());
+  for (const file of files) form.append("photos", file);
+  return unwrap(await actions.addPlacePhotos(form));
 }
 
-/** 리뷰 등록. 사진은 액션에 실리지 않는다(커밋 6). */
+/** 리뷰 등록. 사진이 있으면 등록 뒤 붙인다 — 붙이기가 실패해도 리뷰는 남는다. */
 export async function submitReview(input: ReviewInput, now: DateInput): Promise<{ review: Review; place: Place }> {
-  const { photo: _photo, ...payload } = input;
-  return unwrap(await actions.submitReview(payload, await token(), String(now)));
+  const { photo, ...payload } = input;
+  const saved = unwrap(await actions.submitReview(payload, await token(), String(now)));
+  if (photo === null) return saved;
+  const form = new FormData();
+  form.set("reviewId", saved.review.id);
+  form.set("turnstile", await token());
+  form.set("photo", photo);
+  try {
+    const review = unwrap(await actions.attachReviewPhoto(form));
+    return { review, place: saved.place };
+  } catch {
+    return saved;
+  }
 }
 
 export async function updateReview(reviewId: string, patch: ReviewPatch, now: DateInput): Promise<Review> {

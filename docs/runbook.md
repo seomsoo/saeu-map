@@ -39,6 +39,7 @@
 
 순서대로. 각 항목이 어느 커밋 전에 필요한지 적었다.
 
+0. **R2 켜기** (커밋 8 배포 전) — dash.cloudflare.com → R2 Object Storage → 시작(무료 플랜, 결제 수단을 묻는 계정도 있다 — 무료 한도 안이면 청구 0). 켜진 뒤 내가 `wrangler r2 bucket create saeu-photos`·`saeu-cache`를 돌린다(그 전엔 API가 10042로 거부한다). D1 `saeu-tags`는 이미 만들었다.
 1. **`supabase login`** (커밋 4 전) — 터미널에서 `! supabase login`을 치면 브라우저가 열리고 승인 한 번. 그 뒤 프로젝트 생성·연결·마이그레이션은 CLI로 내가 한다.
 2. **카카오 개발자 앱** (커밋 4 전) — developers.kakao.com → 내 애플리케이션 → 추가. 앱 이름 "새우맵". 그 다음:
    - 앱 키 → **REST API 키**를 복사해 둔다(= client_id).

@@ -14,11 +14,21 @@ import { env } from "@/lib/env";
 
 export type Db = SupabaseClient<Database>;
 
+/**
+ * Next는 전역 fetch를 가로채 `unstable_cache` 안의 응답을 다시 캐시한다 — PostgREST 응답이 거기 걸리면
+ * 태그를 만료해도 콜백이 옛 응답을 돌려받아 **옛 값이 새 시각으로 다시 캐시된다**(workerd 실측 2026-09-10).
+ * 캐시 층은 unstable_cache 하나여야 한다: Supabase 요청은 항상 no-store.
+ */
+const BUILDING = process.env["NEXT_PHASE"] === "phase-production-build";
+const uncachedFetch: typeof fetch = (input, init) =>
+  // `next build`의 정적 렌더(OG 카드) 안에서 no-store는 DynamicServerError를 던진다 — 빌드에선 기본 fetch(그 결과는 산출물에 안 남는다: actions.ts의 BUILDING 우회)
+  fetch(input, BUILDING ? init : { ...init, cache: "no-store" });
+
 /** `ipHash`는 쓰기 문(write-gate)이 준다 — PostgREST가 request.headers로 넘기고 DB의 rate_ok가 읽는다 */
 export async function userClient(options: { ipHash?: string } = {}): Promise<Db> {
   const store = await cookies();
   return createServerClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
-    ...(options.ipHash !== undefined && { global: { headers: { "x-ip-hash": options.ipHash } } }),
+    global: { fetch: uncachedFetch, ...(options.ipHash !== undefined && { headers: { "x-ip-hash": options.ipHash } }) },
     cookies: {
       getAll() {
         return store.getAll();
@@ -42,6 +52,7 @@ let anon: Db | null = null;
 export function anonClient(): Db {
   anon ??= createClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: uncachedFetch },
   });
   return anon;
 }
@@ -53,5 +64,6 @@ export function adminClient(): Db {
   }
   return createClient<Database>(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: uncachedFetch },
   });
 }
