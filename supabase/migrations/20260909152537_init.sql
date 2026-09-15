@@ -131,6 +131,7 @@ create table public.reviews (
   rating smallint not null check (rating between 1 and 5),
   text text not null default '' check (char_length(text) <= 500),
   photo_key text check (photo_key is null or char_length(photo_key) <= 200),
+  photo_at timestamptz,  -- 사진이 붙은 시각(트리거가 찍는다) — 월 상한 집계용
   created_at timestamptz not null default now(),
   edited_at timestamptz,
   deleted_at timestamptz
@@ -240,9 +241,11 @@ create or replace function private.place_visible(p_place uuid) returns boolean l
 $$;
 
 -- 최근 p_window 동안 같은 사람(actor) 또는 같은 IP가 p_kind를 p_limit 미만으로 했는가. p_place가 있으면 그 가게에 한해서.
+-- 사람도 IP도 모르면 false(fail closed) — 키가 새서 헤더 없이 직접 부르면 세는 축이 없어 무제한이 된다(security-reviewer 2026-09-16 #5·#15).
 create or replace function private.rate_ok(p_kind text, p_limit integer, p_window interval, p_place uuid default null)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select (
+  select ((select auth.uid()) is not null or private.request_ip_hash() is not null)
+  and (
     select count(*) from public.rate_events e
     where e.kind = p_kind
       and e.at >= now() - p_window
@@ -254,10 +257,13 @@ returns boolean language sql stable security definer set search_path = '' as $$
   ) < p_limit;
 $$;
 
--- 이번 달(KST) 올라온 사진 수 — Images 변환 무료 5,000장 안에서 정지시키는 전역 상한(4,500)용
+-- 이번 달(KST) 올라온 사진 수(가게 사진 + 리뷰 사진) — Images 변환 무료 5,000장 안에서 정지시키는 전역 상한(4,500)용
 create or replace function private.photos_this_month() returns integer language sql stable security definer set search_path = '' as $$
-  select count(*)::integer from public.photos
-  where created_at >= (date_trunc('month', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul');
+  select (
+    (select count(*) from public.photos p where p.created_at >= m.start)
+    + (select count(*) from public.reviews r where r.photo_at >= m.start)
+  )::integer
+  from (select (date_trunc('month', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul') as start) m;
 $$;
 
 -- ── 트리거 함수 ────────────────────────────────────────────────────────────────
@@ -400,6 +406,32 @@ create trigger reviews_rate after insert on public.reviews
   for each row execute function private.log_rate_event('review', 'place_id');
 create trigger reviews_checkin after insert on public.reviews
   for each row execute function private.checkin_on_review();
+-- 리뷰 사진은 한 번만 붙인다(교체 없음 = 고아 객체 없음). 붙일 때 가게 사진과 같은 속도 제한·월 상한을 세고 photo_at을 찍는다
+-- (security-reviewer 2026-09-16 #6). 떼는 것(null)은 자유 — 탈퇴 RPC가 쓴다.
+create or replace function private.guard_review_photo() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' then
+    if new.photo_key is not distinct from old.photo_key then return new; end if;
+    if old.photo_key is not null and new.photo_key is not null then
+      raise exception 'photo already attached' using errcode = 'check_violation';
+    end if;
+  end if;
+  if new.photo_key is not null then
+    if not private.rate_ok('photo', 10, interval '1 hour') then
+      raise exception 'rate limited' using errcode = 'P0003';
+    end if;
+    if private.photos_this_month() >= 4500 then
+      raise exception 'photo limit reached' using errcode = 'check_violation';
+    end if;
+    new.photo_at := now();
+    insert into public.rate_events (kind, actor, ip_hash, place_id)
+    values ('photo', (select auth.uid()), private.request_ip_hash(), new.place_id);
+  end if;
+  return new;
+end;
+$$;
+create trigger reviews_photo_once before insert or update of photo_key on public.reviews
+  for each row execute function private.guard_review_photo();
 
 create trigger photos_shadow before insert on public.photos
   for each row execute function private.drop_if_shadow_banned();
@@ -455,6 +487,15 @@ where r.deleted_at is null;
 comment on view public.reviews_public is '보이는 리뷰 + 작성자 닉네임(profiles는 id·nickname 열만 GRANT).';
 
 -- ── RPC (public, SECURITY DEFINER — 각자 auth.uid()·속도·섀도 밴을 검사한다) ──
+-- 사진 변환(Images, 월 5,000장 무료) 전에 자리가 있는지 묻는다 — 정책이 거부할 업로드를 변환부터 하지 않게(security-reviewer 2026-09-16 #7).
+-- 진짜 판정은 photos_insert 정책과 reviews_photo_once 트리거다. INVOKER — private 함수들이 각자 DEFINER.
+create or replace function public.photo_slot_ok(p_place uuid default null) returns boolean
+language sql stable set search_path = '' as $$
+  select (select private.rate_ok('photo', 10, interval '1 hour', p_place)) and (select private.photos_this_month()) < 4500;
+$$;
+revoke execute on function public.photo_slot_ok(uuid) from public, anon;
+grant execute on function public.photo_slot_ok(uuid) to authenticated;
+
 -- 제보 등록 (spec 4.3). 가게 하나를 통째로 만드는 가장 비싼 쓰기 — 시간당 5.
 create or replace function public.submit_report(
   p_name text, p_lat double precision, p_lng double precision, p_gu text,
@@ -783,7 +824,7 @@ grant select (id, seed_ref, name, gu, address_road, address_jibun, lat, lng, nea
   naver_place_url, hours_note, menus, sides, source, created_at) on public.places to anon, authenticated;
 grant update on public.places to authenticated;                        -- 행은 관리자 정책(places_admin_update)이 가른다
 grant select (id, place_id, type, at, kst_day) on public.checkins to anon, authenticated;
-grant insert on public.checkins to authenticated;
+grant insert (place_id, actor, type) on public.checkins to authenticated;  -- at·kst_day는 서버가 정한다(security-reviewer 2026-09-16 #15)
 grant select, insert on public.reviews to anon, authenticated;
 revoke insert on public.reviews from anon;
 grant update (rating, text, photo_key, edited_at, deleted_at) on public.reviews to authenticated;
@@ -794,7 +835,7 @@ grant update (removed_at) on public.photos to authenticated;
 grant select, insert on public.reports to authenticated;
 grant update (status, resolved_at) on public.reports to authenticated;
 grant select on public.place_edits to authenticated;
-grant insert on public.peel_results to anon, authenticated;
+grant insert (type) on public.peel_results to anon, authenticated;
 grant usage on all sequences in schema public to authenticated;
 grant execute on function private.is_admin(), private.is_shadow_banned(), private.place_visible(uuid),
   private.rate_ok(text, integer, interval, uuid), private.photos_this_month(), private.request_ip_hash(), private.is_anonymous()

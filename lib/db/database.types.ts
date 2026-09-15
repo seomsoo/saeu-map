@@ -427,6 +427,7 @@ export type Database = {
           deleted_at: string | null
           edited_at: string | null
           id: string
+          photo_at: string | null
           photo_key: string | null
           place_id: string
           rating: number
@@ -438,6 +439,7 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          photo_at?: string | null
           photo_key?: string | null
           place_id: string
           rating: number
@@ -449,6 +451,7 @@ export type Database = {
           deleted_at?: string | null
           edited_at?: string | null
           id?: string
+          photo_at?: string | null
           photo_key?: string | null
           place_id?: string
           rating?: number
@@ -643,6 +646,7 @@ export type Database = {
         }
       }
       peel_stats: { Args: never; Returns: Json }
+      photo_slot_ok: { Args: { p_place?: string }; Returns: boolean }
       season_stats: { Args: never; Returns: Json }
       submit_report: {
         Args: {

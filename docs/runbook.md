@@ -68,7 +68,7 @@ wrangler secret put SUPABASE_SECRET_KEY   # 등 비밀값
 supabase projects create saeu-map --region ap-northeast-2 ...   # 정확한 플래그는 --help
 supabase link --project-ref <ref>
 supabase db push                          # 마이그레이션
-supabase config push                      # 익명 로그인·카카오 공급자 설정
+supabase config push                      # 익명 로그인·카카오 공급자·이메일 가입 닫힘([auth.email] enable_signup=false)
 # GitHub
 gh secret set SUPABASE_SECRET_KEY < …     # 값은 파일·stdin으로만
 gh variable set SUPABASE_URL --body …

@@ -25,7 +25,6 @@ export interface Photo {
    * 올린 사람 — 탈퇴하면 사진은 남기고 이 값만 뗀다(제보 가게의 `reporterId`와 같은 규칙, spec 5).
    * 시드 사진에는 없다. Phase 6에서는 신고된 사진의 업로더 추적·속도 제한이 이 값을 쓴다.
    */
-  uploaderId?: string;
 }
 
 /**

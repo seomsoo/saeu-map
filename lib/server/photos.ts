@@ -4,6 +4,7 @@
  * 바인딩은 `getCloudflareContext`로: 워커·`next dev`(initOpenNextCloudflareForDev, 로컬 시뮬레이션) 둘 다 있다.
  * 저장소를 옮길 때(NCP 등) 바뀌는 건 이 파일의 put·delete와 서빙 라우트뿐이다.
  */
+import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const MAX_EDGE_PX = 1200;

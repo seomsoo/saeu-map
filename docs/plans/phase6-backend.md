@@ -205,6 +205,7 @@ Data API 노출은 **`places_public`·`checkins`·`reviews`·`bookmarks`·`photo
 5. `feat(writes)`: 쓰기 액션 11종(확인·찜·제보·제안·리뷰 3·사진·신고 3·사장님·닉네임·탈퇴) + Turnstile + Postgres 속도·필터 + `PREVIEW_READONLY` — 화면 무변경 확인
 5b. `feat(ratelimit-edge)`: Cloudflare 속도 제한 바인딩 보조 — 프리뷰에서 발화 확인
 6. `feat(cache)`: R2·D1·open-next·unstable_cache·revalidateTag·`/photos` 라우트 — workerd 확인
+   - 6b. `fix(security)`: 중간 security-reviewer 15건 중 10건 반영(높음 2 포함), 1건은 커밋 8, 4건 백로그 — decisions 2026-09-16
 7. `feat(admin)`: 서버 게이트 404·5탭 액션·검수 필터·중복 의심·합치기·리다이렉트·디스코드 웹훅·`peel_results` 테이블
 8. `ci`: db 잡·실 DB 스모크·프리뷰 읽기 전용 변수·prod 키·keepalive·runbook
 9. `feat(ops)`: Sentry + 발화 확인(안 되면 decisions에 Phase 7 이월)

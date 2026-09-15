@@ -217,7 +217,9 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = true
+# 새우맵은 카카오·익명뿐(decisions 2026-09-09 "자체 가입 없음"). 열어 두면 URL + publishable 키만으로 확인 없는 이메일 계정이 생기고
+# 비익명 = 카카오로 보는 게이트를 지난다(security-reviewer 2026-09-16 #4). config push가 실서비스에도 같은 값을 올린다.
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

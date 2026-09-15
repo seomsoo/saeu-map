@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sameOriginPath } from "@/lib/safe-next";
 import { adminClient, userClient } from "@/lib/server/supabase";
 import { isReadOnly } from "@/lib/server/write-gate";
 
@@ -12,8 +13,7 @@ import { isReadOnly } from "@/lib/server/write-gate";
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const rawNext = url.searchParams.get("next") ?? "/";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const next = sameOriginPath(url.searchParams.get("next"), url.origin);
   const back = (status: "ok" | "fail"): Response => {
     const target = new URL(next, url.origin);
     target.searchParams.set("login", status);

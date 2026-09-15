@@ -2,6 +2,7 @@
  * DB 행 → 앱 타입. 뷰의 열은 전부 nullable로 생성되므로(PostgREST 타입 생성기 한계) zod로 실제 모양을 확인한다.
  * 순수 함수 — 테스트는 lib/server/__tests__/rows.test.ts.
  */
+import "server-only";
 import { z } from "zod";
 import { STATION_NEARBY_MAX_M } from "@/lib/schemas";
 import type { Photo, Place, Review } from "@/lib/types";
@@ -149,7 +150,6 @@ export const photoRowSchema = z.object({
   place_id: z.uuid(),
   key: z.string(),
   created_at: z.string(),
-  uploader_id: z.uuid().nullable().optional(),
 });
 
 export function toPhoto(input: unknown): Photo & { placeId: string } {
@@ -159,7 +159,6 @@ export function toPhoto(input: unknown): Photo & { placeId: string } {
     placeId: row.place_id,
     url: photoUrl(row.key),
     uploadedAt: row.created_at,
-    ...(row.uploader_id != null && { uploaderId: row.uploader_id }),
   };
 }
 

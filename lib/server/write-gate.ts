@@ -6,6 +6,7 @@
  *  4) IP 해시를 만들어 Supabase 요청 헤더(x-ip-hash)에 싣는다 — DB의 rate_ok가 actor 또는 IP로 센다(스팸 4겹 2)
  * 관리자 쓰기는 이 문을 지나지 않는다(is_admin RLS가 게이트, 스팸 표면이 아니다) — 프리뷰 차단만 같이 받는다.
  */
+import "server-only";
 import { headers } from "next/headers";
 import { env } from "@/lib/env";
 import { edgeRateLimitOk } from "./edge-rate-limit";

@@ -6,6 +6,7 @@
  * adminClient: secret key(서비스 역할) — RLS를 우회한다. 병합·탈퇴·임포트·크론뿐. 프리뷰 워커에는 키가 없다.
  *   **뷰(places_public)도 이 클라이언트로 읽으면 숨긴 가게가 나온다** — 읽기에 절대 쓰지 않는다.
  */
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";

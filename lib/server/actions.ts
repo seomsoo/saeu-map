@@ -14,6 +14,7 @@ import { env } from "@/lib/env";
 import { guOfPoint } from "@/lib/gu";
 import { applyMenuEdits, toMenu } from "@/lib/menu-edits";
 import { placePhotoKey, reviewPhotoKey } from "@/lib/photo-key";
+import { sameOriginPath } from "@/lib/safe-next";
 import { matchesQuery, normalizeQuery } from "@/lib/places";
 import {
   ADMIN_PAGE_SIZE,
@@ -270,10 +271,10 @@ export async function getSession(): Promise<Session> {
  */
 export async function signInWithKakao(next: string): Promise<string> {
   if (isReadOnly()) throw new Error("read only");
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const site = siteUrl(env.SITE_URL);
   const db = await userClient();
-  const redirectTo = new URL("/auth/callback", siteUrl(env.SITE_URL));
-  redirectTo.searchParams.set("next", safeNext);
+  const redirectTo = new URL("/auth/callback", site);
+  redirectTo.searchParams.set("next", sameOriginPath(next, site.origin));
   const { data, error } = await db.auth.signInWithOAuth({
     provider: "kakao",
     options: { redirectTo: redirectTo.toString(), skipBrowserRedirect: true },
@@ -295,10 +296,27 @@ export async function deleteAccount(turnstile: string): Promise<Session> {
   if ("failure" in gate) throw new Error(gate.failure);
   const { db } = gate;
   const uid = await requireKakao(db);
+  // 리뷰 사진의 R2 객체는 RPC가 키를 비우기 전에 읽어 둔다 — 행만 지우면 URL을 아는 사람에겐 사진이 남는다(spec 5 "완전 삭제")
+  const { data: keyed } = await db.from("reviews").select("photo_key").eq("author_id", uid).not("photo_key", "is", null);
   const { error } = await adminClient().rpc("admin_delete_user", { p_uid: uid });
   if (error) throw new Error("delete failed");
+  await forgetPhotoObjects(photoKeys(keyed ?? []));
   await db.auth.signOut();
   return VISITOR;
+}
+
+/** DB에서 뗀 사진의 R2 객체 지우기 — 실패해도 액션은 성공이다(행은 이미 바뀌었다). 고아 객체는 월간 점검(runbook)이 잡는다 */
+async function forgetPhotoObjects(keys: readonly string[]): Promise<void> {
+  for (const key of keys) {
+    try {
+      await deletePhotoObject(key);
+    } catch (e) {
+      console.error("photo object delete failed", key, e instanceof Error ? e.message : e);
+    }
+  }
+}
+function photoKeys(rows: readonly { photo_key: string | null }[]): string[] {
+  return rows.map((r) => r.photo_key).filter((k): k is string => k !== null);
 }
 
 export async function updateNickname(nickname: string, turnstile: string): Promise<Result<Session>> {
@@ -509,6 +527,9 @@ export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
   if (!current.ok) return current;
   const room = MAX_PLACE_PHOTOS - current.value.photos.length;
   if (room <= 0) return fail("photo limit reached");
+  // 변환(Images 무료 5,000장/월) 전에 자리를 묻는다 — 정책이 거부할 업로드를 변환부터 하면 한도만 탄다(security-reviewer 2026-09-16 #7)
+  const { data: slot } = await db.rpc("photo_slot_ok", { p_place: parsed.placeId });
+  if (slot !== true) return fail("rate limited");
   let stored = 0;
   for (const file of parsed.files.slice(0, room)) {
     const photoId = crypto.randomUUID();
@@ -530,7 +551,10 @@ export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
   return placeOrFail(db, parsed.placeId);
 }
 
-/** 리뷰 사진 붙이기 — 등록 직후 한 장(FormData: reviewId · turnstile · photo). 본인 리뷰만(RLS). */
+/**
+ * 리뷰 사진 붙이기 — 등록 직후 한 장(FormData: reviewId · turnstile · photo). 본인 리뷰만(RLS), **교체는 없다**(트리거 reviews_photo_once —
+ * 바꿔치기가 되면 옛 객체가 고아로 쌓이고 변환 한도를 무한히 탄다, security-reviewer 2026-09-16 #6). 변환 전에 사진 자리(속도·월 상한)를 묻는다.
+ */
 export async function attachReviewPhoto(form: FormData): Promise<Result<Review>> {
   const reviewId = idSchema.parse(form.get("reviewId"));
   const photo = form.get("photo");
@@ -538,17 +562,28 @@ export async function attachReviewPhoto(form: FormData): Promise<Result<Review>>
   const gate = await openWriteGate(formString(form, "turnstile"));
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
+  let uid: string;
   try {
-    await requireKakao(db);
+    uid = await requireKakao(db);
   } catch {
     return fail("login required");
   }
+  const { data: target } = await db.from("reviews").select("photo_key").eq("id", reviewId).eq("author_id", uid).maybeSingle();
+  if (!target) return fail("forbidden");
+  if (target.photo_key !== null) return fail("photo limit reached");
+  const { data: slot } = await db.rpc("photo_slot_ok");
+  if (slot !== true) return fail("rate limited");
   const key = reviewPhotoKey(reviewId, crypto.randomUUID());
   if ((await storePhoto(photo, key)) === "not-image") return fail("not image");
-  const { data, error } = await db.from("reviews").update({ photo_key: key }).eq("id", reviewId).select("id, place_id");
+  const { data, error } = await db
+    .from("reviews")
+    .update({ photo_key: key })
+    .eq("id", reviewId)
+    .is("photo_key", null)
+    .select("id, place_id");
   if (error || data.length === 0) {
-    await deletePhotoObject(key);
-    return fail("forbidden");
+    await forgetPhotoObjects([key]);
+    return fail(error ? failFromDb(error) : "forbidden");
   }
   for (const row of data) expirePlace(row.place_id);
   const review = await reviewById(db, reviewId);
@@ -628,9 +663,10 @@ export async function deleteReview(reviewId: string, turnstile: string): Promise
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null)
-    .select("id, place_id");
+    .select("id, place_id, photo_key");
   if (error || data.length === 0) return fail("forbidden");
   for (const row of data) expirePlace(row.place_id);
+  await forgetPhotoObjects(photoKeys(data)); // 지운 리뷰의 사진은 URL로도 안 보여야 한다(#8)
   return okay(undefined);
 }
 
@@ -713,7 +749,7 @@ async function adminPhotos(db: Db, placeIds: readonly string[]): Promise<Map<str
   if (placeIds.length === 0) return map;
   const { data, error } = await db
     .from("photos")
-    .select("id, place_id, key, created_at, uploader_id")
+    .select("id, place_id, key, created_at")
     .in("place_id", [...placeIds])
     .is("removed_at", null)
     .order("created_at", { ascending: true });
@@ -772,7 +808,7 @@ export async function deletePlace(placeId: string, now?: string, byOwner = false
   return setPlaceHidden(placeId, true, now, { byOwner });
 }
 
-/** 신고된 사진 내리기 — 사진만 빼고 가게는 그대로. */
+/** 신고된 사진 내리기 — 사진만 빼고 가게는 그대로. R2 객체도 지운다(URL을 아는 사람에게 계속 보이면 내린 게 아니다, #8). 되돌리기 없음. */
 export async function deletePlacePhoto(placeId: string, photoId: string): Promise<Result<Place>> {
   const place = idSchema.parse(placeId);
   if (isReadOnly()) return fail("read only");
@@ -783,8 +819,9 @@ export async function deletePlacePhoto(placeId: string, photoId: string): Promis
     .update({ removed_at: new Date().toISOString() })
     .eq("id", photo)
     .eq("place_id", place)
-    .select("id");
+    .select("id, key");
   if (error || data.length === 0) return fail("forbidden");
+  await forgetPhotoObjects(data.map((r) => r.key));
   expirePlace(place);
   return adminPlaceWithPhotos(db, place);
 }

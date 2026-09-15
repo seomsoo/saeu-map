@@ -4,7 +4,7 @@ import { ensureUser, readSession, requireKakao, VISITOR } from "../session";
 
 /** auth 클라이언트 가짜 — getClaims(로컬 JWT 검증)·getUser(서버 왕복)·signOut·signInAnonymously만 */
 function fakeDb(input: {
-  claims?: { sub: string; is_anonymous?: boolean } | null;
+  claims?: { sub: string; is_anonymous?: boolean; app_metadata?: { provider?: string } } | null;
   userExists?: boolean;
   me?: { id: string; nickname: string | null; isAdmin: boolean };
 }) {
@@ -59,7 +59,7 @@ describe("readSession / requireKakao", () => {
       nickname: null,
     });
     const kakao = fakeDb({
-      claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000001", is_anonymous: false },
+      claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000001", is_anonymous: false, app_metadata: { provider: "kakao" } },
       me: { id: "3f2a9c1e-1111-4a1a-9b1b-000000000001", nickname: "새우헌터", isAdmin: true },
     });
     expect(await readSession(kakao.db)).toEqual({
@@ -69,9 +69,17 @@ describe("readSession / requireKakao", () => {
       isAdmin: true,
     });
   });
+  it("비익명이어도 공급자가 카카오가 아니면 방문자다 — 이메일 가입 등 다른 경로가 열려도 게이트를 못 지난다(security-reviewer 2026-09-16)", async () => {
+    const email = fakeDb({
+      claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000002", is_anonymous: false, app_metadata: { provider: "email" } },
+      me: { id: "3f2a9c1e-1111-4a1a-9b1b-000000000002", nickname: "침입자", isAdmin: false },
+    });
+    expect(await readSession(email.db)).toEqual(VISITOR);
+    await expect(requireKakao(email.db)).rejects.toThrow("login required");
+  });
   it("requireKakao는 익명·방문자를 거부한다(리뷰의 마지막 방어선)", async () => {
     await expect(requireKakao(fakeDb({ claims: null }).db)).rejects.toThrow("login required");
     await expect(requireKakao(fakeDb({ claims: { sub: "a1", is_anonymous: true } }).db)).rejects.toThrow("login required");
-    expect(await requireKakao(fakeDb({ claims: { sub: "k1", is_anonymous: false } }).db)).toBe("k1");
+    expect(await requireKakao(fakeDb({ claims: { sub: "k1", is_anonymous: false, app_metadata: { provider: "kakao" } } }).db)).toBe("k1");
   });
 });

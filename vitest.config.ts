@@ -18,6 +18,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "."),
+      // lib/server/*의 `import "server-only"`는 vitest(jsdom)에서 throw한다 — 빈 모듈로 돌린다
+      "server-only": resolve(import.meta.dirname, "vitest.server-only-stub.ts"),
     },
   },
 });
