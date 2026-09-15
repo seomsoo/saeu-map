@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { connection } from "next/server";
 import MapScreen from "@/components/map-screen/map-screen";
-import { getPlaceDetail } from "@/lib/data";
+import { getMergedPlaceTarget, getPlaceDetail } from "@/lib/data";
 import { loadMapScreenData } from "@/lib/map-screen-data";
 import { placeMeta } from "@/lib/seo";
 
@@ -11,11 +11,20 @@ interface PlacePageProps {
   params: Promise<{ id: string }>;
 }
 
+/** 상세, 또는 합쳐진 옛 주소면 새 가게로 **영구 리다이렉트**(spec 4.3 엣지 — 공유된 링크가 죽지 않는다). 둘 다 아니면 undefined = 404 */
+async function detailOrRedirect(id: string, now: string) {
+  const detail = await getPlaceDetail(id, now);
+  if (detail) return detail;
+  const target = await getMergedPlaceTarget(id);
+  if (target !== null) permanentRedirect(`/place/${target}`);
+  return undefined;
+}
+
 export async function generateMetadata({ params }: PlacePageProps): Promise<Metadata> {
   await connection();
   const now = new Date().toISOString();
   const { id } = await params;
-  const detail = await getPlaceDetail(id, now);
+  const detail = await detailOrRedirect(id, now);
   if (!detail) return { title: "가게를 찾을 수 없어요", robots: { index: false } };
   return placeMeta(detail.place, now);
 }
@@ -30,7 +39,7 @@ export default async function PlacePage({ params }: PlacePageProps) {
   const now = new Date().toISOString();
   const { id } = await params;
 
-  const detail = await getPlaceDetail(id, now);
+  const detail = await detailOrRedirect(id, now);
   if (!detail) notFound();
 
   const data = await loadMapScreenData(now);

@@ -808,3 +808,14 @@ security-reviewer(커밋 2~6 diff) 15건: 높음 2·중간 6·낮음 4·정보 3
 - **#14 `server-only`(0.0.1, Vercel)** — `lib/server/*`(actions 제외) 첫 줄에. CLAUDE.md가 "있다"고 적어 뒀는데 없었다.
 - **#15 시각은 서버만** — `checkins` INSERT GRANT를 `(place_id, actor, type)`로, `peel_results`는 `(type)`로. `rate_ok`는 **사람도 IP도 모르면 false**(fail closed) — 키가 새서 헤더 없이 직접 부르면 세는 축이 없어 무제한이었다(#5의 절반).
 - 백로그 4건의 조건은 roadmap 백로그 절에. #12(Turnstile `hostname`)는 더미 키가 돌려주는 hostname을 먼저 확인해야 로컬·CI가 안 깨진다.
+
+
+## 2026-09-16 — 커밋 7 관리자 실연결 (Phase 6)
+
+- **사후 확인 탭이 공개 읽기(`getPlaces`)를 보고 있었다** — 공개 뷰엔 `verified_at`·`hidden_at`이 없어 실 DB에선 **확인을 눌러도 목록에서 영영 안 빠지고 숨긴 제보도 남는** 상태였다(목 단계엔 한 객체라 티가 안 났다). 관리자 목록(`getPlacesForAdmin`)으로 바꾸고 숨긴 것도 거른다. 교훈: 목 → 실 DB 전환에서 "같은 함수 이름"이 같은 열을 준다고 믿지 않는다 — 공개 뷰의 열 목록이 곧 계약이다.
+- **중복 의심 큐**: 제보 2단계에서 "다른 가게예요"로 답한 행(`duplicate_suspect_of`)은 사후 확인 탭에 "중복 의심 · 후보 상호" 배지 + [이 가게로 합치기]. 후보 상호는 공개 뷰에서 붙인다(후보가 숨겨졌으면 배지만). **합치기는 확인 시트(`MergeSheet`)를 거친다** — 되돌리기가 없어 삭제와 같은 급이다(design 화면 10 "확인 모달은 삭제 하나뿐"에 둘째가 생겼다). 검색 탭의 [합치기]는 같은 시트에서 상호로 대상을 찾아 고른다(자기 자신·숨긴 가게 제외).
+- **옛 주소는 영구 리다이렉트** — `merge_target(id)`(공개 RPC, 병합 사슬 최대 5단, 끝이 보이는 가게일 때만)로 `/place/[old]` → `permanentRedirect(/place/new)`. 메타·페이지가 같은 헬퍼를 지나 공유 링크와 OG가 함께 산다(spec 4.3 엣지).
+- **검수 필터**: `admin_places(p_needs_review)` + 검색 탭 [검수 대기] 칩(검색어 대신 숨긴 채 임포트한 시드). **[복구]가 곧 검수 완료** — `needs_review`도 내린다(안 내리면 복구한 가게가 검수 목록에 남는다).
+- **디스코드 웹훅**(`lib/server/notify.ts`): 제보(중복 의심 표시)·가게/사진 신고·정보 달라요·사장님 요청·**신고 누적 3회째**(열린 가게 신고 수가 정확히 3일 때 한 번 — 신고 표는 관리자만 읽어 secret key로 센다, 없으면 건너뛴다). 본문은 상호·지역·사유·가게/관리자 링크뿐이고 **연락처는 싣지 않는다**. 상호는 사용자 입력이라 `allowed_mentions: {parse: []}`로 @everyone을 끈다. 워커에선 `ctx.waitUntil`, next dev에선 그냥 기다린다. 실패는 로그만(커밋 9 Sentry). 신고 종류·사유 라벨은 세 번째 호출자가 생겨 `lib/report-labels.ts`로 뺐다.
+- **까주기 결과 한 줄**(plan 결정 25): 결과 화면으로 가기 직전 `recordPeelResult(slug)` — Turnstile 없이 IP 해시만(`ipHashedClient`), 일 20은 DB가 센다. 공유 링크 착지는 세지 않는다("방금 푼 사람"만). 실패는 액션이 삼킨다.
+- **실측(next dev + 로컬 Supabase, 관리자 세션은 curl 익명 가입 → SQL 승격 → 토큰 refresh → 쿠키 주입)**: 사후 확인 탭에 "중복 의심 · 21세기우리바다수산" 배지 → [이 가게로 합치기] → 시트 확인 → 목록에서 빠짐, DB `merged_into`·숨김, 옛 URL은 **308** → 새 가게, 모르는 id는 404. 검색 탭 [검수 대기] 1곳(스몰) → [복구] → `needs_review=false`·공개. 가게 신고 3번째 → 가짜 수신기에 웹훅 2건("[가게 신고] … 사유: 허위·광고성 등록" + "[신고 누적] … 열린 신고 3건", 연락처 없음, 멘션 끔). /test 완주 → `peel_results` 1행 + rate_events(peel) 1행. pgTAP 060(6건)·advisors 0·vitest 549.

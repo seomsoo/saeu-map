@@ -2,9 +2,10 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ChipButton } from "@/components/ui/chip";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { TextField } from "@/components/ui/text-field";
-import { deletePlace, searchPlacesForAdmin, setPlaceHidden } from "@/lib/data";
+import { deletePlace, getPlacesForAdmin, searchPlacesForAdmin, setPlaceHidden } from "@/lib/data";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Place } from "@/lib/types";
 import {
@@ -18,6 +19,7 @@ import {
   AdminTable,
   AdminWhen,
 } from "./admin-table";
+import { MergeSheet } from "./merge-sheet";
 import { useAdminList } from "./use-admin-list";
 
 export const SEARCH_HIDDEN_NOTICE = "숨겼어요";
@@ -33,20 +35,35 @@ const COLUMNS = [
   { key: "actions", label: "", align: "right" as const },
 ];
 
+/** 상태 pill — 검수 대기(숨긴 채 임포트한 시드)는 숨김과 구분한다: [복구]가 곧 검수 완료다 */
+function stateLabel(place: Place): string {
+  if (place.hiddenAt === undefined) return "정상";
+  if (place.needsReview) return "검수 대기";
+  return place.removedByOwner === true ? "내림(사장님)" : "숨김";
+}
+
 /**
  * 검색 탭 (design 화면 10-4) — 비상용. 상호로 찾아 직접 내리거나 복구한다.
- * **숨긴 가게도 나온다**(복구하려면 찾을 수 있어야 한다). 삭제는 소프트고 **유일하게 확인 모달을 쓴다**.
+ * **숨긴 가게도 나온다**(복구하려면 찾을 수 있어야 한다). 삭제는 소프트고 확인 모달을 쓴다(합치기도 — 되돌리기 없음).
+ * [검수 대기] 칩은 검색어 대신 숨긴 채 임포트한 시드를 부른다(decisions 2026-09-10 #10) — [복구]하면 검수가 끝난다.
  */
 export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string) => void }) {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
+  const [reviewing, setReviewing] = useState(false);
   const load = useCallback(
-    () => (submitted === "" ? Promise.resolve<Place[]>([]) : searchPlacesForAdmin(submitted, now)),
-    [submitted, now],
+    () =>
+      reviewing
+        ? getPlacesForAdmin(now, { needsReview: true })
+        : submitted === ""
+          ? Promise.resolve<Place[]>([])
+          : searchPlacesForAdmin(submitted, now),
+    [reviewing, submitted, now],
   );
-  const { rows, status, retry, refresh } = useAdminList<Place>(load, submitted);
+  const { rows, status, retry, refresh } = useAdminList<Place>(load, reviewing ? "review" : `q:${submitted}`);
   const [pending, setPending] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Place | null>(null);
+  const [merging, setMerging] = useState<Place | null>(null);
 
   const run = (place: Place, notice: string, work: () => Promise<unknown>) => {
     if (pending !== null) return;
@@ -88,17 +105,27 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
         <Button variant="outline" size="md" type="submit">
           검색
         </Button>
+        <ChipButton
+          size="md"
+          pressed={reviewing}
+          className="ml-2"
+          onClick={() => {
+            setReviewing((v) => !v);
+          }}
+        >
+          검수 대기
+        </ChipButton>
       </form>
 
-      {submitted === "" ? (
+      {!reviewing && submitted === "" ? (
         <AdminEmpty title="상호로 검색해보세요" />
       ) : (
         (state ??
           (rows.length === 0 ? (
-            <AdminEmpty title="찾는 가게가 없어요" />
+            <AdminEmpty title={reviewing ? "검수할 가게가 없어요" : "찾는 가게가 없어요"} />
           ) : (
             <>
-              <AdminCount>{rows.length}곳 찾았어요</AdminCount>
+              <AdminCount>{reviewing ? `검수 대기 ${rows.length}곳` : `${rows.length}곳 찾았어요`}</AdminCount>
               <AdminTable label="검색 결과" columns={COLUMNS}>
               {rows.map((place) => {
                 const hidden = place.hiddenAt !== undefined;
@@ -108,7 +135,7 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
                     <AdminCell className="text-fg-secondary">{place.gu}</AdminCell>
                     <AdminCell>
                       <AdminStatus
-                        label={hidden ? (place.removedByOwner === true ? "내림(사장님)" : "숨김") : "정상"}
+                        label={stateLabel(place)}
                         tone={hidden ? "active" : "subtle"}
                       />
                     </AdminCell>
@@ -148,6 +175,18 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
                         </Button>
                         {!hidden && (
                           <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pending === place.id}
+                            onClick={() => {
+                              setMerging(place);
+                            }}
+                          >
+                            합치기
+                          </Button>
+                        )}
+                        {!hidden && (
+                          <Button
                             variant="danger"
                             size="sm"
                             disabled={pending === place.id}
@@ -180,6 +219,20 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
             // 엉뚱하게 뜬다(갭 스윕 2026-09-08). 사장님 요청은 신고·요청 탭에서 처리한다
             run(place, SEARCH_DELETED_NOTICE, () => deletePlace(place.id, now, false));
           }}
+        />
+      )}
+      {merging && (
+        <MergeSheet
+          from={merging}
+          now={now}
+          onClose={() => {
+            setMerging(null);
+          }}
+          onMerged={() => {
+            setMerging(null);
+            refresh();
+          }}
+          onNotice={onNotice}
         />
       )}
     </div>

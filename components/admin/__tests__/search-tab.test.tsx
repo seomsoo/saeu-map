@@ -8,12 +8,16 @@ const data = vi.hoisted(() => ({
   searchPlacesForAdmin: vi.fn<(q: string, now: string) => Promise<Place[]>>(),
   setPlaceHidden: vi.fn<(id: string, hidden: boolean, now: string) => Promise<Place>>(),
   deletePlace: vi.fn<(id: string, now: string, byOwner?: boolean) => Promise<Place>>(),
+  getPlacesForAdmin: vi.fn<(now: string, options?: { needsReview?: boolean }) => Promise<Place[]>>(),
+  mergePlaces: vi.fn<(from: string, into: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
   searchPlacesForAdmin: data.searchPlacesForAdmin,
   setPlaceHidden: data.setPlaceHidden,
   deletePlace: data.deletePlace,
+  getPlacesForAdmin: data.getPlacesForAdmin,
+  mergePlaces: data.mergePlaces,
 }));
 
 const NOW = "2026-09-08T12:00:00+09:00";
@@ -34,6 +38,8 @@ describe("검색 탭 — 비상용 직접 조작 (design 화면 10-4)", () => {
     data.searchPlacesForAdmin.mockReset();
     data.setPlaceHidden.mockReset();
     data.deletePlace.mockReset();
+    data.getPlacesForAdmin.mockReset();
+    data.mergePlaces.mockReset();
   });
 
   it("검색 전에는 안내 한 줄 — 빈 검색으로 목록을 부르지 않는다", async () => {
@@ -112,5 +118,45 @@ describe("검색 탭 — 비상용 직접 조작 (design 화면 10-4)", () => {
     expect(await screen.findByRole("button", { name: "다시 시도" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByText("찾는 가게가 없어요")).toBeInTheDocument();
+  });
+
+  it("[검수 대기] 칩은 검색어 대신 숨긴 채 들어온 시드를 부른다 — [복구]가 검수 완료다", async () => {
+    data.getPlacesForAdmin.mockResolvedValue([makePlace({ id: "rv", name: "검수집", hiddenAt: NOW, needsReview: true })]);
+    data.setPlaceHidden.mockResolvedValue(makePlace({ id: "rv", name: "검수집" }));
+    const { onNotice } = renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "검수 대기" }));
+    const table = await screen.findByRole("table", { name: "검색 결과" });
+    expect(data.getPlacesForAdmin).toHaveBeenCalledWith(NOW, { needsReview: true });
+    expect(data.searchPlacesForAdmin).not.toHaveBeenCalled();
+    expect(screen.getByText("검수 대기 1곳")).toBeInTheDocument();
+    expect(within(table).getByRole("cell", { name: "검수 대기" })).toBeInTheDocument();
+    fireEvent.click(within(table).getByRole("button", { name: "복구" }));
+    await waitFor(() => {
+      expect(data.setPlaceHidden).toHaveBeenCalledWith("rv", false, NOW);
+    });
+    expect(onNotice).toHaveBeenCalledWith("복구했어요");
+  });
+
+  it("[합치기]는 시트에서 대상을 찾아 고르고 한 번 더 확인한다 — 자기 자신은 후보에서 빠진다", async () => {
+    const orig = makePlace({ id: "orig", name: "원조나라수산", gu: "마포구" });
+    // 첫 호출은 탭 검색, 그다음은 시트 검색·합친 뒤 새로고침
+    data.searchPlacesForAdmin.mockResolvedValueOnce([nara]).mockResolvedValue([orig, nara]);
+    data.mergePlaces.mockResolvedValue(orig);
+    const { onNotice } = renderTab();
+    search();
+    const table = await screen.findByRole("table", { name: "검색 결과" });
+    fireEvent.click(within(table).getByRole("button", { name: "합치기" }));
+    const dialog = await screen.findByRole("dialog", { name: "나라수산 합치기" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "합칠 가게 상호" }), { target: { value: "원조" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "찾기" }));
+    const candidates = await within(dialog).findByRole("list", { name: "합칠 가게 후보" });
+    expect(within(candidates).getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(within(candidates).getByRole("button", { name: /원조나라수산/ }));
+    expect(within(dialog).getByText("→ 원조나라수산")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "합치기" }));
+    await waitFor(() => {
+      expect(data.mergePlaces).toHaveBeenCalledWith("nara", "orig");
+    });
+    expect(onNotice).toHaveBeenCalledWith("합쳤어요");
   });
 });

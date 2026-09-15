@@ -51,6 +51,7 @@
    - 로컬에서 처음 카카오로 로그인한 뒤 관리자로 만들기: `psql … -c "update public.profiles set is_admin = true where id = '<uid>'"` (uid는 Studio → Authentication → Users).
 3. **Turnstile 위젯** (프리뷰 배포 전 — 로컬·CI는 Cloudflare 공개 더미 키를 쓴다: site `1x00000000000000000000BB`(보이지 않고 항상 통과)·secret `1x0000000000000000000000000000000AA`(항상 통과). 실패 경로를 보고 싶으면 secret을 `2x…AA`로) — dash.cloudflare.com → Turnstile → Add widget. 이름 "saeu-map", 호스트명에 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`·`localhost`. 모드 **Managed**(위젯은 우리가 `execute` 모드로 보이지 않게 돌린다). Site key·Secret key를 `.env`에.
 4. **디스코드 웹훅** (커밋 7 전) — 알림 받을 채널 → 채널 편집 → 연동 → 웹훅 → 새 웹훅 → URL 복사 → `.env`의 `DISCORD_WEBHOOK_URL`.
+   - 로컬에서 본문만 확인하려면 가짜 수신기: `python3 -m http.server 9999`는 POST를 501로 거부하니 `DISCORD_WEBHOOK_URL=http://127.0.0.1:9999/hook` + 아래 한 줄짜리 수신기(`python3 -c "...HTTPServer..."`, 커밋 7 실측)로 본다. 본문엔 연락처가 없어야 한다.
 5. **Sentry 프로젝트** (커밋 9 전) — sentry.io → Create Project → Next.js. DSN을 `.env`에. Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘.
 
 ## 3. 내가 CLI로 하는 것

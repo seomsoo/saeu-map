@@ -573,7 +573,7 @@ revoke execute on function public.me() from public, anon;
 grant execute on function public.me() to authenticated;
 
 -- 관리자 읽기 — 숨긴 가게·병합·검수·reporter_id까지 전부(GRANT 안 된 열이라 RPC). 상호 부분 일치, 상한 200.
-create or replace function public.admin_places(p_query text default null, p_limit integer default 200)
+create or replace function public.admin_places(p_query text default null, p_limit integer default 200, p_needs_review boolean default false)
 returns setof public.places language plpgsql stable security definer set search_path = '' as $$
 begin
   if not private.is_admin() then
@@ -581,13 +581,14 @@ begin
   end if;
   return query
     select * from public.places p
-    where p_query is null or p.name ilike '%' || p_query || '%'
+    where (p_query is null or p.name ilike '%' || p_query || '%')
+      and (not p_needs_review or p.needs_review)  -- 검수 필터: 숨긴 채 임포트한 시드(decisions 2026-09-10 #10)
     order by p.created_at desc
     limit least(greatest(p_limit, 1), 500);
 end;
 $$;
-revoke execute on function public.admin_places(text, integer) from public, anon;
-grant execute on function public.admin_places(text, integer) to authenticated;
+revoke execute on function public.admin_places(text, integer, boolean) from public, anon;
+grant execute on function public.admin_places(text, integer, boolean) to authenticated;
 
 -- 내 제보 — reporter_id를 공개 열에 싣지 않으려고 RPC로
 create or replace function public.my_reports() returns setof public.places_public language sql stable security definer set search_path = '' as $$
@@ -598,6 +599,27 @@ create or replace function public.my_reports() returns setof public.places_publi
 $$;
 revoke execute on function public.my_reports() from public, anon;
 grant execute on function public.my_reports() to authenticated;
+
+-- 합쳐진 옛 가게 → 새 가게 (spec 4.3 엣지: /place/[old]는 영구 리다이렉트). 병합 사슬을 따라가고, 끝이 보이는 가게일 때만 돌려준다.
+-- 공개 RPC — 옛 id를 아는 사람에게 "어디로 합쳐졌나"만 알려준다(그 가게는 어차피 공개다).
+create or replace function public.merge_target(p_id uuid) returns uuid language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_id uuid := p_id;
+  v_next uuid;
+  v_hidden timestamptz;
+begin
+  for i in 1..5 loop
+    select merged_into, hidden_at into v_next, v_hidden from public.places where id = v_id;
+    if not found then return null; end if;
+    if v_next is null then
+      return case when v_id <> p_id and v_hidden is null then v_id else null end;
+    end if;
+    v_id := v_next;
+  end loop;
+  return null;
+end;
+$$;
+grant execute on function public.merge_target(uuid) to anon, authenticated;
 
 -- 시즌 카운터 (spec 4.1) — KST 오늘·이번 주(월요일 00:00~)
 create or replace function public.season_stats() returns jsonb language sql stable security definer set search_path = '' as $$

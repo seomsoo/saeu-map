@@ -89,6 +89,8 @@ export interface Place {
   rating?: { count: number; average: number };
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
+  /** 그 후보의 상호 — 관리자 목록에서만 채운다(공개 뷰에서 읽으니 후보가 숨겨졌으면 없다). */
+  duplicateSuspectName?: string;
   /** 제보한 세션 userId — 내 활동 > 내 제보(spec 5). 시드는 없다. */
   reporterId?: string;
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cx } from "@/lib/cx";
+import { recordPeelResult } from "@/lib/data";
 import { QUESTION_ART, peelMatchPath, peelTypePath, scoreAnswers } from "@/lib/peel-test";
 import type { PeelTest as PeelTestContent, PeelType } from "@/lib/types";
 import { markTestFinished } from "./session-flag";
@@ -43,6 +44,8 @@ export function PeelTest({
     const slug = scoreAnswers(content.questions, next);
     // 결과 화면이 "방금 푼 사람"과 "공유 링크로 온 사람"을 가르는 표식
     markTestFinished();
+    // 참여 한 줄(plan 결정 25) — 공유 링크 착지는 세지 않고 "방금 푼 사람"만. 실패해도 결과는 보여 준다
+    void recordPeelResult(slug).catch(() => undefined);
     const path = partner ? peelMatchPath(slug, partner.slug) : peelTypePath(slug);
     startTransition(() => {
       router.push(path);

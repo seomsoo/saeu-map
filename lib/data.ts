@@ -268,3 +268,12 @@ export async function deletePlacePhoto(placeId: string, photoId: string): Promis
 export async function revertPlaceEdit(editId: string, now: DateInput): Promise<Place> {
   return unwrap(await actions.revertPlaceEdit(editId, String(now)));
 }
+
+/** 합치기(관리자) — 옛 가게 → 새 가게. 되돌리기 없음. */
+export async function mergePlaces(fromId: string, intoId: string): Promise<Place> {
+  return unwrap(await actions.mergePlaces(fromId, intoId));
+}
+/** 합쳐진 옛 가게의 새 주소 — /place/[old] 영구 리다이렉트용 */
+export const getMergedPlaceTarget = actions.getMergedPlaceTarget;
+/** 까주기 결과 한 줄 — 실패는 액션이 삼킨다(결과 화면을 막지 않는다) */
+export const recordPeelResult = actions.recordPeelResult;

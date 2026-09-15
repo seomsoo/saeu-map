@@ -30,3 +30,9 @@ export async function openWriteGate(turnstileToken: string): Promise<{ db: Db } 
   const ipHash = await hashIp(ip, env.IP_HASH_SALT);
   return { db: await userClient({ ipHash }) };
 }
+
+/** 문을 거치지 않는 익명 카운트(까주기 결과, plan 결정 25) — IP 해시만 싣는다. 속도 제한은 DB의 rate_ok가 IP로 센다(일 20). */
+export async function ipHashedClient(): Promise<Db> {
+  const h = await headers();
+  return userClient({ ipHash: await hashIp(clientIp(h), env.IP_HASH_SALT) });
+}

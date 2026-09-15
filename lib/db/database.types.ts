@@ -571,7 +571,7 @@ export type Database = {
         Returns: undefined
       }
       admin_places: {
-        Args: { p_limit?: number; p_query?: string }
+        Args: { p_limit?: number; p_needs_review?: boolean; p_query?: string }
         Returns: {
           address_jibun: string | null
           address_road: string | null
@@ -612,6 +612,7 @@ export type Database = {
         Returns: undefined
       }
       me: { Args: never; Returns: Json }
+      merge_target: { Args: { p_id: string }; Returns: string }
       my_reports: {
         Args: never
         Returns: {

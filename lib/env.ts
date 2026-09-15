@@ -22,6 +22,8 @@ export const env = createEnv({
     IP_HASH_SALT: z.string().min(16),
     /** 프리뷰 워커만 "1" — 모든 쓰기·로그인·익명 생성을 거부한다(prod DB를 보는 프리뷰, decisions 2026-09-10). */
     PREVIEW_READONLY: z.enum(["1"]).optional(),
+    /** 디스코드 채널 웹훅(비밀) — 제보·신고·사장님 요청·신고 누적 알림. 없으면 알림만 건너뛴다(로컬·프리뷰). http는 로컬 가짜 수신기용. */
+    DISCORD_WEBHOOK_URL: z.url({ protocol: /^https?$/ }).optional(),
   },
   client: {
     NEXT_PUBLIC_NCP_CLIENT_ID: z.string().min(1),
@@ -44,6 +46,7 @@ export const env = createEnv({
     TURNSTILE_SECRET_KEY: process.env["TURNSTILE_SECRET_KEY"],
     IP_HASH_SALT: process.env["IP_HASH_SALT"],
     PREVIEW_READONLY: process.env["PREVIEW_READONLY"],
+    DISCORD_WEBHOOK_URL: process.env["DISCORD_WEBHOOK_URL"],
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
     NEXT_PUBLIC_GA_ID: process.env["NEXT_PUBLIC_GA_ID"],
