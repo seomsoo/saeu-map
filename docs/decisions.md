@@ -819,3 +819,12 @@ security-reviewer(커밋 2~6 diff) 15건: 높음 2·중간 6·낮음 4·정보 3
 - **디스코드 웹훅**(`lib/server/notify.ts`): 제보(중복 의심 표시)·가게/사진 신고·정보 달라요·사장님 요청·**신고 누적 3회째**(열린 가게 신고 수가 정확히 3일 때 한 번 — 신고 표는 관리자만 읽어 secret key로 센다, 없으면 건너뛴다). 본문은 상호·지역·사유·가게/관리자 링크뿐이고 **연락처는 싣지 않는다**. 상호는 사용자 입력이라 `allowed_mentions: {parse: []}`로 @everyone을 끈다. 워커에선 `ctx.waitUntil`, next dev에선 그냥 기다린다. 실패는 로그만(커밋 9 Sentry). 신고 종류·사유 라벨은 세 번째 호출자가 생겨 `lib/report-labels.ts`로 뺐다.
 - **까주기 결과 한 줄**(plan 결정 25): 결과 화면으로 가기 직전 `recordPeelResult(slug)` — Turnstile 없이 IP 해시만(`ipHashedClient`), 일 20은 DB가 센다. 공유 링크 착지는 세지 않는다("방금 푼 사람"만). 실패는 액션이 삼킨다.
 - **실측(next dev + 로컬 Supabase, 관리자 세션은 curl 익명 가입 → SQL 승격 → 토큰 refresh → 쿠키 주입)**: 사후 확인 탭에 "중복 의심 · 21세기우리바다수산" 배지 → [이 가게로 합치기] → 시트 확인 → 목록에서 빠짐, DB `merged_into`·숨김, 옛 URL은 **308** → 새 가게, 모르는 id는 404. 검색 탭 [검수 대기] 1곳(스몰) → [복구] → `needs_review=false`·공개. 가게 신고 3번째 → 가짜 수신기에 웹훅 2건("[가게 신고] … 사유: 허위·광고성 등록" + "[신고 누적] … 열린 신고 3건", 연락처 없음, 멘션 끔). /test 완주 → `peel_results` 1행 + rate_events(peel) 1행. pgTAP 060(6건)·advisors 0·vitest 549.
+
+## 2026-09-16 — 커밋 8 CI (Phase 6)
+
+- **CI가 실 DB 경로를 지난다.** `db` 잡(로컬 Supabase → pgTAP → 생성 타입 diff → advisors 0건)과 `check` 잡(로컬 Supabase를 상대로 OpenNext 빌드·workerd 스모크·Lighthouse)이 나란히 돌고, preview·deploy는 둘 다 통과해야 한다. CLI는 로컬과 같은 **2.117.0 고정** — `gen types` 결과가 판마다 달라 diff가 흔들린다. 쓰지 않는 컨테이너(realtime·storage·studio·mailpit·edge-runtime·logflare·vector·supavisor·postgres-meta·imgproxy)는 `-x`로 뺀다.
+- **스모크는 `scripts/smoke.sh` 하나**(CI와 로컬 동일). 목 id `p018`·"뚝섬포구"·"서담해물" 대신 **DB에서 가게·구를 뽑는다**(plan 결정 23) — HTML 이스케이프가 끼지 않는 상호, 괄호 없는 서울 구. 모르는 uuid와 uuid 아닌 id 둘 다 404. sitemap에 그 가게가 있는지도 본다. Lighthouse는 스모크가 고른 가게 id를 `lighthouserc.json`의 `__PLACE_ID__`에 넣어 잰다(`lighthouserc.ci.json`, gitignore).
+- **빌드의 비밀은 더미다.** 서버 비밀(`TURNSTILE_SECRET_KEY`·`IP_HASH_SALT`)은 런타임에 워커 secret에서 읽히고 번들에 박히지 않는다 — preview·deploy 빌드는 t3-env 검증만 지나면 되므로 `build-only-dummy`를 준다. GH에는 그 비밀들이 없다(runbook 1절 표 정정). prod `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`는 GH variable → `--var`로 워커 변수에(리포에 적지 않는다).
+- **프리뷰 = `--var PREVIEW_READONLY:1`**(보안 리뷰 #3). 발화 검증은 첫 PR의 프리뷰에서 찜 한 번(read only 토스트).
+- **keepalive.yml**: 매일 09:00 KST `GET /`. 홈이 요청 시 DB를 읽으므로 이 한 번이 Supabase 무료 프로젝트의 "활동"이다. GitHub는 60일 무커밋 리포의 스케줄을 끄니 월간 점검에 넣었다.
+- `.dev.vars.example`을 채웠다(wrangler dev 런타임 변수 — `next dev`의 `.env.local`과 다른 파일이다).

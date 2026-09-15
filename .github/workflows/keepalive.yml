@@ -1,0 +1,17 @@
+name: keepalive
+
+# Supabase 무료 프로젝트는 7일 동안 요청이 없으면 잠든다(decisions 2026-09-10 #7). 홈은 요청 시 DB를 읽으므로(connection())
+# 하루 한 번의 이 요청이 곧 활동이다. 매일 09:00 KST(= 00:00 UTC). 리포에 60일간 커밋이 없으면 GitHub가 스케줄을 끈다 — runbook 5절.
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GET /
+        run: curl -sf --retry 3 --retry-delay 10 -o /dev/null -w "%{http_code} %{time_total}s\n" https://saeu-map.saeu-map.workers.dev/

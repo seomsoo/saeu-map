@@ -1,0 +1,8 @@
+# wrangler dev(:8787, 실제 Workers 런타임)용 런타임 변수 — `.dev.vars`로 복사해 채운다(gitignore). `next dev`는 `.env.local`을 본다.
+# 값은 `supabase status -o env`(로컬)에서. Turnstile은 테스트 키(항상 통과), salt는 아무 긴 문자열.
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+IP_HASH_SALT=local-dev-salt-change-me-0000000000
+DISCORD_WEBHOOK_URL=

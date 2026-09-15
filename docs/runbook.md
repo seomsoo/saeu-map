@@ -21,15 +21,15 @@
 
 | 이름 | 공개/비밀 | 어디서 얻나 | 어디에 넣나 |
 |---|---|---|---|
-| `NEXT_PUBLIC_NCP_CLIENT_ID` | 공개 | NCP 콘솔 Maps | `.env` · GH variable · 워커 var |
-| `SUPABASE_URL` | 공개값이지만 서버 전용 | Supabase 대시보드 Project Settings → API / 로컬은 `supabase start` 출력 | `.env` · GH variable · 워커 var |
-| `SUPABASE_PUBLISHABLE_KEY` | 공개값이지만 서버 전용 | 같은 곳 API Keys(`sb_publishable_…`) | `.env` · GH variable · 워커 var |
-| `SUPABASE_SECRET_KEY` | **비밀** | 같은 곳(`sb_secret_…`) | `.env` · GH secret · 워커 secret(**프리뷰 제외**) |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 공개 | Cloudflare → Turnstile → 위젯 | `.env` · GH variable |
-| `TURNSTILE_SECRET_KEY` | **비밀** | 같은 위젯 | `.env` · GH secret · 워커 secret |
-| `DISCORD_WEBHOOK_URL` | **비밀** | 디스코드 채널 설정 → 연동 → 웹훅 | `.env` · 워커 secret |
-| `IP_HASH_SALT` | **비밀** | 아무 긴 난수(`openssl rand -hex 32`) | `.env` · 워커 secret |
-| `PREVIEW_READONLY` | — | 프리뷰 워커만 `1` | ci.yml `--var` |
+| `NEXT_PUBLIC_NCP_CLIENT_ID` | 공개 | NCP 콘솔 Maps | `.env` · GH variable(빌드에 박힌다) |
+| `SUPABASE_URL` | 공개값이지만 서버 전용 | Supabase 대시보드 Project Settings → API / 로컬은 `supabase start` 출력 | `.env` · `.dev.vars` · GH variable(ci.yml이 `--var`로 워커에 싣는다) |
+| `SUPABASE_PUBLISHABLE_KEY` | 공개값이지만 서버 전용 | 같은 곳 API Keys(`sb_publishable_…`) | `.env` · `.dev.vars` · GH variable(ci.yml이 `--var`로) |
+| `SUPABASE_SECRET_KEY` | **비밀** | 같은 곳(`sb_secret_…`) | `.env` · `.dev.vars` · 워커 secret(프리뷰 버전은 워커 secret을 물려받지만 `PREVIEW_READONLY=1`이 모든 쓰기를 막는다) |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 공개 | Cloudflare → Turnstile → 위젯 | `.env` · GH variable(빌드에 박힌다) |
+| `TURNSTILE_SECRET_KEY` | **비밀** | 같은 위젯 | `.env` · `.dev.vars` · 워커 secret(GH에는 없다 — 빌드는 더미로 t3-env 검증만 지난다) |
+| `DISCORD_WEBHOOK_URL` | **비밀** | 디스코드 채널 설정 → 연동 → 웹훅 | `.env` · `.dev.vars` · 워커 secret |
+| `IP_HASH_SALT` | **비밀** | 아무 긴 난수(`openssl rand -hex 32`) | `.env` · `.dev.vars` · 워커 secret(GH에는 없다, 빌드는 더미) |
+| `PREVIEW_READONLY` | — | 프리뷰 워커만 `1` | ci.yml preview 잡의 `--var`(커밋 8) |
 | `NEXT_PUBLIC_SENTRY_DSN` | 공개 | sentry.io 프로젝트 | `.env` · GH variable |
 | `SITE_URL` · `NEXT_PUBLIC_GA_ID` | 기존 | (변경 없음) | |
 
@@ -75,6 +75,20 @@ gh secret set SUPABASE_SECRET_KEY < …     # 값은 파일·stdin으로만
 gh variable set SUPABASE_URL --body …
 ```
 
+## 3c. CI가 하는 것 (`.github/workflows/ci.yml`, 커밋 8)
+
+| 잡 | 언제 | 하는 일 | 필요한 GitHub 값 |
+|---|---|---|---|
+| `db` | PR·main push | 로컬 Supabase(`supabase start -x …`, CLI 2.117.0 고정) → `supabase test db`(pgTAP) → `gen types` diff(`lib/db/database.types.ts`가 최신인지) → `db advisors` 0건 | 없음 |
+| `check` | PR·main push | typecheck·lint·vitest·gitleaks → **로컬 Supabase를 상대로** OpenNext 빌드(OG 프리렌더가 DB를 읽는다) → `scripts/smoke.sh`(workerd + 실 DB: /·/place/uuid·404·/gu·sitemap·robots·og) → Lighthouse(스모크가 고른 가게) | 없음(Turnstile 테스트 키·CI 상수 salt) |
+| `preview` | PR | `check`·`db` 통과 후 프리뷰 버전 업로드. **`--var PREVIEW_READONLY:1`** + prod `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`를 `--var`로 | secrets `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID`, variables `NEXT_PUBLIC_NCP_CLIENT_ID`·`SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`·`NEXT_PUBLIC_TURNSTILE_SITE_KEY` |
+| `deploy` | main push | 같은 게이트로 prod 배포(`pnpm run deploy --var …`). 런타임 비밀은 워커 secret이라 GH에 없다 | 위와 같음 |
+| `keepalive` | 매일 09:00 KST | `GET /` 한 번 — Supabase 무료 프로젝트가 7일 무활동으로 잠들지 않게. **리포에 60일간 커밋이 없으면 GitHub가 스케줄을 끈다**(Actions 탭에서 다시 켠다) | 없음 |
+
+값이 하나라도 비면 preview·deploy는 실패하지 않고 `::notice`로 건너뛴다. 발화 검증(프리뷰에서 찜 → "읽기 전용" 토스트, 디스코드 알림 1건)은 첫 PR에서 한다(plan 3b).
+
+로컬에서 스모크만 다시 보려면: `npx opennextjs-cloudflare build && npx opennextjs-cloudflare populateCache local && npx wrangler dev --port 8787 --compatibility-flags nodejs_compat &` 뒤 `DB_URL=$(supabase status -o env | grep ^DB_URL | cut -d'"' -f2) scripts/smoke.sh`.
+
 ## 3b. 시드 넣기 (한 번, 그리고 크롤을 다시 했을 때)
 
 ```
@@ -90,7 +104,7 @@ python3 scripts/convert_seed.py --out /tmp/sample.json --sample 60 <같은 입�
 node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.csv > supabase/seed.sql
 ```
 
-검수 필요(`needs_review`)로 들어간 가게는 `hidden_at`이 찍혀 지도에 안 보인다. 관리자 검색 탭 "검수 필요" 필터에서 [플레이스 열기]로 30초 보고 [복구]하면 그 자리에서 지도에 뜬다. 안 살릴 건 그대로 두면 된다.
+검수 필요(`needs_review`)로 들어간 가게는 `hidden_at`이 찍혀 지도에 안 보인다. 관리자 검색 탭 [검수 대기] 칩에서 [가게 열기]로 30초 보고 [복구]하면 그 자리에서 지도에 뜨고 검수 표시도 내려간다(커밋 7). 안 살릴 건 그대로 두면 된다.
 
 ## 4. 공개값 네 가지 습관
 
@@ -107,6 +121,7 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 - Cloudflare → Workers: 일 요청 수 추이(10만 근접 = Paid $5 검토, decisions 2026-09-10).
 - Supabase → Usage: DB 크기(500MB)·MAU(5만)·egress(5GB).
 - Sentry: 미해결 이슈.
+- GitHub → Actions: `keepalive`가 매일 초록인지(60일 무커밋이면 꺼진다).
 
 ## 6. 나중에 슬롯이 나면 — staging 붙이기
 
