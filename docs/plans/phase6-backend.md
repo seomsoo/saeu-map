@@ -239,3 +239,31 @@ Data API 노출은 **`places_public`·`checkins`·`reviews`·`bookmarks`·`photo
 | 13 | 외부 계정 | 분담은 결정 26 | 사용자 몫: 카카오 앱 · Turnstile 위젯 · 디스코드 웹훅 · `supabase login` 승인 |
 
 플랜 승인 = 커밋 1부터 실행. 브랜치는 main에서 `feat/phase6-backend`(현 브랜치 `feat/report-menu-lines`는 그 PR대로 둔다).
+
+## 결과 (2026-09-16)
+
+**코드 완료.** 브랜치 `feat/phase6-backend`, 커밋 14개(docs 1 · db 1 · seed 1 · server 1 · writes 2 · cache 1 · security 1 · admin 1 · ci 1 · sentry 1 · test 1 · 최종 리뷰 반영 fix/feat/docs 3). PR 미생성(사용자 승인 대기). 목 JSON은 커밋 4에서 지웠고 전 화면이 실 DB로 돈다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 테스트 | vitest **556개(49 파일)** — 전환 전 540 → 새 서버 모듈·관리자 흐름·라벨 16개 추가. pgTAP **94 assertions(7 파일)**: RLS·컬럼 GRANT·RPC·트리거·병합·서비스 역할. `supabase db advisors` **0건** |
+| 스키마 | 마이그레이션 2(init + 서비스 RPC), 표 11·뷰 2(invoker)·정책 18·공개 RPC 14·pg_cron 2. 개인 식별자는 컬럼 GRANT로 미노출 |
+| 시드 | 서울 452 + 부산 190 + 광주권 145 = **789곳**, 역·출구 5,060행. 검수 대기 27곳은 숨긴 채(관리자 [검수 대기] 칩 → [복구]). 시드는 NEW 아님 |
+| 쓰기 경로 | 사용자 15 + 관리자 8 + 사진 서빙 — 전부 `openWriteGate`(읽기 전용 → 엣지 20/60s → Turnstile → IP 해시) 뒤 RLS·트리거·RPC. 표는 decisions 2026-09-16 "보안 스윕" |
+| 리뷰 | 중간 security-reviewer 15건 → 10 반영(높음 2: 서비스 RPC `current_user`·열린 리다이렉트), 최종 9건 → 8 반영, reviewer 21건 → 18 반영(P1: 관리자 한 행 조회), gap-sweeper 27항목 → 미구현 3 중 2 구현·1 이월(급증 알림), 부분 10 정리. **pgTAP를 넓히다 리뷰어 셋이 못 잡은 P1(PG17 UPDATE-SELECT 정책으로 리뷰 삭제 불가)을 잡았다** |
+| workerd 실측 | 확인·찜·제안·사진 업로드·엣지 제한 거부·캐시 무효화(D1+R2)·합치기 → 옛 URL 308·검수 복구·디스코드 웹훅 2건(가짜 수신기)·까주기 결과 1행·Sentry 봉투 2건(가짜 ingest)·새 핀 OG 루트 폴백. `scripts/smoke.sh`(CI와 동일) 통과 |
+| CI | `db` 잡(pgTAP·타입 diff·advisors) + `check`(로컬 Supabase 상대 빌드·스모크·Lighthouse) + preview(읽기 전용) + deploy + keepalive. push 전이라 GitHub에서의 발화는 첫 PR |
+| 관측 | Sentry 에러만(트레이싱·리플레이·PII 없음), `reportError` 디듀프, DSN 없으면 꺼짐 |
+| 이월(재료 없음) | 카카오 왕복·병합·탈퇴 실측(카카오 앱 뒤) · 프리뷰 읽기 전용·디스코드 실채널·Sentry 실 DSN 발화(첫 PR) · prod 시드 임포트·폰 머니패스(호스팅 Supabase 뒤) · R2 버킷 2개(대시보드 R2 활성화 뒤 wrangler) |
+
+**계획에서 바뀐 것**
+- **제보·수정 제안은 PostgREST 직접 쓰기(결정 7) 대신 RPC** `submit_report`·`apply_suggestion` — 여러 표를 한 트랜잭션으로 만지고 속도 제한 raise·섀도 밴 숨김·재제보 경고를 한 곳에서 한다. 단일 표 쓰기(확인·찜·리뷰·신고·사진)는 계획대로 정책 `with check`.
+- **본인 리뷰 삭제도 RPC** — PG 17은 UPDATE의 새 행도 SELECT 정책을 통과해야 해서 작성자가 `deleted_at`을 직접 찍을 수 없었다(최종 리뷰 뒤 pgTAP로 발견). 컬럼 GRANT도 함께 뺐다.
+- **공개 뷰는 DEFINER가 아니라 invoker + 컬럼 GRANT**(advisors ERROR), 관리자 읽기는 `admin_places(p_query·p_needs_review·p_id·p_ids)` 하나로.
+- **파일 이름**: `lib/server/{actions,write-gate,edge-rate-limit,ip-hash,turnstile,notify,observe,cache-tags,photos,rows,session,supabase}.ts`(계획의 queries/admin/rate/telegram 대신), 내용 필터는 폼과 공용이라 `lib/content-filter.ts`, 역·출구는 마이그레이션이 아니라 `supabase/seed/subway_exits.csv` + seed.sql, `scripts/README.md`는 runbook 3b가 대신한다.
+- **테스트 모양**: `lib/data.ts` 래퍼·Turnstile fetch 목 테스트 대신 pgTAP(권한은 실제 역할로 문장을 실행해야 잡힌다)과 서버 모듈 단위(rows·session·write-gate·notify·safe-next·photo-key·check-label). 액션 단위 테스트는 백로그.
+- **텔레그램 → 디스코드**, `bypassTagCacheOnCacheHit`는 켜지 않음, Sentry는 위저드 없이 4파일 + `reportError`, dev 관리자 토글 삭제(로컬 관리자는 SQL), 프리뷰의 Supabase 값은 GH variable/`--var`가 아니라 **secret**(wrangler가 var를 로그에 찍는다).
+- **핀 공유 카드는 파일 컨벤션 대신 라우트 `/og/place/[id]`** — 파일 컨벤션은 배포 뒤 생긴 핀의 og:image를 404로 박는다. 빌드 시각 뒤 핀은 루트 카드(결정 18을 실제로 구현).
+- **커밋 6의 캐시 "낡음" 진단은 측정 오류**였다(페이로드의 다른 가게 값을 읽음) — 두 방어(런타임 no-store·빌드 시 캐시 우회)는 문서화된 근거가 있어 남겼다.
+- **주요 의존성 실제 판**: @supabase/supabase-js 2.116.0 · @supabase/ssr 0.12.7 · supabase CLI 2.117.0(로컬·CI 고정) · @sentry/nextjs 10.74.0 · server-only 0.0.1.
+- **하지 않은 것(범위 밖 유지)**: 급증 알림(기준 미정 → Phase 7), 템플릿화·셀프호스팅 이전(트리거 도달 시), Cloudflare WAF(zone 필요), 소스맵 업로드(SENTRY_AUTH_TOKEN, Phase 7).

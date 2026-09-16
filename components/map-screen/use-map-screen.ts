@@ -868,7 +868,7 @@ export function useMapScreen({
   }, []);
 
 
-  /** 찜 토글 — 목 단계는 클라이언트 메모리(lib/data.ts, 세션별). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
+  /** 찜 토글 — 서버 bookmarks(익명 세션 포함, 멱등 set). 확인일은 갱신하지 않는다. 익명 3개째에 넛지 한 번. */
   const toggleBookmark = useCallback(
     (id: string) => {
       // 요청 시점의 세션을 기억한다 — 토글 중 로그아웃·승계·탈퇴가 끼면 늦게 온 이전 사용자의 목록이

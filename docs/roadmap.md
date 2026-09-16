@@ -88,16 +88,16 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - 결과: ✅ 2026-09-09 — 커밋 12개, 테스트 551 → 577개. 갭 스윕 미구현 0(부분 5건 반영), security-reviewer 높음·중간 0·낮음 2 반영, workerd 스모크(라우트 4개·404 3종·OG 25장), Playwright 390×702·390×656·320×480·1440×900. 화면은 사용자 판단으로 **이벤트 톤 v2**(틴트 바탕·흰 카드·등장 모션·유형 매트릭스)로 다시 썼다. 상세는 docs/plans/peel-test.md 결과. **캐릭터 아트 4장은 대기**(오면 `TYPE_ART` 4줄 교체)
 
 ## Phase 6 — 백엔드 교체 (플랜 docs/plans/phase6-backend.md — 결정 13개는 2026-09-09~10 사용자와 하나씩 확정, decisions 2026-09-10)
-- [ ] 스키마 확정(checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제·place_edits·rate_events) + RLS + **pgTAP RLS 테스트**
-- [ ] convert_seed.py **메뉴 정제**(이름 잔재·단위 재파싱 — 목 50곳 기준 단위 74% 미파싱, decisions 2026-09-08) + **서울 452 + 부산 190 + 광주권 145 ≈ 790곳 임포트**(needsReview는 숨긴 채 넣고 관리자 검수 필터에서 [복구], excluded.csv는 무시 — 2026-09-10) + 최근접역 서버 트리거(서울·부산·광주)
-- [ ] lib/data.ts → `lib/server/`(Server Action) + Supabase, **lazy 익명 auth** + 카카오 OAuth·콜백 서버 병합(~~linkIdentity~~)
-- [ ] Turnstile, Postgres 속도 제한(+ Cloudflare 바인딩 보조), Images 바인딩 업로드 → R2(~~Upstash·sharp·NCP~~), 프리뷰 읽기 전용 — 신고 3회는 **디스코드 알림 + 관리자 표시까지**(자동 숨김은 계속 보류, 2026-09-10)
-- [ ] /admin 5탭을 실 DB에 연결(서버 게이트 = 진짜 404), 디스코드 웹훅 알림, Sentry(마지막 커밋, 프리뷰 발화 미확인 시 Phase 7), 익명 정리 크론, 캐시(R2 + D1, `revalidateTag` 온디맨드만)
-- [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(합치기·리다이렉트 — spec 4.3 엣지) + 검수 필터
-- [ ] `/test` 참여 기록 테이블 + 집계 RPC(화면은 Phase 7) · 확인 0회 제보 핀 "○일 전 등록"(백로그에서 당김)
-- [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
+- [x] 스키마 확정(checkins 이벤트·reviews·bookmarks·profiles.is_admin·소프트 삭제·place_edits·rate_events) + RLS + **pgTAP RLS 테스트**
+- [x] convert_seed.py **메뉴 정제**(이름 잔재·단위 재파싱 — 목 50곳 기준 단위 74% 미파싱, decisions 2026-09-08) + **서울 452 + 부산 190 + 광주권 145 ≈ 790곳 임포트**(needsReview는 숨긴 채 넣고 관리자 검수 필터에서 [복구], excluded.csv는 무시 — 2026-09-10) + 최근접역 서버 트리거(서울·부산·광주)
+- [x] lib/data.ts → `lib/server/`(Server Action) + Supabase, **lazy 익명 auth** + 카카오 OAuth·콜백 서버 병합(~~linkIdentity~~)
+- [x] Turnstile, Postgres 속도 제한(+ Cloudflare 바인딩 보조), Images 바인딩 업로드 → R2(~~Upstash·sharp·NCP~~), 프리뷰 읽기 전용 — 신고 3회는 **디스코드 알림 + 관리자 표시까지**(자동 숨김은 계속 보류, 2026-09-10)
+- [x] /admin 5탭을 실 DB에 연결(서버 게이트 = 진짜 404), 디스코드 웹훅 알림, Sentry(마지막 커밋, 프리뷰 발화 미확인 시 Phase 7), 익명 정리 크론, 캐시(R2 + D1, `revalidateTag` 온디맨드만)
+- [x] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(합치기·리다이렉트 — spec 4.3 엣지) + 검수 필터
+- [x] `/test` 참여 기록 테이블 + 집계 RPC(화면은 Phase 7) · 확인 0회 제보 핀 "○일 전 등록"(백로그에서 당김)
+- [x] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
 - [ ] **사용자 콘솔 작업**(runbook 2절, PR 전에): Cloudflare **R2 켜기**(그 뒤 버킷 2개는 내가 wrangler로) · **카카오 개발자 앱**(REST 키·시크릿·리다이렉트 URI) · **Turnstile 위젯**(site/secret) · **디스코드 웹훅 URL** · **Sentry 프로젝트 → DSN**(공개값, 채팅으로 줘도 됨 — 없으면 Sentry만 꺼진 채 배포됨) · `supabase login` 승인 → 호스팅 프로젝트 생성 · GitHub variables 3개(NCP ID·Turnstile site·Sentry DSN) + secrets 2개(Supabase URL·publishable — 로그에 안 찍히게)는 값만 주면 내가 `gh variable/secret set` · 워커 secret 6개는 `wrangler secret put`
-- 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴
+- 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴 → **코드 완료 2026-09-16**(플랜 "## 결과": vitest 556·pgTAP 94·advisors 0·리뷰 3종 반영). 카카오 왕복·프리뷰 발화·폰 머니패스는 콘솔 작업 뒤 첫 PR·prod에서.
 
 ## 백로그 — 시점이 오면 집는다 (Phase 순서 밖)
 
@@ -109,6 +109,8 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - **1024 경계 넘김 리센터** — 창 리사이즈·태블릿 회전으로 그릇이 바뀌면 첫 위치 맞추기가 다시 돌지 않는다(Codex PR #9 P2). 실측상 선택 마커는 양방향 모두 보이고, 가려지는 건 `/gu` 직접 진입 뒤 데스크탑→모바일 fitBounds의 아래 핀뿐. 조건: **태블릿 전용 배치를 들일 때 같이** (decisions 2026-09-07 Codex PR #9).
 - **구글 로그인 추가** — 조건: 런칭 후 **로그인 시트를 띄웠는데 카카오로 안 넘어간 비율**이 높을 때. 지금은 카카오만이다(spec 5, decisions 2026-09-08) — 로그인이 필요한 건 리뷰 하나뿐이고 공급자가 둘이면 계정 중복·병합이 생긴다. 자체 회원가입은 하지 않는다.
 - **리뷰 폼 키보드 동작 실기기 확인** — iOS에서 textarea 위 CTA가 키보드에 가리는지. 시트와 같은 `--vvh`/`--kb` 기준으로 뒀지만 미확인.
+- **급증 디스코드 알림**(spec 5 스팸 2) — 조건: 기준(시간당 N건?)을 정할 제보·신고 데이터가 생길 때. 지금은 건별 알림 + 가게 신고 3회째 누적(2026-09-16 갭 스윕 #9).
+- **최종 리뷰 백로그(2026-09-16 커밋 10a)** — 42501 매핑 통일(신고는 rate limited·확인은 place not found), 액션 단위 테스트 세트(supabase 클라이언트 목), supabase CLI npm 고정(`pnpm exec supabase`), `peel_results` 월 집계 후 정리 크론. 조건: Phase 7 하드닝과 함께.
 - **보안 리뷰 백로그 4건(2026-09-16 중간 리뷰, decisions 같은 날)** — 조건: **Phase 7 런칭 준비에서 집는다**(런칭 전 하드닝). ① publishable 키 유출 대비 — GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken: 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 되므로 구조를 바꿔야 한다(`rate_ok` fail-closed로 절반은 막았다). ② `reviews_public`의 `author_id`를 `is_mine`으로 대체(익명에게 auth uid 노출 안 함). ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거). ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤.
 
 ## Phase 7 — 런칭 준비 (별도 결정 후)

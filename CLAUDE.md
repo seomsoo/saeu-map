@@ -17,7 +17,7 @@
 - docs/decisions.md — 결정 로그 (여기 없는 결정은 미정이다. 임의로 정하지 말고 물어라)
 
 ## 지금 단계 (Phase 6 — 백엔드 교체, docs/plans/phase6-backend.md)
-UI는 끝났다. 백엔드를 Supabase로 붙이는 중이다. **Supabase를 아는 파일은 `lib/server/`뿐**(`import "server-only"`). 컴포넌트·훅은 여전히 `lib/data.ts`만 부르고, `lib/data.ts`는 서버에선 `lib/server`를 직접, 클라이언트에선 Server Action을 부른다. **브라우저에 supabase-js를 싣지 않는다**(decisions 2026-09-10).
+UI는 끝났고 백엔드(Supabase)도 **코드는 끝났다**(2026-09-16, 플랜 "## 결과"). 남은 것: 사용자 콘솔 작업(roadmap Phase 6 마지막 줄) → 첫 PR에서 프리뷰 발화 검증 → prod 시드 임포트·폰 머니패스 → Phase 7. **Supabase를 아는 파일은 `lib/server/`뿐**(`import "server-only"`). 컴포넌트·훅은 여전히 `lib/data.ts`만 부르고, `lib/data.ts`는 서버에선 `lib/server`를 직접, 클라이언트에선 Server Action을 부른다. **브라우저에 supabase-js를 싣지 않는다**(decisions 2026-09-10).
 목 JSON(`lib/mock/`)은 지웠다(커밋 4). 설정값 JSON(이벤트 카드·까주기 테스트)은 `lib/content/`. 쓰기 액션은 예상 실패를 값(`Result`)으로 돌려주고 `lib/data.ts`가 throw로 바꾼다 — 프로덕션의 Next는 액션의 오류 메시지를 지우기 때문이다. 로컬 개발은 `pnpm db:start` 뒤 `pnpm dev`(.env.local에 로컬 Supabase 값).
 
 ## 라이브러리·버전

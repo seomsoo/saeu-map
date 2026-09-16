@@ -34,7 +34,7 @@ const TOP_COLUMNS = [
 /**
  * 통계 탭 (design 화면 10-5) — **우리 DB로 셀 수 있는 것만**. 방문자·페이지뷰·유입은 여기 없다:
  * 그건 Cloudflare Web Analytics가, 퍼널은 GA4가 본다(spec 6).
- * 목 단계에선 숫자가 가짜지만 집계 함수와 배치는 Phase 6에서 그대로 산다.
+ * 숫자는 `admin_stats()` 집계(Phase 6). 우리 DB로 셀 수 있는 것만 둔다.
  */
 export function StatsTab({ now }: { now: string }) {
   // 통계는 목록이 아니라 한 덩어리다 — 같은 4상태를 쓰려고 한 칸짜리 배열로 싣는다
