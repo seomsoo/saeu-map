@@ -828,3 +828,12 @@ security-reviewer(커밋 2~6 diff) 15건: 높음 2·중간 6·낮음 4·정보 3
 - **프리뷰 = `--var PREVIEW_READONLY:1`**(보안 리뷰 #3). 발화 검증은 첫 PR의 프리뷰에서 찜 한 번(read only 토스트).
 - **keepalive.yml**: 매일 09:00 KST `GET /`. 홈이 요청 시 DB를 읽으므로 이 한 번이 Supabase 무료 프로젝트의 "활동"이다. GitHub는 60일 무커밋 리포의 스케줄을 끄니 월간 점검에 넣었다.
 - `.dev.vars.example`을 채웠다(wrangler dev 런타임 변수 — `next dev`의 `.env.local`과 다른 파일이다).
+
+## 2026-09-16 — 커밋 9 Sentry (Phase 6)
+
+- **`@sentry/nextjs` 10.74.0, 수동 4파일**(위저드 없음): `instrumentation-client.ts`(브라우저, Next 15.3+ 방식)·`sentry.server.config.ts`·`instrumentation.ts`(`register` + `onRequestError = captureRequestError`)·`app/global-error.tsx`. `next.config.ts`는 `withSentryConfig`(**`@sentry/nextjs/config`에서** — 루트 import는 v11에서 사라진다는 10.74 경고)로 감싼다. 트리셰이킹 옵션(`disableLogger` 등)은 webpack 전용이라 Turbopack 빌드에선 두지 않는다. Cloudflare 요건(`nodejs_compat`, 호환 날짜 ≥ 2025-08-16)은 이미 충족(wrangler.jsonc 2026-09-01).
+- **에러만 본다.** `tracesSampleRate: 0`, 리플레이·피드백 없음, `sendDefaultPii: false`, 터널 라우트 없음(워커 요청 = 비용, 2026-09-01), 소스맵 업로드 없음(`sourcemaps.disable` — SENTRY_AUTH_TOKEN·org·project는 Phase 7 백로그, 스택은 압축된 채 온다). 무료 5k 이벤트/월 안에서.
+- **DSN(`NEXT_PUBLIC_SENTRY_DSN`, 규칙 7 허용 목록)이 없으면 초기화하지 않는다** — 로컬·DSN 전 프리뷰에서는 SDK가 실려도 아무것도 보내지 않는다. 서버 환경 태그는 `PREVIEW_READONLY=1`이면 `preview`.
+- **`lib/server/observe.ts` `reportError(message, context, cause)`** — 실패를 삼키는 자리(디스코드 웹훅·R2 객체 삭제·경비 바인딩 누락·까주기 집계·익명 승계)는 console.error 대신 이것. 로그 한 줄 + Sentry 이벤트(같은 메시지 = 한 이슈, fingerprint). 사용자 입력·연락처·uid는 context에 넣지 않는다. `captureConsoleIntegration`은 쓰지 않는다 — supabase-js 등 남의 console.error(낡은 refresh token 등)가 이벤트가 되어 할당량을 태운다.
+- `app/error.tsx`도 `captureException` — 서버 오류는 `onRequestError`가 보내지만 클라이언트 렌더 오류는 경계에서만 잡힌다(같은 digest면 한 이슈).
+- **로컬 발화 확인**(가짜 ingest `127.0.0.1:9999` + `next dev` + `/?mock=error`): 서버 봉투 1건(`Error: mock error (dev only)`, mechanism `auto.function.nextjs.on_request_error`, runtime `cloudflare`) + 브라우저 봉투 1건(`app/error.tsx`의 captureException, `request.url=/?mock=error`)이 도착했다. 실 DSN 발화는 첫 PR 프리뷰에서(runbook 2절 5).

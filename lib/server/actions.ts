@@ -62,6 +62,7 @@ import type {
   Session,
 } from "@/lib/types";
 import { notifyAdmin } from "./notify";
+import { reportError } from "./observe";
 import { deletePhotoObject, storePhoto } from "./photos";
 import { toAdminPlace, toPhoto, toPlace, toReview } from "./rows";
 import { ensureUser, readSession, requireKakao, VISITOR } from "./session";
@@ -322,7 +323,7 @@ async function forgetPhotoObjects(keys: readonly string[]): Promise<void> {
     try {
       await deletePhotoObject(key);
     } catch (e) {
-      console.error("photo object delete failed", key, e instanceof Error ? e.message : e);
+      reportError("photo object delete failed", { key }, e);
     }
   }
 }
@@ -1049,5 +1050,5 @@ export async function recordPeelResult(slug: string): Promise<void> {
   if (!parsed.success || isReadOnly()) return;
   const db = await ipHashedClient();
   const { error } = await db.from("peel_results").insert({ type: parsed.data });
-  if (error && error.code !== "42501") console.error("peel result not recorded", error.code);
+  if (error && error.code !== "42501") reportError("peel result not recorded", { code: error.code });
 }

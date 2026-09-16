@@ -37,6 +37,8 @@ export const env = createEnv({
       .string()
       .regex(/^G-[A-Z0-9]+$/)
       .optional(),
+    /** Sentry DSN — 공개값(에러를 보낼 주소, 규칙 7 허용 목록). **비우면 Sentry를 초기화하지 않는다**(로컬·DSN 전 프리뷰). 콘솔에서 Allowed Domains로 묶는다. */
+    NEXT_PUBLIC_SENTRY_DSN: z.url({ protocol: /^https?$/ }).optional(),
   },
   runtimeEnv: {
     SITE_URL: process.env["SITE_URL"],
@@ -50,6 +52,7 @@ export const env = createEnv({
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"],
     NEXT_PUBLIC_NCP_CLIENT_ID: process.env["NEXT_PUBLIC_NCP_CLIENT_ID"],
     NEXT_PUBLIC_GA_ID: process.env["NEXT_PUBLIC_GA_ID"],
+    NEXT_PUBLIC_SENTRY_DSN: process.env["NEXT_PUBLIC_SENTRY_DSN"],
   },
   // `.env.example`의 `SITE_URL=`(빈 값)을 그대로 두면 ""가 들어와 z.url()이 거부하고 앱이 안 뜬다 — 빈 문자열은 없는 것으로 (Codex PR #9 P1)
   emptyStringAsUndefined: true,

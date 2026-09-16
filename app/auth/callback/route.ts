@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sameOriginPath } from "@/lib/safe-next";
+import { reportError } from "@/lib/server/observe";
 import { adminClient, userClient } from "@/lib/server/supabase";
 import { isReadOnly } from "@/lib/server/write-gate";
 
@@ -34,8 +35,8 @@ export async function GET(request: Request): Promise<Response> {
       p_from: oldUid,
       p_into: data.user.id,
     });
-    // 로그인은 됐고 승계만 실패한 상태 — 사용자를 막지 않는다. 기록은 서버 로그(커밋 9에서 Sentry)
-    if (mergeError) console.error("anonymous merge failed", mergeError.code);
+    // 로그인은 됐고 승계만 실패한 상태 — 사용자를 막지 않는다. Sentry에 남긴다(익명 uid는 넣지 않는다)
+    if (mergeError) reportError("anonymous merge failed", { code: mergeError.code });
   }
   return back("ok");
 }

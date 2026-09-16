@@ -1,13 +1,14 @@
 /**
  * 운영자 알림 — 디스코드 웹훅 하나(봇·토큰 없음, decisions 2026-09-10 #20). 제보·신고·사장님 요청·신고 누적(3회째).
  * 본문은 상호·지역·사유·가게/관리자 링크뿐 — **연락처 같은 개인정보는 싣지 않는다**(채널이 새면 같이 샌다).
- * 상호는 사용자 입력이라 멘션(@everyone)을 끈다. 워커에서는 `waitUntil`로 응답을 막지 않고, 실패는 로그만(커밋 9 Sentry).
+ * 상호는 사용자 입력이라 멘션(@everyone)을 끈다. 워커에서는 `waitUntil`로 응답을 막지 않고, 실패는 Sentry에만(사용자는 모른다).
  */
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { env } from "@/lib/env";
 import { REPORT_KIND_LABEL, REPORT_REASON_LABEL } from "@/lib/report-labels";
 import { siteUrl } from "@/lib/seo";
+import { reportError } from "./observe";
 
 export type AdminAlert =
   | { kind: "report"; placeId: string; name: string; gu: string; duplicateSuspect: boolean }
@@ -49,10 +50,10 @@ export async function notifyAdmin(alert: AdminAlert): Promise<void> {
     body: JSON.stringify(webhookPayload(alert, siteUrl(env.SITE_URL))),
   }).then(
     (res) => {
-      if (!res.ok) console.error("discord webhook refused", res.status);
+      if (!res.ok) reportError("discord webhook refused", { status: res.status, kind: alert.kind });
     },
     (e: unknown) => {
-      console.error("discord webhook failed", e instanceof Error ? e.message : e);
+      reportError("discord webhook failed", { kind: alert.kind }, e);
     },
   );
   try {
