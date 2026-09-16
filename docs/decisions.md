@@ -883,3 +883,9 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **사장님 요청으로 내린 가게 자리의 재제보 경고**(spec 5): `submit_report`가 150m 안의 `removed_by_owner` 가게를 `duplicate_suspect_of`로 단다(내린 가게는 숨겨져 2단계 중복 검사에 안 걸린다). 관리자 사후 확인 탭은 후보를 관리자 목록에서 읽어 "사장님이 내린 자리 · 상호" 배지로 보여 준다. pgTAP 060.
 - **배포 뒤 생긴 핀의 공유 카드**(plan 결정 18): `place/[id]/opengraph-image` 파일 컨벤션은 og:image를 늘 자기 세그먼트로 박아 새 핀은 404였다(갭 스윕 #7). 구·테스트 카드처럼 **라우트 `/og/place/[id]`**(빌드 시 생성, `dynamicParams=false`)로 옮기고 `placeMeta`가 `placeOgImagePath`로 가리킨다 — 빌드 시각(`next.config env.BUILD_AT`, 시각 하나라 비밀 아님) 뒤에 생긴 핀은 루트 카드. workerd 실측: 빌드 뒤 넣은 핀 → `/opengraph-image` 200 png, 기존 핀 → `/og/place/<id>` 200 png.
 - **zsh 함정(메모)**: 셸 변수 이름 `path`는 zsh에서 `PATH` 배열이라 대입하면 명령을 못 찾는다 — 검증 스크립트에서 30분 잃었다.
+
+## 2026-09-16 — 호스팅 Supabase 생성 (사용자 콘솔 작업 중 CLI로 되는 것)
+
+- **새 조직 `saeu-map`(smzmkuvlzouhlpybhzli)에 프로젝트 `saeu-map`(ref `dnwkyobizphuacqvfseh`, ap-northeast-2)**를 CLI로 만들었다 — "무료 슬롯 하나"는 조직 단위라 새 조직이면 된다(사용자 질문 "조직 새로 못 만들어?" → 됐다). link + `db push`(마이그레이션 2개) 완료. DB 비밀번호는 `.env.local`의 `SUPABASE_DB_PASSWORD`(gitignore)뿐 — 잃으면 대시보드에서 재설정.
+- **키 등록은 Claude Code 자동 모드의 분류기가 막았다**(API 키를 파일·secret으로 옮기는 명령 = "credential materialization"). 남은 것은 사용자가 `!` 접두사로 직접 실행한다(runbook 3절 명령 그대로): API 키 조회(`--reveal`) → `.env.prod.local` → `gh secret set SUPABASE_PUBLISHABLE_KEY` · `wrangler secret put SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY/SUPABASE_SECRET_KEY/IP_HASH_SALT` → 시드 임포트(`node scripts/import-seed.mjs --dry-run` 뒤 실행). 공개 URL은 GH secret에 넣었다.
+- `config push`는 카카오 키(env 플레이스홀더)가 들어온 뒤 한 번에 — 그 전엔 `config diff`로 익명 로그인·이메일 가입 닫힘 항목만 확인.
