@@ -159,7 +159,8 @@ site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:3000/**", "http://localhost:8787/**"]
+# 실서비스·프리뷰의 /auth/callback도 여기 있어야 카카오 콜백이 통과한다(config push로 올라간다, 2026-09-16)
+additional_redirect_urls = ["http://localhost:3000/**", "http://localhost:8787/**", "https://saeu-map.saeu-map.workers.dev/**", "https://preview-saeu-map.saeu-map.workers.dev/**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
