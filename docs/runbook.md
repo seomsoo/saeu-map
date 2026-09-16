@@ -61,9 +61,9 @@
 
 ```
 # Cloudflare (wrangler 로그인 확인됨 2026-09-10)
-wrangler r2 bucket create saeu-photos
+wrangler r2 bucket create saeu-photos     # 2026-09-17 완료(R2 구독 추가 뒤) — saeu-cache도
 wrangler r2 bucket create saeu-cache
-wrangler d1 create saeu-tags
+wrangler d1 create saeu-tags              # 2026-09-10 완료
 wrangler secret put SUPABASE_URL          # 런타임 값은 전부 secret — URL·publishable도(로그에 안 찍히게, 최종 보안 리뷰 #3)
 wrangler secret put SUPABASE_PUBLISHABLE_KEY
 wrangler secret put SUPABASE_SECRET_KEY   # TURNSTILE_SECRET_KEY · IP_HASH_SALT · DISCORD_WEBHOOK_URL도 같은 방법
@@ -110,6 +110,21 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 ```
 
 검수 필요(`needs_review`)로 들어간 가게는 `hidden_at`이 찍혀 지도에 안 보인다. 관리자 검색 탭 [검수 대기] 칩에서 [가게 열기]로 30초 보고 [복구]하면 그 자리에서 지도에 뜨고 검수 표시도 내려간다(커밋 7). 안 살릴 건 그대로 두면 된다.
+
+## 3d. 도메인을 붙이는 날 체크리스트 (커스텀 도메인 — 전부 "추가"지 "교체"가 아니다)
+
+지금은 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev` 둘로 등록돼 있다. 새 도메인이 생기면 **같은 날** 아래를 전부 더한다 — 하나라도 빠지면 그 기능만 조용히 죽는다(쓰기 "잠시 후 다시", 지도 401, 로그인 실패).
+
+| 어디 | 무엇 | 안 하면 |
+|---|---|---|
+| Cloudflare → Turnstile → 위젯 `saeu-map` → Settings → Hostname management | 새 도메인 추가(키는 그대로) | 모든 쓰기가 "bot check failed" |
+| Supabase `supabase/config.toml` `additional_redirect_urls` + `supabase config push` (내가) | `https://<도메인>/**` 추가 | 카카오 로그인 뒤 콜백 거부 |
+| 카카오 개발자 앱 → 플랫폼 → Web 사이트 도메인 | 새 도메인 추가(리다이렉트 URI는 Supabase 주소라 그대로) | 카카오 로그인 시작 실패 |
+| NCP 콘솔 → Maps → 서비스 URL | 새 도메인 추가 | 지도가 401로 안 뜸 |
+| Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 | 브라우저 에러가 안 들어옴 |
+| `wrangler.jsonc` `vars.SITE_URL` + routes/custom domain, ci.yml preview `SITE_URL` (내가) | 새 도메인 | OG·sitemap·공유 링크가 옛 주소 |
+
+Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에, secret은 워커 secret과 Turnstile 대시보드에만 있다(로컬 `.env.local`은 테스트 키).
 
 ## 4. 공개값 네 가지 습관
 

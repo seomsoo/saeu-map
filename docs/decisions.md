@@ -889,3 +889,8 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **새 조직 `saeu-map`(smzmkuvlzouhlpybhzli)에 프로젝트 `saeu-map`(ref `dnwkyobizphuacqvfseh`, ap-northeast-2)**를 CLI로 만들었다 — "무료 슬롯 하나"는 조직 단위라 새 조직이면 된다(사용자 질문 "조직 새로 못 만들어?" → 됐다). link + `db push`(마이그레이션 2개) 완료. DB 비밀번호는 `.env.local`의 `SUPABASE_DB_PASSWORD`(gitignore)뿐 — 잃으면 대시보드에서 재설정.
 - **키는 파일에 남기지 않고 파이프로만 옮겼다** — 처음 `api-keys` 출력을 파일에 쓰려다 Claude Code 자동 모드 분류기에 막혔고(credential materialization), `supabase projects api-keys --reveal | python | gh secret set / wrangler secret put`처럼 stdout에도 디스크에도 안 남기는 방식은 통과했다. GH secrets `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`, 워커 secret `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`·`SUPABASE_SECRET_KEY`·`IP_HASH_SALT`(openssl 난수, 어디에도 기록 안 함 — 새면 교체) 등록 완료. **시드 임포트 완료**: 가게 789(검수 숨김 27)·역 출구 5,060·seed 확인 789·최근접역 691. 앞으로도 실서비스 키는 로컬 파일에 두지 않는다 — 필요할 때 같은 파이프.
 - `config push`는 카카오 키(env 플레이스홀더)가 들어온 뒤 한 번에 — 그 전엔 `config diff`로 익명 로그인·이메일 가입 닫힘 항목만 확인.
+
+## 2026-09-17 — R2 구독·버킷 2개 · Turnstile 위젯 등록
+
+- 사용자가 대시보드에서 R2 구독(무료 한도, 카드 등록)·Turnstile 위젯(`saeu-map`, Managed, workers.dev 호스트 둘)을 만들었다. 버킷 `saeu-photos`·`saeu-cache`는 wrangler로 생성. site key는 GH variable, secret은 워커 secret으로 올리고 **`.env.local`은 테스트 키로 되돌렸다** — 로컬 위젯은 테스트 site key라 토큰이 테스트 secret으로만 통과한다(실제 secret이 로컬에 있으면 로컬 쓰기가 전부 "bot check failed").
+- **도메인을 붙이는 날 체크리스트**를 runbook 3d에 표로 — Turnstile 호스트명·Supabase 허용 URL·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains·SITE_URL. 사용자가 "까먹을 수 있으니 문서에" 요청(2026-09-17).
