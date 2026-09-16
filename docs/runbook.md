@@ -68,7 +68,8 @@ wrangler secret put SUPABASE_URL          # 런타임 값은 전부 secret — U
 wrangler secret put SUPABASE_PUBLISHABLE_KEY
 wrangler secret put SUPABASE_SECRET_KEY   # TURNSTILE_SECRET_KEY · IP_HASH_SALT · DISCORD_WEBHOOK_URL도 같은 방법
 # Supabase
-# 2026-09-16 완료: 조직 saeu-map(smzmkuvlzouhlpybhzli) · 프로젝트 saeu-map(ref dnwkyobizphuacqvfseh, ap-northeast-2) · link · db push.
+# 2026-09-16 완료: 조직 saeu-map(smzmkuvlzouhlpybhzli) · 프로젝트 saeu-map(ref dnwkyobizphuacqvfseh, ap-northeast-2) · link · db push · 시드 789 임포트 · GH/워커 secret.
+# 실서비스 키는 로컬 파일에 두지 않는다 — 필요하면 `supabase projects api-keys --project-ref dnwkyobizphuacqvfseh --reveal --output-format json | python3 -c … | wrangler secret put …`처럼 파이프로만.
 # DB 비밀번호는 .env.local의 SUPABASE_DB_PASSWORD(gitignore) — 잃으면 대시보드 Database → Reset password
 supabase link --project-ref dnwkyobizphuacqvfseh -p "$SUPABASE_DB_PASSWORD"
 supabase db push                          # 마이그레이션
