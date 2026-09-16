@@ -35,8 +35,10 @@ function detail(alert: AdminAlert): string {
 export function webhookPayload(alert: AdminAlert, site: URL): { content: string; allowed_mentions: { parse: never[] } } {
   const place = new URL(`/place/${alert.placeId}`, site).toString();
   const admin = new URL("/admin", site).toString();
+  // 상호는 사용자 입력 — 인라인 코드로 감싸 마크다운(코드블록·스포일러·인용)이 본문 형식을 못 깨게. 백틱은 따옴표로
+  const name = `\`${alert.name.replaceAll("`", "'")}\``;
   return {
-    content: `[${HEAD[alert.kind]}] ${alert.name} · ${detail(alert)}\n가게 ${place}\n관리자 ${admin}`,
+    content: `[${HEAD[alert.kind]}] ${name} · ${detail(alert)}\n가게 ${place}\n관리자 ${admin}`,
     allowed_mentions: { parse: [] },
   };
 }

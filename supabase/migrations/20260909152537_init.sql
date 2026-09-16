@@ -399,6 +399,8 @@ create trigger places_log_edit after update on public.places
 
 create trigger checkins_shadow before insert on public.checkins
   for each row execute function private.drop_if_shadow_banned();
+create trigger checkins_rate after insert on public.checkins
+  for each row execute function private.log_rate_event('checkin', 'place_id');
 
 create trigger reviews_shadow before insert on public.reviews
   for each row execute function private.drop_if_shadow_banned();
@@ -432,6 +434,32 @@ end;
 $$;
 create trigger reviews_photo_once before insert or update of photo_key on public.reviews
   for each row execute function private.guard_review_photo();
+-- 사진 키는 자기 자리(reviews/<리뷰 id>/…)만 — 남의 키를 넣고 리뷰를 지우면 그 R2 객체가 지워진다(최종 보안 리뷰 #1). 삭제 표시는 본인이 되돌리지 못한다.
+create or replace function private.guard_review_row() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.photo_key is not null and new.photo_key not like 'reviews/' || new.id::text || '/%' then
+    raise exception 'photo key out of place' using errcode = 'check_violation';
+  end if;
+  if tg_op = 'UPDATE' and old.deleted_at is not null and new.deleted_at is null
+     and (select auth.uid()) is not null and not private.is_admin() then
+    raise exception 'review already deleted' using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+create trigger reviews_guard before insert or update on public.reviews
+  for each row execute function private.guard_review_row();
+-- 가게 사진 키도 자기 자리(places/<가게 id>/…)만
+create or replace function private.guard_photo_key() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.key not like 'places/' || new.place_id::text || '/%' then
+    raise exception 'photo key out of place' using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+create trigger photos_key before insert on public.photos
+  for each row execute function private.guard_photo_key();
 
 create trigger photos_shadow before insert on public.photos
   for each row execute function private.drop_if_shadow_banned();
@@ -573,7 +601,11 @@ revoke execute on function public.me() from public, anon;
 grant execute on function public.me() to authenticated;
 
 -- 관리자 읽기 — 숨긴 가게·병합·검수·reporter_id까지 전부(GRANT 안 된 열이라 RPC). 상호 부분 일치, 상한 200.
-create or replace function public.admin_places(p_query text default null, p_limit integer default 200, p_needs_review boolean default false)
+-- p_id: 쓰기 뒤 한 행 조회(목록 200행에서 찾으면 시드처럼 등록일이 같은 행은 빠진다 — 코드 리뷰 2026-09-16 #1). p_ids: 신고 탭 조인·중복 후보 상호.
+create or replace function public.admin_places(
+  p_query text default null, p_limit integer default 200, p_needs_review boolean default false,
+  p_id uuid default null, p_ids uuid[] default null
+)
 returns setof public.places language plpgsql stable security definer set search_path = '' as $$
 begin
   if not private.is_admin() then
@@ -583,12 +615,29 @@ begin
     select * from public.places p
     where (p_query is null or p.name ilike '%' || p_query || '%')
       and (not p_needs_review or p.needs_review)  -- 검수 필터: 숨긴 채 임포트한 시드(decisions 2026-09-10 #10)
+      and (p_id is null or p.id = p_id)
+      and (p_ids is null or p.id = any(p_ids))
     order by p.created_at desc
     limit least(greatest(p_limit, 1), 500);
 end;
 $$;
-revoke execute on function public.admin_places(text, integer, boolean) from public, anon;
-grant execute on function public.admin_places(text, integer, boolean) to authenticated;
+revoke execute on function public.admin_places(text, integer, boolean, uuid, uuid[]) from public, anon;
+grant execute on function public.admin_places(text, integer, boolean, uuid, uuid[]) to authenticated;
+
+-- 내 리뷰 소프트 삭제(spec 5). RPC인 이유: PG 17은 UPDATE의 **새 행도 SELECT 정책**(deleted_at is null)을 통과해야 해서
+-- 작성자가 직접 deleted_at을 찍으면 "new row violates row-level security policy"가 난다(2026-09-16 pgTAP 실측).
+-- 돌려주는 행 = 가게·사진 키(액션이 캐시를 만료하고 R2 객체를 지운다). 남의 리뷰·이미 지운 리뷰는 0행.
+create or replace function public.delete_review(p_id uuid)
+returns table (deleted_place_id uuid, deleted_photo_key text) language plpgsql security definer set search_path = '' as $$
+begin
+  return query
+    update public.reviews r set deleted_at = now()
+    where r.id = p_id and r.author_id = (select auth.uid()) and r.deleted_at is null
+    returning r.place_id, r.photo_key;
+end;
+$$;
+revoke execute on function public.delete_review(uuid) from public, anon;
+grant execute on function public.delete_review(uuid) to authenticated;
 
 -- 내 제보 — reporter_id를 공개 열에 싣지 않으려고 RPC로
 create or replace function public.my_reports() returns setof public.places_public language sql stable security definer set search_path = '' as $$
@@ -696,12 +745,17 @@ revoke execute on function public.admin_stats() from public, anon;
 grant execute on function public.admin_stats() to authenticated;
 
 -- 가게 합치기 (spec 4.3 엣지 "이전 가게", 중복 의심 큐) — 사진·확인·리뷰·찜·신고·이력을 옮기고 원본은 숨긴다. 되돌리기 없음.
-create or replace function public.admin_merge_places(p_from uuid, p_into uuid) returns void language plpgsql security definer set search_path = '' as $$
+-- 돌려주는 행 = 합치며 소프트 삭제한 리뷰(같은 사람이 양쪽에 남긴 것)의 가게·사진 키 — 액션이 캐시를 만료하고 R2 객체를 지운다(최종 보안 리뷰 #4).
+create or replace function public.admin_merge_places(p_from uuid, p_into uuid)
+returns table (freed_place_id uuid, freed_photo_key text) language plpgsql security definer set search_path = '' as $$
 begin
   if not private.is_admin() then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
-  if p_from = p_into or not exists (select 1 from public.places where id = p_into and merged_into is null) then
+  -- 원본도 대상도 "보이거나 숨긴 실제 가게"여야 한다 — 이미 합쳐진 가게를 또 합치면 merged_into가 조용히 덮인다(코드 리뷰 #8)
+  if p_from = p_into
+     or not exists (select 1 from public.places where id = p_from and merged_into is null)
+     or not exists (select 1 from public.places where id = p_into and merged_into is null) then
     raise exception 'invalid merge target' using errcode = 'invalid_parameter_value';
   end if;
   update public.photos set place_id = p_into where place_id = p_from;
@@ -710,8 +764,10 @@ begin
     and exists (select 1 from public.checkins t where t.place_id = p_into and t.type = 'visited' and t.actor is not distinct from c.actor and t.kst_day = c.kst_day);
   update public.checkins set place_id = p_into where place_id = p_from;
   -- 같은 사람의 리뷰가 양쪽에 있으면 원본 쪽을 소프트 삭제
-  update public.reviews r set deleted_at = now() where r.place_id = p_from and r.deleted_at is null
-    and exists (select 1 from public.reviews t where t.place_id = p_into and t.deleted_at is null and t.author_id is not distinct from r.author_id);
+  return query
+    update public.reviews r set deleted_at = now() where r.place_id = p_from and r.deleted_at is null
+      and exists (select 1 from public.reviews t where t.place_id = p_into and t.deleted_at is null and t.author_id is not distinct from r.author_id)
+    returning r.place_id, r.photo_key;
   update public.reviews set place_id = p_into where place_id = p_from;
   insert into public.bookmarks (user_id, place_id, created_at)
     select user_id, p_into, created_at from public.bookmarks where place_id = p_from
@@ -720,14 +776,16 @@ begin
   update public.reports set place_id = p_into where place_id = p_from;
   update public.place_edits set place_id = p_into where place_id = p_from;
   update public.places set duplicate_suspect_of = null where duplicate_suspect_of = p_from;
-  update public.places set merged_into = p_into, hidden_at = coalesce(hidden_at, now()) where id = p_from;
+  update public.places set merged_into = p_into, hidden_at = coalesce(hidden_at, now()), needs_review = false where id = p_from;
 end;
 $$;
 revoke execute on function public.admin_merge_places(uuid, uuid) from public, anon;
 grant execute on function public.admin_merge_places(uuid, uuid) to authenticated;
 
 -- 익명 → 카카오 승계 (decisions 2026-09-10: signInWithOAuth + 콜백 서버 병합). secret key(service_role)만 부른다.
-create or replace function private.merge_users(p_from uuid, p_into uuid) returns void language plpgsql security definer set search_path = '' as $$
+-- 돌려주는 행 = 승계하며 소프트 삭제한 리뷰(같은 가게에 둘 다 남긴 것)의 가게·사진 키 — 콜백이 캐시를 만료하고 R2 객체를 지운다
+create or replace function private.merge_users(p_from uuid, p_into uuid)
+returns table (freed_place_id uuid, freed_photo_key text) language plpgsql security definer set search_path = '' as $$
 begin
   if p_from = p_into or p_from is null or p_into is null then
     return;
@@ -740,8 +798,10 @@ begin
   delete from public.checkins c where c.actor = p_from and c.type = 'visited'
     and exists (select 1 from public.checkins t where t.actor = p_into and t.type = 'visited' and t.place_id = c.place_id and t.kst_day = c.kst_day);
   update public.checkins set actor = p_into where actor = p_from;
-  update public.reviews r set deleted_at = now() where r.author_id = p_from and r.deleted_at is null
-    and exists (select 1 from public.reviews t where t.author_id = p_into and t.deleted_at is null and t.place_id = r.place_id);
+  return query
+    update public.reviews r set deleted_at = now() where r.author_id = p_from and r.deleted_at is null
+      and exists (select 1 from public.reviews t where t.author_id = p_into and t.deleted_at is null and t.place_id = r.place_id)
+    returning r.place_id, r.photo_key;
   update public.reviews set author_id = p_into where author_id = p_from;
   update public.places set reporter_id = p_into where reporter_id = p_from;
   update public.photos set uploader_id = p_into where uploader_id = p_from;
@@ -779,7 +839,10 @@ create policy places_admin_update on public.places for update to authenticated
 
 -- checkins: 다녀왔어요(본인, 보이는 가게). 하루 1회는 유니크 인덱스. 읽기는 관리자만(집계는 뷰)
 create policy checkins_insert on public.checkins for insert to authenticated
-  with check ((select auth.uid()) = actor and type = 'visited' and (select private.place_visible(place_id)));
+  with check (
+    (select auth.uid()) = actor and type = 'visited' and (select private.place_visible(place_id))
+    and (select private.rate_ok('checkin', 30, interval '1 day'))  -- 사람당 일 30 — 세션 하나로 전 가게 +1을 막는다(코드 리뷰 #17)
+  );
 create policy checkins_select on public.checkins for select to anon, authenticated using (true);  -- actor 열은 GRANT 없음
 
 -- reviews: 카카오(비익명)만, 핀당 1(유니크), 일 10. 본인 것만 읽고 고친다(삭제 = deleted_at). 공개 읽기는 뷰
@@ -847,14 +910,16 @@ grant select (id, seed_ref, name, gu, address_road, address_jibun, lat, lng, nea
 grant update on public.places to authenticated;                        -- 행은 관리자 정책(places_admin_update)이 가른다
 grant select (id, place_id, type, at, kst_day) on public.checkins to anon, authenticated;
 grant insert (place_id, actor, type) on public.checkins to authenticated;  -- at·kst_day는 서버가 정한다(security-reviewer 2026-09-16 #15)
-grant select, insert on public.reviews to anon, authenticated;
+grant select on public.reviews to anon, authenticated;
+grant insert (place_id, author_id, rating, text) on public.reviews to authenticated;  -- 시각·사진 키·삭제 표시는 서버·트리거만(최종 보안 리뷰 2026-09-16 #1)
 revoke insert on public.reviews from anon;
-grant update (rating, text, photo_key, edited_at, deleted_at) on public.reviews to authenticated;
+grant update (rating, text, photo_key, edited_at) on public.reviews to authenticated;  -- 삭제 표시는 delete_review RPC(아래)·관리자 RPC만
 grant select, insert, delete on public.bookmarks to authenticated;
 grant select (id, place_id, key, created_at, removed_at) on public.photos to anon, authenticated;
-grant insert on public.photos to authenticated;
+grant insert (id, place_id, key, uploader_id) on public.photos to authenticated;
 grant update (removed_at) on public.photos to authenticated;
-grant select, insert on public.reports to authenticated;
+grant select on public.reports to authenticated;
+grant insert (kind, place_id, photo_id, reason, owner_kind, contact, message, actor) on public.reports to authenticated;
 grant update (status, resolved_at) on public.reports to authenticated;
 grant select on public.place_edits to authenticated;
 grant insert (type) on public.peel_results to anon, authenticated;

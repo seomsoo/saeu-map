@@ -80,10 +80,9 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
   const [period, setPeriod] = useState<AdminPeriod>(null);
   const [limit, setLimit] = useState(ADMIN_PAGE_SIZE);
   const load = useCallback(async () => {
-    const [rows, places] = await Promise.all([
-      getReports({ status: "open", now, sinceDays: period, limit }),
-      getPlacesForAdmin(now),
-    ]);
+    const rows = await getReports({ status: "open", now, sinceDays: period, limit });
+    // 신고가 붙은 가게만 id로 — 최근 500행 목록에서 찾으면 오래된 시드의 신고는 "없는 가게"가 된다(코드 리뷰 #2)
+    const places = await getPlacesForAdmin(now, { ids: [...new Set(rows.map((r) => r.placeId))] });
     return rows.map((r) => ({ report: r, place: places.find((p) => p.id === r.placeId) }));
   }, [now, period, limit]);
   const { rows, status, retry, refresh } = useAdminList(load, `${String(period)}-${String(limit)}`);

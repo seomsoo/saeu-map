@@ -1,5 +1,5 @@
 begin;
-select plan(20);
+select plan(33);
 
 -- security-reviewer 2026-09-16(중간 리뷰) 반영분. 순서 주의: set_ip는 트랜잭션 끝까지 남으므로 "IP 없음" 케이스가 맨 앞이다.
 
@@ -21,6 +21,12 @@ select tests.clear_auth();
 -- checkins: 시각은 서버만(#15)
 select tests.authenticate_as(:'anon2', true);
 select throws_ok(format($$insert into public.checkins (place_id, actor, type, at) values (%L, %L, 'visited', now() - interval '30 days')$$, :'place_id', :'anon2'), '42501', null, '확인 시각은 서버가 정한다(컬럼 GRANT)');
+-- 사람당 일 30(코드 리뷰 #17): 가게 30곳까지 확인, 31번째 거부
+select tests.clear_auth();
+select array_agg(tests.create_place('확인집' || n)) as many from generate_series(1, 31) n \gset
+select tests.authenticate_as(:'anon2', true);
+insert into public.checkins (place_id, actor, type) select p, :'anon2', 'visited' from unnest((:'many')::uuid[]) with ordinality as t(p, i) where i <= 30;
+select throws_ok(format($$insert into public.checkins (place_id, actor, type) values (%L, %L, 'visited')$$, ((:'many')::uuid[])[31], :'anon2'), '42501', null, '31번째 확인은 일일 상한');
 
 -- photo_slot_ok: 자리 있으면 true, 가게당 시간 10장을 채우면 false(#7)
 select is((select public.photo_slot_ok(:'place_id')), true, '자리가 있으면 true');
@@ -42,9 +48,21 @@ select is((select photo_at is not null from public.reviews where id = :'review_i
 select is((select private.photos_this_month()), 11, '월 집계 = 가게 사진 10 + 리뷰 사진 1');
 select tests.authenticate_as(:'kakao1', false);
 select tests.set_ip('ip-s3');
-insert into public.reviews (place_id, author_id, rating, text, photo_key) values (:'place_id', :'kakao1', 3, '사진 실은 리뷰', 'reviews/y/1.webp');
+select throws_ok(format($$insert into public.reviews (place_id, author_id, rating, text, photo_key) values (%L, %L, 3, 'x', 'reviews/y/1.webp')$$, :'place_id', :'kakao1'), '42501', null, 'insert에 사진 키는 못 싣는다(컬럼 GRANT)');
+select throws_ok(format($$insert into public.reviews (place_id, author_id, rating, text, created_at) values (%L, %L, 3, 'x', now() - interval '30 days')$$, :'place_id', :'kakao1'), '42501', null, '리뷰 등록 시각은 서버만(컬럼 GRANT — checkin_on_review가 at으로 쓴다)');
+insert into public.reviews (place_id, author_id, rating, text) values (:'place_id', :'kakao1', 3, '사진 붙일 리뷰') returning id as review_k1 \gset
+select throws_ok(format($$update public.reviews set photo_key = 'reviews/%s/9.webp' where id = %L$$, :'review_id', :'review_k1'), '23514', null, '남의 리뷰 자리의 키는 못 붙인다(guard_review_row)');
+select lives_ok(format($$update public.reviews set photo_key = 'reviews/%s/1.webp' where id = %L$$, :'review_k1', :'review_k1'), '자기 자리 키는 붙는다');
+select throws_ok(format($$update public.reviews set deleted_at = now() where id = %L$$, :'review_k1'), '42501', null, '작성자가 deleted_at을 직접 찍지 못한다(컬럼 GRANT — 삭제는 RPC)');
+select is((select count(*)::int from public.delete_review(:'review_id')), 0, '남의 리뷰는 delete_review가 0행');
+select is((select deleted_photo_key from public.delete_review(:'review_k1')), 'reviews/' || :'review_k1' || '/1.webp', '내 리뷰는 지워지고 사진 키를 돌려준다');
+select is((select count(*)::int from public.delete_review(:'review_k1')), 0, '두 번째 삭제는 0행');
+select throws_ok(format($$update public.reviews set deleted_at = null where id = %L$$, :'review_k1'), '42501', null, '지운 리뷰를 본인이 되살리지 못한다');
+select throws_ok(format($$insert into public.photos (place_id, key, uploader_id) values (%L, 'places/00000000-0000-4000-8000-000000000000/1.webp', %L)$$, :'place_id', :'kakao1'), '23514', null, '가게 사진 키도 자기 가게 자리만');
+select throws_ok(format($$insert into public.photos (place_id, key, uploader_id, created_at) values (%L, 'places/%s/z.webp', %L, now() + interval '1 year')$$, :'place_id', :'place_id', :'kakao1'), '42501', null, '사진 등록 시각은 서버만(월 상한 조작 방지)');
+select throws_ok(format($$insert into public.reports (kind, place_id, reason, actor, status) values ('place_report', %L, 'fake', %L, 'done')$$, :'place_id', :'kakao1'), '42501', null, '신고 상태는 관리자만(컬럼 GRANT)');
 select tests.clear_auth();
-select is((select photo_at is not null from public.reviews where text = '사진 실은 리뷰'), true, 'insert에 사진을 실어도 같은 트리거가 photo_at을 찍는다(직접 호출 경로)');
+select is((select photo_at is not null from public.reviews where id = :'review_k1'), true, '붙인 사진은 photo_at이 찍힌다');
 
 -- 서비스 역할 RPC: 문은 EXECUTE 권한 — anon·authenticated 거부, service_role 통과(#2)
 select tests.authenticate_anon();

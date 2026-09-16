@@ -42,9 +42,13 @@ function menuLine(place: Place): string {
   return [menu.name, unit, price].filter(Boolean).join(" ");
 }
 
-/** 중복 의심 배지 — 제보 2단계에서 "다른 가게예요"로 답한 후보(spec 4.3-2). 후보가 숨겨졌으면 이름 없이 배지만 */
+/**
+ * 중복 의심 배지 — 제보 2단계에서 "다른 가게예요"로 답한 후보(spec 4.3-2), 또는 사장님 요청으로 내린 가게 자리에 온 재제보(spec 5 경고).
+ * 후보 이름은 관리자 목록에서 오므로 숨긴 가게도 보인다.
+ */
 function suspectLabel(place: Place): string {
-  return `중복 의심 · ${place.duplicateSuspectName ?? "후보 숨김"}`;
+  const name = place.duplicateSuspectName ?? "후보 없음";
+  return place.duplicateSuspectRemovedByOwner === true ? `사장님이 내린 자리 · ${name}` : `중복 의심 · ${name}`;
 }
 
 /**
@@ -158,8 +162,9 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
             setMerging(null);
           }}
           onMerged={() => {
-            // 옛 가게는 숨겨졌다 — 목록에서 뺀다
-            setRows(rows.filter((p) => p.id !== merging.id));
+            // 옛 가게는 숨겨졌다 — 목록에서 뺀다. 함수형: 그 사이 [확인]으로 바뀐 목록을 옛 클로저가 덮지 않게(코드 리뷰 #14)
+            const gone = merging.id;
+            setRows((prev) => prev.filter((p) => p.id !== gone));
             setMerging(null);
           }}
           onNotice={onNotice}

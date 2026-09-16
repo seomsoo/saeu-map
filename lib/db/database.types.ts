@@ -564,14 +564,26 @@ export type Database = {
       admin_delete_user: { Args: { p_uid: string }; Returns: undefined }
       admin_merge_places: {
         Args: { p_from: string; p_into: string }
-        Returns: undefined
+        Returns: {
+          freed_photo_key: string
+          freed_place_id: string
+        }[]
       }
       admin_merge_users: {
         Args: { p_from: string; p_into: string }
-        Returns: undefined
+        Returns: {
+          freed_photo_key: string
+          freed_place_id: string
+        }[]
       }
       admin_places: {
-        Args: { p_limit?: number; p_needs_review?: boolean; p_query?: string }
+        Args: {
+          p_id?: string
+          p_ids?: string[]
+          p_limit?: number
+          p_needs_review?: boolean
+          p_query?: string
+        }
         Returns: {
           address_jibun: string | null
           address_road: string | null
@@ -610,6 +622,13 @@ export type Database = {
       apply_suggestion: {
         Args: { p_field: string; p_place: string; p_value: Json }
         Returns: undefined
+      }
+      delete_review: {
+        Args: { p_id: string }
+        Returns: {
+          deleted_photo_key: string
+          deleted_place_id: string
+        }[]
       }
       me: { Args: never; Returns: Json }
       merge_target: { Args: { p_id: string }; Returns: string }

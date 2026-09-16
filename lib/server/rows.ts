@@ -59,7 +59,7 @@ export function photoUrl(key: string): string {
   return `/photos/${key}`;
 }
 
-function toSides(sides: readonly string[]): Place["sides"] {
+export function toSides(sides: readonly string[]): Place["sides"] {
   return {
     headButter: sides.includes("headButter"),
     ramen: sides.includes("ramen"),
@@ -67,7 +67,10 @@ function toSides(sides: readonly string[]): Place["sides"] {
   };
 }
 
-export function toPlace(input: unknown): Place {
+const NEW_MS = 7 * 86_400_000;
+
+/** `now`는 NEW 배지(7일) 판정용 — 캐시 채울 때가 아니라 읽을 때의 시각이어야 한다(코드 리뷰 2026-09-16 #3). 뷰의 is_new는 쓰지 않는다 */
+export function toPlace(input: unknown, now: string = new Date().toISOString()): Place {
   const row = placePublicRowSchema.parse(input);
   const photos: Photo[] = row.photos.map((p) => ({ id: p.id, url: photoUrl(p.key), uploadedAt: p.uploadedAt }));
   const station = row.nearest_station;
@@ -94,7 +97,7 @@ export function toPlace(input: unknown): Place {
     // 확인 0회면 비어 온다 → 등록 시각을 기준으로 "○일 전 등록"(백로그, decisions 2026-09-10)
     lastCheckedAt: row.last_checked_at ?? row.created_at,
     checkCount: row.check_count,
-    isNew: row.is_new,
+    isNew: row.source === "report" && Date.parse(now) - Date.parse(row.created_at) < NEW_MS,
     createdAt: row.created_at,
     ...(row.rating_avg !== null && { rating: { count: row.rating_count, average: row.rating_avg } }),
   };
@@ -141,6 +144,7 @@ export function toAdminPlace(input: unknown, photos: readonly Photo[] = []): Pla
     ...(row.hidden_at !== null && { hiddenAt: row.hidden_at }),
     ...(row.removed_by_owner && { removedByOwner: true }),
     ...(row.duplicate_suspect_of !== null && { duplicateSuspectOf: row.duplicate_suspect_of }),
+    ...(row.merged_into !== null && { mergedInto: row.merged_into }),
     ...(row.reporter_id !== null && { reporterId: row.reporter_id }),
   };
 }

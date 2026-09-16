@@ -198,11 +198,11 @@ jobs:
       - name: Gate on Cloudflare secrets
         id: gate
         env:
-          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.SUPABASE_URL != '' && vars.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
+          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
         run: |
           echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
           if [ "$ENABLED" != "true" ]; then
-            echo "::notice title=preview skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 프리뷰 업로드 건너뜀 (runbook 3c)"
+            echo "::notice title=preview skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 프리뷰 업로드 건너뜀 (runbook 3c)"
           fi
 
       - if: steps.gate.outputs.enabled == 'true'
@@ -232,10 +232,10 @@ jobs:
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           # 프리뷰의 metadataBase·sitemap·og:image가 프리뷰 URL을 가리키게 (서버 전용, decisions 2026-09-07)
           SITE_URL: https://preview-saeu-map.saeu-map.workers.dev
-          # 빌드의 OG 프리렌더가 prod DB를 읽는다(anon 읽기). 서버 비밀은 빌드에 필요 없다 — 런타임은 워커 secret(wrangler secret put)이고
-          # 여기 값은 t3-env 검증을 지나기 위한 더미다(runbook 1절)
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          # 빌드의 OG 프리렌더가 prod DB를 읽는다(anon 읽기) — URL·publishable은 GH secret으로(variable이면 --var·로그에 찍힌다, 최종 보안 리뷰 #3).
+          # 런타임 값은 전부 워커 secret(wrangler secret put — 버전 간 유지)이고, TURNSTILE·salt는 t3-env 검증을 지나기 위한 더미다(runbook 1절)
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           TURNSTILE_SECRET_KEY: build-only-dummy
           IP_HASH_SALT: build-only-dummy-salt-0000000000
           # 비우면 Sentry가 꺼진 채 빌드된다(공개값, 빌드에 박힌다 — 커밋 9)
@@ -248,8 +248,6 @@ jobs:
           pnpm run upload --preview-alias preview \
             --var SITE_URL:https://preview-saeu-map.saeu-map.workers.dev \
             --var PREVIEW_READONLY:1 \
-            --var "SUPABASE_URL:$SUPABASE_URL" \
-            --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
             --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
           # wrangler가 별칭 URL을 찍지 않았으면 업로드가 안 된 것 — 여기서 확실히 실패시킨다
           grep -q "Version Preview Alias URL" upload.log || { echo "::error::preview upload did not produce an alias URL"; exit 1; }
@@ -285,11 +283,11 @@ jobs:
       - name: Gate on Cloudflare secrets
         id: gate
         env:
-          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.SUPABASE_URL != '' && vars.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
+          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
         run: |
           echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
           if [ "$ENABLED" != "true" ]; then
-            echo "::notice title=deploy skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 수동 pnpm run deploy 필요 (runbook 3c)"
+            echo "::notice title=deploy skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 수동 pnpm run deploy 필요 (runbook 3c)"
           fi
 
       - if: steps.gate.outputs.enabled == 'true'
@@ -317,10 +315,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-          # 빌드용 — 런타임 비밀(SUPABASE_SECRET_KEY·TURNSTILE_SECRET_KEY·IP_HASH_SALT·DISCORD_WEBHOOK_URL)은 wrangler secret이다(runbook 3절)
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          # 빌드용 — 런타임 값(SUPABASE_URL·PUBLISHABLE_KEY·SECRET_KEY·TURNSTILE_SECRET_KEY·IP_HASH_SALT·DISCORD_WEBHOOK_URL)은 전부 wrangler secret이다(runbook 3절)
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           TURNSTILE_SECRET_KEY: build-only-dummy
           IP_HASH_SALT: build-only-dummy-salt-0000000000
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
-        run: pnpm run deploy --var "SUPABASE_URL:$SUPABASE_URL" --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY"
+        run: pnpm run deploy

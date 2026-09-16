@@ -89,8 +89,12 @@ export interface Place {
   rating?: { count: number; average: number };
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
-  /** 그 후보의 상호 — 관리자 목록에서만 채운다(공개 뷰에서 읽으니 후보가 숨겨졌으면 없다). */
+  /** 그 후보의 상호 — 관리자 목록에서만 채운다(관리자 목록에서 읽으니 숨긴 후보도 이름이 있다). */
   duplicateSuspectName?: string;
+  /** 후보가 사장님 요청으로 내린 가게다 — 재제보 경고(spec 5). 관리자 목록에서만. */
+  duplicateSuspectRemovedByOwner?: boolean;
+  /** 합쳐진 가게면 새 가게 id — 관리자 목록에서만. 복구할 수 없다(옛 주소는 새 가게로 간다). */
+  mergedInto?: string;
   /** 제보한 세션 userId — 내 활동 > 내 제보(spec 5). 시드는 없다. */
   reporterId?: string;
 }

@@ -136,14 +136,17 @@ export function getGuCenter(name: string): Promise<LatLng | null> {
 export const getSession = actions.getSession;
 export const signOut = actions.signOut;
 export async function deleteAccount(): Promise<Session> {
-  return actions.deleteAccount(await token());
+  return unwrap(await actions.deleteAccount(await token()));
 }
 
 /**
  * 카카오 로그인 시작 — OAuth 페이지 URL을 돌려준다. 호출자(로그인 시트)가 그리로 이동하고,
  * 콜백이 `next`로 돌려보낸다(`?login=ok|fail` + 하려던 일 `intent`).
  */
-export const signInWithKakao = actions.signInWithKakao;
+/** 카카오 OAuth URL — 프리뷰(읽기 전용)면 throw "read only"(기존 실패 토스트) */
+export async function signInWithKakao(next: string): Promise<string> {
+  return unwrap(await actions.signInWithKakao(next));
+}
 
 export async function updateNickname(nickname: string): Promise<Session> {
   return unwrap(await actions.updateNickname(nickname, await token()));

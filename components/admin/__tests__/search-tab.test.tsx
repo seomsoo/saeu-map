@@ -159,4 +159,14 @@ describe("검색 탭 — 비상용 직접 조작 (design 화면 10-4)", () => {
     });
     expect(onNotice).toHaveBeenCalledWith("합쳤어요");
   });
+
+  it("합쳐진 가게는 '합쳐짐'으로 보이고 [복구]가 없다 — 옛 주소는 새 가게로 간다", async () => {
+    data.searchPlacesForAdmin.mockResolvedValue([makePlace({ id: "old", name: "옛집", hiddenAt: NOW, mergedInto: "new" })]);
+    renderTab();
+    search("옛집");
+    const table = await screen.findByRole("table", { name: "검색 결과" });
+    expect(within(table).getByRole("cell", { name: "합쳐짐" })).toBeInTheDocument();
+    expect(within(table).queryByRole("button", { name: "복구" })).toBeNull();
+    expect(within(table).queryByRole("button", { name: "합치기" })).toBeNull();
+  });
 });

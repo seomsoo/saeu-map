@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { TextField } from "@/components/ui/text-field";
@@ -45,6 +45,14 @@ export function MergeSheet({
   /** 늦게 온 검색 응답은 버린다(요청 순번) */
   const seq = useRef(0);
   const closeRef = useRef<HTMLButtonElement>(null);
+  /** 시트가 닫힌 뒤 도착한 합치기 응답은 부모를 부르지 않는다(CLAUDE.md alive ref) */
+  const alive = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const search = () => {
     const q = query.trim();
@@ -67,10 +75,12 @@ export function MergeSheet({
     setMerging(true);
     mergePlaces(from.id, target.id).then(
       (place) => {
+        if (!alive.current) return;
         onNotice(MERGED_NOTICE);
         onMerged(place);
       },
       () => {
+        if (!alive.current) return;
         setMerging(false);
         onNotice(MERGE_FAILED_NOTICE);
       },

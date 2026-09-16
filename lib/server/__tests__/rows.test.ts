@@ -54,9 +54,16 @@ describe("toPlace — places_public 행 → Place", () => {
   });
 
   it("확인 0회면 last_checked_at이 비어 온다 → 등록 시각을 기준으로(카드는 '○일 전 등록')", () => {
-    const place = toPlace(publicRow({ check_count: 0, last_checked_at: null, source: "report", is_new: true }));
+    const place = toPlace(publicRow({ check_count: 0, last_checked_at: null, source: "report", is_new: true }), "2026-08-30T00:00:00+09:00");
     expect(place.lastCheckedAt).toBe("2026-08-27T00:00:00+09:00");
     expect(place.isNew).toBe(true);
+  });
+
+  it("NEW(7일)는 읽는 시각으로 계산한다 — 뷰의 is_new는 캐시 채울 때 얼어붙는다(코드 리뷰 2026-09-16 #3)", () => {
+    const row = publicRow({ source: "report", is_new: true });
+    expect(toPlace(row, "2026-09-02T23:00:00+09:00").isNew).toBe(true); // 7일 째
+    expect(toPlace(row, "2026-09-04T00:00:00+09:00").isNew).toBe(false); // 8일
+    expect(toPlace(publicRow({ source: "seed", is_new: true }), "2026-08-28T00:00:00+09:00").isNew).toBe(false); // 시드는 NEW가 아니다(결정 10)
   });
 
   it("평점은 뷰가 3개 미만이면 null을 준다 — 값이 오면 그대로 얹는다", () => {

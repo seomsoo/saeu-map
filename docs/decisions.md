@@ -837,3 +837,42 @@ security-reviewer(커밋 2~6 diff) 15건: 높음 2·중간 6·낮음 4·정보 3
 - **`lib/server/observe.ts` `reportError(message, context, cause)`** — 실패를 삼키는 자리(디스코드 웹훅·R2 객체 삭제·경비 바인딩 누락·까주기 집계·익명 승계)는 console.error 대신 이것. 로그 한 줄 + Sentry 이벤트(같은 메시지 = 한 이슈, fingerprint). 사용자 입력·연락처·uid는 context에 넣지 않는다. `captureConsoleIntegration`은 쓰지 않는다 — supabase-js 등 남의 console.error(낡은 refresh token 등)가 이벤트가 되어 할당량을 태운다.
 - `app/error.tsx`도 `captureException` — 서버 오류는 `onRequestError`가 보내지만 클라이언트 렌더 오류는 경계에서만 잡힌다(같은 digest면 한 이슈).
 - **로컬 발화 확인**(가짜 ingest `127.0.0.1:9999` + `next dev` + `/?mock=error`): 서버 봉투 1건(`Error: mock error (dev only)`, mechanism `auto.function.nextjs.on_request_error`, runtime `cloudflare`) + 브라우저 봉투 1건(`app/error.tsx`의 captureException, `request.url=/?mock=error`)이 도착했다. 실 DSN 발화는 첫 PR 프리뷰에서(runbook 2절 5).
+
+## 2026-09-16 — 커밋 10 런칭 전 보안 스윕: 쓰기 경로 × (검증 · 행위자 · 권한 · 제한 · 실패) 표
+
+roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWriteGate`(① `PREVIEW_READONLY` 거부 → ② Cloudflare 속도 제한 바인딩 IP당 60초 20 → ③ Turnstile siteverify → ④ IP 해시 헤더)를 지나고, DB가 마지막 방어선이다(RLS·트리거·RPC의 `rate_ok`, 사람·IP 둘 다 없으면 거부). 실패는 `Result` 코드로 돌아와 `lib/data.ts`가 throw하고 화면은 **기존 실패 토스트**를 탄다(코드 분기는 리뷰 폼의 "already reviewed" 하나). 프리뷰의 "읽기 전용"도 그 토스트다(plan 결정 7 — 별도 문구 없음, 의도).
+
+| 경로(액션) | 입력 검증(zod, 폼과 같은 스키마) | 행위자 | 권한(RLS·RPC) | 제한(DB) | 실패 코드 |
+|---|---|---|---|---|---|
+| 다녀왔어요 `checkIn` | uuid | `ensureUser`(익명 생성) | `checkins_insert`: actor = uid · type visited · 가게 보임. INSERT는 (place_id, actor, type)만 — 시각은 서버 | 가게·사람·KST일 유니크 | already checked · place not found |
+| 찜 `setBookmark` | uuid + 원하는 상태(멱등) | ensureUser | `bookmarks_own`(user_id = uid), UPSERT ignoreDuplicates | — | place not found · forbidden |
+| 제보 `submitReport` | 이름 40·좌표 한국 상자·메뉴 1~5·영업시간 80·네이버 링크 호스트·내용 필터(URL·금칙어) | ensureUser | RPC `submit_report`(DEFINER): 중복 후보 보임·섀도 밴은 숨긴 채 생성 | 'report' **5/시간** | outside korea · rate limited · forbidden → 디스코드 알림 |
+| 가게 사진 `addPlacePhotos` | 1~10장·`image/*`·10MB(FormData) | ensureUser | `photo_slot_ok` 사전 확인 → `IMAGES.info()` 실검사 → 1200px webp 재인코딩(EXIF 제거) → `photos_insert`(uploader = uid·가게 보임) | 'photo' 10/시간/가게 · 월 전역 4,500 · 가게당 10(트리거) | not image · photo limit reached · rate limited |
+| 정보 수정 제안 `submitSuggestion` | 필드별(영업시간 80·주소 60·메뉴 편집 ≤20+추가 1·사이드)·내용 필터 | ensureUser | RPC `apply_suggestion`(DEFINER, 이력 `place_edits` 트리거) | 'suggest' 5/일 | rate limited · forbidden |
+| 신고 3종 `reportPhoto`·`flagPlace`·`reportPlace` | uuid + 사유 enum | ensureUser | `reports_insert`(actor = uid·가게 보임) + IP 해시 스탬프 트리거 | place_flag **1/일/가게** · 그 외 10/일 | rate limited · place not found → 디스코드 + 열린 신고 3건째 누적 알림 |
+| 사장님 요청 `submitOwnerRequest` | 연락처 5~60(NFKC·제어문자 제거)·내용 300 필터·종류 enum | ensureUser | 같은 정책 | 'owner_request' 2/일/가게 | 같음 → 알림에 연락처 없음 |
+| 리뷰 등록 `submitReview` | 별점 1~5·후기 500 필터 | **`requireKakao`**(provider = kakao 클레임) | `reviews_insert`(author = uid·비익명·가게 보임) | 'review' 10/일 · 핀당 1(유니크) | already reviewed(폼 분기) · login required |
+| 리뷰 사진 `attachReviewPhoto` | uuid + File | requireKakao | 본인 리뷰·photo_key null 확인 → `photo_slot_ok` → 저장 → UPDATE … IS NULL + 트리거 `reviews_photo_once`(교체 거부·월 상한 합산) | 'photo' 10/시간 | photo limit reached · forbidden |
+| 리뷰 수정 `updateReview` | 별점·후기 | requireKakao | `reviews_update_own`(author = uid, USING + WITH CHECK) | — | forbidden |
+| 리뷰 삭제 `deleteReview` | uuid | 게이트 | 같은 정책(deleted_at) + R2 객체 삭제 | — | forbidden |
+| 닉네임 `updateNickname` | NFKC·2~12·문자 종류·금칙어 | requireKakao | `profiles_update_own` + CHECK 2~12 | — | login required · forbidden |
+| 탈퇴 `deleteAccount` | — | requireKakao | secret key RPC `admin_delete_user`(EXECUTE service_role만): 리뷰 소프트 삭제 + 사진 키 제거, 신고 연락처 제거, `auth.users` 삭제(FK cascade/set null) + 리뷰 사진 R2 삭제 | — | throw "delete failed" |
+| 카카오 로그인 `signInWithKakao` → 콜백 | `next`는 `sameOriginPath`(origin 비교) | — | PKCE(남의 code는 verifier 불일치) · 익명 승계 `admin_merge_users`(secret) · 읽기 전용이면 거부 | — | `?login=fail` |
+| 까주기 결과 `recordPeelResult` | 슬러그 enum | **게이트 없음**(읽기급) + IP 해시 | `peel_results_insert`, INSERT는 (type)만 | 'peel' 20/일/IP(사람·IP 없으면 거부) | 삼킨다(Sentry) |
+| 관리자 8종 `resolveReport`·`confirmPlace`·`setPlaceHidden`·`deletePlace`·`deletePlacePhoto`·`revertPlaceEdit`·`mergePlaces` | uuid·enum | 세션(관리자) | RLS `is_admin` 정책 / RPC `admin_merge_places`(is_admin + 대상 유효) — `/admin`은 서버 404, Turnstile·속도 제한 없음(스팸 표면 아님), 프리뷰 읽기 전용은 공유 | — | forbidden · place not found |
+| 사진 서빙 `/photos/[...key]` | 키 정규식 `(places|reviews)/uuid/uuid.webp` | — | R2 get, `image/webp` 고정, immutable 1년 | — | 404 |
+
+컬럼 노출(개인 식별자): `places_public`은 reporter_id·duplicate_suspect_of·merged_into·needs_review·verified_at·hidden_at 없음(`admin_places()`로만) · `checkins.actor`·`photos.uploader_id`·`reports.ip_hash`·`profiles.is_admin/shadow_banned` GRANT 없음 · `reviews_public.author_id`는 백로그 #9. SECURITY DEFINER 전부 `search_path=''`, `private` 스키마 API 미노출, advisors 0.
+
+## 2026-09-16 — 커밋 10a 최종 리뷰 반영 (보안 9 · 코드 21 · 갭 27 중 코드 쪽)
+
+- **리뷰 삭제가 실 DB에서 깨져 있었다 — 리뷰어 셋 다 못 잡았고 pgTAP를 넓히다 걸렸다.** PostgreSQL 17은 **UPDATE의 새 행도 SELECT 정책을 통과**해야 한다. `reviews_select`가 `deleted_at is null`이라 작성자가 `deleted_at`을 찍는 순간 "new row violates row-level security policy". 본인 소프트 삭제는 RPC `delete_review(p_id)`(DEFINER, 작성자·미삭제 검사, 가게·사진 키 반환)로 옮기고 `deleted_at` 컬럼 UPDATE GRANT를 뺐다(되살리기도 원천 차단). 교훈: **"정책이 있다"가 아니라 실제 역할로 그 문장을 실행하는 pgTAP**가 있어야 한다 — 커밋 2의 020은 리뷰 등록·중복만 봤다.
+- **관리자 쓰기 뒤 한 행 조회(P1)**: `admin_places(p_id)`로. 200행 목록에서 찾으면 등록일이 같은 시드(CSV 수집일)는 순서가 임의라 빠져 "처리하지 못했어요"가 떴다(DB는 바뀐 채). `p_ids`도 더해 신고 탭 조인·중복 후보 상호가 최근 500행에 묶이지 않게 했다.
+- **DB 마지막 방어선(보안 중간 #1)**: reviews·photos·reports INSERT를 컬럼 GRANT로 좁혔다(시각·키·상태·삭제 표시는 서버·트리거만). 사진 키는 트리거가 자기 자리(`reviews/<리뷰 id>/`, `places/<가게 id>/`)만 허용 — 남의 키를 넣고 지우면 그 R2 객체가 지워지는 길을 막는다. `checkins`는 사람당 일 30(`rate_ok('checkin')` + rate 트리거).
+- **섀도 밴은 조용해야 한다(보안 #2·코드 #9)**: 신고는 `insert().select()`로 반환 0행이면 알림 없이 성공한 척, 제보는 RLS로 못 읽으면 입력값으로 `Place`를 그려 돌려준다(`placeFromReport`), 리뷰는 `maybeSingle()` null이면 입력값으로 그린다. 밴 사실이 실패 토스트·디스코드로 새지 않는다.
+- **캐시가 낡던 네 자리(코드 #3~#6)**: 7일 NEW 배지는 `toPlace(row, now)`에서 읽을 때 계산(캐시 채울 때 얼어붙던 것), 시즌 카운터 키에 KST 날짜(자정·월요일에 자연 롤오버 — 시간 기반 만료가 없으므로), 닉네임 변경·탈퇴·승계·합치기 뒤 리뷰가 있던 가게 캐시 만료. 합치기·승계 RPC는 소프트 삭제한 리뷰의 (가게, 사진 키)를 돌려주고 액션·콜백이 만료와 R2 삭제를 한다. 탈퇴의 키 읽기는 secret key로(소프트 삭제된 리뷰는 RLS가 감춘다, 보안 #4).
+- **합치기(코드 #7·#8)**: 원본도 미병합이어야 하고(이미 합쳐진 가게 재합치기 = merged_into 덮어쓰기 방지), 합치면 `needs_review`도 내린다. 합쳐진 가게는 관리자 검색에 "합쳐짐"으로 보이고 [복구]가 없다(`Place.mergedInto`).
+- **없는 uuid는 캐시에 남기지 않는다(보안 #7·코드 #15)**: 상세 캐시 콜백이 던져서 항목을 안 만들고, `React.cache`로 generateMetadata·페이지가 같은 id를 한 번만 묻는다(`merge_target` RPC도).
+- **CI 값 노출(보안 #3)**: wrangler는 `--var` 값을 40자까지 로그에 찍는다 → prod `SUPABASE_URL`·publishable은 GH **secret**(빌드) + 워커 secret(런타임)으로, `--var`에서 뺐다. runbook 1·3·3c 정정.
+- 작은 것: 디스코드 본문의 상호는 인라인 코드(마크다운 무력화), `reportError`는 같은 메시지 분당 1건, 프로필 없는 카카오 JWT는 손님(세션이 영영 null이던 것), 콜백은 secret 없으면 승계만 건너뜀, 탈퇴·카카오 시작도 `Result`, `MergeSheet` alive ref + 함수형 `setRows`, 신고 누적 알림은 UI 배지와 같은 술어(`place_report`), smoke.sh는 `grep -F`.
+- 백로그로 남긴 것: 42501 매핑 통일(코드 #10), 액션 단위 테스트(#21), supabase CLI npm 고정(#20), 까주기 결과 표 정리(보안 #6).

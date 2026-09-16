@@ -6,6 +6,7 @@
  */
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { reportError } from "./observe";
 
 const MAX_EDGE_PX = 1200;
 
@@ -52,6 +53,21 @@ export async function storePhoto(file: Blob, key: string): Promise<"stored" | "n
 export async function deletePhotoObject(key: string): Promise<void> {
   const { photos } = await bindings();
   await photos.delete(key);
+}
+
+/** DB에서 뗀 사진의 R2 객체 지우기 — 실패해도 호출자는 성공이다(행은 이미 바뀌었다). 고아 객체는 월간 점검(runbook)이 잡는다 */
+export async function forgetPhotoObjects(keys: readonly string[]): Promise<void> {
+  for (const key of keys) {
+    try {
+      await deletePhotoObject(key);
+    } catch (e) {
+      reportError("photo object delete failed", { key }, e);
+    }
+  }
+}
+
+export function photoKeys(rows: readonly { photo_key: string | null }[]): string[] {
+  return rows.map((r) => r.photo_key).filter((k): k is string => k !== null);
 }
 
 /** 서빙 라우트용 — 없으면 null */

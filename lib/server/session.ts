@@ -30,6 +30,7 @@ export async function readSession(db: Db): Promise<Session> {
   if (!isKakao(claims)) return VISITOR;
   const { data: me, error } = await db.rpc("me");
   if (error) throw new Error("profile unavailable");
+  if (me === null) return VISITOR; // 프로필 행이 없다(탈퇴 뒤 아직 유효한 JWT) — 손님으로. 다음 쓰기의 ensureUser가 세션을 정리한다
   const profile = meSchema.parse(me);
   return { userId: claims.sub, provider: "kakao", nickname: profile.nickname, isAdmin: profile.isAdmin };
 }

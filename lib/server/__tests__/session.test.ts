@@ -26,7 +26,7 @@ function fakeDb(input: {
       signOut,
       signInAnonymously,
     },
-    rpc: (name: string) => Promise.resolve({ data: name === "me" ? input.me : null, error: null }),
+    rpc: (name: string) => Promise.resolve({ data: name === "me" ? (input.me ?? null) : null, error: null }), // 진짜 supabase-js처럼 없으면 null
   };
   return { db: db as unknown as Db, signOut, signInAnonymously, getUser };
 }
@@ -76,6 +76,10 @@ describe("readSession / requireKakao", () => {
     });
     expect(await readSession(email.db)).toEqual(VISITOR);
     await expect(requireKakao(email.db)).rejects.toThrow("login required");
+  });
+  it("카카오 클레임인데 프로필 행이 없으면(탈퇴 뒤 남은 JWT) 손님이다 — 세션이 영영 null이 되지 않는다", async () => {
+    const ghost = fakeDb({ claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000003", is_anonymous: false, app_metadata: { provider: "kakao" } } });
+    expect(await readSession(ghost.db)).toEqual(VISITOR);
   });
   it("requireKakao는 익명·방문자를 거부한다(리뷰의 마지막 방어선)", async () => {
     await expect(requireKakao(fakeDb({ claims: null }).db)).rejects.toThrow("login required");

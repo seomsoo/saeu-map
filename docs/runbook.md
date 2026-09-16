@@ -22,8 +22,8 @@
 | 이름 | 공개/비밀 | 어디서 얻나 | 어디에 넣나 |
 |---|---|---|---|
 | `NEXT_PUBLIC_NCP_CLIENT_ID` | 공개 | NCP 콘솔 Maps | `.env` · GH variable(빌드에 박힌다) |
-| `SUPABASE_URL` | 공개값이지만 서버 전용 | Supabase 대시보드 Project Settings → API / 로컬은 `supabase start` 출력 | `.env` · `.dev.vars` · GH variable(ci.yml이 `--var`로 워커에 싣는다) |
-| `SUPABASE_PUBLISHABLE_KEY` | 공개값이지만 서버 전용 | 같은 곳 API Keys(`sb_publishable_…`) | `.env` · `.dev.vars` · GH variable(ci.yml이 `--var`로) |
+| `SUPABASE_URL` | 공개값이지만 서버 전용 | Supabase 대시보드 Project Settings → API / 로컬은 `supabase start` 출력 | `.env` · `.dev.vars` · **GH secret**(빌드의 OG 프리렌더용 — variable이면 로그에 찍힌다) · **워커 secret**(`wrangler secret put`, 런타임) |
+| `SUPABASE_PUBLISHABLE_KEY` | 공개값이지만 서버 전용 | 같은 곳 API Keys(`sb_publishable_…`) | `.env` · `.dev.vars` · GH secret · 워커 secret(위와 같은 이유) |
 | `SUPABASE_SECRET_KEY` | **비밀** | 같은 곳(`sb_secret_…`) | `.env` · `.dev.vars` · 워커 secret(프리뷰 버전은 워커 secret을 물려받지만 `PREVIEW_READONLY=1`이 모든 쓰기를 막는다) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 공개 | Cloudflare → Turnstile → 위젯 | `.env` · GH variable(빌드에 박힌다) |
 | `TURNSTILE_SECRET_KEY` | **비밀** | 같은 위젯 | `.env` · `.dev.vars` · 워커 secret(GH에는 없다 — 빌드는 더미로 t3-env 검증만 지난다) |
@@ -64,15 +64,18 @@
 wrangler r2 bucket create saeu-photos
 wrangler r2 bucket create saeu-cache
 wrangler d1 create saeu-tags
-wrangler secret put SUPABASE_SECRET_KEY   # 등 비밀값
+wrangler secret put SUPABASE_URL          # 런타임 값은 전부 secret — URL·publishable도(로그에 안 찍히게, 최종 보안 리뷰 #3)
+wrangler secret put SUPABASE_PUBLISHABLE_KEY
+wrangler secret put SUPABASE_SECRET_KEY   # TURNSTILE_SECRET_KEY · IP_HASH_SALT · DISCORD_WEBHOOK_URL도 같은 방법
 # Supabase
 supabase projects create saeu-map --region ap-northeast-2 ...   # 정확한 플래그는 --help
 supabase link --project-ref <ref>
 supabase db push                          # 마이그레이션
 supabase config push                      # 익명 로그인·카카오 공급자·이메일 가입 닫힘([auth.email] enable_signup=false)
 # GitHub
-gh secret set SUPABASE_SECRET_KEY < …     # 값은 파일·stdin으로만
-gh variable set SUPABASE_URL --body …
+gh secret set SUPABASE_URL --body …       # 빌드(OG 프리렌더)용. publishable도 secret으로 — variable은 wrangler가 40자까지 로그에 찍는다
+gh secret set SUPABASE_PUBLISHABLE_KEY --body …
+gh variable set NEXT_PUBLIC_NCP_CLIENT_ID --body …   # NEXT_PUBLIC_TURNSTILE_SITE_KEY · NEXT_PUBLIC_SENTRY_DSN도
 ```
 
 ## 3c. CI가 하는 것 (`.github/workflows/ci.yml`, 커밋 8)
@@ -81,8 +84,8 @@ gh variable set SUPABASE_URL --body …
 |---|---|---|---|
 | `db` | PR·main push | 로컬 Supabase(`supabase start -x …`, CLI 2.117.0 고정) → `supabase test db`(pgTAP) → `gen types` diff(`lib/db/database.types.ts`가 최신인지) → `db advisors` 0건 | 없음 |
 | `check` | PR·main push | typecheck·lint·vitest·gitleaks → **로컬 Supabase를 상대로** OpenNext 빌드(OG 프리렌더가 DB를 읽는다) → `scripts/smoke.sh`(workerd + 실 DB: /·/place/uuid·404·/gu·sitemap·robots·og) → Lighthouse(스모크가 고른 가게) | 없음(Turnstile 테스트 키·CI 상수 salt) |
-| `preview` | PR | `check`·`db` 통과 후 프리뷰 버전 업로드. **`--var PREVIEW_READONLY:1`** + prod `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`를 `--var`로 | secrets `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID`, variables `NEXT_PUBLIC_NCP_CLIENT_ID`·`SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`·`NEXT_PUBLIC_TURNSTILE_SITE_KEY` |
-| `deploy` | main push | 같은 게이트로 prod 배포(`pnpm run deploy --var …`). 런타임 비밀은 워커 secret이라 GH에 없다 | 위와 같음 |
+| `preview` | PR | `check`·`db` 통과 후 프리뷰 버전 업로드. **`--var PREVIEW_READONLY:1`**. Supabase 값은 빌드엔 GH secret, 런타임엔 워커 secret(버전이 물려받는다) | secrets `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID`·`SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`, variables `NEXT_PUBLIC_NCP_CLIENT_ID`·`NEXT_PUBLIC_TURNSTILE_SITE_KEY`(·`NEXT_PUBLIC_SENTRY_DSN`) |
+| `deploy` | main push | 같은 게이트로 prod 배포(`pnpm run deploy`). 런타임 값은 전부 워커 secret | 위와 같음 |
 | `keepalive` | 매일 09:00 KST | `GET /` 한 번 — Supabase 무료 프로젝트가 7일 무활동으로 잠들지 않게. **리포에 60일간 커밋이 없으면 GitHub가 스케줄을 끈다**(Actions 탭에서 다시 켠다) | 없음 |
 
 값이 하나라도 비면 preview·deploy는 실패하지 않고 `::notice`로 건너뛴다. 발화 검증(프리뷰에서 찜 → "읽기 전용" 토스트, 디스코드 알림 1건)은 첫 PR에서 한다(plan 3b).

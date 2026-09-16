@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
 import { sameOriginPath } from "@/lib/safe-next";
+import { expirePlace } from "@/lib/server/cache-tags";
 import { reportError } from "@/lib/server/observe";
+import { forgetPhotoObjects, photoKeys } from "@/lib/server/photos";
 import { adminClient, userClient } from "@/lib/server/supabase";
 import { isReadOnly } from "@/lib/server/write-gate";
 
@@ -31,12 +34,22 @@ export async function GET(request: Request): Promise<Response> {
   if (error) return back("fail");
 
   if (wasAnonymous && oldUid !== null && oldUid !== data.user.id) {
-    const { error: mergeError } = await adminClient().rpc("admin_merge_users", {
-      p_from: oldUid,
-      p_into: data.user.id,
-    });
-    // 로그인은 됐고 승계만 실패한 상태 — 사용자를 막지 않는다. Sentry에 남긴다(익명 uid는 넣지 않는다)
-    if (mergeError) reportError("anonymous merge failed", { code: mergeError.code });
+    if (env.SUPABASE_SECRET_KEY === undefined) {
+      // 로그인은 됐고 승계만 못 한다(secret 없는 환경) — 500 대신 기록만(코드 리뷰 #13)
+      reportError("anonymous merge skipped: no secret key");
+    } else {
+      const { data: freed, error: mergeError } = await adminClient().rpc("admin_merge_users", {
+        p_from: oldUid,
+        p_into: data.user.id,
+      });
+      // 로그인은 됐고 승계만 실패한 상태 — 사용자를 막지 않는다. Sentry에 남긴다(익명 uid는 넣지 않는다)
+      if (mergeError) reportError("anonymous merge failed", { code: mergeError.code });
+      else {
+        // 같은 가게에 둘 다 리뷰를 남겼으면 익명 쪽이 소프트 삭제된다 — 그 가게 캐시와 사진 객체(코드 리뷰 #6·보안 #4)
+        for (const id of new Set(freed.map((r) => r.freed_place_id))) expirePlace(id);
+        await forgetPhotoObjects(photoKeys(freed.map((r) => ({ photo_key: r.freed_photo_key }))));
+      }
+    }
   }
   return back("ok");
 }

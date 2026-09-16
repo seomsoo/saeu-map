@@ -4,10 +4,11 @@
 -- 검사가 항상 실패했다 — 탈퇴가 늘 "delete failed", 익명 승계는 조용히 실패(security-reviewer 2026-09-16 #2, 로컬 재현).
 
 -- 익명 → 카카오 승계 (auth 콜백에서, decisions 2026-09-10)
-create or replace function public.admin_merge_users(p_from uuid, p_into uuid) returns void
+create or replace function public.admin_merge_users(p_from uuid, p_into uuid)
+returns table (freed_place_id uuid, freed_photo_key text)
 language plpgsql security definer set search_path = '' as $$
 begin
-  perform private.merge_users(p_from, p_into);
+  return query select * from private.merge_users(p_from, p_into);
 end;
 $$;
 revoke execute on function public.admin_merge_users(uuid, uuid) from public, anon, authenticated;

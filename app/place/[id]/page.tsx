@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
 import MapScreen from "@/components/map-screen/map-screen";
 import { getMergedPlaceTarget, getPlaceDetail } from "@/lib/data";
 import { loadMapScreenData } from "@/lib/map-screen-data";
@@ -11,14 +12,17 @@ interface PlacePageProps {
   params: Promise<{ id: string }>;
 }
 
-/** 상세, 또는 합쳐진 옛 주소면 새 가게로 **영구 리다이렉트**(spec 4.3 엣지 — 공유된 링크가 죽지 않는다). 둘 다 아니면 undefined = 404 */
-async function detailOrRedirect(id: string, now: string) {
+/**
+ * 상세, 또는 합쳐진 옛 주소면 새 가게로 **영구 리다이렉트**(spec 4.3 엣지 — 공유된 링크가 죽지 않는다). 둘 다 아니면 undefined = 404.
+ * generateMetadata와 페이지가 같은 id를 물으므로 요청 안에서 한 번만(React cache — 데이터 계층도 같은 방식으로 원본을 묶는다).
+ */
+const detailOrRedirect = cache(async (id: string, now: string) => {
   const detail = await getPlaceDetail(id, now);
   if (detail) return detail;
   const target = await getMergedPlaceTarget(id);
   if (target !== null) permanentRedirect(`/place/${target}`);
   return undefined;
-}
+});
 
 export async function generateMetadata({ params }: PlacePageProps): Promise<Metadata> {
   await connection();

@@ -37,6 +37,7 @@ const COLUMNS = [
 
 /** 상태 pill — 검수 대기(숨긴 채 임포트한 시드)는 숨김과 구분한다: [복구]가 곧 검수 완료다 */
 function stateLabel(place: Place): string {
+  if (place.mergedInto !== undefined) return "합쳐짐";
   if (place.hiddenAt === undefined) return "정상";
   if (place.needsReview) return "검수 대기";
   return place.removedByOwner === true ? "내림(사장님)" : "숨김";
@@ -159,20 +160,23 @@ export function SearchTab({ now, onNotice }: { now: string; onNotice: (m: string
                         >
                           가게 열기 ↗
                         </a>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pending === place.id}
-                          onClick={() => {
-                            run(
-                              place,
-                              hidden ? SEARCH_RESTORED_NOTICE : SEARCH_HIDDEN_NOTICE,
-                              () => setPlaceHidden(place.id, !hidden, now),
-                            );
-                          }}
-                        >
-                          {hidden ? "복구" : "숨김"}
-                        </Button>
+                        {/* 합쳐진 가게는 복구할 수 없다 — 옛 주소가 새 가게로 가는 채로 둔다(코드 리뷰 #7) */}
+                        {place.mergedInto === undefined && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pending === place.id}
+                            onClick={() => {
+                              run(
+                                place,
+                                hidden ? SEARCH_RESTORED_NOTICE : SEARCH_HIDDEN_NOTICE,
+                                () => setPlaceHidden(place.id, !hidden, now),
+                              );
+                            }}
+                          >
+                            {hidden ? "복구" : "숨김"}
+                          </Button>
+                        )}
                         {!hidden && (
                           <Button
                             variant="outline"

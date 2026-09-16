@@ -6,8 +6,16 @@
 import "server-only";
 import * as Sentry from "@sentry/nextjs";
 
+/** 같은 메시지는 분당 1건만 Sentry로 — 반복 실패(바인딩 누락·웹훅 429)가 요청마다 이벤트가 되어 할당량을 태우지 않게. 로그는 매번 남긴다 */
+const DEDUPE_MS = 60_000;
+const lastSent = new Map<string, number>();
+
 export function reportError(message: string, context: Record<string, unknown> = {}, cause?: unknown): void {
   console.error(message, context, cause instanceof Error ? cause.message : (cause ?? ""));
+  const now = Date.now();
+  const last = lastSent.get(message);
+  if (last !== undefined && now - last < DEDUPE_MS) return;
+  lastSent.set(message, now);
   Sentry.captureException(cause instanceof Error ? cause : new Error(message), {
     extra: { message, ...context },
     fingerprint: [message],
