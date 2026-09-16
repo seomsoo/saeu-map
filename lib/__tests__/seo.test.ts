@@ -10,6 +10,7 @@ import {
   guTitle,
   placeDescription,
   placeMeta,
+  placeOgImagePath,
   siteUrl,
   sitemapEntries,
 } from "../seo";
@@ -87,5 +88,13 @@ describe("sitemap · 사이트 URL", () => {
     expect(isPreviewHost(new URL("https://preview-saeu-map.saeu-map.workers.dev"))).toBe(true);
     expect(isPreviewHost(siteUrl(undefined))).toBe(false);
     expect(isPreviewHost(new URL("https://saeumap.kr"))).toBe(false);
+  });
+
+  it("핀 공유 카드는 빌드 때 있던 가게만 — 배포 뒤 생긴 핀은 루트 카드로 폴백(plan 결정 18)", () => {
+    const buildAt = "2026-09-10T00:00:00Z";
+    expect(placeOgImagePath({ id: "old", createdAt: "2026-09-01T00:00:00Z" }, buildAt)).toBe("/og/place/old");
+    expect(placeOgImagePath({ id: "new", createdAt: "2026-09-11T00:00:00Z" }, buildAt)).toBe("/opengraph-image");
+    expect(placeOgImagePath({ id: "dev", createdAt: "2026-09-11T00:00:00Z" }, undefined)).toBe("/og/place/dev");
+    expect(placeMeta(nara, NOW).openGraph).toMatchObject({ images: [{ url: `/og/place/${nara.id}`, width: 1200, height: 630 }] });
   });
 });

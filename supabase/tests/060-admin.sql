@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(14);
 
 -- 커밋 7 관리자 실연결: 검수 필터(admin_places p_needs_review) · 합치기 뒤 옛 주소 리다이렉트(merge_target)
 
@@ -40,6 +40,18 @@ select tests.authenticate_as(:'admin1', false);
 select count(*) from public.admin_merge_places(:'p_into', :'p_final');
 select tests.clear_auth();
 select is((select public.merge_target(:'p_from')), :'p_final'::uuid, '병합 사슬을 따라간다');
+
+-- 사장님 요청으로 내린 가게 자리에 온 재제보 → duplicate_suspect_of로 경고(spec 5)
+select tests.create_place('사장님내린집', true) as removed \gset
+update public.places set removed_by_owner = true where id = :'removed';
+select tests.create_user('00000000-0000-0000-0000-00000000a060', true) as reporter \gset
+select tests.authenticate_as(:'reporter', true);
+select tests.set_ip('ip-061');
+select public.submit_report('재제보집', 37.5501, 126.95, '마포구', '{grill}', '[{"raw":"새우구이 1kg 50,000","name":"새우구이","price":50000,"unit":"kg","unit_raw":"1"}]'::jsonb, '{}', '', '', null) as reported \gset
+select public.submit_report('먼집', 37.60, 126.95, '마포구', '{grill}', '[{"raw":"새우구이 1kg 50,000","name":"새우구이","price":50000,"unit":"kg","unit_raw":"1"}]'::jsonb, '{}', '', '', null) as far \gset
+select tests.clear_auth();
+select is((select duplicate_suspect_of from public.places where id = :'reported'), :'removed'::uuid, '150m 안 재제보는 내린 가게를 후보로 단다');
+select is((select duplicate_suspect_of from public.places where id = :'far'), null::uuid, '멀면 후보 없음');
 
 select * from finish();
 rollback;

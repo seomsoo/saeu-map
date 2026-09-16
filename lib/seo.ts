@@ -1,8 +1,7 @@
 import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
 import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
-import { primaryMenuLine, TAG_LABELS } from "./places";
-import { relativeCheckLabel } from "./time";
+import { checkLabel, primaryMenuLine, TAG_LABELS } from "./places";
 import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
 
 /**
@@ -37,10 +36,20 @@ export function placeDescription(place: Place, now: string): string {
     place.gu,
     ...place.tags.map((tag) => TAG_LABELS[tag]),
     primaryMenuLine(place),
-    relativeCheckLabel(place.lastCheckedAt, now),
+    checkLabel(place, now),
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * 핀 공유 카드 경로 — 카드는 빌드 시 생성(Workers Free CPU 10ms → 요청 시 satori 불가)이라 **빌드 때 있던 가게만 카드가 있다**.
+ * 배포 뒤 생긴 핀(제보)은 루트 카드로(plan 결정 18). BUILD_AT은 next.config가 박는다 — 없으면(dev·테스트) 전부 있는 것으로 본다.
+ */
+export function placeOgImagePath(place: Pick<Place, "id" | "createdAt">, buildAt: string | undefined = process.env.BUILD_AT): string {
+  const prerendered =
+    buildAt === undefined || place.createdAt === undefined || Date.parse(place.createdAt) <= Date.parse(buildAt);
+  return prerendered ? `/og/place/${place.id}` : "/opengraph-image";
 }
 
 export function placeMeta(place: Place, now: string): Metadata {
@@ -50,7 +59,13 @@ export function placeMeta(place: Place, now: string): Metadata {
     title: place.name,
     description,
     alternates: { canonical: path },
-    openGraph: { title: place.name, description, url: path, type: "website" },
+    openGraph: {
+      title: place.name,
+      description,
+      url: path,
+      type: "website",
+      images: [{ url: placeOgImagePath(place), width: 1200, height: 630, alt: `${place.name} 공유 카드` }],
+    },
   };
 }
 

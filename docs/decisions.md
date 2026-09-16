@@ -876,3 +876,10 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **CI 값 노출(보안 #3)**: wrangler는 `--var` 값을 40자까지 로그에 찍는다 → prod `SUPABASE_URL`·publishable은 GH **secret**(빌드) + 워커 secret(런타임)으로, `--var`에서 뺐다. runbook 1·3·3c 정정.
 - 작은 것: 디스코드 본문의 상호는 인라인 코드(마크다운 무력화), `reportError`는 같은 메시지 분당 1건, 프로필 없는 카카오 JWT는 손님(세션이 영영 null이던 것), 콜백은 secret 없으면 승계만 건너뜀, 탈퇴·카카오 시작도 `Result`, `MergeSheet` alive ref + 함수형 `setRows`, 신고 누적 알림은 UI 배지와 같은 술어(`place_report`), smoke.sh는 `grep -F`.
 - 백로그로 남긴 것: 42501 매핑 통일(코드 #10), 액션 단위 테스트(#21), supabase CLI npm 고정(#20), 까주기 결과 표 정리(보안 #6).
+
+## 2026-09-16 — 커밋 10b 갭 스윕의 스펙 미구현 3건
+
+- **확인 0회 제보 핀은 "○일 전 등록"** (roadmap 백로그 → Phase 6, 결정 11): `lib/places.ts checkLabel·checkSentence` — 카드·상세 헤더·기여 밴드·메타 설명이 같은 판정을 쓴다(`checkCount === 0`). 확인일은 checkins에서 나오므로 확인 없는 핀엔 등록 시각이 들어오는데 그걸 "확인"이라 부르면 거짓이다.
+- **사장님 요청으로 내린 가게 자리의 재제보 경고**(spec 5): `submit_report`가 150m 안의 `removed_by_owner` 가게를 `duplicate_suspect_of`로 단다(내린 가게는 숨겨져 2단계 중복 검사에 안 걸린다). 관리자 사후 확인 탭은 후보를 관리자 목록에서 읽어 "사장님이 내린 자리 · 상호" 배지로 보여 준다. pgTAP 060.
+- **배포 뒤 생긴 핀의 공유 카드**(plan 결정 18): `place/[id]/opengraph-image` 파일 컨벤션은 og:image를 늘 자기 세그먼트로 박아 새 핀은 404였다(갭 스윕 #7). 구·테스트 카드처럼 **라우트 `/og/place/[id]`**(빌드 시 생성, `dynamicParams=false`)로 옮기고 `placeMeta`가 `placeOgImagePath`로 가리킨다 — 빌드 시각(`next.config env.BUILD_AT`, 시각 하나라 비밀 아님) 뒤에 생긴 핀은 루트 카드. workerd 실측: 빌드 뒤 넣은 핀 → `/opengraph-image` 200 png, 기존 핀 → `/og/place/<id>` 200 png.
+- **zsh 함정(메모)**: 셸 변수 이름 `path`는 zsh에서 `PATH` 배열이라 대입하면 명령을 못 찾는다 — 검증 스크립트에서 30분 잃었다.

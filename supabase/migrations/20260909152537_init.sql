@@ -533,6 +533,7 @@ create or replace function public.submit_report(
 declare
   v_uid uuid := (select auth.uid());
   v_id uuid;
+  v_suspect uuid := p_duplicate_of;
 begin
   if v_uid is null then
     raise exception 'login required' using errcode = 'insufficient_privilege';
@@ -540,11 +541,17 @@ begin
   if not private.rate_ok('report', 5, interval '1 hour') then
     raise exception 'rate limited' using errcode = 'too_many_rows';
   end if;
+  -- 사장님 요청으로 내린 가게 자리(150m)에 온 재제보는 관리자에게 경고(spec 5) — 내린 가게는 숨겨져 2단계 중복 검사에 안 걸린다
+  if v_suspect is null then
+    select p.id into v_suspect from public.places p
+    where p.removed_by_owner and p.merged_into is null and private.distance_m(p_lat, p_lng, p.lat, p.lng) <= 150
+    order by private.distance_m(p_lat, p_lng, p.lat, p.lng) limit 1;
+  end if;
   insert into public.places (
     name, lat, lng, gu, tags, menus, sides, hours_note, naver_place_url, duplicate_suspect_of,
     source, reporter_id, hidden_at
   ) values (
-    p_name, p_lat, p_lng, p_gu, p_tags, p_menus, p_sides, nullif(p_hours_note, ''), nullif(p_naver_place_url, ''), p_duplicate_of,
+    p_name, p_lat, p_lng, p_gu, p_tags, p_menus, p_sides, nullif(p_hours_note, ''), nullif(p_naver_place_url, ''), v_suspect,
     'report', v_uid,
     case when private.is_shadow_banned() then now() end  -- 섀도 밴: 만들어지되 아무에게도 안 보인다
   ) returning id into v_id;

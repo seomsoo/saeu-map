@@ -10,6 +10,7 @@ import type {
   TabKey,
 } from "./types";
 import { haversineKm } from "./geo";
+import { relativeCheckAgo, relativeCheckLabel, type DateInput } from "./time";
 import { assertNever } from "./assert-never";
 
 /* ────────────────────────── 필터 ────────────────────────── */
@@ -400,4 +401,17 @@ export function areaLabel(
   }
   const top = sigunguLabel(sido, topKey(bySigungu));
   return bySigungu.size === 1 ? top : `${top} 일대`;
+}
+
+/**
+ * 카드·상세 헤더·메타의 확인 라벨 — "○일 전 확인". **확인 0회 제보 핀은 "○일 전 등록"**: 확인일이 checkins에서 나오므로
+ * 확인이 없는 핀은 등록 시각이 들어오는데, 그걸 "확인"이라 부르면 거짓이다(roadmap 백로그 → Phase 6, decisions 2026-09-10 결정 11).
+ */
+export function checkLabel(place: Pick<Place, "lastCheckedAt" | "checkCount">, now: DateInput): string {
+  return place.checkCount === 0 ? `${relativeCheckAgo(place.lastCheckedAt, now)} 등록` : relativeCheckLabel(place.lastCheckedAt, now);
+}
+
+/** 기여 밴드의 한 줄 — "○일 전 확인됐어요" / 확인 0회면 "○일 전 등록됐어요" */
+export function checkSentence(place: Pick<Place, "lastCheckedAt" | "checkCount">, now: DateInput): string {
+  return `${relativeCheckAgo(place.lastCheckedAt, now)} ${place.checkCount === 0 ? "등록됐어요" : "확인됐어요"}`;
 }

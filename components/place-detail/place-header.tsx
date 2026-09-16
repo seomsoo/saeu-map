@@ -1,5 +1,4 @@
-import { TAG_LABELS } from "@/lib/places";
-import { relativeCheckLabel } from "@/lib/time";
+import { checkLabel, TAG_LABELS } from "@/lib/places";
 import type { Place } from "@/lib/types";
 
 /**
@@ -15,7 +14,7 @@ export function PlaceHeader({ place, now }: { place: Place; now: string }) {
         {categories} · {place.gu}
       </p>
       <p className="mt-1 text-caption-l-regular text-fg-tertiary">
-        <span>{relativeCheckLabel(place.lastCheckedAt, now)}</span>
+        <span>{checkLabel(place, now)}</span>
         {" · "}
         <span className="tabular-nums">확인 {place.checkCount}회</span>
       </p>

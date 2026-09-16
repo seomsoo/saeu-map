@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
 
 /**
  * /place/[id] — 같은 지도 화면을 해당 가게가 열린 상태로 렌더 (공유 링크 → 핀 열림, CLAUDE.md UI 완성 기준).
- * SSR 메타·OG는 generateMetadata·opengraph-image.tsx. **없는 id는 진짜 404** — 이 세그먼트엔 loading.tsx(Suspense)가 없어
+ * SSR 메타·OG는 generateMetadata(카드는 `/og/place/[id]` 라우트, 배포 뒤 생긴 핀은 루트 카드). **없는 id는 진짜 404** — 이 세그먼트엔 loading.tsx(Suspense)가 없어
  * notFound()가 스트리밍 전에 던져진다(홈의 로딩 스켈레톤은 route group `(home)`에 있다 — decisions 2026-09-07).
  */
 export default async function PlacePage({ params }: PlacePageProps) {
