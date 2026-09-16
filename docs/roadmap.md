@@ -96,6 +96,7 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - [ ] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(합치기·리다이렉트 — spec 4.3 엣지) + 검수 필터
 - [ ] `/test` 참여 기록 테이블 + 집계 RPC(화면은 Phase 7) · 확인 0회 제보 핀 "○일 전 등록"(백로그에서 당김)
 - [ ] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
+- [ ] **사용자 콘솔 작업**(runbook 2절, PR 전에): Cloudflare **R2 켜기**(그 뒤 버킷 2개는 내가 wrangler로) · **카카오 개발자 앱**(REST 키·시크릿·리다이렉트 URI) · **Turnstile 위젯**(site/secret) · **디스코드 웹훅 URL** · **Sentry 프로젝트 → DSN**(공개값, 채팅으로 줘도 됨 — 없으면 Sentry만 꺼진 채 배포됨) · `supabase login` 승인 → 호스팅 프로젝트 생성 · GitHub variables 5개(NCP ID·Supabase URL·publishable·Turnstile site·Sentry DSN)는 값만 주면 내가 `gh variable set`
 - 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴
 
 ## 백로그 — 시점이 오면 집는다 (Phase 순서 밖)

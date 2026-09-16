@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 /* 서버 전용 env 기본값 — lib/server/*가 import 경로에 걸려도 createEnv가 죽지 않게. 값은 어디에도 연결되지 않는다. */
@@ -66,3 +66,7 @@ stub(window, "matchMedia", (query: string) => ({
 
 // navigator.geolocation은 일부러 스텁하지 않는다 → "위치 없음" 경로가 기본.
 // 허용 경로 테스트는 개별 테스트에서 Object.defineProperty로 주입한다.
+
+// findBy*·waitFor의 기본 1초는 머신이 놀 때의 값이다 — stop 훅이 전체 스위트를 다른 작업과 같이 돌리면 상세·지도 렌더가 1초를 넘겨
+// 거짓 실패가 난다(2026-09-16 map-screen 주소 검색 행, 홀로 돌리면 통과). 진짜 멈춘 테스트는 testTimeout(15초)이 잡는다.
+configure({ asyncUtilTimeout: 5000 });
