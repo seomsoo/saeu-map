@@ -6,7 +6,7 @@
 
 | 부품 | 무엇 | 어디 | 비용 |
 |---|---|---|---|
-| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Free** | 하루 10만 요청, 초과는 에러(과금 없음) |
+| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정)** | 월 1,000만 요청 포함(초과 100만당 $0.30), 요청당 CPU 30초. Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
 | 도메인 | `새우맵.kr` = `xn--r02bv8jvof.kr`(퓨니코드) — 가비아 등록, 네임서버 Cloudflare(eric·gail), 워커 custom domain | 가비아 + Cloudflare Free | 연 2만 원 안팎 |
 | 장부(DB·인증) | Postgres + GoTrue + PostgREST | Supabase **Free** 프로젝트 1개(prod) | 500MB · MAU 5만 · egress 5GB/월 |
 | 사진 창고 | R2 `saeu-photos` | Cloudflare | 10GB · 읽기 1,000만/월 (캐시 버킷과 **합산**) |

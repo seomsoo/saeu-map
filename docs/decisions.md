@@ -930,3 +930,10 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 어제의 zod 커밋은 이 중 2~3ms를 줄였다 — 원인 해결이 아니었다. 25% → 13%는 표본 30개의 흔들림으로 본다.
 - 시사점: **Paid($5)는 종료(503)를 없애지만 콜드 스타트 지연(TTFB ~1초)은 남는다** — 트래픽이 생겨 아이솔레이트가 따뜻해지면 준다. Free에 남으려면 콜드 스타트(서버 Sentry를 `@sentry/cloudflare`로 바꾸거나 빼기, 번들 축소)와 홈 페이로드(마커용 경량 목록 + 카드 분리)를 둘 다 줄여야 하고 그래도 보장은 없다. roadmap 백로그 "워커 CPU 다이어트"로.
 - 도구 메모: Workers Logs 쿼리 API(`/workers/observability/telemetry/query`)는 wrangler OAuth 토큰으로 403(Workers Observability Read 토큰 필요). GraphQL `workersInvocationsAdaptive`(scriptName·status·datetimeMinute 차원, cpuTime은 µs)는 wrangler 토큰으로 된다. 라우트 차원이 없어 시간 창으로 분리했다.
+
+## 2026-09-18 — Workers Paid($5/월)로 간다
+
+- 사용자 결정. 근거는 같은 날 실측: 503의 원인이 콜드 스타트(600~900ms) + 홈 페이로드(180ms)라 Free의 CPU 한도 안에 "보장"으로 넣을 방법이 없었다. 대안(서버 Sentry 제거·홈 HTML 캐시·페이로드 분리)은 효과가 측정 전엔 불확실하고 반나절 이상이라, 런칭 전에는 사지 않고 시간을 쓰는 게 손해라고 판단.
+- Paid가 바꾸는 것: 요청당 CPU 10ms → 30초(종료 0), 월 1,000만 요청 포함, Workers Logs 보관 3일 → 7일. **콜드 스타트 지연(첫 응답 ~1초)은 그대로다** — 트래픽이 생기면 줄고, 안 줄면 백로그 "워커 CPU 다이어트"를 집는다.
+- 풀리는 제약: "Workers Free CPU 10ms라 OG 카드는 빌드 시에만"(decisions 2026-09-07)의 이유가 사라졌다. 코드 주석은 당시 결정의 근거라 그대로 두고, 요청 시 생성은 roadmap 백로그로(Phase 7).
+- 월 비용: Workers $5 + R2(무료 한도 안) + Supabase Free + 도메인(연). runbook 표 갱신.

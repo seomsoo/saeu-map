@@ -125,7 +125,7 @@ function cachedUnlessBuilding<T>(fn: () => Promise<T>, keys: string[], tags: str
 
 /**
  * 핀 목록 전체 — 한 번 캐시하고(R2, 태그 places) 필터는 메모리에서. 공개 읽기라 세션·쿠키 없음(빌드 시에도 돈다).
- * **캐시에는 zod를 지난 Place[]를 넣는다** — 요청마다 789곳을 다시 검증하면 그것만 2.5ms라 Workers Free의 CPU 10ms를 갉아먹는다
+ * **캐시에는 zod를 지난 Place[]를 넣는다** — 요청마다 789곳을 다시 검증하면 그것만 2.5ms다(503의 원인은 아니었다 — decisions 2026-09-18 정정)
  * (프리뷰에서 "Worker exceeded resource limits" 503, 2026-09-17). NEW 배지만 읽을 때 다시 찍는다.
  */
 const cachedAllPlaces = cachedUnlessBuilding(
