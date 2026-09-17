@@ -9,6 +9,8 @@
 	],
 	// 실서비스 도메인 새우맵.kr(퓨니코드 표기, 2026-09-17). 배포하면 Cloudflare가 DNS 기록과 인증서를 자동으로 만든다. workers.dev 주소도 계속 열려 있다
 	"routes": [{ "pattern": "xn--r02bv8jvof.kr", "custom_domain": true }],
+	// 호출별 CPU·메모리·결과(exceededCpu 등)를 대시보드 Workers Logs에서 본다 — Free 하루 20만 줄 안(2026-09-17 503 진단)
+	"observability": { "enabled": true },
 	// 서버 전용 절대 URL(metadataBase·sitemap·og:url·콜백). 프리뷰 버전은 ci.yml이 `--var SITE_URL:…`로 덮는다 (decisions 2026-09-07)
 	"vars": {
 		"SITE_URL": "https://xn--r02bv8jvof.kr"

@@ -66,7 +66,7 @@ import { notifyAdmin } from "./notify";
 import { reportError } from "./observe";
 import { TAG_PLACES, TAG_SEASON, expirePlace, placeTag } from "./cache-tags";
 import { deletePhotoObject, forgetPhotoObjects, photoKeys, storePhoto } from "./photos";
-import { toAdminPlace, toPhoto, toPlace, toReview, toSides } from "./rows";
+import { isNewPlace, toAdminPlace, toPhoto, toPlace, toReview, toSides } from "./rows";
 import { ensureUser, readSession, requireKakao, VISITOR } from "./session";
 import { adminClient, anonClient, type Db, userClient } from "./supabase";
 import { ipHashedClient, isReadOnly, openWriteGate } from "./write-gate";
@@ -122,9 +122,13 @@ function cachedUnlessBuilding<T>(fn: () => Promise<T>, keys: string[], tags: str
 
 /** 쓰기 직후 캐시 만료 — 서버 액션 안이라 updateTag(읽기-자기-쓰기: 다음 요청이 새 값을 기다린다) */
 
-/** 핀 목록 전체 — 한 번 캐시하고(R2, 태그 places) 필터는 메모리에서. 공개 읽기라 세션·쿠키 없음(빌드 시에도 돈다). */
+/**
+ * 핀 목록 전체 — 한 번 캐시하고(R2, 태그 places) 필터는 메모리에서. 공개 읽기라 세션·쿠키 없음(빌드 시에도 돈다).
+ * **캐시에는 zod를 지난 Place[]를 넣는다** — 요청마다 789곳을 다시 검증하면 그것만 2.5ms라 Workers Free의 CPU 10ms를 갉아먹는다
+ * (프리뷰에서 "Worker exceeded resource limits" 503, 2026-09-17). NEW 배지만 읽을 때 다시 찍는다.
+ */
 const cachedAllPlaces = cachedUnlessBuilding(
-  async (): Promise<unknown[]> => {
+  async (): Promise<Place[]> => {
     const db = anonClient();
     const rows: unknown[] = [];
     // PostgREST max_rows(기본 1000) — 다 받을 때까지 페이지를 넘긴다
@@ -139,16 +143,16 @@ const cachedAllPlaces = cachedUnlessBuilding(
       rows.push(...data);
       if (data.length < page) break;
     }
-    return rows;
+    return rows.map((row) => toPlace(row));
   },
   ["places-all"],
   [TAG_PLACES],
 );
 
-export async function getPlaces(filter: PlaceFilter = {}, now?: string): Promise<Place[]> {
+export async function getPlaces(filter: PlaceFilter = {}, now: string = new Date().toISOString()): Promise<Place[]> {
   const query = normalizeQuery(filter.query ?? "");
   return (await cachedAllPlaces())
-    .map((row) => toPlace(row, now)) // 7일 NEW 배지는 캐시 밖에서 계산 — 캐시 채울 때 얼어붙지 않게(코드 리뷰 #3)
+    .map((place) => ({ ...place, isNew: isNewPlace(place, now) })) // 7일 NEW 배지는 읽을 때 — 캐시 채울 때 얼어붙지 않게(코드 리뷰 #3)
     .filter((p) => {
       if (filter.tag && !p.tags.includes(filter.tag)) return false;
       if (filter.gu && p.gu !== filter.gu) return false;
@@ -157,10 +161,10 @@ export async function getPlaces(filter: PlaceFilter = {}, now?: string): Promise
     });
 }
 
-/** 가게 + 리뷰 원본 행 — 가게마다 태그 place:<id> */
+/** 가게 + 리뷰 — 가게마다 태그 place:<id>. zod는 캐시 채울 때 한 번(위와 같은 이유) */
 function cachedDetailRows(id: string) {
   return cachedUnlessBuilding(
-    async (): Promise<{ place: unknown; reviews: unknown[] }> => {
+    async (): Promise<{ place: Place; reviews: Review[] }> => {
       const db = anonClient();
       const [placeRes, reviewRes] = await Promise.all([
         db.from("places_public").select("*").eq("id", id).maybeSingle(),
@@ -169,7 +173,7 @@ function cachedDetailRows(id: string) {
       if (placeRes.error || reviewRes.error) throw new Error("place unavailable");
       // 없는 id는 던져서 캐시에 남기지 않는다 — 임의 uuid 스캔이 R2·D1 항목을 만들지 않게(최종 보안 리뷰 #7)
       if (!placeRes.data) throw new Error(PLACE_MISSING);
-      return { place: placeRes.data, reviews: reviewRes.data };
+      return { place: toPlace(placeRes.data), reviews: reviewRes.data.map(toReview) };
     },
     ["place-detail", id],
     [TAG_PLACES, placeTag(id)],
@@ -178,7 +182,7 @@ function cachedDetailRows(id: string) {
 const PLACE_MISSING = "place missing";
 
 /** 상세 원본 — 요청 안에서는 한 번만(generateMetadata + 페이지가 같은 id를 묻는다) */
-const detailRows = cache(async (id: string): Promise<{ place: unknown; reviews: unknown[] } | undefined> => {
+const detailRows = cache(async (id: string): Promise<{ place: Place; reviews: Review[] } | undefined> => {
   if (!idSchema.safeParse(id).success) return undefined;
   try {
     return await cachedDetailRows(id)();
@@ -188,15 +192,15 @@ const detailRows = cache(async (id: string): Promise<{ place: unknown; reviews: 
   }
 });
 
-export async function getPlaceById(id: string, now?: string): Promise<Place | undefined> {
+export async function getPlaceById(id: string, now: string = new Date().toISOString()): Promise<Place | undefined> {
   const rows = await detailRows(id);
-  return rows ? toPlace(rows.place, now) : undefined;
+  return rows ? { ...rows.place, isNew: isNewPlace(rows.place, now) } : undefined;
 }
 
 /** 상세 화면 데이터: 가게 + 리뷰(최신순). 없는 id·uuid 아님은 undefined. */
-export async function getPlaceDetail(id: string, now?: string): Promise<PlaceDetail | undefined> {
+export async function getPlaceDetail(id: string, now: string = new Date().toISOString()): Promise<PlaceDetail | undefined> {
   const rows = await detailRows(id);
-  return rows ? { place: toPlace(rows.place, now), reviews: rows.reviews.map(toReview) } : undefined;
+  return rows ? { place: { ...rows.place, isNew: isNewPlace(rows.place, now) }, reviews: rows.reviews } : undefined;
 }
 
 const seasonStatsSchema = z.object({

@@ -69,7 +69,12 @@ export function toSides(sides: readonly string[]): Place["sides"] {
 
 const NEW_MS = 7 * 86_400_000;
 
-/** `now`는 NEW 배지(7일) 판정용 — 캐시 채울 때가 아니라 읽을 때의 시각이어야 한다(코드 리뷰 2026-09-16 #3). 뷰의 is_new는 쓰지 않는다 */
+/** NEW 배지(7일, 제보 핀만) — 캐시에 든 Place에 읽을 때의 시각으로 다시 찍는다(코드 리뷰 2026-09-16 #3) */
+export function isNewPlace(place: Pick<Place, "source" | "createdAt">, now: string): boolean {
+  return place.source === "report" && place.createdAt !== undefined && Date.parse(now) - Date.parse(place.createdAt) < NEW_MS;
+}
+
+/** `now`는 NEW 배지(7일) 판정용. 뷰의 is_new는 쓰지 않는다. zod 검증이 무거우니(789곳 ≈ 2.5ms) 캐시 채울 때 한 번만 부른다 */
 export function toPlace(input: unknown, now: string = new Date().toISOString()): Place {
   const row = placePublicRowSchema.parse(input);
   const photos: Photo[] = row.photos.map((p) => ({ id: p.id, url: photoUrl(p.key), uploadedAt: p.uploadedAt }));
@@ -97,7 +102,7 @@ export function toPlace(input: unknown, now: string = new Date().toISOString()):
     // 확인 0회면 비어 온다 → 등록 시각을 기준으로 "○일 전 등록"(백로그, decisions 2026-09-10)
     lastCheckedAt: row.last_checked_at ?? row.created_at,
     checkCount: row.check_count,
-    isNew: row.source === "report" && Date.parse(now) - Date.parse(row.created_at) < NEW_MS,
+    isNew: isNewPlace({ source: row.source, createdAt: row.created_at }, now),
     createdAt: row.created_at,
     ...(row.rating_avg !== null && { rating: { count: row.rating_count, average: row.rating_avg } }),
   };

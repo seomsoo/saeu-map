@@ -903,3 +903,10 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **워커 연결은 `wrangler.jsonc routes[{pattern, custom_domain: true}]`** — 첫 `wrangler deploy`(머지 뒤 CI)가 DNS 기록·인증서를 만든다. 그래서 DNS 화면에서 손으로 기록을 넣지 않았다. workers.dev 주소는 계속 열어 둔다(keepalive·프리뷰). `www`는 Redirect Rule(대시보드)로 나중에 — 보류.
 - Supabase 허용 URL에 `https://xn--r02bv8jvof.kr/**` 추가 후 config push. 나머지 네 곳(Turnstile 호스트명·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains)은 사용자 대시보드 작업 — runbook 3d.
 - Cloudflare에 사이트 추가(Connect a domain → Free → DNS 0건 Continue → AI 봇 설정은 그대로)와 가비아 네임서버 변경(1차 eric·2차 gail, 3차 비움)은 사용자가 했다. `dig NS`로 전파 확인.
+
+## 2026-09-17 — 첫 PR(#16) 프리뷰: Workers Free의 CPU 10ms에 걸렸다
+
+- CI: `db` 1분 · `check` 6분(추정 15분보다 짧다) 통과. 프리뷰 업로드는 CI 토큰에 R2·D1 권한이 없어 "원격 R2 캐시 채우기"에서 죽었다(메시지 없이) → 사용자가 토큰에 Workers R2 Storage Edit·D1 Edit·Workers Routes Edit·DNS Edit(도메인용)를 더해 재실행 통과.
+- **프리뷰에서 4번에 1번꼴로 503 "Worker exceeded resource limits"(에러 1102)**. Free 플랜은 요청당 CPU 10ms. 로컬 측정(M시리즈 맥, Workers CPU는 이보다 느리다): 762곳 JSON.parse 2.6ms + zod·toPlace 2.5ms + 직렬화 2ms = 7ms를 React 렌더 전에 이미 쓴다. 지도 화면이 요청마다 가게 전부를 SSR로 싣는 구조라 Free 한도 안에 못 든다.
+- 반영: **zod는 캐시 채울 때 한 번**(`cachedAllPlaces`·`cachedDetailRows`가 Place로 매핑해 저장), 읽을 때는 NEW 배지만 다시 찍는다(`isNewPlace`). `observability.enabled`로 호출별 CPU·결과를 대시보드에서 볼 수 있게. **권고: Workers Paid($5/월, CPU 30초)** — decisions 2026-09-10 #5의 "Paid 전환 신호"에 세 번째 신호(SSR CPU)가 먼저 왔다. 사용자 결정 대기.
+- 측정 시 함정: 내 셸(샌드박스)과 사용자 브라우저 둘 다 cf-ray가 **LAX**였다 — 요청이 미국 콜로로 가서 TTFB 1~4초가 섞였다(워커→서울 Supabase 왕복). 한국 일부 ISP(특히 KT)가 Cloudflare 트래픽을 미국으로 보내는 건 알려진 문제라 런칭 뒤 실사용 지연을 봐야 한다. `wrangler tail`은 프리뷰 버전 트래픽을 못 잡았다(0줄) — 대시보드 Workers Logs를 쓴다.
