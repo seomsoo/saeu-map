@@ -114,6 +114,6 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - **보안 리뷰 백로그 4건(2026-09-16 중간 리뷰, decisions 같은 날)** — 조건: **Phase 7 런칭 준비에서 집는다**(런칭 전 하드닝). ① publishable 키 유출 대비 — GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken: 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 되므로 구조를 바꿔야 한다(`rate_ok` fail-closed로 절반은 막았다). ② `reviews_public`의 `author_id`를 `is_mine`으로 대체(익명에게 auth uid 노출 안 함). ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거). ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤.
 
 ## Phase 7 — 런칭 준비 (별도 결정 후)
-- [ ] 도메인 연결, 서치어드바이저, 축제 페이지, 시즌 카운터 실데이터 (까주기 테스트는 Phase 5.6에서 당겨 만들었다)
+- [ ] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), 서치어드바이저, 축제 페이지, 시즌 카운터 실데이터 (까주기 테스트는 Phase 5.6에서 당겨 만들었다)
 - [ ] **분석 켜기**: Cloudflare Web Analytics 배선 + GA4 측정 ID(`NEXT_PUBLIC_GA_ID`) 등록. **그 전에 개인정보처리방침·동의 배너를 정한다**(GA4는 쿠키를 쓴다 — decisions 2026-09-08)
 - [ ] SNS 채널·런칭일·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장)

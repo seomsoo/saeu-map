@@ -1,3 +1,4 @@
+import { displayOrigin } from "./seo";
 import type { Place } from "./types";
 
 /** 공유·복사 — 상세 [공유]와 제보 완료 카드의 [공유]가 같은 길을 쓴다. */
@@ -26,7 +27,8 @@ export function shareUrl(
   { title, path }: { title: string; path: string },
   onNotice: (message: string) => void,
 ): void {
-  const url = `${window.location.origin}${path}`;
+  // origin은 퓨니코드(xn--…)로 오니 사람에게 나가는 링크는 한글 도메인으로(lib/seo displayOrigin)
+  const url = `${displayOrigin(window.location.origin)}${path}`;
   const fallback = () =>
     copyText(url).then((ok) => {
       onNotice(ok ? LINK_COPIED_NOTICE : LINK_COPY_FAILED_NOTICE);

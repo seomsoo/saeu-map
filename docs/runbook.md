@@ -7,6 +7,7 @@
 | 부품 | 무엇 | 어디 | 비용 |
 |---|---|---|---|
 | 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Free** | 하루 10만 요청, 초과는 에러(과금 없음) |
+| 도메인 | `새우맵.kr` = `xn--r02bv8jvof.kr`(퓨니코드) — 가비아 등록, 네임서버 Cloudflare(eric·gail), 워커 custom domain | 가비아 + Cloudflare Free | 연 2만 원 안팎 |
 | 장부(DB·인증) | Postgres + GoTrue + PostgREST | Supabase **Free** 프로젝트 1개(prod) | 500MB · MAU 5만 · egress 5GB/월 |
 | 사진 창고 | R2 `saeu-photos` | Cloudflare | 10GB · 읽기 1,000만/월 (캐시 버킷과 **합산**) |
 | 캐시 | R2 `saeu-cache` + D1 `saeu-tags` | Cloudflare | D1 읽기 500만/일 |
@@ -113,16 +114,17 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 
 ## 3d. 도메인을 붙이는 날 체크리스트 (커스텀 도메인 — 전부 "추가"지 "교체"가 아니다)
 
-지금은 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev` 둘로 등록돼 있다. 새 도메인이 생기면 **같은 날** 아래를 전부 더한다 — 하나라도 빠지면 그 기능만 조용히 죽는다(쓰기 "잠시 후 다시", 지도 401, 로그인 실패).
+2026-09-17 `새우맵.kr`을 붙였다. 서비스마다 한글 표기(`새우맵.kr`)를 받으면 그걸, 안 받으면 퓨니코드 **`xn--r02bv8jvof.kr`**을 넣는다(같은 주소). 프리뷰는 계속 `preview-saeu-map.saeu-map.workers.dev`. 다음 도메인이 생기면 **같은 날** 아래를 전부 더한다 — 하나라도 빠지면 그 기능만 조용히 죽는다(쓰기 "잠시 후 다시", 지도 401, 로그인 실패).
 
 | 어디 | 무엇 | 안 하면 |
 |---|---|---|
 | Cloudflare → Turnstile → 위젯 `saeu-map` → Settings → Hostname management | 새 도메인 추가(키는 그대로) | 모든 쓰기가 "bot check failed" |
-| Supabase `supabase/config.toml` `additional_redirect_urls` + `supabase config push` (내가) | `https://<도메인>/**` 추가 | 카카오 로그인 뒤 콜백 거부 |
+| Supabase `supabase/config.toml` `additional_redirect_urls` + `supabase config push` (내가) | `https://<도메인>/**` 추가 — 새우맵.kr ✅ 2026-09-17 | 카카오 로그인 뒤 콜백 거부 |
 | 카카오 개발자 앱 → 플랫폼 → Web 사이트 도메인 | 새 도메인 추가(리다이렉트 URI는 Supabase 주소라 그대로) | 카카오 로그인 시작 실패 |
 | NCP 콘솔 → Maps → 서비스 URL | 새 도메인 추가 | 지도가 401로 안 뜸 |
 | Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 | 브라우저 에러가 안 들어옴 |
-| `wrangler.jsonc` `vars.SITE_URL` + routes/custom domain, ci.yml preview `SITE_URL` (내가) | 새 도메인 | OG·sitemap·공유 링크가 옛 주소 |
+| `wrangler.jsonc` `vars.SITE_URL` + `routes[custom_domain]`, `lib/seo.ts` SITE_HOST/표시명 (내가) | 새 도메인 — 새우맵.kr ✅ 2026-09-17(첫 배포 때 DNS·인증서 자동) | OG·sitemap·공유 링크가 옛 주소 |
+| Cloudflare → 새우맵.kr → Rules → Redirect Rules (선택) | `www.새우맵.kr/*` → `https://새우맵.kr/$1` 301 | www로 치면 안 열림(치는 사람이 거의 없어 보류) |
 
 Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에, secret은 워커 secret과 Turnstile 대시보드에만 있다(로컬 `.env.local`은 테스트 키).
 

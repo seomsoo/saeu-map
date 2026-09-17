@@ -895,3 +895,11 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 사용자가 대시보드에서 R2 구독(무료 한도, 카드 등록)·Turnstile 위젯(`saeu-map`, Managed, workers.dev 호스트 둘)을 만들었다. 버킷 `saeu-photos`·`saeu-cache`는 wrangler로 생성. site key는 GH variable, secret은 워커 secret으로 올리고 **`.env.local`은 테스트 키로 되돌렸다** — 로컬 위젯은 테스트 site key라 토큰이 테스트 secret으로만 통과한다(실제 secret이 로컬에 있으면 로컬 쓰기가 전부 "bot check failed").
 - **도메인을 붙이는 날 체크리스트**를 runbook 3d에 표로 — Turnstile 호스트명·Supabase 허용 URL·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains·SITE_URL. 사용자가 "까먹을 수 있으니 문서에" 요청(2026-09-17).
 - **나머지 셋도 등록(2026-09-17)**: Sentry DSN → GH variable(가짜 ingest가 아니라 실 DSN에 curl로 테스트 이벤트 1건 보내 HTTP 200 확인 — sentry.io에 "새우맵 DSN 확인" 이벤트가 있다), 디스코드 웹훅 → 워커 secret, 카카오 REST 키·Client Secret → `config.toml [auth.external.kakao] enabled = true`(키는 env 플레이스홀더, `.env.local`에서 셸 env로) + **`supabase config push` 완료**(익명 로그인 켬·이메일 가입 끔·허용 URL·카카오). 템플릿 풀러 값(`default_pool_size`·`max_client_conn`)은 주석 처리해 실서비스 풀러를 덮지 않게 했다. 사용자 콘솔 작업 7개 전부 끝 — 남은 건 push·PR.
+
+## 2026-09-17 — 도메인 `새우맵.kr` (Phase 7 항목을 당겨 붙임)
+
+- **한글 도메인을 주 도메인으로.** 처음엔 영문(`saeumap.kr`) 주 + 한글 보조를 권했다가, 야장맵·거지맵이 한글 도메인으로 잘 굴러가는 점과 "○○맵" 시리즈 브랜드(굴맵·대방어맵)를 들어 **한글 주 도메인**으로 결론을 바꿨다. 남는 불편은 셋뿐: 주소창 직접 입력의 한/영 전환, 일부 브라우저의 주소창 복사가 퓨니코드로 나오는 것, 외부 서비스 설정에 퓨니코드를 넣는 것(내 몫). `.kr`은 국내 서비스·시리즈 통일(연 2만 원 안팎), `.com`은 선점 걱정이 생기면 그때.
+- **기계용은 퓨니코드, 사람용만 한글.** `lib/seo.ts` `SITE_HOST = "xn--r02bv8jvof.kr"`, `DEFAULT_SITE_URL`은 그 https — canonical·og:url·sitemap·콜백 URL은 URL 객체가 어차피 이 형태로 만든다. 브라우저 `location.origin`도 퓨니코드로 오므로 **공유·복사 링크만 `displayOrigin`으로 `https://새우맵.kr`**(카톡에 `xn--…`가 안 보이게). 프리뷰·로컬 origin은 그대로.
+- **워커 연결은 `wrangler.jsonc routes[{pattern, custom_domain: true}]`** — 첫 `wrangler deploy`(머지 뒤 CI)가 DNS 기록·인증서를 만든다. 그래서 DNS 화면에서 손으로 기록을 넣지 않았다. workers.dev 주소는 계속 열어 둔다(keepalive·프리뷰). `www`는 Redirect Rule(대시보드)로 나중에 — 보류.
+- Supabase 허용 URL에 `https://xn--r02bv8jvof.kr/**` 추가 후 config push. 나머지 네 곳(Turnstile 호스트명·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains)은 사용자 대시보드 작업 — runbook 3d.
+- Cloudflare에 사이트 추가(Connect a domain → Free → DNS 0건 Continue → AI 봇 설정은 그대로)와 가비아 네임서버 변경(1차 eric·2차 gail, 3차 비움)은 사용자가 했다. `dig NS`로 전파 확인.

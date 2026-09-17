@@ -4,6 +4,7 @@ import { SEOUL_GU } from "../gu";
 import { PEEL_SLUGS } from "../peel-test";
 import {
   DEFAULT_SITE_URL,
+  displayOrigin,
   guDescription,
   isPreviewHost,
   guMeta,
@@ -96,5 +97,13 @@ describe("sitemap · 사이트 URL", () => {
     expect(placeOgImagePath({ id: "new", createdAt: "2026-09-11T00:00:00Z" }, buildAt)).toBe("/opengraph-image");
     expect(placeOgImagePath({ id: "dev", createdAt: "2026-09-11T00:00:00Z" }, undefined)).toBe("/og/place/dev");
     expect(placeMeta(nara, NOW).openGraph).toMatchObject({ images: [{ url: `/og/place/${nara.id}`, width: 1200, height: 630 }] });
+  });
+
+  it("공유 링크만 한글 도메인 — 실서비스 origin(퓨니코드)은 새우맵.kr로, 프리뷰·로컬은 그대로(2026-09-17)", () => {
+    expect(displayOrigin("https://xn--r02bv8jvof.kr")).toBe("https://새우맵.kr");
+    expect(displayOrigin("https://www.xn--r02bv8jvof.kr")).toBe("https://새우맵.kr");
+    expect(displayOrigin("https://preview-saeu-map.saeu-map.workers.dev")).toBe("https://preview-saeu-map.saeu-map.workers.dev");
+    expect(displayOrigin("http://localhost:3000")).toBe("http://localhost:3000");
+    expect(DEFAULT_SITE_URL).toBe("https://xn--r02bv8jvof.kr");
   });
 });
