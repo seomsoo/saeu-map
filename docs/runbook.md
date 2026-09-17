@@ -73,7 +73,7 @@ wrangler secret put SUPABASE_SECRET_KEY   # TURNSTILE_SECRET_KEY · IP_HASH_SALT
 # DB 비밀번호는 .env.local의 SUPABASE_DB_PASSWORD(gitignore) — 잃으면 대시보드 Database → Reset password
 supabase link --project-ref dnwkyobizphuacqvfseh -p "$SUPABASE_DB_PASSWORD"
 supabase db push                          # 마이그레이션
-supabase config push                      # 익명 로그인·카카오 공급자·이메일 가입 닫힘([auth.email] enable_signup=false)
+set -a; . ./.env.local; set +a; supabase config push --yes   # 2026-09-17 완료. 카카오 키는 config.toml의 env() 플레이스홀더라 .env.local을 셸 env로 올린 채 실행한다. 먼저 `supabase config diff`
 # GitHub
 gh secret set SUPABASE_URL --body …       # 빌드(OG 프리렌더)용. publishable도 secret으로 — variable은 wrangler가 40자까지 로그에 찍는다
 gh secret set SUPABASE_PUBLISHABLE_KEY --body …

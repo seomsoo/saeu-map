@@ -48,9 +48,9 @@ port = 54329
 # Configure one of the supported pooler modes: `transaction`, `session`.
 pool_mode = "transaction"
 # How many server connections to allow per user/database pair.
-default_pool_size = 20
+# default_pool_size = 20  # 템플릿 값 — config push가 실서비스 풀러를 덮지 않게 주석(2026-09-17)
 # Maximum number of client connections allowed.
-max_client_conn = 100
+# max_client_conn = 100
 
 # [db.vault]
 # secret_key = "env(SECRET_VALUE)"
@@ -324,7 +324,8 @@ max_frequency = "5s"
 # 카카오 — Phase 6 커밋 4에서 켠다. 값은 .env의 SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID / _SECRET (runbook 2절).
 # 이메일 동의는 비즈 앱 전용이라 받지 않는다 → email_optional = true (Supabase Kakao 문서, 2026-09-10)
 [auth.external.kakao]
-enabled = false
+# 2026-09-17 켬 — 키는 .env.local(로컬)·config push 때 셸 env(실서비스). 이메일 동의는 안 받으므로 이메일 없는 계정 허용
+enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_KAKAO_SECRET)"
 redirect_uri = ""
