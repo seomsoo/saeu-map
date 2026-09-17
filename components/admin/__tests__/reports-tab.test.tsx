@@ -103,8 +103,10 @@ describe("신고·요청 탭 (design 화면 10-2)", () => {
       expect(onNotice).toHaveBeenCalledWith("처리했어요");
     });
     expect(data.resolveReport).toHaveBeenCalledWith("rp1", "done");
-    // 열린 목록을 다시 읽는다 — 처리한 행은 빠져야 한다
-    expect(data.getReports).toHaveBeenCalledTimes(2);
+    // 열린 목록을 다시 읽는다 — 처리한 행은 빠져야 한다. 다시 읽기는 알림 뒤 effect에서 시작하므로 기다린다(부하 중 flaky, 2026-09-18)
+    await waitFor(() => {
+      expect(data.getReports).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("숨겨진 가게도 상호가 보이고 [복구]가 뜬다 — 오탐을 되돌릴 길이 있어야 한다", async () => {
