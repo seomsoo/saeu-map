@@ -922,3 +922,11 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 곁가지: `pnpm db:types`가 실패해도 파일을 비우지 않게(임시 파일 → mv). 로컬에서 `--local`이 "password authentication failed for user postgres"로 두 번 죽었다(CI는 정상, 원인 미상) — `supabase gen types typescript --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --schema public`으로 뽑으면 된다(결과 동일 확인).
 - 검증: pgTAP 94 → 99, vitest 560(래퍼 테스트 `lib/__tests__/data-write.test.ts` 3개 추가 — 행위자는 토큰 await 전 캡처, 찜은 한 줄), advisors 0, typecheck·lint 통과, 타입 파일 변화 없음. 로컬 dev + Playwright 실측: 찜 4연타 → 액션 요청 4개가 겹치지 않고 순서대로(각 ~300ms, 사이에 Turnstile 토큰), 새로고침 뒤 익명 세션 id가 `actor`로 실려 문을 통과, 페이지의 세션 쿠키를 지우고 누르면 `{ok:false,error:"session changed"}` + 하트 롤백. 프리뷰는 읽기 전용이라 쓰기 검증은 로컬에서만.
 - 프리뷰 503 재측정(CPU 커밋 뒤, curl 30회): 홈 24회 중 3회 + 상세 6회 중 1회 = **4/30**. 1/4에서 줄었지만 Free 10ms 안에 안정적으로 못 들어간다 — Workers Paid($5) 권고 유지.
+
+## 2026-09-18 — 503의 진짜 원인은 콜드 스타트와 홈 페이로드였다 (어제 진단 정정)
+
+- 어제(09-17) "데이터 작업 7ms가 Free 10ms에 걸린다"는 진단은 **틀렸다**. 맥에서 잰 수치로 추정했고 워커 실측을 보지 않았다. `observability`를 켠 뒤 GraphQL 분석(`workersInvocationsAdaptive`)으로 24시간을 보니 성공한 요청도 CPU p50 284ms · p90 1.28s였고, 종료(exceededResources)는 79회 중 16회. Free의 10ms는 요청마다 칼같이 자르는 게 아니라 여유를 두고 집행되며, 실제 종료는 CPU 1.3~2초 언저리에서 났다.
+- 라우트별 분리 실험(분 단위 창에 한 라우트만 12회 보내고 그 분의 분포를 읽음): `/robots.txt` → CPU p50 29ms · p90 593ms · p99 701ms. `/` → p50 210ms · p90 980ms, 3회 종료. 읽는 법: **요청 기본 비용 ~30ms**(Next 핸들러·Sentry Node SDK), **콜드 스타트 +600~900ms**(17MB 서버 번들 `handler.mjs`의 지연 로딩 — 하루 79요청이라 거의 매번 콜드), **홈 페이지 +180ms**(가게 762곳 전체를 900KB RSC 페이로드(gzip 116KB)로 직렬화). 콜드와 홈이 겹치면 1초를 넘겨 종료된다.
+- 어제의 zod 커밋은 이 중 2~3ms를 줄였다 — 원인 해결이 아니었다. 25% → 13%는 표본 30개의 흔들림으로 본다.
+- 시사점: **Paid($5)는 종료(503)를 없애지만 콜드 스타트 지연(TTFB ~1초)은 남는다** — 트래픽이 생겨 아이솔레이트가 따뜻해지면 준다. Free에 남으려면 콜드 스타트(서버 Sentry를 `@sentry/cloudflare`로 바꾸거나 빼기, 번들 축소)와 홈 페이로드(마커용 경량 목록 + 카드 분리)를 둘 다 줄여야 하고 그래도 보장은 없다. roadmap 백로그 "워커 CPU 다이어트"로.
+- 도구 메모: Workers Logs 쿼리 API(`/workers/observability/telemetry/query`)는 wrangler OAuth 토큰으로 403(Workers Observability Read 토큰 필요). GraphQL `workersInvocationsAdaptive`(scriptName·status·datetimeMinute 차원, cpuTime은 µs)는 wrangler 토큰으로 된다. 라우트 차원이 없어 시간 창으로 분리했다.
