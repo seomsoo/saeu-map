@@ -13,6 +13,7 @@ import {
   resolveReport,
   setPlaceHidden,
 } from "@/lib/data";
+import { REPORT_KIND_LABEL as KIND_LABEL, REPORT_REASON_LABEL as REASON_LABEL } from "@/lib/report-labels";
 import { copyText } from "@/lib/share";
 import { relativeCheckAgo } from "@/lib/time";
 import type { Report, ReportKind } from "@/lib/types";
@@ -40,26 +41,7 @@ export const CONTACT_COPIED_NOTICE = "연락처를 복사했어요";
 export const PHOTO_DELETED_NOTICE = "사진을 내렸어요";
 export const ACTION_FAILED_NOTICE = "처리하지 못했어요";
 
-const KIND_LABEL: Record<ReportKind, string> = {
-  place_report: "가게 신고",
-  photo_report: "사진 신고",
-  place_flag: "정보 수정 제안",
-  owner_request: "사장님 요청",
-};
 
-/** 사유 코드 → 사람이 읽는 말. 사용자 화면의 시트 문구와 같은 말을 쓴다. */
-const REASON_LABEL: Record<string, string> = {
-  location: "위치가 달라요",
-  menu: "메뉴·가격이 달라요",
-  closed: "문 닫았어요",
-  not_shrimp: "새우집이 아니에요",
-  fake: "허위·광고성 등록",
-  duplicate: "중복 등록이에요",
-  inappropriate: "부적절한 사진",
-  wrong_place: "다른 가게 사진",
-  spam: "광고·도배",
-  other: "기타",
-};
 
 const FILTERS: { key: ReportKind | "all"; label: string }[] = [
   { key: "all", label: "전체" },
@@ -98,10 +80,9 @@ export function ReportsTab({ now, onNotice }: { now: string; onNotice: (m: strin
   const [period, setPeriod] = useState<AdminPeriod>(null);
   const [limit, setLimit] = useState(ADMIN_PAGE_SIZE);
   const load = useCallback(async () => {
-    const [rows, places] = await Promise.all([
-      getReports({ status: "open", now, sinceDays: period, limit }),
-      getPlacesForAdmin(now),
-    ]);
+    const rows = await getReports({ status: "open", now, sinceDays: period, limit });
+    // 신고가 붙은 가게만 id로 — 최근 500행 목록에서 찾으면 오래된 시드의 신고는 "없는 가게"가 된다(코드 리뷰 #2)
+    const places = await getPlacesForAdmin(now, { ids: [...new Set(rows.map((r) => r.placeId))] });
     return rows.map((r) => ({ report: r, place: places.find((p) => p.id === r.placeId) }));
   }, [now, period, limit]);
   const { rows, status, retry, refresh } = useAdminList(load, `${String(period)}-${String(limit)}`);

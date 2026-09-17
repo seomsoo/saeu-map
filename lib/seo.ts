@@ -1,8 +1,7 @@
 import type { Metadata, MetadataRoute } from "next";
 import { guSlug, SEOUL_GU } from "./gu";
 import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
-import { primaryMenuLine, TAG_LABELS } from "./places";
-import { relativeCheckLabel } from "./time";
+import { checkLabel, primaryMenuLine, TAG_LABELS } from "./places";
 import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
 
 /**
@@ -11,11 +10,28 @@ import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
  */
 export const SITE_NAME = "새우맵";
 export const SITE_DESCRIPTION = "서울 새우구이 지도. 다녀온 사람들의 확인과 제보로 갱신돼요";
-/** 프로덕션 워커 URL — 도메인(saeumap.kr)은 Phase 7에 SITE_URL로 바꾼다 (decisions 2026-09-07) */
-export const DEFAULT_SITE_URL = "https://saeu-map.saeu-map.workers.dev";
+/**
+ * 실서비스 도메인 `새우맵.kr`(2026-09-17). 기계용 표기는 퓨니코드 `xn--r02bv8jvof.kr` — canonical·og:url·sitemap·콜백 URL은 이걸 쓴다
+ * (URL 객체가 어차피 이 형태로 바꾼다). 사람에게 보여 주는 링크(공유·복사)만 `displayOrigin`으로 한글 표기.
+ * 프리뷰·workers.dev는 SITE_URL 변수로 덮는다(ci.yml·wrangler.jsonc vars).
+ */
+export const SITE_HOST = "xn--r02bv8jvof.kr";
+export const SITE_HOST_DISPLAY = "새우맵.kr";
+export const DEFAULT_SITE_URL = `https://${SITE_HOST}`;
 
 export function siteUrl(envUrl: string | undefined): URL {
   return new URL(envUrl ?? DEFAULT_SITE_URL);
+}
+
+/** 브라우저의 `location.origin`은 퓨니코드로 나온다 — 카톡·복사로 나가는 링크는 `https://새우맵.kr`로 바꿔 준다. 다른 호스트(프리뷰·로컬)는 그대로 */
+export function displayOrigin(origin: string): string {
+  try {
+    const u = new URL(origin);
+    if (u.hostname === SITE_HOST || u.hostname === `www.${SITE_HOST}`) return `https://${SITE_HOST_DISPLAY}`;
+  } catch {
+    /* 이상한 origin은 그대로 */
+  }
+  return origin;
 }
 
 /** 프리뷰 배포(`preview-*.workers.dev`)는 색인되면 안 된다 — robots가 전부 막는다 (security-reviewer 2026-09-07) */
@@ -37,10 +53,20 @@ export function placeDescription(place: Place, now: string): string {
     place.gu,
     ...place.tags.map((tag) => TAG_LABELS[tag]),
     primaryMenuLine(place),
-    relativeCheckLabel(place.lastCheckedAt, now),
+    checkLabel(place, now),
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * 핀 공유 카드 경로 — 카드는 빌드 시 생성(Workers Free CPU 10ms → 요청 시 satori 불가)이라 **빌드 때 있던 가게만 카드가 있다**.
+ * 배포 뒤 생긴 핀(제보)은 루트 카드로(plan 결정 18). BUILD_AT은 next.config가 박는다 — 없으면(dev·테스트) 전부 있는 것으로 본다.
+ */
+export function placeOgImagePath(place: Pick<Place, "id" | "createdAt">, buildAt: string | undefined = process.env.BUILD_AT): string {
+  const prerendered =
+    buildAt === undefined || place.createdAt === undefined || Date.parse(place.createdAt) <= Date.parse(buildAt);
+  return prerendered ? `/og/place/${place.id}` : "/opengraph-image";
 }
 
 export function placeMeta(place: Place, now: string): Metadata {
@@ -50,7 +76,13 @@ export function placeMeta(place: Place, now: string): Metadata {
     title: place.name,
     description,
     alternates: { canonical: path },
-    openGraph: { title: place.name, description, url: path, type: "website" },
+    openGraph: {
+      title: place.name,
+      description,
+      url: path,
+      type: "website",
+      images: [{ url: placeOgImagePath(place), width: 1200, height: 630, alt: `${place.name} 공유 카드` }],
+    },
   };
 }
 

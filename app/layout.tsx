@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { TurnstileHost } from "@/components/auth/turnstile-host";
 import { env } from "@/lib/env";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/seo";
 import "./globals.css";
 
-/** 사이트 공통 메타 (spec 4.6). 라우트별 제목은 "%s | 새우맵", OG 이미지는 각 세그먼트의 opengraph-image.tsx가 붙인다 */
+/** 사이트 공통 메타 (spec 4.6). 라우트별 제목은 "%s | 새우맵", OG 이미지는 루트 opengraph-image.tsx와 `app/og/*` 라우트(가게·구·테스트 카드)가 붙인다 */
 export const metadata: Metadata = {
   metadataBase: siteUrl(env.SITE_URL),
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
@@ -39,6 +40,7 @@ export default function RootLayout({
           href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"
         />
         {children}
+        <TurnstileHost />
         <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_ID} />
       </body>
     </html>

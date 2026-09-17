@@ -2,7 +2,7 @@
 
 import type { PhotoReportReason } from "@/lib/data";
 
-/** 사유 4개 고정 — 자유 입력은 없다(목 단계에 저장할 곳도, 읽을 사람도 없다). */
+/** 사유 4개 고정 — 자유 입력은 없다(읽는 사람이 운영자 하나라 사유 코드로 충분하고, 자유 텍스트는 스팸 표면이다). */
 const REASONS: { value: PhotoReportReason; label: string }[] = [
   { value: "inappropriate", label: "부적절한 사진" },
   { value: "wrong_place", label: "다른 가게 사진" },

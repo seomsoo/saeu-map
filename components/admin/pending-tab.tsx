@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { confirmPlace, getPlaces } from "@/lib/data";
+import { confirmPlace, getPlacesForAdmin } from "@/lib/data";
 import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
 import { formatPrice, unitChipLabel } from "@/lib/places";
 import { relativeCheckAgo } from "@/lib/time";
@@ -18,6 +18,7 @@ import {
   AdminTable,
   AdminWhen,
 } from "./admin-table";
+import { MergeSheet } from "./merge-sheet";
 import { useAdminList } from "./use-admin-list";
 
 export const CONFIRMED_NOTICE = "확인했어요";
@@ -42,19 +43,30 @@ function menuLine(place: Place): string {
 }
 
 /**
+ * 중복 의심 배지 — 제보 2단계에서 "다른 가게예요"로 답한 후보(spec 4.3-2), 또는 사장님 요청으로 내린 가게 자리에 온 재제보(spec 5 경고).
+ * 후보 이름은 관리자 목록에서 오므로 숨긴 가게도 보인다.
+ */
+function suspectLabel(place: Place): string {
+  const name = place.duplicateSuspectName ?? "후보 없음";
+  return place.duplicateSuspectRemovedByOwner === true ? `사장님이 내린 자리 · ${name}` : `중복 의심 · ${name}`;
+}
+
+/**
  * 사후 확인 탭 (design 화면 10-1) — 제보로 들어온 가게를 24시간 안에 훑는다(spec 5).
  * **[확인]은 배지만 찍는다**: 카드·마커의 "새로 제보됨"은 7일 타이머라 여기서 건드리지 않는다.
- * **이 탭만 모바일에서 쓴다** — 텔레그램 알림을 받은 자리에서 플레이스 링크를 30초 훑고 끝나야 한다.
+ * **이 탭만 모바일에서 쓴다** — 디스코드 알림을 받은 자리에서 플레이스 링크를 30초 훑고 끝나야 한다.
+ * 중복 의심 행은 배지 + [이 가게로 합치기](확인 시트, 되돌리기 없음). 읽기는 관리자 목록 — 공개 뷰엔 verifiedAt·숨김이 없다.
  */
 export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: string) => void }) {
   const load = useCallback(async () => {
-    const places = await getPlaces({}, now);
+    const places = await getPlacesForAdmin(now);
     return places
-      .filter((p) => p.source === "report" && p.verifiedAt === undefined)
+      .filter((p) => p.source === "report" && p.verifiedAt === undefined && p.hiddenAt === undefined)
       .sort((a, b) => Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? ""));
   }, [now]);
   const { rows, status, retry, setRows } = useAdminList<Place>(load);
   const [pending, setPending] = useState<string | null>(null);
+  const [merging, setMerging] = useState<Place | null>(null);
   /** 확인이 끝난 핀 — 목록에서 즉시 빼고(낙관) 실패하면 되돌린다 */
   const confirming = useRef<ReadonlySet<string>>(new Set());
 
@@ -102,11 +114,14 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
                 />
               </AdminCell>
               <AdminCell align="right">
-                <AdminStatus label="검증 전" />
+                <span className="inline-flex flex-wrap justify-end gap-1">
+                  <AdminStatus label="검증 전" />
+                  {place.duplicateSuspectOf !== undefined && <AdminStatus label={suspectLabel(place)} tone="active" />}
+                </span>
               </AdminCell>
               <AdminCell align="right">
                 <AdminActions>
-                  <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} />
+                  <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} onMerge={setMerging} />
                 </AdminActions>
               </AdminCell>
             </AdminRow>
@@ -119,6 +134,11 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
         {rows.map((place) => (
           <li key={place.id} className="rounded-12 border border-line-hairline p-4">
             <p className="text-title-s-semibold text-fg">{place.name}</p>
+            {place.duplicateSuspectOf !== undefined && (
+              <p className="mt-1">
+                <AdminStatus label={suspectLabel(place)} tone="active" />
+              </p>
+            )}
             <p className="mt-0.5 text-caption-l-regular text-fg-tertiary">
               {place.gu} · {place.tags.includes("raw") ? "생새우회" : "새우구이"}
             </p>
@@ -127,11 +147,29 @@ export function PendingTab({ now, onNotice }: { now: string; onNotice: (m: strin
               {relativeCheckAgo(place.createdAt ?? place.lastCheckedAt, now)} 등록
             </p>
             <div className="mt-3 flex gap-2">
-              <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} />
+              <PendingActions place={place} pending={pending === place.id} onConfirm={confirm} onMerge={setMerging} />
             </div>
           </li>
         ))}
       </ul>
+
+      {merging && merging.duplicateSuspectOf !== undefined && (
+        <MergeSheet
+          from={merging}
+          into={{ id: merging.duplicateSuspectOf, name: merging.duplicateSuspectName ?? "후보 가게" }}
+          now={now}
+          onClose={() => {
+            setMerging(null);
+          }}
+          onMerged={() => {
+            // 옛 가게는 숨겨졌다 — 목록에서 뺀다. 함수형: 그 사이 [확인]으로 바뀐 목록을 옛 클로저가 덮지 않게(코드 리뷰 #14)
+            const gone = merging.id;
+            setRows((prev) => prev.filter((p) => p.id !== gone));
+            setMerging(null);
+          }}
+          onNotice={onNotice}
+        />
+      )}
     </>
   );
 }
@@ -141,10 +179,12 @@ function PendingActions({
   place,
   pending,
   onConfirm,
+  onMerge,
 }: {
   place: Place;
   pending: boolean;
   onConfirm: (place: Place) => void;
+  onMerge: (place: Place) => void;
 }) {
   const naver = place.naverPlaceUrl;
   return (
@@ -158,6 +198,18 @@ function PendingActions({
         >
           플레이스 열기 ↗
         </a>
+      )}
+      {place.duplicateSuspectOf !== undefined && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => {
+            onMerge(place);
+          }}
+        >
+          이 가게로 합치기
+        </Button>
       )}
       <Button
         variant="outline"

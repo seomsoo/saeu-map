@@ -12,6 +12,7 @@ function renderCard(overrides: Partial<Parameters<typeof PlaceCard>[0]> = {}) {
     gu: "마포구",
     tags: ["grill", "raw"],
     lastCheckedAt: YESTERDAY,
+    checkCount: 3,
     menus: [
       makeMenu({ name: "생새우소금구이", price: 60000, unit: "kg", unit_raw: "1" }),
     ],
@@ -34,6 +35,11 @@ function renderCard(overrides: Partial<Parameters<typeof PlaceCard>[0]> = {}) {
 }
 
 describe("PlaceCard", () => {
+  it("확인 0회 제보 핀은 '어제 등록' — 확인일이 없는데 '확인'이라 하면 거짓이다(decisions 2026-09-10 결정 11)", () => {
+    renderCard({ place: makePlace({ name: "새핀", lastCheckedAt: YESTERDAY, checkCount: 0, source: "report", isNew: false }) });
+    expect(screen.getByText("어제 등록")).toBeInTheDocument();
+  });
+
   it("상호 · 구·카테고리 메타 · **대표 메뉴 가격** · 사이드 · 확인 라벨", () => {
     renderCard();
     expect(screen.getByRole("heading", { name: "나라수산" })).toBeInTheDocument();

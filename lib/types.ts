@@ -15,7 +15,7 @@ export interface Sides {
 export type PlaceTag = "grill" | "raw";
 
 export interface Photo {
-  /** 목 단계에서는 `{placeId}-p{n}` 파생. Phase 6에서 DB uuid로 바뀐다 — 신고가 이 값을 보낸다. */
+  /** DB uuid — 신고가 이 값을 보낸다. */
   id: string;
   /** 우리 스토리지 경로만(규칙 3). */
   url: string;
@@ -25,7 +25,6 @@ export interface Photo {
    * 올린 사람 — 탈퇴하면 사진은 남기고 이 값만 뗀다(제보 가게의 `reporterId`와 같은 규칙, spec 5).
    * 시드 사진에는 없다. Phase 6에서는 신고된 사진의 업로더 추적·속도 제한이 이 값을 쓴다.
    */
-  uploaderId?: string;
 }
 
 /**
@@ -90,15 +89,23 @@ export interface Place {
   rating?: { count: number; average: number };
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
+  /** 그 후보의 상호 — 관리자 목록에서만 채운다(관리자 목록에서 읽으니 숨긴 후보도 이름이 있다). */
+  duplicateSuspectName?: string;
+  /** 후보가 사장님 요청으로 내린 가게다 — 재제보 경고(spec 5). 관리자 목록에서만. */
+  duplicateSuspectRemovedByOwner?: boolean;
+  /** 합쳐진 가게면 새 가게 id — 관리자 목록에서만. 복구할 수 없다(옛 주소는 새 가게로 간다). */
+  mergedInto?: string;
   /** 제보한 세션 userId — 내 활동 > 내 제보(spec 5). 시드는 없다. */
   reporterId?: string;
 }
 
 export interface Checkin {
   placeId: string;
-  type: "visited" | "menu_verified";
+  /** visited = 다녀왔어요, review = 리뷰 등록(리뷰도 확인이다), seed = 크롤 수집일 */
+  type: "visited" | "review" | "seed";
   at: string;
-  actor: string;
+  /** 탈퇴하면 null(집계는 남는다) */
+  actor: string | null;
 }
 
 export interface LatLng {
@@ -157,7 +164,7 @@ export interface SeasonStats {
 }
 
 export interface Review {
-  /** 목 단계 "rv001"·"rv-local-1". Phase 6에서 DB uuid — 수정·삭제가 이 값을 보낸다. */
+  /** DB uuid — 수정·삭제가 이 값을 보낸다. */
   id: string;
   placeId: string;
   /** 작성자 세션 userId — 본인 [수정][삭제] 판정(spec 5). 화면에는 안 보인다. */
@@ -168,7 +175,7 @@ export interface Review {
   at: string;
   /** 수정한 시각(UTC ISO). 화면에는 "수정됨"만 (spec 5). */
   editedAt?: string;
-  /** 리뷰 사진. 우리 스토리지 경로만(규칙 3). 목 단계 폼은 파일을 버린다(저장소 Phase 6). */
+  /** 리뷰 사진. 우리 스토리지 경로만(규칙 3) — R2 키를 `/photos/<key>`로 서빙. 리뷰당 한 장, 교체 없음. */
   photoUrl?: string;
 }
 
@@ -180,17 +187,18 @@ export interface MyReview extends Review {
 export type AuthProvider = "anonymous" | "kakao";
 
 /**
- * 세션 (spec 5 로그인). 익명이 기본이고 카카오는 선택 — 목 단계는 lib/data.ts 메모리(탭 단위, 규칙 4).
+ * 세션 (spec 5 로그인). 익명이 기본이고 카카오는 선택 — 서버 세션 쿠키(Supabase auth, lib/server/session.ts).
  * 익명 가능 = 다녀왔어요·제보·찜(기기 한정) / 카카오 필요 = 리뷰·내 활동.
  */
 export interface Session {
-  userId: string;
+  /** null = 아직 아무 기록도 없는 방문자 — 첫 쓰기에서 익명 유저가 만들어진다(decisions 2026-09-10) */
+  userId: string | null;
   provider: AuthProvider;
   /** 카카오 프로필 기본, 수정 가능. 익명은 null. */
   nickname: string | null;
   /**
-   * 관리자인가 (spec 4.5 `profiles.is_admin`). 목 단계는 dev 전용 토글이고 **URL 쿼리로는 켜지 않는다** —
-   * 프로덕션에서 열리면 안 된다. 프론트 체크는 장식이고 진짜 판정은 Phase 6 서버·RLS다.
+   * 관리자인가 (spec 4.5 `profiles.is_admin`). 프론트 체크는 장식이고 진짜 판정은 서버(`/admin` 404)·RLS다 —
+   * URL 쿼리·dev 토글로는 켜지 않는다(로컬 관리자는 SQL로, runbook 2절).
    */
   isAdmin?: boolean;
 }
@@ -328,7 +336,7 @@ export interface PeelMatch {
   description: string;
 }
 
-/** 테스트 콘텐츠 전체 — `lib/mock/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
+/** 테스트 콘텐츠 전체 — `lib/content/peel-test.json`이 원본이라 카피 수정이 코드 수정이 아니다. */
 export interface PeelTest {
   title: string;
   subtitle: string;

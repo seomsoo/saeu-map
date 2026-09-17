@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import type { LoadStatus } from "@/components/activity/use-activity";
 
 /**
@@ -21,8 +21,8 @@ export function useAdminList<T>(
   retry: () => void;
   /** 액션이 끝난 뒤 목록을 다시 읽는다 — 스켈레톤을 다시 보이지 않고 조용히 갈아끼운다 */
   refresh: () => void;
-  /** 낙관 갱신 — 서버 응답으로 한 행만 갈아끼울 때 */
-  setRows: (next: T[]) => void;
+  /** 낙관 갱신 — 서버 응답으로 한 행만 갈아끼울 때. 늦게 오는 응답에서는 함수형으로(닫힌 클로저의 옛 목록을 덮지 않게) */
+  setRows: Dispatch<SetStateAction<T[]>>;
 } {
   const [rows, setRows] = useState<T[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");

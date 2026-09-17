@@ -67,3 +67,12 @@ __pycache__/
 !tsconfig.json
 !lighthouserc.json
 !open-next.config.json
+
+# OSM Overpass 응답 캐시 (scripts/add_nearest_station.py --cache .osm)
+.osm/
+
+# CI가 __PLACE_ID__를 채워 만드는 Lighthouse 설정(scripts/smoke.sh가 고른 가게)
+lighthouserc.ci.json
+smoke*.html
+smoke-sitemap.xml
+wrangler.log

@@ -10,6 +10,35 @@ permissions:
   contents: read
 
 jobs:
+  # Phase 6: DB 골격 검사 — 마이그레이션이 깨끗한 DB에 들어가고, RLS·권한 pgTAP가 통과하고, 생성 타입이 최신이고, advisors가 0건.
+  # check와 나란히 돈다(각자 로컬 Supabase). preview·deploy는 둘 다 통과해야 한다.
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1.7.1
+        with:
+          version: 2.117.0 # 로컬과 같은 판 — gen types 결과가 판마다 달라 diff가 흔들린다
+
+      - name: Start local Supabase (migrations + seed.sql)
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: pgTAP (RLS · 권한 · RPC)
+        run: supabase test db
+
+      - name: Generated types are current (pnpm db:types)
+        run: |
+          supabase gen types typescript --local --schema public > /tmp/database.types.ts
+          diff -u lib/db/database.types.ts /tmp/database.types.ts || { echo "::error::lib/db/database.types.ts is stale — run pnpm db:types and commit"; exit 1; }
+
+      - name: Advisors (security · performance) — 0건이 기준
+        run: |
+          supabase db advisors --local --type all --level warn --output-format json > advisors.json
+          python3 -c 'import json, sys; r = json.load(open("advisors.json"))["results"]; print(json.dumps(r, indent=1, ensure_ascii=False)); sys.exit(1 if r else 0)'
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -29,6 +58,35 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Phase 6: 빌드(OG 프리렌더)와 스모크가 **실 DB 경로**를 지난다 — 로컬 Supabase(마이그레이션 + seed.sql 가게 60). 쓰지 않는 컨테이너는 뺀다.
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1.7.1
+        with:
+          version: 2.117.0 # 로컬과 같은 판 — gen types 결과가 판마다 달라 diff가 흔들린다
+
+      - name: Start local Supabase (migrations + seed.sql)
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Wire local Supabase into the build and the worker
+        shell: bash
+        run: |
+          set -a; eval "$(supabase status -o env)"; set +a
+          # 빌드(t3-env 검증 + 프리렌더)와 스모크 스크립트(psql)용. Turnstile은 테스트 키(항상 통과), salt는 비밀이 아닌 CI 상수
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "DB_URL=$DB_URL"
+            echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB"
+            echo "TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA"
+            echo "IP_HASH_SALT=ci-only-salt-not-a-secret-0000000000"
+          } >> "$GITHUB_ENV"
+          # wrangler dev(스모크)는 셸 env가 아니라 .dev.vars를 읽는다(gitignore)
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA"
+            echo "IP_HASH_SALT=ci-only-salt-not-a-secret-0000000000"
+          } > .dev.vars
 
       - name: Typecheck
         run: pnpm typecheck
@@ -54,50 +112,24 @@ jobs:
       - name: Populate static assets cache
         run: npx opennextjs-cloudflare populateCache local
 
-      # 스모크 = 빌드된 워커가 workerd에서 실제로 기동하고 /가 200 + "새우맵"을 돌려주는지 (decisions.md 2026-09-01 스모크 정의)
-      - name: Smoke (workerd boots and serves /)
+      # 스모크 = 빌드된 워커가 workerd에서 기동하고 실 DB로 페이지를 내는지 — 내용은 scripts/smoke.sh(로컬과 같은 스크립트).
+      # nodejs_compat만 주면 global_fetch_strictly_public이 빠져 워커가 127.0.0.1의 로컬 Supabase를 부를 수 있다(실서비스 설정은 그대로, runbook 3절)
+      - name: Smoke (workerd boots and serves pages from the DB)
+        id: smoke
         env:
           WRANGLER_SEND_METRICS: "false"
         run: |
-          npx wrangler dev --port 8787 --log-level warn > wrangler.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8787/ -o smoke.html; then break; fi
-            sleep 2
-          done
-          if ! grep -q "새우맵" smoke.html 2>/dev/null; then
-            echo "::error::smoke failed — worker did not serve /"; tail -50 wrangler.log; exit 1
-          fi
-          echo "smoke ok: $(wc -c < smoke.html) bytes"
-          # Phase 2·5: /place/[id] — 있는 가게는 상호 + og:title, 없는 id는 HTTP 404 + not-found 카피 (decisions 2026-09-07)
-          curl -sf http://localhost:8787/place/p018 -o smoke-place.html
-          if ! grep -q "뚝섬포구" smoke-place.html 2>/dev/null || ! grep -q 'property="og:title" content="뚝섬포구"' smoke-place.html; then
-            echo "::error::smoke failed — /place/p018 did not render the place + og:title"; tail -50 wrangler.log; exit 1
-          fi
-          code=$(curl -s -o smoke-404.html -w '%{http_code}' http://localhost:8787/place/nope)
-          if [ "$code" != "404" ] || ! grep -q "가게를 찾을 수 없어요" smoke-404.html 2>/dev/null; then
-            echo "::error::smoke failed — /place/nope expected 404 + not-found copy, got $code"; tail -50 wrangler.log; exit 1
-          fi
-          # Phase 5: /gu/[name] SSR(상호가 HTML에), 비서울은 404, sitemap·robots
-          curl -sf "http://localhost:8787/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC" -o smoke-gu.html
-          if ! grep -q "마포구 새우구이" smoke-gu.html 2>/dev/null || ! grep -q "서담해물" smoke-gu.html; then
-            echo "::error::smoke failed — /gu/마포구 did not SSR the gu list"; tail -50 wrangler.log; exit 1
-          fi
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/gu/nope)
-          [ "$code" = "404" ] || { echo "::error::smoke failed — /gu/nope expected 404, got $code"; exit 1; }
-          curl -sf http://localhost:8787/sitemap.xml | grep -q "/gu/" || { echo "::error::smoke failed — sitemap.xml missing gu entries"; exit 1; }
-          curl -sf http://localhost:8787/robots.txt | grep -q "sitemap.xml" || { echo "::error::smoke failed — robots.txt missing sitemap"; exit 1; }
-          # Phase 5: next/og 카드 — 동적 세그먼트의 이미지 URL은 해시 쿼리가 붙으므로 페이지의 og:image에서 읽는다
-          for page in / /place/p018 "/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC"; do
-            og=$(curl -s "http://localhost:8787$page" | grep -o 'property="og:image" content="[^"]*"' | head -1 | sed 's/.*content="//; s/"$//' | sed -E 's|^https?://[^/]+||')
-            type=$(curl -s -o /dev/null -w '%{content_type}' "http://localhost:8787$og")
-            case "$type" in image/png*) ;; *) echo "::error::smoke failed — og:image for $page ($og) returned $type"; tail -50 wrangler.log; exit 1;; esac
-          done
-          echo "smoke ok: /place/p018(+og) · /place/nope 404 · /gu/마포구 · /gu/nope 404 · sitemap · robots · og 3종"
+          npx wrangler dev --port 8787 --log-level warn --compatibility-flags nodejs_compat > wrangler.log 2>&1 &
+          scripts/smoke.sh http://localhost:8787
 
       # Phase 5: 모바일 LCP 예산 (roadmap). 같은 workerd(:8787)에 Lighthouse. NCP 키가 dummy라 지도는 에러 상태 — 우리 셸의 LCP를 잰다.
       # 수치는 로컬 workerd 실측으로 정했다 (decisions 2026-09-07). @lhci/cli는 의존성이 아니라 npx로.
       - name: Lighthouse (mobile LCP budget)
-        run: npx --yes @lhci/cli@0.15.1 autorun --config=lighthouserc.json
+        env:
+          PLACE_ID: ${{ steps.smoke.outputs.place_id }}
+        run: |
+          sed "s/__PLACE_ID__/$PLACE_ID/" lighthouserc.json > lighthouserc.ci.json
+          npx --yes @lhci/cli@0.15.1 autorun --config=lighthouserc.ci.json
 
       - name: Upload Lighthouse reports
         if: always()
@@ -154,7 +186,7 @@ jobs:
   # 시크릿이 없으면 실패 대신 건너뛴다 (decisions.md 2026-09-01 자동 배포).
   preview:
     if: github.event_name == 'pull_request'
-    needs: check
+    needs: [check, db]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -166,11 +198,11 @@ jobs:
       - name: Gate on Cloudflare secrets
         id: gate
         env:
-          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' }}
+          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
         run: |
           echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
           if [ "$ENABLED" != "true" ]; then
-            echo "::notice title=preview skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID (variable) 미등록 — 프리뷰 업로드 건너뜀"
+            echo "::notice title=preview skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 프리뷰 업로드 건너뜀 (runbook 3c)"
           fi
 
       - if: steps.gate.outputs.enabled == 'true'
@@ -197,13 +229,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           # 프리뷰의 metadataBase·sitemap·og:image가 프리뷰 URL을 가리키게 (서버 전용, decisions 2026-09-07)
           SITE_URL: https://preview-saeu-map.saeu-map.workers.dev
+          # 빌드의 OG 프리렌더가 prod DB를 읽는다(anon 읽기) — URL·publishable은 GH secret으로(variable이면 --var·로그에 찍힌다, 최종 보안 리뷰 #3).
+          # 런타임 값은 전부 워커 secret(wrangler secret put — 버전 간 유지)이고, TURNSTILE·salt는 t3-env 검증을 지나기 위한 더미다(runbook 1절)
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          TURNSTILE_SECRET_KEY: build-only-dummy
+          IP_HASH_SALT: build-only-dummy-salt-0000000000
+          # 비우면 Sentry가 꺼진 채 빌드된다(공개값, 빌드에 박힌다 — 커밋 9)
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           # opennextjs-cloudflare가 인자를 따옴표 없이 sh에 넘기므로 메시지에 공백·특수문자 금지.
-          # --var: 런타임 SITE_URL은 셸 env가 아니라 워커 변수에서 읽힌다(OpenNext populateProcessEnv) — env는 빌드 시 정적 robots.txt용
-          pnpm run upload --preview-alias preview --var SITE_URL:https://preview-saeu-map.saeu-map.workers.dev --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
+          # --var: 런타임 값은 셸 env가 아니라 워커 변수에서 읽힌다(OpenNext populateProcessEnv) — env는 빌드 시 정적 robots.txt·프리렌더용.
+          # PREVIEW_READONLY=1: 프리뷰는 prod DB를 읽기만 한다(decisions 2026-09-10 #7) — 발화 확인은 프리뷰에서 찜 한 번(read only 토스트)
+          pnpm run upload --preview-alias preview \
+            --var SITE_URL:https://preview-saeu-map.saeu-map.workers.dev \
+            --var PREVIEW_READONLY:1 \
+            --message "pr${{ github.event.pull_request.number }}-${HEAD_SHA::7}" 2>&1 | tee upload.log
           # wrangler가 별칭 URL을 찍지 않았으면 업로드가 안 된 것 — 여기서 확실히 실패시킨다
           grep -q "Version Preview Alias URL" upload.log || { echo "::error::preview upload did not produce an alias URL"; exit 1; }
 
@@ -229,7 +274,7 @@ jobs:
   # main push → 프로덕션 배포. check 통과가 선행 조건 (Workers Builds 대신 GH Actions인 이유).
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: check
+    needs: [check, db]
     runs-on: ubuntu-latest
     concurrency:
       group: production-deploy
@@ -238,11 +283,11 @@ jobs:
       - name: Gate on Cloudflare secrets
         id: gate
         env:
-          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' }}
+          ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_PUBLISHABLE_KEY != '' && vars.NEXT_PUBLIC_NCP_CLIENT_ID != '' && vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY != '' }}
         run: |
           echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
           if [ "$ENABLED" != "true" ]; then
-            echo "::notice title=deploy skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID (variable) 미등록 — 수동 pnpm run deploy 필요"
+            echo "::notice title=deploy skipped::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY (secrets) 또는 NEXT_PUBLIC_NCP_CLIENT_ID / NEXT_PUBLIC_TURNSTILE_SITE_KEY (variables) 미등록 — 수동 pnpm run deploy 필요 (runbook 3c)"
           fi
 
       - if: steps.gate.outputs.enabled == 'true'
@@ -269,4 +314,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_NCP_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NCP_CLIENT_ID }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          # 빌드용 — 런타임 값(SUPABASE_URL·PUBLISHABLE_KEY·SECRET_KEY·TURNSTILE_SECRET_KEY·IP_HASH_SALT·DISCORD_WEBHOOK_URL)은 전부 wrangler secret이다(runbook 3절)
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          TURNSTILE_SECRET_KEY: build-only-dummy
+          IP_HASH_SALT: build-only-dummy-salt-0000000000
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
         run: pnpm run deploy

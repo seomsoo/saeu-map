@@ -7,10 +7,9 @@ import { numericLines } from "@/components/place-detail/station-line";
 import { Chip } from "@/components/ui/chip";
 import { ShrimpIcon } from "@/components/ui/icons/shrimp-icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TAG_LABELS, distanceKm, primaryMenuParts, sideChips } from "@/lib/places";
+import { checkLabel, distanceKm, primaryMenuParts, sideChips, TAG_LABELS } from "@/lib/places";
 import { formatDistance } from "@/lib/geo";
 import { formatRating } from "@/lib/reviews";
-import { relativeCheckLabel } from "@/lib/time";
 import type { LatLng, Place } from "@/lib/types";
 import { cx } from "@/lib/cx";
 
@@ -60,7 +59,7 @@ function CheckLabel({ place, now }: { place: Place; now: string }) {
     </Chip>
   ) : (
     <span className="shrink-0 pt-0.5 text-caption-l-medium text-fg-tertiary">
-      {relativeCheckLabel(place.lastCheckedAt, now)}
+      {checkLabel(place, now)}
     </span>
   );
 }

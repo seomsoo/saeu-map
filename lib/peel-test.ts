@@ -2,7 +2,7 @@ import type { PeelMatchKey, PeelQuestion, PeelRole, PeelSlug, PeelType, PlaceTag
 
 /**
  * 까주기 테스트의 순수 규칙 (spec 8 · design 화면 11). 콘텐츠(문항·유형·궁합 카피)는
- * `lib/mock/peel-test.json`이 갖고 여기 있는 건 **구조**뿐이다 — 카피를 다듬어도 이 파일은 안 바뀐다.
+ * `lib/content/peel-test.json`이 갖고 여기 있는 건 **구조**뿐이다 — 카피를 다듬어도 이 파일은 안 바뀐다.
  * 데이터 읽기(추천 가게)는 규칙 1대로 `lib/data.ts` 경유.
  */
 

@@ -1,6 +1,6 @@
 import { Button, buttonVariants } from "@/components/ui/button";
+import { checkSentence } from "@/lib/places";
 import { cx } from "@/lib/cx";
-import { relativeCheckAgo } from "@/lib/time";
 import type { Place } from "@/lib/types";
 
 interface ContributionBandProps {
@@ -33,7 +33,7 @@ export function ContributionBand({
         여기 다녀오셨나요?
       </h3>
       <p className="mt-0.5 text-caption-l-regular text-fg-tertiary">
-        {relativeCheckAgo(place.lastCheckedAt, now)} 확인됐어요
+        {checkSentence(place, now)}
       </p>
       <div className="mt-3 flex gap-2">
         {done ? (

@@ -127,7 +127,10 @@ describe("수정 이력 탭 — '이전 → 지금'이 한 줄로 읽힌다 (des
       expect(onNotice).toHaveBeenCalledWith("되돌렸어요");
     });
     expect(data.revertPlaceEdit).toHaveBeenCalledWith("ed1", NOW);
-    expect(data.getPlaceEdits).toHaveBeenCalledTimes(2);
+    // 재로드는 토스트보다 한 틱 늦을 수 있다 — 전체 스위트 부하에서 1회로 잡혀 플레이키했다(2026-09-10)
+    await waitFor(() => {
+      expect(data.getPlaceEdits).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("빈 목록·에러", async () => {

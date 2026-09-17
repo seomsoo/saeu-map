@@ -5,13 +5,15 @@ import type { Place } from "@/lib/types";
 import { PendingTab } from "../pending-tab";
 
 const data = vi.hoisted(() => ({
-  getPlaces: vi.fn<(filter: unknown, now: string) => Promise<Place[]>>(),
+  getPlacesForAdmin: vi.fn<(now: string, options?: { needsReview?: boolean }) => Promise<Place[]>>(),
   confirmPlace: vi.fn<(id: string, now: string) => Promise<Place>>(),
+  mergePlaces: vi.fn<(from: string, into: string) => Promise<Place>>(),
 }));
 vi.mock("@/lib/data", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data")>()),
-  getPlaces: data.getPlaces,
+  getPlacesForAdmin: data.getPlacesForAdmin,
   confirmPlace: data.confirmPlace,
+  mergePlaces: data.mergePlaces,
 }));
 
 const NOW = "2026-09-08T12:00:00+09:00";
@@ -38,14 +40,16 @@ function renderTab() {
 
 describe("사후 확인 탭 (design 화면 10-1)", () => {
   beforeEach(() => {
-    data.getPlaces.mockReset();
+    data.getPlacesForAdmin.mockReset();
     data.confirmPlace.mockReset();
+    data.mergePlaces.mockReset();
   });
 
-  it("확인 안 된 제보 핀만 최신순으로 — 시드·확인된 것은 빠진다", async () => {
-    data.getPlaces.mockResolvedValue([
+  it("확인 안 된 제보 핀만 최신순으로 — 시드·확인된 것·숨긴 것은 빠진다(관리자 읽기: 공개 뷰엔 verifiedAt이 없다)", async () => {
+    data.getPlacesForAdmin.mockResolvedValue([
       makePlace({ id: "seed1", name: "시드집", source: "seed" }),
       reported({ id: "r002", name: "확인된집", verifiedAt: day(1) }),
+      reported({ id: "r004", name: "숨긴집", hiddenAt: day(0) }),
       reported({ id: "r003", name: "어제집", createdAt: day(1) }),
       reported({ id: "r001", name: "오늘집", createdAt: day(0) }),
     ]);
@@ -59,7 +63,7 @@ describe("사후 확인 탭 (design 화면 10-1)", () => {
   });
 
   it("[확인]은 목록에서 즉시 빼고(낙관) 토스트 — 실패하면 되돌아온다", async () => {
-    data.getPlaces.mockResolvedValue([reported()]);
+    data.getPlacesForAdmin.mockResolvedValue([reported()]);
     // 응답을 내가 쥔다 — 바로 reject하면 act가 마이크로태스크까지 흘려 "낙관" 순간을 볼 수 없다
     let fail!: (e: Error) => void;
     data.confirmPlace.mockReturnValue(
@@ -87,7 +91,7 @@ describe("사후 확인 탭 (design 화면 10-1)", () => {
   });
 
   it("성공하면 목록에서 빠진 채로 남고 토스트", async () => {
-    data.getPlaces.mockResolvedValue([reported()]);
+    data.getPlacesForAdmin.mockResolvedValue([reported()]);
     data.confirmPlace.mockResolvedValue(reported({ verifiedAt: NOW }));
     const { onNotice } = renderTab();
     const table = await screen.findByRole("table", { name: "사후 확인" });
@@ -100,7 +104,7 @@ describe("사후 확인 탭 (design 화면 10-1)", () => {
   });
 
   it("[플레이스 열기]는 허용 호스트일 때만 — 링크는 새 탭·noopener", async () => {
-    data.getPlaces.mockResolvedValue([
+    data.getPlacesForAdmin.mockResolvedValue([
       reported({ id: "r001", name: "링크있음" }),
       reported({ id: "r002", name: "링크없음", naverPlaceUrl: null }),
       reported({ id: "r003", name: "이상한링크", naverPlaceUrl: "https://evil.example.com/x" }),
@@ -114,8 +118,35 @@ describe("사후 확인 탭 (design 화면 10-1)", () => {
     expect(links[0]).toHaveAttribute("rel", "noopener noreferrer");
   });
 
+  it("중복 의심 제보는 배지에 후보 상호 + [이 가게로 합치기] — 확인 시트에서 합치면 목록에서 빠진다", async () => {
+    data.getPlacesForAdmin.mockResolvedValue([
+      reported({ id: "r001", name: "새우한상", duplicateSuspectOf: "orig", duplicateSuspectName: "원조새우한상" }),
+      reported({ id: "r002", name: "멀쩡한집" }),
+    ]);
+    data.mergePlaces.mockResolvedValue(makePlace({ id: "orig", name: "원조새우한상" }));
+    const { onNotice } = renderTab();
+    const table = await screen.findByRole("table", { name: "사후 확인" });
+    expect(within(table).getByText("중복 의심 · 원조새우한상")).toBeInTheDocument();
+    expect(within(table).getAllByRole("button", { name: "이 가게로 합치기" })).toHaveLength(1);
+
+    fireEvent.click(within(table).getByRole("button", { name: "이 가게로 합치기" }));
+    const dialog = await screen.findByRole("dialog", { name: "새우한상 합치기" });
+    // 후보가 정해져 있어 검색 없이 바로 확인
+    expect(within(dialog).getByText("→ 원조새우한상")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "합치기" }));
+    await waitFor(() => {
+      expect(data.mergePlaces).toHaveBeenCalledWith("r001", "orig");
+    });
+    await waitFor(() => {
+      expect(onNotice).toHaveBeenCalledWith("합쳤어요");
+    });
+    const after = screen.getByRole("table", { name: "사후 확인" });
+    expect(within(after).queryByText("새우한상")).toBeNull();
+    expect(within(after).getByText("멀쩡한집")).toBeInTheDocument();
+  });
+
   it("에러면 [다시 시도], 빈 목록이면 한 줄", async () => {
-    data.getPlaces.mockRejectedValueOnce(new Error("boom")).mockResolvedValue([]);
+    data.getPlacesForAdmin.mockRejectedValueOnce(new Error("boom")).mockResolvedValue([]);
     renderTab();
     expect(await screen.findByRole("button", { name: "다시 시도" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));

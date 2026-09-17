@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeelResultView } from "../result-view";
 import { makePlace } from "@/lib/__tests__/fixtures";
-import content from "@/lib/mock/peel-test.json";
+import content from "@/lib/content/peel-test.json";
 import { LINK_COPIED_NOTICE } from "@/lib/share";
 import type { PeelTest, PeelType, Place } from "@/lib/types";
 

@@ -7,14 +7,30 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	// 서버 전용 절대 URL(metadataBase·sitemap·og:url). 프리뷰 버전은 ci.yml이 `--var SITE_URL:…`로 덮는다 (decisions 2026-09-07)
+	// 실서비스 도메인 새우맵.kr(퓨니코드 표기, 2026-09-17). 배포하면 Cloudflare가 DNS 기록과 인증서를 자동으로 만든다. workers.dev 주소도 계속 열려 있다
+	"routes": [{ "pattern": "xn--r02bv8jvof.kr", "custom_domain": true }],
+	// 호출별 CPU·메모리·결과(exceededCpu 등)를 대시보드 Workers Logs에서 본다 — Free 하루 20만 줄 안(2026-09-17 503 진단)
+	"observability": { "enabled": true },
+	// 서버 전용 절대 URL(metadataBase·sitemap·og:url·콜백). 프리뷰 버전은 ci.yml이 `--var SITE_URL:…`로 덮는다 (decisions 2026-09-07)
 	"vars": {
-		"SITE_URL": "https://saeu-map.saeu-map.workers.dev"
+		"SITE_URL": "https://xn--r02bv8jvof.kr"
 	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	// 문 앞 경비 (decisions 2026-09-10, 사용자 선택): 같은 IP의 쓰기 요청을 60초에 20번까지. DB 쪽 rate_events가 진짜 규칙이고
+	// 이건 봇 폭주가 DB까지 안 가게 하는 보조다. 지역별 근사치라 정밀 계산에 쓰지 않는다. next dev에는 없다(컨텍스트 없음 → 통과).
+	"ratelimits": [
+		{
+			"name": "WRITE_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 20,
+				"period": 60
+			}
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
@@ -23,9 +39,17 @@
 			"service": "saeu-map"
 		}
 	],
+	// 사진 업로드 시 1200px webp 재인코딩(EXIF 제거) — 업로드 때 1회만 쓴다(월 5,000장 무료, 앱 상한 4,500). 표시 최적화엔 쓰지 않는다(CLAUDE.md)
 	"images": {
-		// Enable image optimization
-		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
-	}
+	},
+	// R2 두 개: 사진 창고(키만 DB에)·Next 캐시(prerender·unstable_cache). 계정 합산 무료 10GB·읽기 1,000만/월 (decisions 2026-09-10)
+	"r2_buckets": [
+		{ "binding": "PHOTOS", "bucket_name": "saeu-photos" },
+		{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "saeu-cache" }
+	],
+	// revalidateTag용 태그 캐시(온디맨드만 — 시간 기반 ISR·큐 없음)
+	"d1_databases": [
+		{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "saeu-tags", "database_id": "1ff7baa3-cf75-4637-bf90-7cd710ea0ffa" }
+	]
 }

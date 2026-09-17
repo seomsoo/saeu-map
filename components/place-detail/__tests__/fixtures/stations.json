@@ -1,0 +1,4482 @@
+[
+{
+"exit": null,
+"name": "강남구청역",
+"lines": [
+"7"
+],
+"distanceM": 144
+},
+{
+"exit": null,
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 93
+},
+{
+"exit": null,
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1114
+},
+{
+"exit": null,
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1122
+},
+{
+"exit": null,
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1212
+},
+{
+"exit": null,
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1277
+},
+{
+"exit": null,
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1281
+},
+{
+"exit": null,
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1270
+},
+{
+"exit": null,
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1843
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 837
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1121
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1537
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1542
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1549
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1714
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1745
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1838
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1851
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1900
+},
+{
+"exit": null,
+"name": "극락강역",
+"lines": [],
+"distanceM": 1976
+},
+{
+"exit": null,
+"name": "금천구청역",
+"lines": [
+"1"
+],
+"distanceM": 528
+},
+{
+"exit": null,
+"name": "남영역",
+"lines": [
+"1"
+],
+"distanceM": 394
+},
+{
+"exit": null,
+"name": "대흥역",
+"lines": [
+"6"
+],
+"distanceM": 327
+},
+{
+"exit": null,
+"name": "대흥역",
+"lines": [
+"6"
+],
+"distanceM": 1087
+},
+{
+"exit": null,
+"name": "망원역",
+"lines": [
+"6"
+],
+"distanceM": 217
+},
+{
+"exit": null,
+"name": "망원역",
+"lines": [
+"6"
+],
+"distanceM": 277
+},
+{
+"exit": null,
+"name": "망원역",
+"lines": [
+"6"
+],
+"distanceM": 279
+},
+{
+"exit": null,
+"name": "망원역",
+"lines": [
+"6"
+],
+"distanceM": 298
+},
+{
+"exit": null,
+"name": "명일역",
+"lines": [
+"5"
+],
+"distanceM": 71
+},
+{
+"exit": null,
+"name": "못골역",
+"lines": [
+"2"
+],
+"distanceM": 264
+},
+{
+"exit": null,
+"name": "문정역",
+"lines": [
+"8"
+],
+"distanceM": 311
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1277
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1478
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1485
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1503
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1678
+},
+{
+"exit": null,
+"name": "보라매공원역",
+"lines": [
+"Silim"
+],
+"distanceM": 1680
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 530
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 1363
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 1383
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 1436
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 1480
+},
+{
+"exit": null,
+"name": "서광주역",
+"lines": [],
+"distanceM": 1619
+},
+{
+"exit": null,
+"name": "성수역",
+"lines": [
+"2"
+],
+"distanceM": 83
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 232
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 288
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 349
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 371
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 374
+},
+{
+"exit": null,
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 382
+},
+{
+"exit": null,
+"name": "송파역",
+"lines": [
+"8"
+],
+"distanceM": 344
+},
+{
+"exit": null,
+"name": "신길역",
+"lines": [
+"1",
+"5"
+],
+"distanceM": 419
+},
+{
+"exit": null,
+"name": "장지역",
+"lines": [
+"8"
+],
+"distanceM": 262
+},
+{
+"exit": null,
+"name": "장지역",
+"lines": [
+"8"
+],
+"distanceM": 482
+},
+{
+"exit": null,
+"name": "청량리역",
+"lines": [
+"1"
+],
+"distanceM": 581
+},
+{
+"exit": null,
+"name": "충무로역",
+"lines": [
+"3",
+"4"
+],
+"distanceM": 32
+},
+{
+"exit": "1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 51
+},
+{
+"exit": "1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 61
+},
+{
+"exit": "1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 73
+},
+{
+"exit": "1",
+"name": "강동구청역",
+"lines": [
+"8"
+],
+"distanceM": 198
+},
+{
+"exit": "1",
+"name": "강동역",
+"lines": [
+"5"
+],
+"distanceM": 681
+},
+{
+"exit": "1",
+"name": "강동역",
+"lines": [
+"5"
+],
+"distanceM": 682
+},
+{
+"exit": "1",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 182
+},
+{
+"exit": "1",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 239
+},
+{
+"exit": "1",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 360
+},
+{
+"exit": "1",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 426
+},
+{
+"exit": "1",
+"name": "경성대·부경대역",
+"lines": [
+"2"
+],
+"distanceM": 141
+},
+{
+"exit": "1",
+"name": "괴정역",
+"lines": [
+"1"
+],
+"distanceM": 170
+},
+{
+"exit": "1",
+"name": "굽은다리역",
+"lines": [
+"5"
+],
+"distanceM": 399
+},
+{
+"exit": "1",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 437
+},
+{
+"exit": "1",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 448
+},
+{
+"exit": "1",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 495
+},
+{
+"exit": "1",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 548
+},
+{
+"exit": "1",
+"name": "금천구청역",
+"lines": [
+"1"
+],
+"distanceM": 800
+},
+{
+"exit": "1",
+"name": "남성역",
+"lines": [
+"7"
+],
+"distanceM": 89
+},
+{
+"exit": "1",
+"name": "남성역",
+"lines": [
+"7"
+],
+"distanceM": 211
+},
+{
+"exit": "1",
+"name": "남위례역",
+"lines": [
+"8"
+],
+"distanceM": 276
+},
+{
+"exit": "1",
+"name": "남위례역",
+"lines": [
+"8"
+],
+"distanceM": 284
+},
+{
+"exit": "1",
+"name": "남위례역",
+"lines": [
+"8"
+],
+"distanceM": 350
+},
+{
+"exit": "1",
+"name": "남위례역",
+"lines": [
+"8"
+],
+"distanceM": 1117
+},
+{
+"exit": "1",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1024
+},
+{
+"exit": "1",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1288
+},
+{
+"exit": "1",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1507
+},
+{
+"exit": "1",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1566
+},
+{
+"exit": "1",
+"name": "대연역",
+"lines": [
+"2"
+],
+"distanceM": 184
+},
+{
+"exit": "1",
+"name": "독산역",
+"lines": [
+"1"
+],
+"distanceM": 1784
+},
+{
+"exit": "1",
+"name": "마곡나루역",
+"lines": [
+"9"
+],
+"distanceM": 134
+},
+{
+"exit": "1",
+"name": "마곡나루역",
+"lines": [
+"9"
+],
+"distanceM": 167
+},
+{
+"exit": "1",
+"name": "마곡나루역",
+"lines": [
+"9"
+],
+"distanceM": 254
+},
+{
+"exit": "1",
+"name": "마포구청역",
+"lines": [
+"6"
+],
+"distanceM": 422
+},
+{
+"exit": "1",
+"name": "명일역",
+"lines": [
+"5"
+],
+"distanceM": 139
+},
+{
+"exit": "1",
+"name": "문래역",
+"lines": [
+"2"
+],
+"distanceM": 385
+},
+{
+"exit": "1",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 234
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 815
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1278
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1344
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1416
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1578
+},
+{
+"exit": "1",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1669
+},
+{
+"exit": "1",
+"name": "부산진역",
+"lines": [
+"1"
+],
+"distanceM": 174
+},
+{
+"exit": "1",
+"name": "북한산보국문역",
+"lines": [
+"W"
+],
+"distanceM": 335
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 43
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 526
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 799
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 1079
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 1223
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 1306
+},
+{
+"exit": "1",
+"name": "사가정역",
+"lines": [
+"7"
+],
+"distanceM": 1426
+},
+{
+"exit": "1",
+"name": "산성역",
+"lines": [
+"8"
+],
+"distanceM": 1070
+},
+{
+"exit": "1",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 123
+},
+{
+"exit": "1",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 302
+},
+{
+"exit": "1",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 303
+},
+{
+"exit": "1",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 319
+},
+{
+"exit": "1",
+"name": "서빙고역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 977
+},
+{
+"exit": "1",
+"name": "선릉역",
+"lines": [
+"2"
+],
+"distanceM": 370
+},
+{
+"exit": "1",
+"name": "성수역",
+"lines": [
+"2"
+],
+"distanceM": 104
+},
+{
+"exit": "1",
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 187
+},
+{
+"exit": "1",
+"name": "숭실대입구역",
+"lines": [
+"7"
+],
+"distanceM": 1695
+},
+{
+"exit": "1",
+"name": "숭실대입구역",
+"lines": [
+"7"
+],
+"distanceM": 1731
+},
+{
+"exit": "1",
+"name": "숭실대입구역",
+"lines": [
+"7"
+],
+"distanceM": 1873
+},
+{
+"exit": "1",
+"name": "신당역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 91
+},
+{
+"exit": "1",
+"name": "신대방삼거리역",
+"lines": [
+"7"
+],
+"distanceM": 1710
+},
+{
+"exit": "1",
+"name": "신용산역",
+"lines": [
+"4"
+],
+"distanceM": 294
+},
+{
+"exit": "1",
+"name": "신촌역",
+"lines": [
+"2"
+],
+"distanceM": 247
+},
+{
+"exit": "1",
+"name": "쌍촌역",
+"lines": [
+"1"
+],
+"distanceM": 658
+},
+{
+"exit": "1",
+"name": "쌍촌역",
+"lines": [
+"1"
+],
+"distanceM": 1082
+},
+{
+"exit": "1",
+"name": "쌍촌역",
+"lines": [
+"1"
+],
+"distanceM": 1173
+},
+{
+"exit": "1",
+"name": "암사역",
+"lines": [
+"8"
+],
+"distanceM": 206
+},
+{
+"exit": "1",
+"name": "암사역",
+"lines": [
+"8"
+],
+"distanceM": 361
+},
+{
+"exit": "1",
+"name": "암사역",
+"lines": [
+"8"
+],
+"distanceM": 367
+},
+{
+"exit": "1",
+"name": "여의나루역",
+"lines": [
+"5"
+],
+"distanceM": 133
+},
+{
+"exit": "1",
+"name": "역곡역",
+"lines": [
+"1"
+],
+"distanceM": 99
+},
+{
+"exit": "1",
+"name": "역곡역",
+"lines": [
+"1"
+],
+"distanceM": 969
+},
+{
+"exit": "1",
+"name": "역곡역",
+"lines": [
+"1"
+],
+"distanceM": 1396
+},
+{
+"exit": "1",
+"name": "역삼역",
+"lines": [
+"2"
+],
+"distanceM": 590
+},
+{
+"exit": "1",
+"name": "염창역",
+"lines": [
+"9"
+],
+"distanceM": 375
+},
+{
+"exit": "1",
+"name": "염창역",
+"lines": [
+"9"
+],
+"distanceM": 1028
+},
+{
+"exit": "1",
+"name": "왕십리역",
+"lines": [
+"2",
+"5"
+],
+"distanceM": 187
+},
+{
+"exit": "1",
+"name": "왕십리역",
+"lines": [
+"2",
+"5"
+],
+"distanceM": 207
+},
+{
+"exit": "1",
+"name": "왕십리역",
+"lines": [
+"2",
+"5"
+],
+"distanceM": 285
+},
+{
+"exit": "1",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 153
+},
+{
+"exit": "1",
+"name": "이태원역",
+"lines": [
+"6"
+],
+"distanceM": 151
+},
+{
+"exit": "1",
+"name": "장지역",
+"lines": [
+"8"
+],
+"distanceM": 651
+},
+{
+"exit": "1",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 26
+},
+{
+"exit": "1",
+"name": "종로3가역",
+"lines": [
+"1",
+"3",
+"5"
+],
+"distanceM": 57
+},
+{
+"exit": "1",
+"name": "증산역",
+"lines": [
+"6"
+],
+"distanceM": 446
+},
+{
+"exit": "1",
+"name": "증산역",
+"lines": [
+"6"
+],
+"distanceM": 1395
+},
+{
+"exit": "1",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 428
+},
+{
+"exit": "1",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 458
+},
+{
+"exit": "1",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 628
+},
+{
+"exit": "1",
+"name": "한남역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 440
+},
+{
+"exit": "1",
+"name": "한남역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 457
+},
+{
+"exit": "1",
+"name": "한남역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 496
+},
+{
+"exit": "1",
+"name": "한성대입구역",
+"lines": [
+"4"
+],
+"distanceM": 107
+},
+{
+"exit": "1",
+"name": "한성대입구역",
+"lines": [
+"4"
+],
+"distanceM": 281
+},
+{
+"exit": "1",
+"name": "행신역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 88
+},
+{
+"exit": "1",
+"name": "행신역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 229
+},
+{
+"exit": "1",
+"name": "혜화역",
+"lines": [
+"4"
+],
+"distanceM": 123
+},
+{
+"exit": "1",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 115
+},
+{
+"exit": "1",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 153
+},
+{
+"exit": "10",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 228
+},
+{
+"exit": "10",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 237
+},
+{
+"exit": "10",
+"name": "사당역",
+"lines": [
+"2",
+"4"
+],
+"distanceM": 185
+},
+{
+"exit": "10",
+"name": "사당역",
+"lines": [
+"2",
+"4"
+],
+"distanceM": 186
+},
+{
+"exit": "10",
+"name": "신당역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 89
+},
+{
+"exit": "10",
+"name": "을지로3가역",
+"lines": [
+"2",
+"3"
+],
+"distanceM": 118
+},
+{
+"exit": "10",
+"name": "이수역",
+"lines": [
+"7"
+],
+"distanceM": 171
+},
+{
+"exit": "10",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 48
+},
+{
+"exit": "10",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 66
+},
+{
+"exit": "10",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 91
+},
+{
+"exit": "10",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 92
+},
+{
+"exit": "10",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 138
+},
+{
+"exit": "10",
+"name": "학동역",
+"lines": [
+"7"
+],
+"distanceM": 360
+},
+{
+"exit": "11",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 101
+},
+{
+"exit": "11",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 241
+},
+{
+"exit": "11",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 429
+},
+{
+"exit": "11",
+"name": "청담역",
+"lines": [
+"7"
+],
+"distanceM": 646
+},
+{
+"exit": "12",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 290
+},
+{
+"exit": "12",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1075
+},
+{
+"exit": "12",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 63
+},
+{
+"exit": "12",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 92
+},
+{
+"exit": "13",
+"name": "교대역",
+"lines": [
+"2"
+],
+"distanceM": 236
+},
+{
+"exit": "13",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 200
+},
+{
+"exit": "13",
+"name": "삼각지역",
+"lines": [
+"4",
+"6"
+],
+"distanceM": 80
+},
+{
+"exit": "13",
+"name": "이수역",
+"lines": [
+"7"
+],
+"distanceM": 144
+},
+{
+"exit": "14",
+"name": "교대역",
+"lines": [
+"2"
+],
+"distanceM": 89
+},
+{
+"exit": "14",
+"name": "교대역",
+"lines": [
+"2"
+],
+"distanceM": 187
+},
+{
+"exit": "14",
+"name": "교대역",
+"lines": [
+"2"
+],
+"distanceM": 213
+},
+{
+"exit": "14",
+"name": "교대역",
+"lines": [
+"2"
+],
+"distanceM": 220
+},
+{
+"exit": "14",
+"name": "동대문역사문화공원역",
+"lines": [
+"2",
+"4",
+"5"
+],
+"distanceM": 144
+},
+{
+"exit": "14",
+"name": "사당역",
+"lines": [
+"2",
+"4"
+],
+"distanceM": 103
+},
+{
+"exit": "14",
+"name": "종합운동장역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 230
+},
+{
+"exit": "15",
+"name": "종합운동장역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 229
+},
+{
+"exit": "2",
+"name": "가야역",
+"lines": [
+"2"
+],
+"distanceM": 1115
+},
+{
+"exit": "2",
+"name": "강남구청역",
+"lines": [
+"7"
+],
+"distanceM": 76
+},
+{
+"exit": "2",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 38
+},
+{
+"exit": "2",
+"name": "대흥역",
+"lines": [
+"6"
+],
+"distanceM": 302
+},
+{
+"exit": "2",
+"name": "독산역",
+"lines": [
+"1"
+],
+"distanceM": 1674
+},
+{
+"exit": "2",
+"name": "돌곶이역",
+"lines": [
+"6"
+],
+"distanceM": 841
+},
+{
+"exit": "2",
+"name": "마곡나루역",
+"lines": [
+"9"
+],
+"distanceM": 170
+},
+{
+"exit": "2",
+"name": "명일역",
+"lines": [
+"5"
+],
+"distanceM": 62
+},
+{
+"exit": "2",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 1733
+},
+{
+"exit": "2",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 73
+},
+{
+"exit": "2",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 135
+},
+{
+"exit": "2",
+"name": "범일역",
+"lines": [
+"1"
+],
+"distanceM": 218
+},
+{
+"exit": "2",
+"name": "삼성역",
+"lines": [
+"2"
+],
+"distanceM": 121
+},
+{
+"exit": "2",
+"name": "상도역",
+"lines": [
+"7"
+],
+"distanceM": 28
+},
+{
+"exit": "2",
+"name": "샛강역",
+"lines": [
+"9"
+],
+"distanceM": 238
+},
+{
+"exit": "2",
+"name": "샛강역",
+"lines": [
+"9"
+],
+"distanceM": 302
+},
+{
+"exit": "2",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 98
+},
+{
+"exit": "2",
+"name": "석촌역",
+"lines": [
+"8",
+"9"
+],
+"distanceM": 185
+},
+{
+"exit": "2",
+"name": "송정공원역",
+"lines": [
+"1"
+],
+"distanceM": 745
+},
+{
+"exit": "2",
+"name": "송파나루역",
+"lines": [
+"9"
+],
+"distanceM": 368
+},
+{
+"exit": "2",
+"name": "신목동역",
+"lines": [
+"9"
+],
+"distanceM": 935
+},
+{
+"exit": "2",
+"name": "신촌역",
+"lines": [
+"2"
+],
+"distanceM": 199
+},
+{
+"exit": "2",
+"name": "아차산역",
+"lines": [
+"5"
+],
+"distanceM": 134
+},
+{
+"exit": "2",
+"name": "양평역",
+"lines": [
+"5"
+],
+"distanceM": 275
+},
+{
+"exit": "2",
+"name": "영등포시장역",
+"lines": [
+"5"
+],
+"distanceM": 383
+},
+{
+"exit": "2",
+"name": "영등포시장역",
+"lines": [
+"5"
+],
+"distanceM": 492
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 146
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1097
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1099
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1162
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1212
+},
+{
+"exit": "2",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1815
+},
+{
+"exit": "2",
+"name": "외대앞역",
+"lines": [
+"1"
+],
+"distanceM": 1185
+},
+{
+"exit": "2",
+"name": "외대앞역",
+"lines": [
+"1"
+],
+"distanceM": 1203
+},
+{
+"exit": "2",
+"name": "외대앞역",
+"lines": [
+"1"
+],
+"distanceM": 1217
+},
+{
+"exit": "2",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 127
+},
+{
+"exit": "2",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 195
+},
+{
+"exit": "2",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 282
+},
+{
+"exit": "2",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 713
+},
+{
+"exit": "2",
+"name": "월곡역",
+"lines": [
+"6"
+],
+"distanceM": 371
+},
+{
+"exit": "2",
+"name": "잠실새내역",
+"lines": [
+"2"
+],
+"distanceM": 190
+},
+{
+"exit": "2",
+"name": "장한평역",
+"lines": [
+"5"
+],
+"distanceM": 416
+},
+{
+"exit": "2",
+"name": "제기동역",
+"lines": [
+"1"
+],
+"distanceM": 175
+},
+{
+"exit": "2",
+"name": "종각역",
+"lines": [
+"1"
+],
+"distanceM": 211
+},
+{
+"exit": "2",
+"name": "중곡역",
+"lines": [
+"7"
+],
+"distanceM": 550
+},
+{
+"exit": "2",
+"name": "청량리역",
+"lines": [
+"1"
+],
+"distanceM": 159
+},
+{
+"exit": "2",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 401
+},
+{
+"exit": "2",
+"name": "한티역",
+"lines": [
+"수인·분당"
+],
+"distanceM": 231
+},
+{
+"exit": "2",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 335
+},
+{
+"exit": "2",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 194
+},
+{
+"exit": "2",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 253
+},
+{
+"exit": "2-1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 85
+},
+{
+"exit": "2-1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 88
+},
+{
+"exit": "2-1",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 90
+},
+{
+"exit": "3",
+"name": "가락시장역",
+"lines": [
+"3",
+"8"
+],
+"distanceM": 272
+},
+{
+"exit": "3",
+"name": "가야역",
+"lines": [
+"2"
+],
+"distanceM": 1944
+},
+{
+"exit": "3",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 127
+},
+{
+"exit": "3",
+"name": "강일역",
+"lines": [
+"5"
+],
+"distanceM": 1240
+},
+{
+"exit": "3",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 126
+},
+{
+"exit": "3",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 130
+},
+{
+"exit": "3",
+"name": "경성대·부경대역",
+"lines": [
+"2"
+],
+"distanceM": 146
+},
+{
+"exit": "3",
+"name": "공항시장역",
+"lines": [
+"9"
+],
+"distanceM": 106
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1027
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1080
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1674
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1688
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1711
+},
+{
+"exit": "3",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1741
+},
+{
+"exit": "3",
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1096
+},
+{
+"exit": "3",
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1161
+},
+{
+"exit": "3",
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1515
+},
+{
+"exit": "3",
+"name": "광운대역",
+"lines": [
+"1"
+],
+"distanceM": 1651
+},
+{
+"exit": "3",
+"name": "구로역",
+"lines": [
+"1"
+],
+"distanceM": 497
+},
+{
+"exit": "3",
+"name": "국회의사당역",
+"lines": [
+"9"
+],
+"distanceM": 326
+},
+{
+"exit": "3",
+"name": "길동역",
+"lines": [
+"5"
+],
+"distanceM": 630
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 219
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1297
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1484
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1500
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1666
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1842
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1920
+},
+{
+"exit": "3",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1935
+},
+{
+"exit": "3",
+"name": "남천역",
+"lines": [
+"2"
+],
+"distanceM": 221
+},
+{
+"exit": "3",
+"name": "남천역",
+"lines": [
+"2"
+],
+"distanceM": 302
+},
+{
+"exit": "3",
+"name": "녹사평역",
+"lines": [
+"6"
+],
+"distanceM": 224
+},
+{
+"exit": "3",
+"name": "논현역",
+"lines": [
+"7"
+],
+"distanceM": 147
+},
+{
+"exit": "3",
+"name": "농성역",
+"lines": [
+"1"
+],
+"distanceM": 1347
+},
+{
+"exit": "3",
+"name": "농성역",
+"lines": [
+"1"
+],
+"distanceM": 1392
+},
+{
+"exit": "3",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 41
+},
+{
+"exit": "3",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 62
+},
+{
+"exit": "3",
+"name": "동대문역사문화공원역",
+"lines": [
+"2",
+"4",
+"5"
+],
+"distanceM": 239
+},
+{
+"exit": "3",
+"name": "마곡역",
+"lines": [
+"5"
+],
+"distanceM": 311
+},
+{
+"exit": "3",
+"name": "마포역",
+"lines": [
+"5"
+],
+"distanceM": 436
+},
+{
+"exit": "3",
+"name": "몽촌토성역",
+"lines": [
+"8"
+],
+"distanceM": 255
+},
+{
+"exit": "3",
+"name": "몽촌토성역",
+"lines": [
+"8"
+],
+"distanceM": 296
+},
+{
+"exit": "3",
+"name": "몽촌토성역",
+"lines": [
+"8"
+],
+"distanceM": 309
+},
+{
+"exit": "3",
+"name": "몽촌토성역",
+"lines": [
+"8"
+],
+"distanceM": 393
+},
+{
+"exit": "3",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 146
+},
+{
+"exit": "3",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 161
+},
+{
+"exit": "3",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 198
+},
+{
+"exit": "3",
+"name": "미아사거리역",
+"lines": [
+"4"
+],
+"distanceM": 201
+},
+{
+"exit": "3",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 232
+},
+{
+"exit": "3",
+"name": "범일역",
+"lines": [
+"1"
+],
+"distanceM": 323
+},
+{
+"exit": "3",
+"name": "삼각지역",
+"lines": [
+"4",
+"6"
+],
+"distanceM": 88
+},
+{
+"exit": "3",
+"name": "삼각지역",
+"lines": [
+"4",
+"6"
+],
+"distanceM": 199
+},
+{
+"exit": "3",
+"name": "삼각지역",
+"lines": [
+"4",
+"6"
+],
+"distanceM": 205
+},
+{
+"exit": "3",
+"name": "상왕십리역",
+"lines": [
+"2"
+],
+"distanceM": 269
+},
+{
+"exit": "3",
+"name": "상왕십리역",
+"lines": [
+"2"
+],
+"distanceM": 472
+},
+{
+"exit": "3",
+"name": "상왕십리역",
+"lines": [
+"2"
+],
+"distanceM": 505
+},
+{
+"exit": "3",
+"name": "서울역",
+"lines": [
+"강릉선 KTX: 서울 → 강릉",
+"경부선 ITX-새마을 (필수정차): 서울 → 부산",
+"경부선 KTX: 서울 → 대전",
+"경부선 KTX: 서울 → 동대구",
+"경부선 KTX: 서울 → 부산",
+"경부선 KTX: 서울 → 부산 (구포경유)",
+"경부선 KTX: 서울 → 부산 (수원경유)",
+"경부선 무궁화호 (필수정차): 서울 → 부산"
+],
+"distanceM": 111
+},
+{
+"exit": "3",
+"name": "성수역",
+"lines": [
+"2"
+],
+"distanceM": 748
+},
+{
+"exit": "3",
+"name": "성신여대입구역",
+"lines": [
+"4"
+],
+"distanceM": 136
+},
+{
+"exit": "3",
+"name": "신도림역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 408
+},
+{
+"exit": "3",
+"name": "쌍촌역",
+"lines": [
+"1"
+],
+"distanceM": 658
+},
+{
+"exit": "3",
+"name": "쌍촌역",
+"lines": [
+"1"
+],
+"distanceM": 793
+},
+{
+"exit": "3",
+"name": "아차산역",
+"lines": [
+"5"
+],
+"distanceM": 811
+},
+{
+"exit": "3",
+"name": "안암역",
+"lines": [
+"6"
+],
+"distanceM": 106
+},
+{
+"exit": "3",
+"name": "안암역",
+"lines": [
+"6"
+],
+"distanceM": 135
+},
+{
+"exit": "3",
+"name": "역삼역",
+"lines": [
+"2"
+],
+"distanceM": 162
+},
+{
+"exit": "3",
+"name": "용산역",
+"lines": [
+"1"
+],
+"distanceM": 303
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 139
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 158
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 181
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 195
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 493
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 520
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 538
+},
+{
+"exit": "3",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 571
+},
+{
+"exit": "3",
+"name": "장한평역",
+"lines": [
+"5"
+],
+"distanceM": 127
+},
+{
+"exit": "3",
+"name": "장한평역",
+"lines": [
+"5"
+],
+"distanceM": 193
+},
+{
+"exit": "3",
+"name": "장한평역",
+"lines": [
+"5"
+],
+"distanceM": 447
+},
+{
+"exit": "3",
+"name": "종로3가역",
+"lines": [
+"1",
+"3",
+"5"
+],
+"distanceM": 7
+},
+{
+"exit": "3",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 790
+},
+{
+"exit": "3",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 1213
+},
+{
+"exit": "3",
+"name": "청량리역",
+"lines": [
+"1"
+],
+"distanceM": 856
+},
+{
+"exit": "3",
+"name": "초량역",
+"lines": [
+"1"
+],
+"distanceM": 142
+},
+{
+"exit": "3",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 271
+},
+{
+"exit": "3",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 130
+},
+{
+"exit": "3",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 217
+},
+{
+"exit": "3",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 239
+},
+{
+"exit": "3",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 177
+},
+{
+"exit": "3",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 246
+},
+{
+"exit": "3",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 419
+},
+{
+"exit": "3",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 476
+},
+{
+"exit": "3",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 481
+},
+{
+"exit": "4",
+"name": "가야역",
+"lines": [
+"2"
+],
+"distanceM": 1074
+},
+{
+"exit": "4",
+"name": "가야역",
+"lines": [
+"2"
+],
+"distanceM": 1084
+},
+{
+"exit": "4",
+"name": "가야역",
+"lines": [
+"2"
+],
+"distanceM": 1129
+},
+{
+"exit": "4",
+"name": "가좌역",
+"lines": [
+"경의·중앙"
+],
+"distanceM": 1370
+},
+{
+"exit": "4",
+"name": "강남역",
+"lines": [
+"2"
+],
+"distanceM": 649
+},
+{
+"exit": "4",
+"name": "구의역",
+"lines": [
+"2"
+],
+"distanceM": 825
+},
+{
+"exit": "4",
+"name": "군자역",
+"lines": [
+"5",
+"7"
+],
+"distanceM": 277
+},
+{
+"exit": "4",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 332
+},
+{
+"exit": "4",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 584
+},
+{
+"exit": "4",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 689
+},
+{
+"exit": "4",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 693
+},
+{
+"exit": "4",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 894
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 647
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 719
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 870
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 909
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 986
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1150
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1160
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1186
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1400
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1512
+},
+{
+"exit": "4",
+"name": "남광주역",
+"lines": [
+"1"
+],
+"distanceM": 1754
+},
+{
+"exit": "4",
+"name": "논현역",
+"lines": [
+"7"
+],
+"distanceM": 254
+},
+{
+"exit": "4",
+"name": "논현역",
+"lines": [
+"7"
+],
+"distanceM": 302
+},
+{
+"exit": "4",
+"name": "농성역",
+"lines": [
+"1"
+],
+"distanceM": 1553
+},
+{
+"exit": "4",
+"name": "마곡역",
+"lines": [
+"5"
+],
+"distanceM": 326
+},
+{
+"exit": "4",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 58
+},
+{
+"exit": "4",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 115
+},
+{
+"exit": "4",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 132
+},
+{
+"exit": "4",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 87
+},
+{
+"exit": "4",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 225
+},
+{
+"exit": "4",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 234
+},
+{
+"exit": "4",
+"name": "상수역",
+"lines": [
+"6"
+],
+"distanceM": 305
+},
+{
+"exit": "4",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 33
+},
+{
+"exit": "4",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 75
+},
+{
+"exit": "4",
+"name": "선정릉역",
+"lines": [
+"9"
+],
+"distanceM": 327
+},
+{
+"exit": "4",
+"name": "성수역",
+"lines": [
+"2"
+],
+"distanceM": 44
+},
+{
+"exit": "4",
+"name": "성수역",
+"lines": [
+"2"
+],
+"distanceM": 160
+},
+{
+"exit": "4",
+"name": "송파역",
+"lines": [
+"8"
+],
+"distanceM": 325
+},
+{
+"exit": "4",
+"name": "신당역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 211
+},
+{
+"exit": "4",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 174
+},
+{
+"exit": "4",
+"name": "압구정로데오역",
+"lines": [
+"수인·분당"
+],
+"distanceM": 464
+},
+{
+"exit": "4",
+"name": "어린이대공원역",
+"lines": [
+"7"
+],
+"distanceM": 309
+},
+{
+"exit": "4",
+"name": "역삼역",
+"lines": [
+"2"
+],
+"distanceM": 125
+},
+{
+"exit": "4",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 646
+},
+{
+"exit": "4",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 710
+},
+{
+"exit": "4",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 757
+},
+{
+"exit": "4",
+"name": "운천역",
+"lines": [
+"1"
+],
+"distanceM": 796
+},
+{
+"exit": "4",
+"name": "이태원역",
+"lines": [
+"6"
+],
+"distanceM": 128
+},
+{
+"exit": "4",
+"name": "이태원역",
+"lines": [
+"6"
+],
+"distanceM": 245
+},
+{
+"exit": "4",
+"name": "잠실새내역",
+"lines": [
+"2"
+],
+"distanceM": 231
+},
+{
+"exit": "4",
+"name": "잠실새내역",
+"lines": [
+"2"
+],
+"distanceM": 261
+},
+{
+"exit": "4",
+"name": "잠원역",
+"lines": [
+"3"
+],
+"distanceM": 23
+},
+{
+"exit": "4",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 198
+},
+{
+"exit": "4",
+"name": "증산역",
+"lines": [
+"6"
+],
+"distanceM": 1905
+},
+{
+"exit": "4",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 1341
+},
+{
+"exit": "4",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 1526
+},
+{
+"exit": "4",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 1597
+},
+{
+"exit": "4",
+"name": "천왕역",
+"lines": [
+"7"
+],
+"distanceM": 1627
+},
+{
+"exit": "4",
+"name": "한성백제역",
+"lines": [
+"9"
+],
+"distanceM": 206
+},
+{
+"exit": "4",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 196
+},
+{
+"exit": "4",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 1510
+},
+{
+"exit": "4",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 1578
+},
+{
+"exit": "4",
+"name": "화정역",
+"lines": [
+"1"
+],
+"distanceM": 575
+},
+{
+"exit": "5",
+"name": "개포동역",
+"lines": [
+"수인·분당"
+],
+"distanceM": 118
+},
+{
+"exit": "5",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 73
+},
+{
+"exit": "5",
+"name": "공항역",
+"lines": [
+"1"
+],
+"distanceM": 1013
+},
+{
+"exit": "5",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 755
+},
+{
+"exit": "5",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 790
+},
+{
+"exit": "5",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 997
+},
+{
+"exit": "5",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1017
+},
+{
+"exit": "5",
+"name": "광안역",
+"lines": [
+"2"
+],
+"distanceM": 1079
+},
+{
+"exit": "5",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 317
+},
+{
+"exit": "5",
+"name": "금련산역",
+"lines": [
+"2"
+],
+"distanceM": 319
+},
+{
+"exit": "5",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 931
+},
+{
+"exit": "5",
+"name": "낙성대역",
+"lines": [
+"2"
+],
+"distanceM": 1117
+},
+{
+"exit": "5",
+"name": "답십리역",
+"lines": [
+"5"
+],
+"distanceM": 235
+},
+{
+"exit": "5",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 8
+},
+{
+"exit": "5",
+"name": "봉은사역",
+"lines": [
+"9"
+],
+"distanceM": 35
+},
+{
+"exit": "5",
+"name": "삼성역",
+"lines": [
+"2"
+],
+"distanceM": 338
+},
+{
+"exit": "5",
+"name": "삼성역",
+"lines": [
+"2"
+],
+"distanceM": 457
+},
+{
+"exit": "5",
+"name": "삼성중앙역",
+"lines": [
+"9"
+],
+"distanceM": 317
+},
+{
+"exit": "5",
+"name": "삼성중앙역",
+"lines": [
+"9"
+],
+"distanceM": 484
+},
+{
+"exit": "5",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 334
+},
+{
+"exit": "5",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 578
+},
+{
+"exit": "5",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 650
+},
+{
+"exit": "5",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 765
+},
+{
+"exit": "5",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 905
+},
+{
+"exit": "5",
+"name": "선릉역",
+"lines": [
+"2"
+],
+"distanceM": 92
+},
+{
+"exit": "5",
+"name": "압구정로데오역",
+"lines": [
+"수인·분당"
+],
+"distanceM": 342
+},
+{
+"exit": "5",
+"name": "어린이대공원역",
+"lines": [
+"7"
+],
+"distanceM": 126
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 54
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 102
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 132
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 153
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 280
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 286
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 287
+},
+{
+"exit": "5",
+"name": "영등포역",
+"lines": [
+"1"
+],
+"distanceM": 300
+},
+{
+"exit": "5",
+"name": "을지로입구역",
+"lines": [
+"2"
+],
+"distanceM": 57
+},
+{
+"exit": "5",
+"name": "이대역",
+"lines": [
+"2"
+],
+"distanceM": 1061
+},
+{
+"exit": "5",
+"name": "천호역",
+"lines": [
+"5",
+"8"
+],
+"distanceM": 98
+},
+{
+"exit": "5",
+"name": "천호역",
+"lines": [
+"5",
+"8"
+],
+"distanceM": 176
+},
+{
+"exit": "5",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 106
+},
+{
+"exit": "5",
+"name": "하단역",
+"lines": [
+"1"
+],
+"distanceM": 114
+},
+{
+"exit": "6",
+"name": "거여역",
+"lines": [
+"5"
+],
+"distanceM": 1107
+},
+{
+"exit": "6",
+"name": "건대입구역",
+"lines": [
+"2",
+"7"
+],
+"distanceM": 428
+},
+{
+"exit": "6",
+"name": "고려대역",
+"lines": [
+"6"
+],
+"distanceM": 145
+},
+{
+"exit": "6",
+"name": "군자역",
+"lines": [
+"5",
+"7"
+],
+"distanceM": 26
+},
+{
+"exit": "6",
+"name": "내방역",
+"lines": [
+"7"
+],
+"distanceM": 105
+},
+{
+"exit": "6",
+"name": "노량진역",
+"lines": [
+"1",
+"9"
+],
+"distanceM": 280
+},
+{
+"exit": "6",
+"name": "돌곶이역",
+"lines": [
+"6"
+],
+"distanceM": 142
+},
+{
+"exit": "6",
+"name": "마포구청역",
+"lines": [
+"6"
+],
+"distanceM": 842
+},
+{
+"exit": "6",
+"name": "미아역",
+"lines": [
+"4"
+],
+"distanceM": 41
+},
+{
+"exit": "6",
+"name": "사당역",
+"lines": [
+"2",
+"4"
+],
+"distanceM": 64
+},
+{
+"exit": "6",
+"name": "사당역",
+"lines": [
+"2",
+"4"
+],
+"distanceM": 207
+},
+{
+"exit": "6",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 130
+},
+{
+"exit": "6",
+"name": "상무역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 147
+},
+{
+"exit": "6",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 75
+},
+{
+"exit": "6",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 209
+},
+{
+"exit": "6",
+"name": "숙대입구역",
+"lines": [
+"4"
+],
+"distanceM": 146
+},
+{
+"exit": "6",
+"name": "신논현역",
+"lines": [
+"9"
+],
+"distanceM": 58
+},
+{
+"exit": "6",
+"name": "신대방삼거리역",
+"lines": [
+"7"
+],
+"distanceM": 297
+},
+{
+"exit": "6",
+"name": "신도림역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 278
+},
+{
+"exit": "6",
+"name": "오금역",
+"lines": [
+"3",
+"5"
+],
+"distanceM": 220
+},
+{
+"exit": "6",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 182
+},
+{
+"exit": "6",
+"name": "옥수역",
+"lines": [
+"3"
+],
+"distanceM": 13
+},
+{
+"exit": "6",
+"name": "왕십리역",
+"lines": [
+"2",
+"5"
+],
+"distanceM": 147
+},
+{
+"exit": "6",
+"name": "천호역",
+"lines": [
+"5",
+"8"
+],
+"distanceM": 228
+},
+{
+"exit": "6",
+"name": "천호역",
+"lines": [
+"5",
+"8"
+],
+"distanceM": 358
+},
+{
+"exit": "6",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 1353
+},
+{
+"exit": "7",
+"name": "가양역",
+"lines": [
+"9"
+],
+"distanceM": 683
+},
+{
+"exit": "7",
+"name": "가양역",
+"lines": [
+"9"
+],
+"distanceM": 802
+},
+{
+"exit": "7",
+"name": "가양역",
+"lines": [
+"9"
+],
+"distanceM": 998
+},
+{
+"exit": "7",
+"name": "군자역",
+"lines": [
+"5",
+"7"
+],
+"distanceM": 247
+},
+{
+"exit": "7",
+"name": "뚝섬역",
+"lines": [
+"2"
+],
+"distanceM": 16
+},
+{
+"exit": "7",
+"name": "뚝섬역",
+"lines": [
+"2"
+],
+"distanceM": 127
+},
+{
+"exit": "7",
+"name": "마곡역",
+"lines": [
+"5"
+],
+"distanceM": 934
+},
+{
+"exit": "7",
+"name": "문래역",
+"lines": [
+"2"
+],
+"distanceM": 240
+},
+{
+"exit": "7",
+"name": "문래역",
+"lines": [
+"2"
+],
+"distanceM": 359
+},
+{
+"exit": "7",
+"name": "성신여대입구역",
+"lines": [
+"4"
+],
+"distanceM": 188
+},
+{
+"exit": "7",
+"name": "신논현역",
+"lines": [
+"9"
+],
+"distanceM": 145
+},
+{
+"exit": "7",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 101
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 34
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 148
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 196
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 238
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 339
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 353
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 482
+},
+{
+"exit": "7",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 500
+},
+{
+"exit": "7",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 312
+},
+{
+"exit": "7",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 383
+},
+{
+"exit": "7",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 568
+},
+{
+"exit": "7",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 1087
+},
+{
+"exit": "8",
+"name": "광화문역",
+"lines": [
+"5"
+],
+"distanceM": 70
+},
+{
+"exit": "8",
+"name": "군자역",
+"lines": [
+"5",
+"7"
+],
+"distanceM": 261
+},
+{
+"exit": "8",
+"name": "내방역",
+"lines": [
+"7"
+],
+"distanceM": 13
+},
+{
+"exit": "8",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 738
+},
+{
+"exit": "8",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 970
+},
+{
+"exit": "8",
+"name": "대림역",
+"lines": [
+"7"
+],
+"distanceM": 1048
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 101
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 140
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 161
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 215
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 229
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 352
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 403
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 437
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 506
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 1769
+},
+{
+"exit": "8",
+"name": "서면역",
+"lines": [
+"1",
+"2"
+],
+"distanceM": 1846
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 95
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 132
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 165
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 254
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 257
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 342
+},
+{
+"exit": "8",
+"name": "신사역",
+"lines": [
+"3"
+],
+"distanceM": 363
+},
+{
+"exit": "8",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 201
+},
+{
+"exit": "8",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 640
+},
+{
+"exit": "8",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 747
+},
+{
+"exit": "8",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 844
+},
+{
+"exit": "8",
+"name": "역삼역",
+"lines": [
+"2"
+],
+"distanceM": 264
+},
+{
+"exit": "8",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 689
+},
+{
+"exit": "8",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 886
+},
+{
+"exit": "8",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1031
+},
+{
+"exit": "8",
+"name": "오목교역",
+"lines": [
+"5"
+],
+"distanceM": 1559
+},
+{
+"exit": "8",
+"name": "전포역",
+"lines": [
+"2"
+],
+"distanceM": 212
+},
+{
+"exit": "8",
+"name": "충무로역",
+"lines": [
+"3",
+"4"
+],
+"distanceM": 93
+},
+{
+"exit": "8",
+"name": "학동역",
+"lines": [
+"7"
+],
+"distanceM": 556
+},
+{
+"exit": "8",
+"name": "합정역",
+"lines": [
+"2",
+"6"
+],
+"distanceM": 215
+},
+{
+"exit": "8",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 402
+},
+{
+"exit": "8",
+"name": "화곡역",
+"lines": [
+"5"
+],
+"distanceM": 403
+},
+{
+"exit": "9",
+"name": "노량진역",
+"lines": [
+"1",
+"9"
+],
+"distanceM": 67
+},
+{
+"exit": "9",
+"name": "노량진역",
+"lines": [
+"1",
+"9"
+],
+"distanceM": 81
+},
+{
+"exit": "9",
+"name": "당산역",
+"lines": [
+"2",
+"9"
+],
+"distanceM": 556
+},
+{
+"exit": "9",
+"name": "디지털미디어시티역",
+"lines": [
+"6"
+],
+"distanceM": 218
+},
+{
+"exit": "9",
+"name": "디지털미디어시티역",
+"lines": [
+"6"
+],
+"distanceM": 229
+},
+{
+"exit": "9",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 150
+},
+{
+"exit": "9",
+"name": "미사역",
+"lines": [
+"5"
+],
+"distanceM": 252
+},
+{
+"exit": "9",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 174
+},
+{
+"exit": "9",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 231
+},
+{
+"exit": "9",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 255
+},
+{
+"exit": "9",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 384
+},
+{
+"exit": "9",
+"name": "발산역",
+"lines": [
+"5"
+],
+"distanceM": 407
+},
+{
+"exit": "9",
+"name": "양재역",
+"lines": [
+"3"
+],
+"distanceM": 1810
+},
+{
+"exit": "9",
+"name": "을지로3가역",
+"lines": [
+"2",
+"3"
+],
+"distanceM": 76
+},
+{
+"exit": "9",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 291
+},
+{
+"exit": "9",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 395
+},
+{
+"exit": "9",
+"name": "홍대입구역",
+"lines": [
+"2"
+],
+"distanceM": 444
+}
+]

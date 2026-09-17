@@ -746,3 +746,194 @@ Phase 3 머지 뒤 프리뷰를 폰에서 보니 검색·칩 아래 ~ 바텀시�
 - **결과 화면에 [나도 해보기]를 뒀다** — 같은 질문에서 발견한 구멍: 공유 링크로 들어온 사람이 자기가 풀지도 않은 "당신은 ○○형"을 보고, **테스트를 시작할 입구가 없었다**(지도로 가는 링크뿐). 바이럴 장치의 착지점에 전환 입구가 없던 셈이다.
 - **그런데 방금 푼 사람에게도 떴다**(사용자 지적). "문구 하나로 둘 다 받는다"는 첫 판단이 틀렸다 — 막 푼 사람에게 "나도 해보기"는 말이 안 된다. **두 사람을 가른다**: 방문자는 [나도 해보기] 아웃라인 버튼, 응시자는 그 자리를 비우고 아래 텍스트 줄에 [다시 하기]. 판정은 **모듈 메모리**(`components/peel-test/session-flag.ts`) — 저장소를 쓰지 않고(규칙 4), 응시자는 `router.push`로 와서 같은 JS 인스턴스가 살아 있다는 사실만 쓴다. 서버 스냅샷은 방문자 쪽이라(`useSyncExternalStore`, `useMediaQuery`와 같은 문법) 하이드레이션이 흔들리지 않는다. 새로고침하면 응시자도 방문자로 읽히는데, 그건 구별할 수 없는 게 맞다.
 - **플랜·결과**: docs/plans/peel-test.md.
+
+## 2026-09-10 — Phase 6 백엔드: 결정 13개를 사용자와 하나씩 확정 (플랜 docs/plans/phase6-backend.md)
+
+- **맥락**: UI가 끝나 `lib/data.ts`(목 JSON + 모듈 메모리) 뒤를 진짜로 만드는 Phase. 사용자 조건 셋 — Supabase로 간다 / 커지면 셀프호스팅으로 넘어갈 수 있어야 한다 / 굴맵·대방어맵 시리즈의 템플릿이 될 수 있어야 한다. 플랜 초안의 질문 13개를 2026-09-09~10에 하나씩 답받았다. 문서는 Supabase 스킬 규칙대로 changelog·docs를 먼저 확인했다(2026-04-28부터 테이블이 Data API에 자동 노출되지 않음, 키는 publishable/secret 체계, `@supabase/ssr` 0.12.7·CLI 2.117).
+- **호출 경로**: 컴포넌트 → `lib/data.ts`(시그니처 유지) → Server Action(`lib/server/actions.ts`) → Supabase(사용자 세션 + RLS). **브라우저에 supabase-js를 싣지 않는다.** 스팸 4겹(Turnstile 검증·속도 제한·이미지 재인코딩·알림·secret key)이 전부 서버 일이라 쓰기가 한 문으로만 들어와야 4겹이 강제된다. 2026-09-02의 "Server Action 미채택" 근거(isolate 전역 캐시 공유·실패 주입 불가)는 목 전용이라 소멸.
+- **세션**: `@supabase/ssr` 쿠키. proxy(middleware) 없음 — OpenNext가 Node proxy를 "실험적·비유지"로 경고한다(`build.js:68`). 쿠키 쓰기는 액션·라우트 핸들러에서만, RSC는 `getClaims()`로 표시용만. **익명 유저는 첫 쓰기 때 만든다**(방문만으로 계정·MAU 5만을 안 태운다). `Session.userId`가 nullable이 된다.
+- **카카오 승계(질문 1)**: `signInWithOAuth` + 콜백에서 **서버 병합**(옛 익명 uid → 새 uid, secret key) 한 경로. `linkIdentity`는 로그아웃 → 새 익명 → 재로그인(가장 흔한 경로)에서 "identity already linked"로 실패해 병합 코드가 어차피 필요하다. spec 5의 "linkIdentity로 기록 승계"는 결과(승계)만 유지.
+- **사진(질문 2)**: **R2 직행**. spec 6 원안(NCP 크레딧 → 11/30 뒤 R2 이전)은 뒤집었다 — 우리 규모(790곳 × 10장 ≈ 1.6GB)는 R2 무료 안이라 **크레딧이 아끼는 돈이 0원**이고, 11/30 이전 작업(업로드 코드 두 벌 + 객체 복사 + URL 재작성)이 사라진다. 리사이즈는 **Cloudflare Images 바인딩**(sharp는 Workers에서 못 돈다), presigned URL은 액션 업로드로 대체. **DB에는 키만 저장**(URL은 서빙 라우트가 만든다 — 저장소 이전은 `rclone` 복사 + 함수 2개 교체). 사용자 우려 "무료 플랜에서 터지지 않나"에 실측 표로 답했다: Workers 요청 초과는 **에러(과금 없음)**, R2·Images 초과는 과금이지만 우리 상한(장당 10MB·가게당 10장·시간당 10장·**월 전역 4,500장**)이 금액을 묶는다. R2 읽기는 사진·캐시 **계정 합산**이라 regional cache를 켠다. runbook에 월 1회 사용량 확인.
+- **속도 제한(질문 3)**: **Postgres `rate_events` + 트리거 + `with check`**(Upstash 미채택 — Vercel 시절 결정, 벤더 하나 줄고 셀프호스팅 그대로) + **Cloudflare 속도 제한 바인딩을 문 앞 보조**로(사용자 선택, 60초 창·IP당). 바인딩은 별도 커밋으로 얹어 프리뷰에서 실제 거부를 본 뒤 완료(하네스 발화 검증).
+- **신고 3회(질문 4)**: 자동 숨김은 계속 보류, 3회째에 **디스코드 알림** + 관리자 표시. 알림 채널은 **텔레그램 → 디스코드**(브리프 값이었고, 사용자가 매일 여는 앱 기준. 웹훅 URL 하나라 봇·토큰도 없다). spec 5·6·4.5, design 화면 4·10 문구 정정.
+- **Workers 플랜(질문 5)**: **Free 유지**. CPU 10ms 때문에 OG 카드는 빌드 시 생성이고 배포 뒤 생긴 제보 핀은 루트 OG로 폴백. 새 핀 공유 카드가 필요해지거나 하루 요청 10만에 근접하면 Paid $5(요청 시 OG 렌더로 되돌린다).
+- **Sentry(질문 6)**: 이번 Phase 마지막 커밋, 프리뷰에서 이벤트 발화가 안 보이면 Phase 7로.
+- **환경(질문 7)**: Supabase 무료 한도는 **계정 기준 활성 2개**(모든 조직 합산, 일시정지만 제외)이고 사용자가 이미 1개를 쓰고 있어 슬롯이 하나 → **호스티드 prod 하나 + 프리뷰는 prod를 읽기 전용으로**(`PREVIEW_READONLY`, 쓰기·로그인·익명 생성 전부 거부, secret key 없음). 로컬은 Docker Supabase. staging은 슬롯이 나면(runbook).
+- **공개값(질문 8)**: 규칙 7 목록 = 네이버 지도 Client ID · 카카오 JS 키 · GA4 측정 ID · **Turnstile site key · Sentry DSN**. **Supabase 키는 publishable도 목록 밖**(브라우저에 안 간다). 사용자 질문 "값이 공개된다는 뜻이냐 / 남이 가져가면 / 시니어도 그러냐"에: 값은 브라우저 파일에 글자 그대로 박힌다, 다섯은 "열쇠"가 아니라 "명찰"이라 남의 도메인에서 안 먹히고 최악이 우리 한도를 갉는 것, 업계 표준(카카오 JS 키·GA·Sentry DSN·Stripe pk)이며 시니어가 다르게 하는 건 도메인으로 묶기·사용량 알림·비밀 키 분리·유출 시 교체 네 습관.
+- **가게 id(질문 9)**: uuid. **검수(질문 10)**: needsReview는 `hidden_at`을 찍어 넣고 관리자 검색 탭 "검수 필요" 필터에서 [복구]. excluded.csv는 무시. **시드 지역 확장**: 부산 190 · 광주권(광주 5구·목포·무안) 145(2026-09-09 프로브 크롤) → 약 790곳. 지도는 이미 전국 대응. `/gu/`·구별 OG는 서울만.
+- **시드는 NEW가 아니다**(사용자 제안 "시드도 새로 들어온 집으로 띄우면 관심을 끌지 않겠나"에 반대해 확정): 전부 NEW면 아무것도 NEW가 아니고(790개 빨간 pill, 필터 무의미), 상세 배너 "새로 제보된 곳·검증 전"이 크롤로 확인한 가게에 거짓이 되며, 사후 확인 탭에 숙제 790개가 쌓인다. 관심은 이벤트 배너("790곳 전수조사")와 실제 참여가 올리는 시즌 카운터로. 시드의 "○일 전 확인"은 **수집일 기준**(임포트일로 찍으면 "오늘 확인 790곳" 거짓).
+- **백로그 당김(질문 11)**: 확인 0회 제보 핀 "○일 전 등록". **`/test` 참여 기록(질문 12)**: 테이블 + 집계 RPC까지, 화면은 Phase 7. **외부 계정(질문 13)**: 저(CLI) = R2·D1(wrangler 로그인 확인)·GH secrets(gh)·Supabase 프로젝트 생성·연결·마이그레이션·`config push`; 사용자 = 카카오 앱·Turnstile 위젯·디스코드 웹훅·`supabase login` 승인 1회.
+- **이전·시리즈 원칙**: 한 지도 = 리포 1 + Supabase 프로젝트 1 + 워커 1(멀티테넌트 안 함). Supabase 의존은 Postgres·GoTrue·PostgREST뿐(Storage·Edge Functions·Realtime 안 씀) → 셀프호스팅은 URL·키·리다이렉트 URI만. 스키마에 새우 고유명 없음(`tags text[]`·`sides text[]`). 템플릿화 자체는 두 번째 맵이 시작될 때(추상화는 세 번째 호출자). 이 Phase가 남기는 건 `docs/runbook.md`.
+- **레벨 시스템 제안(사용자, 2026-09-10) — 보류**: 다녀왔어요·제보에 레벨을 걸면 확인 신호(=상품)를 오염시킨다(위치 검증 없음, 핀당 일 1뿐), 참여 대부분이 익명, 1인 운영에 곡선·배지·부정 감지가 따라온다. 대신 spec 8의 **시즌 스탬프**(내 활동 한 줄, 확인 기록이 재료)를 먼저 → 반응 보고 레벨·배지. roadmap 백로그.
+- **"나중에 바꾸기 힘든 것"**(사용자 질문): ID 체계·사용자 식별(모든 표의 FK)·상태 vs 사건 저장·삭제한 데이터·개인정보 범위·멀티테넌트 여부. 이 플랜의 결정은 그 다섯에 시간을 가장 많이 썼다(uuid, Supabase Auth uuid, checkins 사건 표 + place_edits, 전부 소프트 삭제, IP 해시 24h·연락처 삭제).
+- **브랜치**: `feat/phase6-backend`를 `feat/report-menu-lines`(PR 미생성, 커밋 3개) 위에 쌓았다 — Phase 6가 `lib/data.ts`를 통째로 바꾸므로 main에서 따면 충돌한다(feat/admin을 feat/pending-flows 위에 쌓은 사례와 같다).
+- **플레이키 테스트 1건**: 관리자 수정 이력 탭 "되돌리기 → 목록 재로드" 테스트가 재로드 호출 수를 `waitFor` 없이 단언해 전체 스위트 부하에서 1회로 잡혔다(단독 3/3 통과). 이 커밋에서 `waitFor`로 감쌌다.
+- **커밋 2에서 바뀐 것 — 공개 뷰는 definer가 아니라 invoker + 컬럼 GRANT.** 처음엔 `places_public`·`reviews_public`을 SECURITY DEFINER로 두고 뷰가 숨김·개인 식별자를 거르게 했는데, `supabase db advisors`가 그걸 **ERROR**(0010 security_definer_view)로 잡았다. 완료 조건이 "advisors 0건"이라 뒤집었다: 뷰는 `security_invoker`, 표는 **공개 열만** anon·authenticated에 GRANT(places의 reporter_id·hidden_at·verified_at…, checkins.actor, photos.uploader_id, profiles.is_admin·shadow_banned는 GRANT 자체가 없다), 행은 RLS가 가른다. 관리자 전용 열은 `admin_places()`·`me()` RPC. 대가: **service_role(secret key)로 뷰를 읽으면 숨긴 가게가 나온다**(RLS를 우회하므로) — 서버 읽기는 항상 사용자 세션 클라이언트로, secret key는 병합·탈퇴·임포트·크론뿐이라는 규칙이 여기서 실제 방어선이 된다(테스트 030이 이 사실을 문장으로 박아 둔다).
+- **pgTAP 헬퍼는 dbdev(basejump) 대신 자체 6개**(`tests.create_user`·`authenticate_as`·`authenticate_anon`·`clear_auth`·`set_ip`·`create_place`) — CI에서 database.dev 네트워크 의존을 안 만든다. 사용자 흉내는 `set local role` + `request.jwt.claims`(sub·is_anonymous), IP는 `request.headers`의 x-ip-hash. 46개 통과.
+- **사진 10장 상한은 BEFORE 트리거라 RLS보다 먼저 걸린다**(테스트 040에서 드러남) — 11번째는 속도 제한이 아니라 check_violation으로 떨어진다. 화면·액션이 먼저 막으므로 오류 문구만 맞추면 된다.
+- **커밋 3 시드 파이프라인 실측(2026-09-10)**: 변환 789곳(서울 454 · 부산 190 · 광주권 145, place_id 중복 제거) · 새우 메뉴 2,216줄 · 단위 분포 size 136 / count 142 / kg 54 / pan 58 / g 28 / serving 45 / none 1,753. **"74% 미파싱"은 대부분 단위가 원래 없는 줄이었다** — 단위 낱말(kg·마리·판·인·소중대)이 있는데 못 잡은 줄은 **1개(0.0%)**, 이름 잔재(대괄호·이모지·open·!·끝 " 0")는 **0줄**. 검수 필요 **27곳**(새우 메뉴 0줄 / 분류 없음 / 구이 메뉴가 안 잡혔는데 회 전문도 아님 — roadmap의 "구이 메뉴 없는 37곳" 정의를 코드로 옮긴 것). 구이 판정은 `새우…구이`가 8자 안에 붙을 때로 좁혔다 — "새우소금구이(머리구이포함)"는 구이, "생새우&머리버터구이"는 아니다(예전 `"머리" not in raw`가 앞엣것을 놓쳤다).
+- **최근접역은 DB 트리거가 채운다** — `subway_exits` 5,060행(역 중심 804 + 출구 4,256, 서울·수도권·부산·광주 OSM). 채움률: 서울 421/423(800m 안 403) · 부산 160/190(126) · 광주 81/125(42) · 경기 29/31 · 전남 0/20(지하철 없음, 의도). 800m 컷은 코드(`STATION_NEARBY_MAX_M`)가 그대로 갖는다.
+- **임포트는 멱등이고 덮어쓰지 않는다** — `seed_ref`가 이미 있으면 건너뛴다(사용자가 고친 영업시간·메뉴 보존). 두 번째 실행 "새로 넣을 것 0곳" 확인. 크롤 갱신으로 메뉴를 다시 덮는 옵션은 필요해질 때(YAGNI).
+- **잡은 함정**: 파이썬 `csv` 기본 줄 끝이 `\r\n`이라 헤더가 `lng\r`로 읽혀 lng가 null로 들어갔다(처음엔 쉼표 문제로 오해). `lineterminator="\n"` + 읽는 쪽 `split(/\r?\n/)`. 같은 종류를 또 만나면 CSV는 파이썬 `csv`로만 읽는 규칙으로 승격한다.
+- **로컬·CI seed.sql은 실데이터 샘플 61곳**(서울 60% + 지역 균등 + 검수 필요 1곳) + 근처 역·출구 2,367행(372KB). 목 JSON 기반 시드는 이걸로 대체됐다.
+- **커밋 4 서버 계층(2026-09-10)**: `lib/data.ts`는 얇은 문이 됐다 — 읽기·쓰기 전부 `lib/server/actions.ts`("use server")로, 서버에선 함수 호출·클라이언트에선 POST. **쓰기의 예상 실패는 값(`Result<T>`)으로** 돌려주고 data.ts가 throw로 바꾼다: 프로덕션의 Next는 서버 액션이 던진 오류 메시지를 지워 "already reviewed" 같은 분기가 클라이언트에 못 간다(use-review-form이 그 문자열로 분기한다). `server-only` 패키지는 쓰지 않는다 — vitest(jsdom)에서 import만 해도 던지고, 경계는 eslint boundaries(lib/server는 data.ts와 app 라우트 핸들러만)가 이미 지킨다.
+- **카카오 복귀는 URL이 약속을 대신한다.** `requireLogin`의 Promise는 페이지가 카카오로 넘어가는 순간 끊긴다. 시작할 때 `next = 현재 경로 + ?intent=review|me`를 액션에 주고, 콜백이 `?login=ok|fail`을 붙여 돌려보내면 지도 화면이 `login=ok`의 intent를 이어 가고(`me` → 패널, `review` → 기존 `reviewIntentId`/`autoReview` 경로) SessionProvider가 `login=fail`을 받아 같은 이유의 시트를 오류 줄과 함께 다시 연다. 둘 다 처리 뒤 주소에서 지운다(새로고침에 재발 방지). 전체 페이지 이동은 `lib/navigate.ts`로 감싸 테스트가 목으로 바꾼다.
+- **관리자 게이트는 서버**: `app/admin/page.tsx`가 세션 쿠키로 `me()`를 읽어 아니면 `notFound()`(HTTP 404 확인) + 제목도 관리자에게만. dev 관리자 토글(`setAdmin`)은 삭제 — 로컬 관리자는 첫 로그인 뒤 `profiles.is_admin`을 SQL로 켠다(runbook).
+- **찜 upsert가 UPDATE 권한에 걸렸다**(브라우저 실측): `INSERT … ON CONFLICT DO UPDATE`는 UPDATE 권한이 필요한데 bookmarks에는 insert·delete만 열어 뒀다 → `ignoreDuplicates`(DO NOTHING)로. 실측 한 바퀴: 방문(auth.users 0) → 다녀왔어요 → 익명 유저 1·확인 +1·카드 "오늘 확인" → 찜 저장.
+- **실데이터가 드러낸 것**: (1) 서울 밖 지번에는 번지 없는 값("부산 사하구 다대동")이 있어 `shortJibun`이 원문을 돌려준다 — 테스트를 "잘렸다면 접두어가 없다"로 고쳤다. (2) 역 줄 320px 한 줄 규칙에서 **동대문역사문화공원역(10자 + 배지 3)만** 출구를 떼도 넘친다 — station-line.ts가 이미 "truncate가 받는다"로 적어 둔 극단이고, 테스트가 그 하나를 고정한다(늘면 디자인 판단). 역 라벨 픽스처(`components/place-detail/__tests__/fixtures/stations.json`, distinct 551)는 DB 트리거 결과에서 뽑았다.
+- **테스트**: 목 동작 테스트 71개(`data.test.ts`) 삭제 → 행 매핑·스키마·메뉴 편집 유닛 + pgTAP으로 대체. 585 → **526개**(jsdom) + pgTAP 46.
+- **커밋 5 쓰기 방어(2026-09-10)**: 모든 사용자 쓰기가 `lib/server/write-gate.ts` 한 문을 지난다 — ① `PREVIEW_READONLY=1`이면 거부 ② Turnstile siteverify ③ IP 해시(sha256(IP + salt + KST 날짜), 24시간이면 쓸모를 다한다)를 Supabase 요청 헤더 `x-ip-hash`로 실어 DB의 `rate_ok`가 actor 또는 IP로 센다. 관리자 쓰기는 Turnstile을 안 지난다(is_admin RLS가 게이트, 스팸 표면이 아니다) — 프리뷰 차단만 같이 받는다. 카카오 로그인 시작·콜백도 프리뷰에서 막힌다.
+- **Turnstile 위젯은 하나, 토큰은 쓰기마다 한 장.** `execution: "execute"` + `appearance: "interaction-only"`로 `app/layout`의 자리(화면 아래 가운데, z-30)에 한 번 그려 두고, `lib/data.ts`의 쓰기 래퍼가 `turnstileToken()`(reset → execute → callback)으로 받아 액션에 넘긴다. 겹치는 요청(찜 연타)은 큐로 직렬화. **컴포넌트는 Turnstile을 모른다**(규칙 1 그대로). 로컬·CI·테스트는 Cloudflare 공개 더미 키(site `1x…BB` 보이지 않는 항상 통과, secret `1x…AA` 항상 통과)라 사용자 위젯은 프리뷰 배포 전까지 필요 없다. dev(localhost)에서는 콘솔에 Turnstile iframe의 postMessage origin 경고가 한 줄 뜬다 — 더미 키·http 조합의 소음이고 실서비스(https·실키)에서는 없다.
+- **내용 필터는 zod refine**(`lib/content-filter.ts`): 링크 패턴(http·www·도메인.tld)과 짧은 욕설 목록을 영업시간·주소·메뉴명·후기·요청 내용·닉네임에 건다 — 폼과 액션이 같은 판정. NFKC로 접은 뒤 비교하는데 **호환 자모(ㅅ U+3145)가 조합 자모로 접혀** 목록도 같은 정규화를 지나야 맞았다(테스트가 잡음). 과하게 넓히지 않는다: 실제 신고에서 반복되는 말이 나오면 목록을 늘린다.
+- **신고 행에도 IP 해시를 찍는다**(`reports.ip_hash`, BEFORE INSERT 트리거) — "신고 3회"를 사람 기준으로 세려면 actor(익명 회전 가능)만으론 부족하다(2026-09-08). 브라우저 실측: 정보 수정 제안 1건이 actor·ip_hash·rate_events(place_flag)까지 남았고, 같은 날 두 번째 다녀왔어요는 유니크 인덱스에 막혀 토스트로 끝났다.
+- **커밋 5b 문 앞 경비(2026-09-10)**: Cloudflare 속도 제한 바인딩 `WRITE_RATE_LIMITER`(IP당 60초 20번, `namespace_id` 1001)를 쓰기 문의 두 번째 칸에 뒀다(프리뷰 차단 → **경비** → Turnstile → IP 해시). `getCloudflareContext`가 없는 next dev에선 통과, 바인딩이 빠진 워커도 통과하되 경고 한 줄. 로컬 workerd에서 한도를 3으로 낮춰 4번째 쓰기가 거부되는 것을 봤다(아래).
+- **워커 빌드가 잡은 것 둘.** ① OG 카드 `generateStaticParams`가 빌드 시 `getPlaces`를 부르는데 세션 클라이언트는 `cookies()`를 열어 빌드에서 죽었다 → **공개 읽기(가게 목록·상세·시즌 카운터)는 anon 클라이언트**(쿠키 없음, RLS는 anon·authenticated 동일). 요청마다 JWT 검증도 아낀다. ② **유저를 지워도 JWT는 유효하다**(Supabase 스킬 체크리스트의 그 항목): db reset 뒤 옛 쿠키를 든 브라우저가 첫 쓰기에서 FK 위반으로 죽었다. 30일 정리 크론·탈퇴 뒤에도 같은 길이라 `ensureUser`가 쓰기 직전 `getUser()`로 유저가 살아 있는지 묻고, 아니면 세션을 버리고 새 익명으로 시작한다(쓰기에만 왕복 1회).
+- **로컬 workerd가 로컬 Supabase를 부르려면** `global_fetch_strictly_public`(2026-09-07 보안 플래그)을 빼야 한다 — `wrangler dev --compatibility-flags nodejs_compat`으로 로컬에서만 덮어쓴다(실서비스 설정은 그대로). 런타임 변수는 `.dev.vars`. CI 스모크도 같은 명령을 쓴다(커밋 8).
+- **커밋 6 캐시·사진(2026-09-10)**: `open-next.config.ts` = R2 incremental cache + regional cache(`long-lived`, Next 16 기본값 = 태그 캐시를 건너뛰지 않음) + D1 태그 캐시, **큐 없음**(온디맨드만 — OpenNext 문서 "온디맨드만 쓰면 큐가 필요 없다"). 핀 목록 전체·가게 상세(+리뷰)·시즌 카운터를 `unstable_cache`로 감싸고(태그 `places`·`place:<id>`·`season`) 쓰기 액션이 **`updateTag`**로 즉시 만료한다 — Next 16의 `revalidateTag(tag, "max")`는 stale-while-revalidate라 방금 누른 확인이 한 요청 늦게 보인다; 액션 안에서는 읽기-자기-쓰기용 `updateTag`가 맞다(Next 로컬 docs updateTag.md). 목록 필터는 메모리에서(789곳). 캐시 안에서는 cookies()를 못 쓰므로 anon 클라이언트(커밋 5b)가 전제였다.
+- **사진 = FormData 액션 → Images 바인딩 1200px webp(EXIF 제거) → R2 `saeu-photos`**, DB엔 키만(`places/<placeId>/<photoId>.webp`, 리뷰는 `reviews/…`). 진짜 이미지인지는 `IMAGES.info()`(무료)로 본다. 순서는 R2 put → 행 insert이고 행이 거부되면 객체를 지운다(고아 없음). 서빙은 `/photos/[...key]`가 키 모양(`places|reviews/uuid/uuid.webp`)을 검사한 뒤 R2에서 읽어 immutable 1년 — 규칙 3의 `safeAssetPath`가 그대로 방어선. 제보·리뷰의 사진은 본체 등록 뒤 같은 길로 붙이고 실패해도 본체는 남는다. `next dev`에서도 `initOpenNextCloudflareForDev`가 R2·Images를 로컬로 흉내 내 업로드→행→서빙(6.4KB webp)까지 돌았다.
+- **R2는 대시보드에서 한 번 켜야 한다**(wrangler `r2 bucket create` → "Please enable R2 through the Cloudflare Dashboard [10042]"). 사용자 콘솔 작업으로 runbook 2절에 추가. D1 `saeu-tags`는 만들어졌다(`1ff7baa3-…`). 켜지기 전까지는 로컬 시뮬레이션으로 개발·검증한다 — 실서비스 배포(커밋 8) 전에 켜고 두 버킷을 만든다.
+- **`bypassTagCacheOnCacheHit`는 켜지 않는다** — regional cache 히트에서 태그 캐시를 건너뛰면 `updateTag`가 30분 뒤에야 보인다. OpenNext 타입 주석대로 Next 16 기본값(false)을 둔다.
+- **커밋 6 캐시 "낡음"은 측정 오류였다 — 두 방어는 남긴다(2026-09-16 정정).** 증상(확인 DB 2회·워커 1회)은 `/place/[id]` 응답에 실린 **목록의 다른 가게** `checkCount`를 첫 매치로 읽은 검사 스크립트 탓이었다. 가게 id 기준으로 다시 읽으니 처음부터 DB와 같았고, 브라우저 확인 → 재요청에서 2 → 3으로 갱신됐다(workerd 실측, D1 태그 캐시 + R2 증분 캐시). 그래도 남긴 것 ① 런타임 Supabase fetch는 `cache: "no-store"` — Next가 전역 fetch를 가로채 `unstable_cache` 안의 응답을 데이터 캐시에 넣을 수 있다(빌드의 정적 렌더 안에서는 no-store가 DynamicServerError를 던져 OG 빌드가 죽으므로 빌드는 기본 fetch). ② `NEXT_PHASE === "phase-production-build"`이면 `unstable_cache`를 거치지 않는다 — 빌드가 만든 엔트리는 `.next/cache/fetch-cache`에 남고(실측: OG 렌더의 PostgREST 응답 122개, revalidate 1년) `populateCache`가 R2에 실어 보내므로, 같은 키의 런타임 캐시가 빌드 시각의 값으로 시작할 수 있다. 원칙: **캐시 층은 하나**(unstable_cache), 배포 산출물에 데이터 캐시를 굽지 않는다. 교훈: 페이로드에서 값을 읽을 땐 id에 앵커한다(메모리에 기록).
+
+## 2026-09-16 — Phase 6 중간 보안 리뷰 반영 (커밋 6b)
+
+security-reviewer(커밋 2~6 diff) 15건: 높음 2·중간 6·낮음 4·정보 3. 상위 3건은 로컬에서 재현해 확인. **10건 반영, 1건(#3 프리뷰 `PREVIEW_READONLY` var)은 CI 커밋 8에서 발화 검증, 4건 백로그**(roadmap — #5 publishable 키 유출 대비, #9 `author_id` 노출, #10 카카오 닉네임 초기값 정규화, #12 Turnstile hostname).
+
+- **#2 서비스 역할 RPC가 늘 거부됐다 — SECURITY DEFINER 안의 `current_user`는 호출자가 아니라 소유자(postgres)다.** `admin_merge_users`·`admin_delete_user`의 `current_user <> 'service_role'` 검사가 항상 참이라 **탈퇴는 항상 "delete failed"**, 카카오 로그인 뒤 익명 승계는 조용히 실패했다(로컬 `set local role service_role`로 재현). 문은 **EXECUTE 권한**(public·anon·authenticated 회수, service_role 부여)만이고 함수 안 역할 검사는 지웠다. pgTAP 050이 세 역할을 다 본다. 교훈: **"권한 검사가 있다"가 아니라 "권한 있는 쪽이 통과한다"까지 테스트**해야 한다 — 거부만 테스트하면 늘 거부하는 함수도 통과한다.
+- **#1 열린 리다이렉트** — `next`의 문자열 검사(`/` 시작·`//` 아님)를 `/\evil.com`이 뚫는다(WHATWG 파서가 `\`를 `/`로). `lib/safe-next.ts` `sameOriginPath`가 **파싱 결과의 origin**을 비교한다(콜백 라우트·`signInWithKakao` 공용, 단위 테스트 6케이스).
+- **#4 이메일 가입 닫음** — `config.toml [auth.email] enable_signup = false`(config push로 실서비스에도). 코드도 "익명이 아니면 카카오"로 믿지 않고 `app_metadata.provider === "kakao"`를 본다(`isKakao`) — 아니면 방문자·"login required".
+- **#6·#7·#8 사진 세 건.** 리뷰 사진은 **한 번만 붙인다**(트리거 `reviews_photo_once` — 교체가 되면 옛 객체가 고아로 쌓이고 변환 한도를 무한히 탄다), 붙일 때 `photo_at`을 찍어 **월 상한(4,500)에 가게 사진과 합산**(`photos_this_month`), 속도 제한도 같은 'photo' 종류로 센다. **변환 전에 `photo_slot_ok(place?)`로 자리를 묻는다** — 정책이 거부할 업로드를 Images 변환(월 5,000장 무료)부터 하면 한도만 탄다. **DB에서 뗀 사진은 R2 객체도 지운다** — 사진 내리기·리뷰 삭제·탈퇴(RPC가 키를 비우기 전에 읽어 둔다). 되돌리기는 없다(관리자 화면에도 없다). 객체 삭제 실패는 액션을 실패시키지 않고 로그만(고아는 월간 점검).
+- **#11 관리자 사진 목록이 죽어 있었다** — `adminPhotos`가 컬럼 GRANT 밖 `uploader_id`를 select해 42501이 났고, 오류를 빈 Map으로 삼켜 **"사진 내리기"가 불가능**했다. 쓰는 곳이 없어 열을 뺐다(`Photo.uploaderId` 제거). 교훈: 오류를 빈 값으로 삼키는 읽기는 실측 없이는 죽은 줄 모른다 — Sentry(커밋 9)에서 이런 자리에 이벤트를 남긴다.
+- **#13 문 앞 경비 fail closed** — 실서비스 빌드(`NODE_ENV=production`)에서 Cloudflare 컨텍스트나 `WRITE_RATE_LIMITER` 바인딩이 없으면 쓰기를 거부하고 오류 줄을 남긴다. next dev는 통과.
+- **#14 `server-only`(0.0.1, Vercel)** — `lib/server/*`(actions 제외) 첫 줄에. CLAUDE.md가 "있다"고 적어 뒀는데 없었다.
+- **#15 시각은 서버만** — `checkins` INSERT GRANT를 `(place_id, actor, type)`로, `peel_results`는 `(type)`로. `rate_ok`는 **사람도 IP도 모르면 false**(fail closed) — 키가 새서 헤더 없이 직접 부르면 세는 축이 없어 무제한이었다(#5의 절반).
+- 백로그 4건의 조건은 roadmap 백로그 절에. #12(Turnstile `hostname`)는 더미 키가 돌려주는 hostname을 먼저 확인해야 로컬·CI가 안 깨진다.
+
+
+## 2026-09-16 — 커밋 7 관리자 실연결 (Phase 6)
+
+- **사후 확인 탭이 공개 읽기(`getPlaces`)를 보고 있었다** — 공개 뷰엔 `verified_at`·`hidden_at`이 없어 실 DB에선 **확인을 눌러도 목록에서 영영 안 빠지고 숨긴 제보도 남는** 상태였다(목 단계엔 한 객체라 티가 안 났다). 관리자 목록(`getPlacesForAdmin`)으로 바꾸고 숨긴 것도 거른다. 교훈: 목 → 실 DB 전환에서 "같은 함수 이름"이 같은 열을 준다고 믿지 않는다 — 공개 뷰의 열 목록이 곧 계약이다.
+- **중복 의심 큐**: 제보 2단계에서 "다른 가게예요"로 답한 행(`duplicate_suspect_of`)은 사후 확인 탭에 "중복 의심 · 후보 상호" 배지 + [이 가게로 합치기]. 후보 상호는 공개 뷰에서 붙인다(후보가 숨겨졌으면 배지만). **합치기는 확인 시트(`MergeSheet`)를 거친다** — 되돌리기가 없어 삭제와 같은 급이다(design 화면 10 "확인 모달은 삭제 하나뿐"에 둘째가 생겼다). 검색 탭의 [합치기]는 같은 시트에서 상호로 대상을 찾아 고른다(자기 자신·숨긴 가게 제외).
+- **옛 주소는 영구 리다이렉트** — `merge_target(id)`(공개 RPC, 병합 사슬 최대 5단, 끝이 보이는 가게일 때만)로 `/place/[old]` → `permanentRedirect(/place/new)`. 메타·페이지가 같은 헬퍼를 지나 공유 링크와 OG가 함께 산다(spec 4.3 엣지).
+- **검수 필터**: `admin_places(p_needs_review)` + 검색 탭 [검수 대기] 칩(검색어 대신 숨긴 채 임포트한 시드). **[복구]가 곧 검수 완료** — `needs_review`도 내린다(안 내리면 복구한 가게가 검수 목록에 남는다).
+- **디스코드 웹훅**(`lib/server/notify.ts`): 제보(중복 의심 표시)·가게/사진 신고·정보 달라요·사장님 요청·**신고 누적 3회째**(열린 가게 신고 수가 정확히 3일 때 한 번 — 신고 표는 관리자만 읽어 secret key로 센다, 없으면 건너뛴다). 본문은 상호·지역·사유·가게/관리자 링크뿐이고 **연락처는 싣지 않는다**. 상호는 사용자 입력이라 `allowed_mentions: {parse: []}`로 @everyone을 끈다. 워커에선 `ctx.waitUntil`, next dev에선 그냥 기다린다. 실패는 로그만(커밋 9 Sentry). 신고 종류·사유 라벨은 세 번째 호출자가 생겨 `lib/report-labels.ts`로 뺐다.
+- **까주기 결과 한 줄**(plan 결정 25): 결과 화면으로 가기 직전 `recordPeelResult(slug)` — Turnstile 없이 IP 해시만(`ipHashedClient`), 일 20은 DB가 센다. 공유 링크 착지는 세지 않는다("방금 푼 사람"만). 실패는 액션이 삼킨다.
+- **실측(next dev + 로컬 Supabase, 관리자 세션은 curl 익명 가입 → SQL 승격 → 토큰 refresh → 쿠키 주입)**: 사후 확인 탭에 "중복 의심 · 21세기우리바다수산" 배지 → [이 가게로 합치기] → 시트 확인 → 목록에서 빠짐, DB `merged_into`·숨김, 옛 URL은 **308** → 새 가게, 모르는 id는 404. 검색 탭 [검수 대기] 1곳(스몰) → [복구] → `needs_review=false`·공개. 가게 신고 3번째 → 가짜 수신기에 웹훅 2건("[가게 신고] … 사유: 허위·광고성 등록" + "[신고 누적] … 열린 신고 3건", 연락처 없음, 멘션 끔). /test 완주 → `peel_results` 1행 + rate_events(peel) 1행. pgTAP 060(6건)·advisors 0·vitest 549.
+
+## 2026-09-16 — 커밋 8 CI (Phase 6)
+
+- **CI가 실 DB 경로를 지난다.** `db` 잡(로컬 Supabase → pgTAP → 생성 타입 diff → advisors 0건)과 `check` 잡(로컬 Supabase를 상대로 OpenNext 빌드·workerd 스모크·Lighthouse)이 나란히 돌고, preview·deploy는 둘 다 통과해야 한다. CLI는 로컬과 같은 **2.117.0 고정** — `gen types` 결과가 판마다 달라 diff가 흔들린다. 쓰지 않는 컨테이너(realtime·storage·studio·mailpit·edge-runtime·logflare·vector·supavisor·postgres-meta·imgproxy)는 `-x`로 뺀다.
+- **스모크는 `scripts/smoke.sh` 하나**(CI와 로컬 동일). 목 id `p018`·"뚝섬포구"·"서담해물" 대신 **DB에서 가게·구를 뽑는다**(plan 결정 23) — HTML 이스케이프가 끼지 않는 상호, 괄호 없는 서울 구. 모르는 uuid와 uuid 아닌 id 둘 다 404. sitemap에 그 가게가 있는지도 본다. Lighthouse는 스모크가 고른 가게 id를 `lighthouserc.json`의 `__PLACE_ID__`에 넣어 잰다(`lighthouserc.ci.json`, gitignore).
+- **빌드의 비밀은 더미다.** 서버 비밀(`TURNSTILE_SECRET_KEY`·`IP_HASH_SALT`)은 런타임에 워커 secret에서 읽히고 번들에 박히지 않는다 — preview·deploy 빌드는 t3-env 검증만 지나면 되므로 `build-only-dummy`를 준다. GH에는 그 비밀들이 없다(runbook 1절 표 정정). prod `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`는 GH variable → `--var`로 워커 변수에(리포에 적지 않는다).
+- **프리뷰 = `--var PREVIEW_READONLY:1`**(보안 리뷰 #3). 발화 검증은 첫 PR의 프리뷰에서 찜 한 번(read only 토스트).
+- **keepalive.yml**: 매일 09:00 KST `GET /`. 홈이 요청 시 DB를 읽으므로 이 한 번이 Supabase 무료 프로젝트의 "활동"이다. GitHub는 60일 무커밋 리포의 스케줄을 끄니 월간 점검에 넣었다.
+- `.dev.vars.example`을 채웠다(wrangler dev 런타임 변수 — `next dev`의 `.env.local`과 다른 파일이다).
+
+## 2026-09-16 — 커밋 9 Sentry (Phase 6)
+
+- **`@sentry/nextjs` 10.74.0, 수동 4파일**(위저드 없음): `instrumentation-client.ts`(브라우저, Next 15.3+ 방식)·`sentry.server.config.ts`·`instrumentation.ts`(`register` + `onRequestError = captureRequestError`)·`app/global-error.tsx`. `next.config.ts`는 `withSentryConfig`(**`@sentry/nextjs/config`에서** — 루트 import는 v11에서 사라진다는 10.74 경고)로 감싼다. 트리셰이킹 옵션(`disableLogger` 등)은 webpack 전용이라 Turbopack 빌드에선 두지 않는다. Cloudflare 요건(`nodejs_compat`, 호환 날짜 ≥ 2025-08-16)은 이미 충족(wrangler.jsonc 2026-09-01).
+- **에러만 본다.** `tracesSampleRate: 0`, 리플레이·피드백 없음, `sendDefaultPii: false`, 터널 라우트 없음(워커 요청 = 비용, 2026-09-01), 소스맵 업로드 없음(`sourcemaps.disable` — SENTRY_AUTH_TOKEN·org·project는 Phase 7 백로그, 스택은 압축된 채 온다). 무료 5k 이벤트/월 안에서.
+- **DSN(`NEXT_PUBLIC_SENTRY_DSN`, 규칙 7 허용 목록)이 없으면 초기화하지 않는다** — 로컬·DSN 전 프리뷰에서는 SDK가 실려도 아무것도 보내지 않는다. 서버 환경 태그는 `PREVIEW_READONLY=1`이면 `preview`.
+- **`lib/server/observe.ts` `reportError(message, context, cause)`** — 실패를 삼키는 자리(디스코드 웹훅·R2 객체 삭제·경비 바인딩 누락·까주기 집계·익명 승계)는 console.error 대신 이것. 로그 한 줄 + Sentry 이벤트(같은 메시지 = 한 이슈, fingerprint). 사용자 입력·연락처·uid는 context에 넣지 않는다. `captureConsoleIntegration`은 쓰지 않는다 — supabase-js 등 남의 console.error(낡은 refresh token 등)가 이벤트가 되어 할당량을 태운다.
+- `app/error.tsx`도 `captureException` — 서버 오류는 `onRequestError`가 보내지만 클라이언트 렌더 오류는 경계에서만 잡힌다(같은 digest면 한 이슈).
+- **로컬 발화 확인**(가짜 ingest `127.0.0.1:9999` + `next dev` + `/?mock=error`): 서버 봉투 1건(`Error: mock error (dev only)`, mechanism `auto.function.nextjs.on_request_error`, runtime `cloudflare`) + 브라우저 봉투 1건(`app/error.tsx`의 captureException, `request.url=/?mock=error`)이 도착했다. 실 DSN 발화는 첫 PR 프리뷰에서(runbook 2절 5).
+
+## 2026-09-16 — 커밋 10 런칭 전 보안 스윕: 쓰기 경로 × (검증 · 행위자 · 권한 · 제한 · 실패) 표
+
+roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWriteGate`(① `PREVIEW_READONLY` 거부 → ② Cloudflare 속도 제한 바인딩 IP당 60초 20 → ③ Turnstile siteverify → ④ IP 해시 헤더)를 지나고, DB가 마지막 방어선이다(RLS·트리거·RPC의 `rate_ok`, 사람·IP 둘 다 없으면 거부). 실패는 `Result` 코드로 돌아와 `lib/data.ts`가 throw하고 화면은 **기존 실패 토스트**를 탄다(코드 분기는 리뷰 폼의 "already reviewed" 하나). 프리뷰의 "읽기 전용"도 그 토스트다(plan 결정 7 — 별도 문구 없음, 의도).
+
+| 경로(액션) | 입력 검증(zod, 폼과 같은 스키마) | 행위자 | 권한(RLS·RPC) | 제한(DB) | 실패 코드 |
+|---|---|---|---|---|---|
+| 다녀왔어요 `checkIn` | uuid | `ensureUser`(익명 생성) | `checkins_insert`: actor = uid · type visited · 가게 보임. INSERT는 (place_id, actor, type)만 — 시각은 서버 | 가게·사람·KST일 유니크 | already checked · place not found |
+| 찜 `setBookmark` | uuid + 원하는 상태(멱등) | ensureUser | `bookmarks_own`(user_id = uid), UPSERT ignoreDuplicates | — | place not found · forbidden |
+| 제보 `submitReport` | 이름 40·좌표 한국 상자·메뉴 1~5·영업시간 80·네이버 링크 호스트·내용 필터(URL·금칙어) | ensureUser | RPC `submit_report`(DEFINER): 중복 후보 보임·섀도 밴은 숨긴 채 생성 | 'report' **5/시간** | outside korea · rate limited · forbidden → 디스코드 알림 |
+| 가게 사진 `addPlacePhotos` | 1~10장·`image/*`·10MB(FormData) | ensureUser | `photo_slot_ok` 사전 확인 → `IMAGES.info()` 실검사 → 1200px webp 재인코딩(EXIF 제거) → `photos_insert`(uploader = uid·가게 보임) | 'photo' 10/시간/가게 · 월 전역 4,500 · 가게당 10(트리거) | not image · photo limit reached · rate limited |
+| 정보 수정 제안 `submitSuggestion` | 필드별(영업시간 80·주소 60·메뉴 편집 ≤20+추가 1·사이드)·내용 필터 | ensureUser | RPC `apply_suggestion`(DEFINER, 이력 `place_edits` 트리거) | 'suggest' 5/일 | rate limited · forbidden |
+| 신고 3종 `reportPhoto`·`flagPlace`·`reportPlace` | uuid + 사유 enum | ensureUser | `reports_insert`(actor = uid·가게 보임) + IP 해시 스탬프 트리거 | place_flag **1/일/가게** · 그 외 10/일 | rate limited · place not found → 디스코드 + 열린 신고 3건째 누적 알림 |
+| 사장님 요청 `submitOwnerRequest` | 연락처 5~60(NFKC·제어문자 제거)·내용 300 필터·종류 enum | ensureUser | 같은 정책 | 'owner_request' 2/일/가게 | 같음 → 알림에 연락처 없음 |
+| 리뷰 등록 `submitReview` | 별점 1~5·후기 500 필터 | **`requireKakao`**(provider = kakao 클레임) | `reviews_insert`(author = uid·비익명·가게 보임) | 'review' 10/일 · 핀당 1(유니크) | already reviewed(폼 분기) · login required |
+| 리뷰 사진 `attachReviewPhoto` | uuid + File | requireKakao | 본인 리뷰·photo_key null 확인 → `photo_slot_ok` → 저장 → UPDATE … IS NULL + 트리거 `reviews_photo_once`(교체 거부·월 상한 합산) | 'photo' 10/시간 | photo limit reached · forbidden |
+| 리뷰 수정 `updateReview` | 별점·후기 | requireKakao | `reviews_update_own`(author = uid, USING + WITH CHECK) | — | forbidden |
+| 리뷰 삭제 `deleteReview` | uuid | 게이트 | 같은 정책(deleted_at) + R2 객체 삭제 | — | forbidden |
+| 닉네임 `updateNickname` | NFKC·2~12·문자 종류·금칙어 | requireKakao | `profiles_update_own` + CHECK 2~12 | — | login required · forbidden |
+| 탈퇴 `deleteAccount` | — | requireKakao | secret key RPC `admin_delete_user`(EXECUTE service_role만): 리뷰 소프트 삭제 + 사진 키 제거, 신고 연락처 제거, `auth.users` 삭제(FK cascade/set null) + 리뷰 사진 R2 삭제 | — | throw "delete failed" |
+| 카카오 로그인 `signInWithKakao` → 콜백 | `next`는 `sameOriginPath`(origin 비교) | — | PKCE(남의 code는 verifier 불일치) · 익명 승계 `admin_merge_users`(secret) · 읽기 전용이면 거부 | — | `?login=fail` |
+| 까주기 결과 `recordPeelResult` | 슬러그 enum | **게이트 없음**(읽기급) + IP 해시 | `peel_results_insert`, INSERT는 (type)만 | 'peel' 20/일/IP(사람·IP 없으면 거부) | 삼킨다(Sentry) |
+| 관리자 8종 `resolveReport`·`confirmPlace`·`setPlaceHidden`·`deletePlace`·`deletePlacePhoto`·`revertPlaceEdit`·`mergePlaces` | uuid·enum | 세션(관리자) | RLS `is_admin` 정책 / RPC `admin_merge_places`(is_admin + 대상 유효) — `/admin`은 서버 404, Turnstile·속도 제한 없음(스팸 표면 아님), 프리뷰 읽기 전용은 공유 | — | forbidden · place not found |
+| 사진 서빙 `/photos/[...key]` | 키 정규식 `(places|reviews)/uuid/uuid.webp` | — | R2 get, `image/webp` 고정, immutable 1년 | — | 404 |
+
+컬럼 노출(개인 식별자): `places_public`은 reporter_id·duplicate_suspect_of·merged_into·needs_review·verified_at·hidden_at 없음(`admin_places()`로만) · `checkins.actor`·`photos.uploader_id`·`reports.ip_hash`·`profiles.is_admin/shadow_banned` GRANT 없음 · `reviews_public.author_id`는 백로그 #9. SECURITY DEFINER 전부 `search_path=''`, `private` 스키마 API 미노출, advisors 0.
+
+## 2026-09-16 — 커밋 10a 최종 리뷰 반영 (보안 9 · 코드 21 · 갭 27 중 코드 쪽)
+
+- **리뷰 삭제가 실 DB에서 깨져 있었다 — 리뷰어 셋 다 못 잡았고 pgTAP를 넓히다 걸렸다.** PostgreSQL 17은 **UPDATE의 새 행도 SELECT 정책을 통과**해야 한다. `reviews_select`가 `deleted_at is null`이라 작성자가 `deleted_at`을 찍는 순간 "new row violates row-level security policy". 본인 소프트 삭제는 RPC `delete_review(p_id)`(DEFINER, 작성자·미삭제 검사, 가게·사진 키 반환)로 옮기고 `deleted_at` 컬럼 UPDATE GRANT를 뺐다(되살리기도 원천 차단). 교훈: **"정책이 있다"가 아니라 실제 역할로 그 문장을 실행하는 pgTAP**가 있어야 한다 — 커밋 2의 020은 리뷰 등록·중복만 봤다.
+- **관리자 쓰기 뒤 한 행 조회(P1)**: `admin_places(p_id)`로. 200행 목록에서 찾으면 등록일이 같은 시드(CSV 수집일)는 순서가 임의라 빠져 "처리하지 못했어요"가 떴다(DB는 바뀐 채). `p_ids`도 더해 신고 탭 조인·중복 후보 상호가 최근 500행에 묶이지 않게 했다.
+- **DB 마지막 방어선(보안 중간 #1)**: reviews·photos·reports INSERT를 컬럼 GRANT로 좁혔다(시각·키·상태·삭제 표시는 서버·트리거만). 사진 키는 트리거가 자기 자리(`reviews/<리뷰 id>/`, `places/<가게 id>/`)만 허용 — 남의 키를 넣고 지우면 그 R2 객체가 지워지는 길을 막는다. `checkins`는 사람당 일 30(`rate_ok('checkin')` + rate 트리거).
+- **섀도 밴은 조용해야 한다(보안 #2·코드 #9)**: 신고는 `insert().select()`로 반환 0행이면 알림 없이 성공한 척, 제보는 RLS로 못 읽으면 입력값으로 `Place`를 그려 돌려준다(`placeFromReport`), 리뷰는 `maybeSingle()` null이면 입력값으로 그린다. 밴 사실이 실패 토스트·디스코드로 새지 않는다.
+- **캐시가 낡던 네 자리(코드 #3~#6)**: 7일 NEW 배지는 `toPlace(row, now)`에서 읽을 때 계산(캐시 채울 때 얼어붙던 것), 시즌 카운터 키에 KST 날짜(자정·월요일에 자연 롤오버 — 시간 기반 만료가 없으므로), 닉네임 변경·탈퇴·승계·합치기 뒤 리뷰가 있던 가게 캐시 만료. 합치기·승계 RPC는 소프트 삭제한 리뷰의 (가게, 사진 키)를 돌려주고 액션·콜백이 만료와 R2 삭제를 한다. 탈퇴의 키 읽기는 secret key로(소프트 삭제된 리뷰는 RLS가 감춘다, 보안 #4).
+- **합치기(코드 #7·#8)**: 원본도 미병합이어야 하고(이미 합쳐진 가게 재합치기 = merged_into 덮어쓰기 방지), 합치면 `needs_review`도 내린다. 합쳐진 가게는 관리자 검색에 "합쳐짐"으로 보이고 [복구]가 없다(`Place.mergedInto`).
+- **없는 uuid는 캐시에 남기지 않는다(보안 #7·코드 #15)**: 상세 캐시 콜백이 던져서 항목을 안 만들고, `React.cache`로 generateMetadata·페이지가 같은 id를 한 번만 묻는다(`merge_target` RPC도).
+- **CI 값 노출(보안 #3)**: wrangler는 `--var` 값을 40자까지 로그에 찍는다 → prod `SUPABASE_URL`·publishable은 GH **secret**(빌드) + 워커 secret(런타임)으로, `--var`에서 뺐다. runbook 1·3·3c 정정.
+- 작은 것: 디스코드 본문의 상호는 인라인 코드(마크다운 무력화), `reportError`는 같은 메시지 분당 1건, 프로필 없는 카카오 JWT는 손님(세션이 영영 null이던 것), 콜백은 secret 없으면 승계만 건너뜀, 탈퇴·카카오 시작도 `Result`, `MergeSheet` alive ref + 함수형 `setRows`, 신고 누적 알림은 UI 배지와 같은 술어(`place_report`), smoke.sh는 `grep -F`.
+- 백로그로 남긴 것: 42501 매핑 통일(코드 #10), 액션 단위 테스트(#21), supabase CLI npm 고정(#20), 까주기 결과 표 정리(보안 #6).
+
+## 2026-09-16 — 커밋 10b 갭 스윕의 스펙 미구현 3건
+
+- **확인 0회 제보 핀은 "○일 전 등록"** (roadmap 백로그 → Phase 6, 결정 11): `lib/places.ts checkLabel·checkSentence` — 카드·상세 헤더·기여 밴드·메타 설명이 같은 판정을 쓴다(`checkCount === 0`). 확인일은 checkins에서 나오므로 확인 없는 핀엔 등록 시각이 들어오는데 그걸 "확인"이라 부르면 거짓이다.
+- **사장님 요청으로 내린 가게 자리의 재제보 경고**(spec 5): `submit_report`가 150m 안의 `removed_by_owner` 가게를 `duplicate_suspect_of`로 단다(내린 가게는 숨겨져 2단계 중복 검사에 안 걸린다). 관리자 사후 확인 탭은 후보를 관리자 목록에서 읽어 "사장님이 내린 자리 · 상호" 배지로 보여 준다. pgTAP 060.
+- **배포 뒤 생긴 핀의 공유 카드**(plan 결정 18): `place/[id]/opengraph-image` 파일 컨벤션은 og:image를 늘 자기 세그먼트로 박아 새 핀은 404였다(갭 스윕 #7). 구·테스트 카드처럼 **라우트 `/og/place/[id]`**(빌드 시 생성, `dynamicParams=false`)로 옮기고 `placeMeta`가 `placeOgImagePath`로 가리킨다 — 빌드 시각(`next.config env.BUILD_AT`, 시각 하나라 비밀 아님) 뒤에 생긴 핀은 루트 카드. workerd 실측: 빌드 뒤 넣은 핀 → `/opengraph-image` 200 png, 기존 핀 → `/og/place/<id>` 200 png.
+- **zsh 함정(메모)**: 셸 변수 이름 `path`는 zsh에서 `PATH` 배열이라 대입하면 명령을 못 찾는다 — 검증 스크립트에서 30분 잃었다.
+
+## 2026-09-16 — 호스팅 Supabase 생성 (사용자 콘솔 작업 중 CLI로 되는 것)
+
+- **새 조직 `saeu-map`(smzmkuvlzouhlpybhzli)에 프로젝트 `saeu-map`(ref `dnwkyobizphuacqvfseh`, ap-northeast-2)**를 CLI로 만들었다 — "무료 슬롯 하나"는 조직 단위라 새 조직이면 된다(사용자 질문 "조직 새로 못 만들어?" → 됐다). link + `db push`(마이그레이션 2개) 완료. DB 비밀번호는 `.env.local`의 `SUPABASE_DB_PASSWORD`(gitignore)뿐 — 잃으면 대시보드에서 재설정.
+- **키는 파일에 남기지 않고 파이프로만 옮겼다** — 처음 `api-keys` 출력을 파일에 쓰려다 Claude Code 자동 모드 분류기에 막혔고(credential materialization), `supabase projects api-keys --reveal | python | gh secret set / wrangler secret put`처럼 stdout에도 디스크에도 안 남기는 방식은 통과했다. GH secrets `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`, 워커 secret `SUPABASE_URL`·`SUPABASE_PUBLISHABLE_KEY`·`SUPABASE_SECRET_KEY`·`IP_HASH_SALT`(openssl 난수, 어디에도 기록 안 함 — 새면 교체) 등록 완료. **시드 임포트 완료**: 가게 789(검수 숨김 27)·역 출구 5,060·seed 확인 789·최근접역 691. 앞으로도 실서비스 키는 로컬 파일에 두지 않는다 — 필요할 때 같은 파이프.
+- `config push`는 카카오 키(env 플레이스홀더)가 들어온 뒤 한 번에 — 그 전엔 `config diff`로 익명 로그인·이메일 가입 닫힘 항목만 확인.
+
+## 2026-09-17 — R2 구독·버킷 2개 · Turnstile 위젯 등록
+
+- 사용자가 대시보드에서 R2 구독(무료 한도, 카드 등록)·Turnstile 위젯(`saeu-map`, Managed, workers.dev 호스트 둘)을 만들었다. 버킷 `saeu-photos`·`saeu-cache`는 wrangler로 생성. site key는 GH variable, secret은 워커 secret으로 올리고 **`.env.local`은 테스트 키로 되돌렸다** — 로컬 위젯은 테스트 site key라 토큰이 테스트 secret으로만 통과한다(실제 secret이 로컬에 있으면 로컬 쓰기가 전부 "bot check failed").
+- **도메인을 붙이는 날 체크리스트**를 runbook 3d에 표로 — Turnstile 호스트명·Supabase 허용 URL·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains·SITE_URL. 사용자가 "까먹을 수 있으니 문서에" 요청(2026-09-17).
+- **나머지 셋도 등록(2026-09-17)**: Sentry DSN → GH variable(가짜 ingest가 아니라 실 DSN에 curl로 테스트 이벤트 1건 보내 HTTP 200 확인 — sentry.io에 "새우맵 DSN 확인" 이벤트가 있다), 디스코드 웹훅 → 워커 secret, 카카오 REST 키·Client Secret → `config.toml [auth.external.kakao] enabled = true`(키는 env 플레이스홀더, `.env.local`에서 셸 env로) + **`supabase config push` 완료**(익명 로그인 켬·이메일 가입 끔·허용 URL·카카오). 템플릿 풀러 값(`default_pool_size`·`max_client_conn`)은 주석 처리해 실서비스 풀러를 덮지 않게 했다. 사용자 콘솔 작업 7개 전부 끝 — 남은 건 push·PR.
+
+## 2026-09-17 — 도메인 `새우맵.kr` (Phase 7 항목을 당겨 붙임)
+
+- **한글 도메인을 주 도메인으로.** 처음엔 영문(`saeumap.kr`) 주 + 한글 보조를 권했다가, 야장맵·거지맵이 한글 도메인으로 잘 굴러가는 점과 "○○맵" 시리즈 브랜드(굴맵·대방어맵)를 들어 **한글 주 도메인**으로 결론을 바꿨다. 남는 불편은 셋뿐: 주소창 직접 입력의 한/영 전환, 일부 브라우저의 주소창 복사가 퓨니코드로 나오는 것, 외부 서비스 설정에 퓨니코드를 넣는 것(내 몫). `.kr`은 국내 서비스·시리즈 통일(연 2만 원 안팎), `.com`은 선점 걱정이 생기면 그때.
+- **기계용은 퓨니코드, 사람용만 한글.** `lib/seo.ts` `SITE_HOST = "xn--r02bv8jvof.kr"`, `DEFAULT_SITE_URL`은 그 https — canonical·og:url·sitemap·콜백 URL은 URL 객체가 어차피 이 형태로 만든다. 브라우저 `location.origin`도 퓨니코드로 오므로 **공유·복사 링크만 `displayOrigin`으로 `https://새우맵.kr`**(카톡에 `xn--…`가 안 보이게). 프리뷰·로컬 origin은 그대로.
+- **워커 연결은 `wrangler.jsonc routes[{pattern, custom_domain: true}]`** — 첫 `wrangler deploy`(머지 뒤 CI)가 DNS 기록·인증서를 만든다. 그래서 DNS 화면에서 손으로 기록을 넣지 않았다. workers.dev 주소는 계속 열어 둔다(keepalive·프리뷰). `www`는 Redirect Rule(대시보드)로 나중에 — 보류.
+- Supabase 허용 URL에 `https://xn--r02bv8jvof.kr/**` 추가 후 config push. 나머지 네 곳(Turnstile 호스트명·카카오 플랫폼 도메인·NCP 서비스 URL·Sentry Allowed Domains)은 사용자 대시보드 작업 — runbook 3d.
+- Cloudflare에 사이트 추가(Connect a domain → Free → DNS 0건 Continue → AI 봇 설정은 그대로)와 가비아 네임서버 변경(1차 eric·2차 gail, 3차 비움)은 사용자가 했다. `dig NS`로 전파 확인.
+
+## 2026-09-17 — 첫 PR(#16) 프리뷰: Workers Free의 CPU 10ms에 걸렸다
+
+- CI: `db` 1분 · `check` 6분(추정 15분보다 짧다) 통과. 프리뷰 업로드는 CI 토큰에 R2·D1 권한이 없어 "원격 R2 캐시 채우기"에서 죽었다(메시지 없이) → 사용자가 토큰에 Workers R2 Storage Edit·D1 Edit·Workers Routes Edit·DNS Edit(도메인용)를 더해 재실행 통과.
+- **프리뷰에서 4번에 1번꼴로 503 "Worker exceeded resource limits"(에러 1102)**. Free 플랜은 요청당 CPU 10ms. 로컬 측정(M시리즈 맥, Workers CPU는 이보다 느리다): 762곳 JSON.parse 2.6ms + zod·toPlace 2.5ms + 직렬화 2ms = 7ms를 React 렌더 전에 이미 쓴다. 지도 화면이 요청마다 가게 전부를 SSR로 싣는 구조라 Free 한도 안에 못 든다.
+- 반영: **zod는 캐시 채울 때 한 번**(`cachedAllPlaces`·`cachedDetailRows`가 Place로 매핑해 저장), 읽을 때는 NEW 배지만 다시 찍는다(`isNewPlace`). `observability.enabled`로 호출별 CPU·결과를 대시보드에서 볼 수 있게. **권고: Workers Paid($5/월, CPU 30초)** — decisions 2026-09-10 #5의 "Paid 전환 신호"에 세 번째 신호(SSR CPU)가 먼저 왔다. 사용자 결정 대기.
+- 측정 시 함정: 내 셸(샌드박스)과 사용자 브라우저 둘 다 cf-ray가 **LAX**였다 — 요청이 미국 콜로로 가서 TTFB 1~4초가 섞였다(워커→서울 Supabase 왕복). 한국 일부 ISP(특히 KT)가 Cloudflare 트래픽을 미국으로 보내는 건 알려진 문제라 런칭 뒤 실사용 지연을 봐야 한다. `wrangler tail`은 프리뷰 버전 트래픽을 못 잡았다(0줄) — 대시보드 Workers Logs를 쓴다.
+
+## 2026-09-18 — Codex PR #16 리뷰 6건 전부 반영 (P1 2 · P2 4)
+
+- **#1 행위자 결속(P1)**: `lib/data.ts` 쓰기 래퍼가 Turnstile 토큰을 기다리는 사이 다른 탭에서 로그인·탈퇴하면 바뀐 쿠키로 쓰였다. SessionProvider가 `rememberSession`으로 세션 id를 알려 주고, 래퍼는 **await 전에** 잡아 액션의 마지막 인자(`actor`, FormData는 `actor` 필드)로 보내며 `openWriteGate`가 쿠키의 `sub`와 대조한다(다르면 `session changed` → 일반 실패 토스트). 모르면(null) 대조하지 않는다 — 첫 쓰기 전 익명 세션은 아직 없다. 같은 종류 3회째라 CLAUDE.md 컨벤션에 승격.
+- **#2 섀도 밴 사진(P1)**: 트리거가 버린 INSERT 뒤에도 R2 객체가 남고 Images 변환도 탔다. `photo_slot_ok`가 `not is_shadow_banned()`를 먼저 본다(액션에는 rate limited로 보인다 — 사진만은 "조용히 성공한 척"이 불가능하다, 돌려주는 Place에 사진이 없으니). 그래도 0행이면 객체를 지운다(`.select("id")`).
+- **#3 찜 직렬화(P2)**: 응답이 찜 목록 전체라 겹친 요청이 뒤바뀐 순서로 오면 앞선 찜이 화면에서 사라졌다 — `lib/data.ts`에서 한 줄(promise chain)로 보낸다. 가게별이 아니라 전역인 이유: 다른 가게의 응답도 같은 목록을 덮는다.
+- **#4 사진 신고 결속(P2)**: `reports_insert` 정책에 "photo_id는 그 place_id의 (보이는) 사진" 조건. 남의 가게 사진 id로 신고하면 42501. pgTAP 2.
+- **#5 사진 캐시(P2)**: 1년 immutable → 하루(`/photos` 라우트·R2 httpMetadata 둘 다). 내린 사진이 브라우저·CDN 캐시에 남는 시간이다. 사진 요청은 늘지만 Free 하루 10만 안(Phase 7 R2 직서빙으로 옮기면 무관).
+- **#6 합치기 10장 상한(P2)**: INSERT 트리거만 지키던 상한을 `admin_merge_places`가 넘치면 오래된 것부터 `removed_at`을 찍고 키를 돌려준다 → 액션이 기존 freed 경로로 객체를 지운다. pgTAP 2.
+- 곁가지: `pnpm db:types`가 실패해도 파일을 비우지 않게(임시 파일 → mv). 로컬에서 `--local`이 "password authentication failed for user postgres"로 두 번 죽었다(CI는 정상, 원인 미상) — `supabase gen types typescript --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --schema public`으로 뽑으면 된다(결과 동일 확인).
+- 검증: pgTAP 94 → 99, vitest 560(래퍼 테스트 `lib/__tests__/data-write.test.ts` 3개 추가 — 행위자는 토큰 await 전 캡처, 찜은 한 줄), advisors 0, typecheck·lint 통과, 타입 파일 변화 없음. 로컬 dev + Playwright 실측: 찜 4연타 → 액션 요청 4개가 겹치지 않고 순서대로(각 ~300ms, 사이에 Turnstile 토큰), 새로고침 뒤 익명 세션 id가 `actor`로 실려 문을 통과, 페이지의 세션 쿠키를 지우고 누르면 `{ok:false,error:"session changed"}` + 하트 롤백. 프리뷰는 읽기 전용이라 쓰기 검증은 로컬에서만.
+- 프리뷰 503 재측정(CPU 커밋 뒤, curl 30회): 홈 24회 중 3회 + 상세 6회 중 1회 = **4/30**. 1/4에서 줄었지만 Free 10ms 안에 안정적으로 못 들어간다 — Workers Paid($5) 권고 유지.
+
+## 2026-09-18 — 503의 진짜 원인은 콜드 스타트와 홈 페이로드였다 (어제 진단 정정)
+
+- 어제(09-17) "데이터 작업 7ms가 Free 10ms에 걸린다"는 진단은 **틀렸다**. 맥에서 잰 수치로 추정했고 워커 실측을 보지 않았다. `observability`를 켠 뒤 GraphQL 분석(`workersInvocationsAdaptive`)으로 24시간을 보니 성공한 요청도 CPU p50 284ms · p90 1.28s였고, 종료(exceededResources)는 79회 중 16회. Free의 10ms는 요청마다 칼같이 자르는 게 아니라 여유를 두고 집행되며, 실제 종료는 CPU 1.3~2초 언저리에서 났다.
+- 라우트별 분리 실험(분 단위 창에 한 라우트만 12회 보내고 그 분의 분포를 읽음): `/robots.txt` → CPU p50 29ms · p90 593ms · p99 701ms. `/` → p50 210ms · p90 980ms, 3회 종료. 읽는 법: **요청 기본 비용 ~30ms**(Next 핸들러·Sentry Node SDK), **콜드 스타트 +600~900ms**(17MB 서버 번들 `handler.mjs`의 지연 로딩 — 하루 79요청이라 거의 매번 콜드), **홈 페이지 +180ms**(가게 762곳 전체를 900KB RSC 페이로드(gzip 116KB)로 직렬화). 콜드와 홈이 겹치면 1초를 넘겨 종료된다.
+- 어제의 zod 커밋은 이 중 2~3ms를 줄였다 — 원인 해결이 아니었다. 25% → 13%는 표본 30개의 흔들림으로 본다.
+- 시사점: **Paid($5)는 종료(503)를 없애지만 콜드 스타트 지연(TTFB ~1초)은 남는다** — 트래픽이 생겨 아이솔레이트가 따뜻해지면 준다. Free에 남으려면 콜드 스타트(서버 Sentry를 `@sentry/cloudflare`로 바꾸거나 빼기, 번들 축소)와 홈 페이로드(마커용 경량 목록 + 카드 분리)를 둘 다 줄여야 하고 그래도 보장은 없다. roadmap 백로그 "워커 CPU 다이어트"로.
+- 도구 메모: Workers Logs 쿼리 API(`/workers/observability/telemetry/query`)는 wrangler OAuth 토큰으로 403(Workers Observability Read 토큰 필요). GraphQL `workersInvocationsAdaptive`(scriptName·status·datetimeMinute 차원, cpuTime은 µs)는 wrangler 토큰으로 된다. 라우트 차원이 없어 시간 창으로 분리했다.
+
+## 2026-09-18 — Workers Paid($5/월)로 간다
+
+- 사용자 결정. 근거는 같은 날 실측: 503의 원인이 콜드 스타트(600~900ms) + 홈 페이로드(180ms)라 Free의 CPU 한도 안에 "보장"으로 넣을 방법이 없었다. 대안(서버 Sentry 제거·홈 HTML 캐시·페이로드 분리)은 효과가 측정 전엔 불확실하고 반나절 이상이라, 런칭 전에는 사지 않고 시간을 쓰는 게 손해라고 판단.
+- Paid가 바꾸는 것: 요청당 CPU 10ms → 30초(종료 0), 월 1,000만 요청 포함, Workers Logs 보관 3일 → 7일. **콜드 스타트 지연(첫 응답 ~1초)은 그대로다** — 트래픽이 생기면 줄고, 안 줄면 백로그 "워커 CPU 다이어트"를 집는다.
+- 풀리는 제약: "Workers Free CPU 10ms라 OG 카드는 빌드 시에만"(decisions 2026-09-07)의 이유가 사라졌다. 코드 주석은 당시 결정의 근거라 그대로 두고, 요청 시 생성은 roadmap 백로그로(Phase 7).
+- 월 비용: Workers $5 + R2(무료 한도 안) + Supabase Free + 도메인(연). runbook 표 갱신.

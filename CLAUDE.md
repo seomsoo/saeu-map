@@ -8,6 +8,7 @@
 - typecheck: `pnpm typecheck` (tsc --noEmit)
 - 전체 검증: `pnpm typecheck && pnpm lint && pnpm test`
 - 배포 전 확인: `pnpm preview` (:8787, 실제 Workers 런타임) / 배포: main 머지 → GH Actions `deploy` 잡 자동, PR → `preview` 잡이 https://preview-saeu-map.saeu-map.workers.dev 갱신 (Cloudflare Workers — decisions.md 2026-09-01). 수동은 `pnpm run deploy`.
+- DB(로컬 Docker Supabase): `pnpm db:start` / `pnpm db:reset`(마이그레이션 + seed) / `pnpm db:test`(pgTAP RLS 테스트) / `pnpm db:advisors`(0건이 기준) / `pnpm db:types`(→ lib/db/database.types.ts). 스키마 변경은 `supabase/migrations/`에 파일로만.
 - dev 전용 상태 토글: `/?mock=error` → 라우트 에러 화면(app/error.tsx). production에선 무시.
 
 서울 새우구이 지도. 모바일 퍼스트 웹. 상세 스펙은 docs/를 먼저 읽어라:
@@ -15,9 +16,9 @@
 - docs/design.md — 화면별 레이아웃·스타일 스펙 + 디자인 토큰 표
 - docs/decisions.md — 결정 로그 (여기 없는 결정은 미정이다. 임의로 정하지 말고 물어라)
 
-## 지금 단계
-UI 먼저, 백엔드 나중. 모든 데이터는 lib/mock/의 JSON을 lib/data.ts 함수로 읽는다.
-Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
+## 지금 단계 (Phase 6 — 백엔드 교체, docs/plans/phase6-backend.md)
+UI는 끝났고 백엔드(Supabase)도 **코드는 끝났다**(2026-09-16, 플랜 "## 결과"). 남은 것: 사용자 콘솔 작업(roadmap Phase 6 마지막 줄) → 첫 PR에서 프리뷰 발화 검증 → prod 시드 임포트·폰 머니패스 → Phase 7. **Supabase를 아는 파일은 `lib/server/`뿐**(`import "server-only"`). 컴포넌트·훅은 여전히 `lib/data.ts`만 부르고, `lib/data.ts`는 서버에선 `lib/server`를 직접, 클라이언트에선 Server Action을 부른다. **브라우저에 supabase-js를 싣지 않는다**(decisions 2026-09-10).
+목 JSON(`lib/mock/`)은 지웠다(커밋 4). 설정값 JSON(이벤트 카드·까주기 테스트)은 `lib/content/`. 쓰기 액션은 예상 실패를 값(`Result`)으로 돌려주고 `lib/data.ts`가 throw로 바꾼다 — 프로덕션의 Next는 액션의 오류 메시지를 지우기 때문이다. 로컬 개발은 `pnpm db:start` 뒤 `pnpm dev`(.env.local에 로컬 Supabase 값).
 
 ## 라이브러리·버전
 - 버전 특정 문법이나 사용법이 불확실하면(Next.js, Tailwind, 네이버 지도 SDK, Supabase 등) 기억에 의존하지 말고 **context7으로 최신 문서를 확인한 뒤** 작성하라. 특히 마이너 라이브러리일수록.
@@ -26,13 +27,13 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 - next/image 최적화는 끈다(unoptimized). 사진은 업로드 시 리사이즈본을 만들므로 플랫폼 이미지 최적화(과금 대상)를 쓰지 않는다. 배포는 Cloudflare Workers(`pnpm deploy`) — decisions.md 2026-09-01.
 
 ## 절대 규칙 (위반 = 작업 실패. 순차적으로 린트·훅으로 승격해 기계적으로 막는다 — 위반 패턴 발견 시 규칙 추가를 제안하라)
-1. 컴포넌트에서 데이터 직접 접근 금지. 모든 읽기/쓰기는 lib/data.ts 함수 경유. (나중에 이 파일만 Supabase로 교체한다)
+1. 컴포넌트에서 데이터 직접 접근 금지. 모든 읽기/쓰기는 lib/data.ts 함수 경유. (Phase 6: 이 파일 뒤에 `lib/server/`가 붙는다 — 컴포넌트는 여전히 이 파일만 안다)
 2. 네이버·카카오 API 응답을 파일·DB·Place·전역 상태에 저장하는 코드 금지. 화면에 그리는 동안만 드는 컴포넌트 임시 상태(주소 검색 제안 목록)는 허용 — 닫히면 버리고, 남기는 건 사용자가 확정한 값(핀 좌표)뿐(decisions 2026-09-04). 지도 SDK 표시용 라이브 호출만.
-3. 외부 이미지 도메인(pstatic.net, kakaocdn 등) 사용 금지. 이미지는 우리 스토리지(목 단계: /public)만.
+3. 외부 이미지 도메인(pstatic.net, kakaocdn 등) 사용 금지. 이미지는 우리 스토리지(/public, Phase 6부터 `/photos/<key>` = R2 서빙 라우트)만.
 4. localStorage/sessionStorage 사용 금지. 상태는 메모리, 지속은 (나중에) 서버.
 5. 시크릿을 코드에 박지 마라. .env만.
 6. dangerouslySetInnerHTML 금지 (리뷰·코멘트는 유저 입력이다).
-7. service_role 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, Supabase anon 키, 카카오 JS 키(공유용), GA4 측정 ID)만 — 목록 밖 추가는 리뷰에서 잡는다.
+7. secret key 등 서버 전용 키는 클라이언트 번들에 절대 못 들어간다. NEXT_PUBLIC_ 접두사는 허용 목록(네이버 지도 Client ID, 카카오 JS 키(공유용), GA4 측정 ID, Turnstile site key, Sentry DSN)만 — 목록 밖 추가는 리뷰에서 잡는다. **Supabase 키는 publishable도 목록 밖이다**(브라우저에 supabase-js가 없다 — decisions 2026-09-10).
 
 ## 스타일 (docs/design.md 공통 블록·토큰 표가 원본 — 2026-09-02 버틸까 디자인 언어 채택)
 - 라이트 모드 우선. 색은 전부 CSS 변수 토큰으로 — Figma 변수와 1:1(Primitive 램프 + Semantic 역할). 다크는 Semantic만 두 번째 벌.
@@ -52,7 +53,7 @@ Supabase는 아직 없다. Supabase 코드를 지금 쓰지 마라.
 - 테스트는 Testing Library 원칙: 구현이 아니라 동작을, 사용자가 보는 방식(getByRole)으로.
 - 시간: 저장은 UTC ISO, "이번 주"·"○일 전" 계산과 표시는 Asia/Seoul 고정.
 - 비동기 결과(쓰기·동적 import·지오코더)로 부모 콜백을 부르거나 단계를 옮기기 전에 아직 그 화면인지 확인한다: 컴포넌트는 alive ref(effect 본문에서 true, cleanup에서 false — StrictMode 이중 effect 대응), 플로우 훅은 닫힌 뒤의 단계 변경을 무시, 늦은 응답 폐기는 요청 순번(seq). 같은 종류 3회째라 승격(decisions 2026-09-04 Codex PR #6).
-- **쓰기 함수는 지연·await 전에 행위자(세션)를 잡고, 상대값이 아니라 원하는 상태를 받는다.** `await` 뒤에 `currentSession`을 읽으면 그 사이 바뀐 사용자의 데이터를 건드리고, 화면 쪽 가드는 응답만 버릴 뿐 **이미 일어난 쓰기는 못 되돌린다**. 토글처럼 "지금의 반대"를 쓰면 연타로 겹쳤을 때 서버가 마지막 의도와 반대로 끝난다 — `set(id, wanted)` 형태로 멱등하게(같은 종류 2회째라 승격, decisions 2026-09-08 Codex PR #10).
+- **쓰기 함수는 지연·await 전에 행위자(세션)를 잡고, 상대값이 아니라 원하는 상태를 받는다.** `await` 뒤에 `currentSession`을 읽으면 그 사이 바뀐 사용자의 데이터를 건드리고, 화면 쪽 가드는 응답만 버릴 뿐 **이미 일어난 쓰기는 못 되돌린다**. 토글처럼 "지금의 반대"를 쓰면 연타로 겹쳤을 때 서버가 마지막 의도와 반대로 끝난다 — `set(id, wanted)` 형태로 멱등하게(같은 종류 2회째라 승격, decisions 2026-09-08 Codex PR #10). **브라우저 래퍼(`lib/data.ts`)도 같다**: Turnstile 토큰을 기다리기 전에 세션 id(`knownUserId`)를 잡아 액션에 보내고, 서버 문(`openWriteGate`)이 쿠키의 사용자와 대조한다(3회째, decisions 2026-09-17 Codex PR #16).
 - **낙관적 업데이트가 진행 중인 항목은 재로드 결과에도 반영한다.** 화면에서 지운(또는 더한) 행이 아직 서버에 남아 있으므로, 그 사이 목록을 다시 읽으면 되살아난다. 진행 중 식별자를 ref에 들고 로드 결과에서 걸러내고, **성공·실패 양쪽에서** 표식을 지운다(실패 롤백만 두면 성공 경로에 정리가 없다). 되돌릴 때는 이미 들어와 있는지 보고 중복을 만들지 않는다. (decisions 2026-09-05 Codex PR #8 #2)
 - **목 단계에서 날짜 캐시를 넘어야 하는 상태는 캐시 밖에 둔다.** `lib/data.ts`의 `dataset()`은 KST 날짜가 바뀌면 원본 JSON에서 다시 만든다 — 운영 상태(숨김·확인·내린 사진)를 캐시 안 객체에만 찍으면 **자정에 조용히 풀린다**. `deletedReviewIds`·`placeOps`·`removedPhotoIds`처럼 모듈 맵·Set에 두고 빌드 때 덧씌운다 (같은 종류 2회째라 승격, decisions 2026-09-08 Codex PR #12).
 - **결과를 담아 두는 ref는 다음 요청 시작 때 초기화한다.** 지난 성공이 남아 있으면 새 요청이 취소로 끝나도 성공으로 읽힌다(로그인 게이트가 그랬다 — Codex PR #8 #1).
