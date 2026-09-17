@@ -118,11 +118,11 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 
 | 어디 | 무엇 | 안 하면 |
 |---|---|---|
-| Cloudflare → Turnstile → 위젯 `saeu-map` → Settings → Hostname management | 새 도메인 추가(키는 그대로) | 모든 쓰기가 "bot check failed" |
+| Cloudflare → Turnstile → 위젯 `saeu-map` → Settings → Hostname management | 새 도메인 추가(키는 그대로) — 새우맵.kr ✅ 2026-09-17 | 모든 쓰기가 "bot check failed" |
 | Supabase `supabase/config.toml` `additional_redirect_urls` + `supabase config push` (내가) | `https://<도메인>/**` 추가 — 새우맵.kr ✅ 2026-09-17 | 카카오 로그인 뒤 콜백 거부 |
-| 카카오 개발자 앱 → 플랫폼 → Web 사이트 도메인 | 새 도메인 추가(리다이렉트 URI는 Supabase 주소라 그대로) | 카카오 로그인 시작 실패 |
-| NCP 콘솔 → Maps → 서비스 URL | 새 도메인 추가 | 지도가 401로 안 뜸 |
-| Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 | 브라우저 에러가 안 들어옴 |
+| 카카오 개발자 앱 → 플랫폼 → Web 사이트 도메인 | 새 도메인 추가(리다이렉트 URI는 Supabase 주소라 그대로) — ✅ 2026-09-17 | 카카오가 검사하는 건 리다이렉트 URI라 당장은 안 막히지만 정책상 등록 |
+| NCP 콘솔 → Maps → 서비스 URL | 새 도메인 추가 — ✅ 2026-09-17 | 지도가 401로 안 뜸 |
+| Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 — ✅ 2026-09-17 | 브라우저 에러가 안 들어옴 |
 | `wrangler.jsonc` `vars.SITE_URL` + `routes[custom_domain]`, `lib/seo.ts` SITE_HOST/표시명 (내가) | 새 도메인 — 새우맵.kr ✅ 2026-09-17(첫 배포 때 DNS·인증서 자동) | OG·sitemap·공유 링크가 옛 주소 |
 | Cloudflare → 새우맵.kr → Rules → Redirect Rules (선택) | `www.새우맵.kr/*` → `https://새우맵.kr/$1` 301 | www로 치면 안 열림(치는 사람이 거의 없어 보류) |
 
