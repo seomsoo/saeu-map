@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(36);
 
 -- security-reviewer 2026-09-16(중간 리뷰) 반영분. 순서 주의: set_ip는 트랜잭션 끝까지 남으므로 "IP 없음" 케이스가 맨 앞이다.
 
@@ -63,6 +63,19 @@ select throws_ok(format($$insert into public.photos (place_id, key, uploader_id,
 select throws_ok(format($$insert into public.reports (kind, place_id, reason, actor, status) values ('place_report', %L, 'fake', %L, 'done')$$, :'place_id', :'kakao1'), '42501', null, '신고 상태는 관리자만(컬럼 GRANT)');
 select tests.clear_auth();
 select is((select photo_at is not null from public.reviews where id = :'review_k1'), true, '붙인 사진은 photo_at이 찍힌다');
+
+-- 사진 신고는 그 가게의 사진만(Codex PR #16 #4) · 섀도 밴은 변환 전에 photo_slot_ok가 false(Codex PR #16 #2)
+select tests.create_place('다른집') as other_place \gset
+select id as photo_1 from public.photos where place_id = :'place_id' limit 1 \gset
+select tests.authenticate_as(:'kakao1', false);
+select throws_ok(format($$insert into public.reports (kind, place_id, photo_id, reason, actor) values ('photo_report', %L, %L, 'unrelated', %L)$$, :'other_place', :'photo_1', :'kakao1'), '42501', null, '남의 가게 사진 id로는 신고 못 한다');
+select lives_ok(format($$insert into public.reports (kind, place_id, photo_id, reason, actor) values ('photo_report', %L, %L, 'unrelated', %L)$$, :'place_id', :'photo_1', :'kakao1'), '그 가게 사진이면 신고된다');
+select tests.clear_auth();
+update public.profiles set shadow_banned = true where id = :'kakao1';
+select tests.authenticate_as(:'kakao1', false);
+select is((select public.photo_slot_ok(:'other_place')), false, '섀도 밴이면 사진 자리 없음(변환 전에 막는다)');
+select tests.clear_auth();
+update public.profiles set shadow_banned = false where id = :'kakao1';
 
 -- 서비스 역할 RPC: 문은 EXECUTE 권한 — anon·authenticated 거부, service_role 통과(#2)
 select tests.authenticate_anon();

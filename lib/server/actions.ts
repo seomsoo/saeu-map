@@ -83,6 +83,7 @@ export type FailCode =
   | "outside korea"
   | "read only"
   | "bot check failed"
+  | "session changed"
   | "not image";
 export type Result<T> = { ok: true; value: T } | { ok: false; error: FailCode };
 const fail = (error: FailCode): Result<never> => ({ ok: false, error });
@@ -316,8 +317,8 @@ export async function signOut(): Promise<Session> {
 }
 
 /** 탈퇴 (spec 5) — 카카오만. 개인 데이터 삭제는 secret key RPC(admin_delete_user)가 한 트랜잭션으로. */
-export async function deleteAccount(turnstile: string): Promise<Result<Session>> {
-  const gate = await openWriteGate(turnstile);
+export async function deleteAccount(turnstile: string, actor: string | null = null): Promise<Result<Session>> {
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   let uid: string;
@@ -340,9 +341,13 @@ export async function deleteAccount(turnstile: string): Promise<Result<Session>>
 }
 
 
-export async function updateNickname(nickname: string, turnstile: string): Promise<Result<Session>> {
+export async function updateNickname(
+  nickname: string,
+  turnstile: string,
+  actor: string | null = null,
+): Promise<Result<Session>> {
   const next = nicknameSchema.parse(nickname);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   let uid: string;
@@ -369,22 +374,32 @@ async function placeOrFail(db: Db, id: string): Promise<Result<Place>> {
 }
 
 /** "다녀왔어요" 확인 +1 — 핀당 하루 1회는 DB 유니크 인덱스가 막는다(23505 → already checked). */
-export async function checkIn(placeId: string, turnstile: string, _now?: string): Promise<Result<Place>> {
+export async function checkIn(
+  placeId: string,
+  turnstile: string,
+  _now?: string,
+  actor: string | null = null,
+): Promise<Result<Place>> {
   const id = idSchema.parse(placeId);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
-  const actor = await ensureUser(db);
-  const { error } = await db.from("checkins").insert({ place_id: id, actor, type: "visited" });
+  const uid = await ensureUser(db);
+  const { error } = await db.from("checkins").insert({ place_id: id, actor: uid, type: "visited" });
   if (error) return fail(error.code === "23505" ? "already checked" : "place not found");
   expirePlace(id);
   return placeOrFail(db, id);
 }
 
 /** 찜 설정 — 원하는 상태를 받는다(멱등). 현재 찜 목록을 돌려준다. */
-export async function setBookmark(placeId: string, bookmarked: boolean, turnstile: string): Promise<Result<string[]>> {
+export async function setBookmark(
+  placeId: string,
+  bookmarked: boolean,
+  turnstile: string,
+  actor: string | null = null,
+): Promise<Result<string[]>> {
   const id = idSchema.parse(placeId);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   const userId = await ensureUser(db);
@@ -401,11 +416,16 @@ export async function setBookmark(placeId: string, bookmarked: boolean, turnstil
 }
 
 /** 제보 등록 (spec 4.3). 구는 좌표로 판정하고 한국 밖(바다)이면 거부. 사진은 별도 업로드. 시간당 5은 RPC가 센다. */
-export async function submitReport(input: ReportPayload, turnstile: string, _now?: string): Promise<Result<Place>> {
+export async function submitReport(
+  input: ReportPayload,
+  turnstile: string,
+  _now?: string,
+  actor: string | null = null,
+): Promise<Result<Place>> {
   const report = reportPayloadSchema.parse(input);
   const gu = await guOfPoint(report);
   if (gu === null) return fail("outside korea");
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   await ensureUser(db);
@@ -463,9 +483,14 @@ function placeFromReport(id: string, report: ReportPayload, gu: string, tags: Pl
 }
 
 /** 값 제안 — 즉시 반영 + 이력(DB 트리거). 메뉴는 현재 줄에 편집을 적용한 전체를 보낸다. */
-export async function submitSuggestion(input: SuggestionInput, turnstile: string, _now?: string): Promise<Result<Place>> {
+export async function submitSuggestion(
+  input: SuggestionInput,
+  turnstile: string,
+  _now?: string,
+  actor: string | null = null,
+): Promise<Result<Place>> {
   const parsed = suggestionSchema.parse(input);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   await ensureUser(db);
@@ -499,6 +524,7 @@ export async function submitSuggestion(input: SuggestionInput, turnstile: string
 
 async function insertReport(
   turnstile: string,
+  actor: string | null,
   row: {
     kind: ReportKind;
     place_id: string;
@@ -509,11 +535,11 @@ async function insertReport(
     message?: string;
   },
 ): Promise<Result<void>> {
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
-  const actor = await ensureUser(db);
-  const { data, error } = await db.from("reports").insert({ ...row, actor }).select("id");
+  const uid = await ensureUser(db);
+  const { data, error } = await db.from("reports").insert({ ...row, actor: uid }).select("id");
   if (error) return fail(error.code === "42501" ? "rate limited" : "place not found");
   if (data.length === 0) return okay(undefined); // 섀도 밴 — 트리거가 행을 버렸다. 알림도 없이 성공한 척(최종 보안 리뷰 #2)
   await alertReport(db, row);
@@ -548,9 +574,10 @@ async function alertReport(
 export async function reportPhoto(
   input: { placeId: string; photoId: string; reason: PhotoReportReason },
   turnstile: string,
+  actor: string | null = null,
 ): Promise<Result<void>> {
   const parsed = photoReportSchema.parse(input);
-  return insertReport(turnstile, {
+  return insertReport(turnstile, actor, {
     kind: "photo_report",
     place_id: parsed.placeId,
     photo_id: parsed.photoId,
@@ -561,22 +588,28 @@ export async function reportPhoto(
 export async function flagPlace(
   input: { placeId: string; reason: PlaceFlagReason },
   turnstile: string,
+  actor: string | null = null,
 ): Promise<Result<void>> {
   const parsed = placeFlagSchema.parse(input);
-  return insertReport(turnstile, { kind: "place_flag", place_id: parsed.placeId, reason: parsed.reason });
+  return insertReport(turnstile, actor, { kind: "place_flag", place_id: parsed.placeId, reason: parsed.reason });
 }
 
 export async function reportPlace(
   input: { placeId: string; reason: PlaceReportReason },
   turnstile: string,
+  actor: string | null = null,
 ): Promise<Result<void>> {
   const parsed = placeReportSchema.parse(input);
-  return insertReport(turnstile, { kind: "place_report", place_id: parsed.placeId, reason: parsed.reason });
+  return insertReport(turnstile, actor, { kind: "place_report", place_id: parsed.placeId, reason: parsed.reason });
 }
 
-export async function submitOwnerRequest(input: OwnerRequestInput, turnstile: string): Promise<Result<void>> {
+export async function submitOwnerRequest(
+  input: OwnerRequestInput,
+  turnstile: string,
+  actor: string | null = null,
+): Promise<Result<void>> {
   const parsed = ownerRequestSchema.parse(input);
-  return insertReport(turnstile, {
+  return insertReport(turnstile, actor, {
     kind: "owner_request",
     place_id: parsed.placeId,
     owner_kind: parsed.kind,
@@ -602,7 +635,7 @@ function formString(form: FormData, name: string): string {
  */
 export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
   const parsed = photoUploadSchema.parse({ placeId: form.get("placeId"), files: form.getAll("photos") });
-  const gate = await openWriteGate(formString(form, "turnstile"));
+  const gate = await openWriteGate(formString(form, "turnstile"), formString(form, "actor") || null);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   const uploader = await ensureUser(db);
@@ -610,7 +643,7 @@ export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
   if (!current.ok) return current;
   const room = MAX_PLACE_PHOTOS - current.value.photos.length;
   if (room <= 0) return fail("photo limit reached");
-  // 변환(Images 무료 5,000장/월) 전에 자리를 묻는다 — 정책이 거부할 업로드를 변환부터 하면 한도만 탄다(security-reviewer 2026-09-16 #7)
+  // 변환(Images 무료 5,000장/월) 전에 자리를 묻는다 — 정책이 거부할 업로드를 변환부터 하면 한도만 탄다(security-reviewer 2026-09-16 #7). 섀도 밴도 여기서 걸린다
   const { data: slot } = await db.rpc("photo_slot_ok", { p_place: parsed.placeId });
   if (slot !== true) return fail("rate limited");
   let stored = 0;
@@ -622,11 +655,19 @@ export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
       if (stored === 0) return fail("not image");
       break;
     }
-    const { error } = await db.from("photos").insert({ id: photoId, place_id: parsed.placeId, key, uploader_id: uploader });
+    const { data, error } = await db
+      .from("photos")
+      .insert({ id: photoId, place_id: parsed.placeId, key, uploader_id: uploader })
+      .select("id");
     if (error) {
       await deletePhotoObject(key);
       if (stored === 0) return fail(failFromDb(error));
       break; // 몇 장은 들어갔다 — 그만큼만 반영
+    }
+    if (data.length === 0) {
+      // 섀도 밴 — 트리거가 행을 버렸다. 객체를 남기면 고아(Codex PR #16 #2). photo_slot_ok가 먼저 막으니 여기는 마지막 방어선
+      await deletePhotoObject(key);
+      break;
     }
     stored += 1;
   }
@@ -642,7 +683,7 @@ export async function attachReviewPhoto(form: FormData): Promise<Result<Review>>
   const reviewId = idSchema.parse(form.get("reviewId"));
   const photo = form.get("photo");
   if (!(photo instanceof File)) return fail("not image");
-  const gate = await openWriteGate(formString(form, "turnstile"));
+  const gate = await openWriteGate(formString(form, "turnstile"), formString(form, "actor") || null);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   let uid: string;
@@ -686,9 +727,10 @@ export async function submitReview(
   input: ReviewPayload,
   turnstile: string,
   _now?: string,
+  actor: string | null = null,
 ): Promise<Result<{ review: Review; place: Place }>> {
   const parsed = reviewPayloadSchema.parse(input);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   let uid: string;
@@ -730,10 +772,11 @@ export async function updateReview(
   patch: ReviewPatch,
   turnstile: string,
   _now?: string,
+  actor: string | null = null,
 ): Promise<Result<Review>> {
   const id = idSchema.parse(reviewId);
   const changes = reviewPatchSchema.parse(patch);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   try {
@@ -752,9 +795,9 @@ export async function updateReview(
   return review ? okay(review) : fail("forbidden");
 }
 
-export async function deleteReview(reviewId: string, turnstile: string): Promise<Result<void>> {
+export async function deleteReview(reviewId: string, turnstile: string, actor: string | null = null): Promise<Result<void>> {
   const id = idSchema.parse(reviewId);
-  const gate = await openWriteGate(turnstile);
+  const gate = await openWriteGate(turnstile, actor);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
   // RPC인 이유: PG 17은 UPDATE의 새 행도 SELECT 정책(deleted_at is null)을 통과해야 해서 작성자가 직접 deleted_at을 못 찍는다(pgTAP 실측 2026-09-16)
@@ -943,7 +986,7 @@ export async function mergePlaces(fromId: string, intoId: string): Promise<Resul
   if (error) return fail(error.code === "22023" ? "place not found" : "forbidden");
   expirePlace(from);
   expirePlace(into);
-  // 같은 사람이 양쪽에 남긴 리뷰는 원본 쪽이 소프트 삭제된다 — 그 사진 객체도 지운다(최종 보안 리뷰 #4)
+  // 돌려받는 키 = 양쪽에 남긴 같은 사람의 리뷰(원본 쪽 소프트 삭제, 최종 보안 리뷰 #4) + 10장을 넘겨 내린 가게 사진(Codex PR #16 #6) — 객체도 지운다
   await forgetPhotoObjects(photoKeys(freed.map((r) => ({ photo_key: r.freed_photo_key }))));
   return adminPlaceWithPhotos(db, into);
 }

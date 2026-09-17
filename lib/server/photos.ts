@@ -45,7 +45,7 @@ export async function storePhoto(file: Blob, key: string): Promise<"stored" | "n
     .output({ format: "image/webp", quality: 82 });
   const out = encoded.response();
   await photos.put(key, await out.arrayBuffer(), {
-    httpMetadata: { contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable" },
+    httpMetadata: { contentType: "image/webp", cacheControl: "public, max-age=86400" },
   });
   return "stored";
 }

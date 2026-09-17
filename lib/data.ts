@@ -49,6 +49,15 @@ function token(): Promise<string> {
   return typeof window === "undefined" ? Promise.resolve("") : turnstileToken();
 }
 
+/**
+ * 브라우저가 아는 세션 id — SessionProvider가 세션이 바뀔 때마다 알려 준다. 쓰기 래퍼는 Turnstile 토큰을 기다리기 **전에**
+ * 이 값을 잡아 액션에 보내고, 서버 문이 쿠키의 사용자와 대조한다(행위자는 await 전에 — CLAUDE.md 컨벤션, Codex PR #16 #1). 모르면 null(대조 없음).
+ */
+let knownUserId: string | null = null;
+export function rememberSession(session: Session | null): void {
+  knownUserId = session?.userId ?? null;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 읽기
  * ════════════════════════════════════════════════════════════════════════ */
@@ -136,7 +145,8 @@ export function getGuCenter(name: string): Promise<LatLng | null> {
 export const getSession = actions.getSession;
 export const signOut = actions.signOut;
 export async function deleteAccount(): Promise<Session> {
-  return unwrap(await actions.deleteAccount(await token()));
+  const actor = knownUserId;
+  return unwrap(await actions.deleteAccount(await token(), actor));
 }
 
 /**
@@ -149,7 +159,8 @@ export async function signInWithKakao(next: string): Promise<string> {
 }
 
 export async function updateNickname(nickname: string): Promise<Session> {
-  return unwrap(await actions.updateNickname(nickname, await token()));
+  const actor = knownUserId;
+  return unwrap(await actions.updateNickname(nickname, await token(), actor));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -157,20 +168,27 @@ export async function updateNickname(nickname: string): Promise<Session> {
  * ════════════════════════════════════════════════════════════════════════ */
 
 export async function checkIn(placeId: string, now: DateInput): Promise<Place> {
-  return unwrap(await actions.checkIn(placeId, await token(), String(now)));
+  const actor = knownUserId;
+  return unwrap(await actions.checkIn(placeId, await token(), String(now), actor));
 }
 
-export async function setBookmark(placeId: string, bookmarked: boolean): Promise<string[]> {
-  return unwrap(await actions.setBookmark(placeId, bookmarked, await token()));
+/** 찜 쓰기는 한 줄로 — 응답이 찜 목록 전체라, 겹친 요청이 뒤바뀐 순서로 오면 나중 응답이 앞선 찜을 지운다(Codex PR #16 #3) */
+let bookmarkQueue: Promise<unknown> = Promise.resolve();
+export function setBookmark(placeId: string, bookmarked: boolean): Promise<string[]> {
+  const actor = knownUserId;
+  const run = bookmarkQueue.then(async () => unwrap(await actions.setBookmark(placeId, bookmarked, await token(), actor)));
+  bookmarkQueue = run.catch(() => undefined);
+  return run;
 }
 
 /** 제보 등록. 사진은 가게가 생긴 뒤 같은 업로드 길(addPlacePhotos)로 — 업로드가 실패해도 제보는 남는다(사진 없는 가게). */
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const { photos, ...payload } = input;
-  const place = unwrap(await actions.submitReport(payload, await token(), String(now)));
+  const actor = knownUserId;
+  const place = unwrap(await actions.submitReport(payload, await token(), String(now), actor));
   if (photos.length === 0) return place;
   try {
-    return await addPlacePhotos(place.id, photos, now);
+    return await uploadPlacePhotos(place.id, photos, actor);
   } catch {
     return place;
   }
@@ -180,29 +198,39 @@ export async function submitSuggestion(
   input: Parameters<typeof actions.submitSuggestion>[0],
   now: DateInput,
 ): Promise<Place> {
-  return unwrap(await actions.submitSuggestion(input, await token(), String(now)));
+  const actor = knownUserId;
+  return unwrap(await actions.submitSuggestion(input, await token(), String(now), actor));
 }
 
 export async function reportPhoto(input: Parameters<typeof actions.reportPhoto>[0]): Promise<void> {
-  unwrap(await actions.reportPhoto(input, await token()));
+  const actor = knownUserId;
+  unwrap(await actions.reportPhoto(input, await token(), actor));
 }
 
 export async function flagPlace(input: Parameters<typeof actions.flagPlace>[0]): Promise<void> {
-  unwrap(await actions.flagPlace(input, await token()));
+  const actor = knownUserId;
+  unwrap(await actions.flagPlace(input, await token(), actor));
 }
 
 export async function reportPlace(input: Parameters<typeof actions.reportPlace>[0]): Promise<void> {
-  unwrap(await actions.reportPlace(input, await token()));
+  const actor = knownUserId;
+  unwrap(await actions.reportPlace(input, await token(), actor));
 }
 
 export async function submitOwnerRequest(input: Parameters<typeof actions.submitOwnerRequest>[0]): Promise<void> {
-  unwrap(await actions.submitOwnerRequest(input, await token()));
+  const actor = knownUserId;
+  unwrap(await actions.submitOwnerRequest(input, await token(), actor));
 }
 
 /** 사진 올리기 — 파일은 FormData로(액션 인자로 직렬화되지 않는다). 즉시 반영이라 갱신된 Place를 돌려준다. */
 export async function addPlacePhotos(placeId: string, files: readonly File[], _now: DateInput): Promise<Place> {
+  return uploadPlacePhotos(placeId, files, knownUserId);
+}
+
+async function uploadPlacePhotos(placeId: string, files: readonly File[], actor: string | null): Promise<Place> {
   const form = new FormData();
   form.set("placeId", placeId);
+  form.set("actor", actor ?? "");
   form.set("turnstile", await token());
   for (const file of files) form.append("photos", file);
   return unwrap(await actions.addPlacePhotos(form));
@@ -211,10 +239,12 @@ export async function addPlacePhotos(placeId: string, files: readonly File[], _n
 /** 리뷰 등록. 사진이 있으면 등록 뒤 붙인다 — 붙이기가 실패해도 리뷰는 남는다. */
 export async function submitReview(input: ReviewInput, now: DateInput): Promise<{ review: Review; place: Place }> {
   const { photo, ...payload } = input;
-  const saved = unwrap(await actions.submitReview(payload, await token(), String(now)));
+  const actor = knownUserId;
+  const saved = unwrap(await actions.submitReview(payload, await token(), String(now), actor));
   if (photo === null) return saved;
   const form = new FormData();
   form.set("reviewId", saved.review.id);
+  form.set("actor", actor ?? "");
   form.set("turnstile", await token());
   form.set("photo", photo);
   try {
@@ -226,11 +256,13 @@ export async function submitReview(input: ReviewInput, now: DateInput): Promise<
 }
 
 export async function updateReview(reviewId: string, patch: ReviewPatch, now: DateInput): Promise<Review> {
-  return unwrap(await actions.updateReview(reviewId, patch, await token(), String(now)));
+  const actor = knownUserId;
+  return unwrap(await actions.updateReview(reviewId, patch, await token(), String(now), actor));
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
-  unwrap(await actions.deleteReview(reviewId, await token()));
+  const actor = knownUserId;
+  unwrap(await actions.deleteReview(reviewId, await token(), actor));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

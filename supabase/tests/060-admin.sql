@@ -1,5 +1,5 @@
 begin;
-select plan(14);
+select plan(16);
 
 -- 커밋 7 관리자 실연결: 검수 필터(admin_places p_needs_review) · 합치기 뒤 옛 주소 리다이렉트(merge_target)
 
@@ -52,6 +52,18 @@ select public.submit_report('먼집', 37.60, 126.95, '마포구', '{grill}', '[{
 select tests.clear_auth();
 select is((select duplicate_suspect_of from public.places where id = :'reported'), :'removed'::uuid, '150m 안 재제보는 내린 가게를 후보로 단다');
 select is((select duplicate_suspect_of from public.places where id = :'far'), null::uuid, '멀면 후보 없음');
+
+-- 합치면 가게당 10장을 넘길 수 있다 — 넘치는 만큼 오래된 사진을 내리고 키를 돌려준다(Codex PR #16 #6)
+select tests.create_place('사진많은집') as photo_from \gset
+select tests.create_place('사진받는집') as photo_into \gset
+insert into public.photos (place_id, key, uploader_id, created_at)
+  select :'photo_from', 'places/' || :'photo_from' || '/' || n || '.webp', :'reviewer', now() - (n || ' minutes')::interval from generate_series(1, 7) n;
+insert into public.photos (place_id, key, uploader_id, created_at)
+  select :'photo_into', 'places/' || :'photo_into' || '/' || n || '.webp', :'reviewer', now() - (n || ' hours')::interval from generate_series(1, 6) n;
+select tests.authenticate_as(:'admin1', false);
+select is((select count(*)::int from public.admin_merge_places(:'photo_from', :'photo_into')), 3, '13장이 되면 오래된 3장을 내리고 키를 돌려준다');
+select tests.clear_auth();
+select is((select count(*)::int from public.photos where place_id = :'photo_into' and removed_at is null), 10, '합친 가게는 10장만 남는다');
 
 select * from finish();
 rollback;

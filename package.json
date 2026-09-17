@@ -19,7 +19,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local --schema public > lib/db/database.types.ts",
+    "db:types": "supabase gen types typescript --local --schema public > lib/db/database.types.ts.tmp && mv lib/db/database.types.ts.tmp lib/db/database.types.ts || { rm -f lib/db/database.types.ts.tmp; exit 1; }",
     "db:advisors": "supabase db advisors --local --type all --level warn"
   },
   "dependencies": {

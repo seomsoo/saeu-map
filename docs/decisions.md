@@ -910,3 +910,14 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **프리뷰에서 4번에 1번꼴로 503 "Worker exceeded resource limits"(에러 1102)**. Free 플랜은 요청당 CPU 10ms. 로컬 측정(M시리즈 맥, Workers CPU는 이보다 느리다): 762곳 JSON.parse 2.6ms + zod·toPlace 2.5ms + 직렬화 2ms = 7ms를 React 렌더 전에 이미 쓴다. 지도 화면이 요청마다 가게 전부를 SSR로 싣는 구조라 Free 한도 안에 못 든다.
 - 반영: **zod는 캐시 채울 때 한 번**(`cachedAllPlaces`·`cachedDetailRows`가 Place로 매핑해 저장), 읽을 때는 NEW 배지만 다시 찍는다(`isNewPlace`). `observability.enabled`로 호출별 CPU·결과를 대시보드에서 볼 수 있게. **권고: Workers Paid($5/월, CPU 30초)** — decisions 2026-09-10 #5의 "Paid 전환 신호"에 세 번째 신호(SSR CPU)가 먼저 왔다. 사용자 결정 대기.
 - 측정 시 함정: 내 셸(샌드박스)과 사용자 브라우저 둘 다 cf-ray가 **LAX**였다 — 요청이 미국 콜로로 가서 TTFB 1~4초가 섞였다(워커→서울 Supabase 왕복). 한국 일부 ISP(특히 KT)가 Cloudflare 트래픽을 미국으로 보내는 건 알려진 문제라 런칭 뒤 실사용 지연을 봐야 한다. `wrangler tail`은 프리뷰 버전 트래픽을 못 잡았다(0줄) — 대시보드 Workers Logs를 쓴다.
+
+## 2026-09-18 — Codex PR #16 리뷰 6건 전부 반영 (P1 2 · P2 4)
+
+- **#1 행위자 결속(P1)**: `lib/data.ts` 쓰기 래퍼가 Turnstile 토큰을 기다리는 사이 다른 탭에서 로그인·탈퇴하면 바뀐 쿠키로 쓰였다. SessionProvider가 `rememberSession`으로 세션 id를 알려 주고, 래퍼는 **await 전에** 잡아 액션의 마지막 인자(`actor`, FormData는 `actor` 필드)로 보내며 `openWriteGate`가 쿠키의 `sub`와 대조한다(다르면 `session changed` → 일반 실패 토스트). 모르면(null) 대조하지 않는다 — 첫 쓰기 전 익명 세션은 아직 없다. 같은 종류 3회째라 CLAUDE.md 컨벤션에 승격.
+- **#2 섀도 밴 사진(P1)**: 트리거가 버린 INSERT 뒤에도 R2 객체가 남고 Images 변환도 탔다. `photo_slot_ok`가 `not is_shadow_banned()`를 먼저 본다(액션에는 rate limited로 보인다 — 사진만은 "조용히 성공한 척"이 불가능하다, 돌려주는 Place에 사진이 없으니). 그래도 0행이면 객체를 지운다(`.select("id")`).
+- **#3 찜 직렬화(P2)**: 응답이 찜 목록 전체라 겹친 요청이 뒤바뀐 순서로 오면 앞선 찜이 화면에서 사라졌다 — `lib/data.ts`에서 한 줄(promise chain)로 보낸다. 가게별이 아니라 전역인 이유: 다른 가게의 응답도 같은 목록을 덮는다.
+- **#4 사진 신고 결속(P2)**: `reports_insert` 정책에 "photo_id는 그 place_id의 (보이는) 사진" 조건. 남의 가게 사진 id로 신고하면 42501. pgTAP 2.
+- **#5 사진 캐시(P2)**: 1년 immutable → 하루(`/photos` 라우트·R2 httpMetadata 둘 다). 내린 사진이 브라우저·CDN 캐시에 남는 시간이다. 사진 요청은 늘지만 Free 하루 10만 안(Phase 7 R2 직서빙으로 옮기면 무관).
+- **#6 합치기 10장 상한(P2)**: INSERT 트리거만 지키던 상한을 `admin_merge_places`가 넘치면 오래된 것부터 `removed_at`을 찍고 키를 돌려준다 → 액션이 기존 freed 경로로 객체를 지운다. pgTAP 2.
+- 곁가지: `pnpm db:types`가 실패해도 파일을 비우지 않게(임시 파일 → mv). 로컬에서 `--local`이 "password authentication failed for user postgres"로 두 번 죽었다(CI는 정상, 원인 미상) — `supabase gen types typescript --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --schema public`으로 뽑으면 된다(결과 동일 확인).
+- 검증: pgTAP 94 → 99, vitest 557, advisors 0, typecheck·lint 통과, 타입 파일 변화 없음. 프리뷰에서 찜 연타·사진 업로드는 CI 뒤 브라우저로 본다.

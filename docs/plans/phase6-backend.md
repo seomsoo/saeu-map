@@ -246,7 +246,7 @@ Data API 노출은 **`places_public`·`checkins`·`reviews`·`bookmarks`·`photo
 
 | 항목 | 결과 |
 | --- | --- |
-| 테스트 | vitest **556개(49 파일)** — 전환 전 540 → 새 서버 모듈·관리자 흐름·라벨 16개 추가. pgTAP **94 assertions(7 파일)**: RLS·컬럼 GRANT·RPC·트리거·병합·서비스 역할. `supabase db advisors` **0건** |
+| 테스트 | vitest **557개(49 파일)** — 전환 전 540 → 새 서버 모듈·관리자 흐름·라벨 16개 추가. pgTAP **99 assertions(7 파일)**: RLS·컬럼 GRANT·RPC·트리거·병합·서비스 역할. `supabase db advisors` **0건** |
 | 스키마 | 마이그레이션 2(init + 서비스 RPC), 표 11·뷰 2(invoker)·정책 18·공개 RPC 14·pg_cron 2. 개인 식별자는 컬럼 GRANT로 미노출 |
 | 시드 | 서울 452 + 부산 190 + 광주권 145 = **789곳**, 역·출구 5,060행. 검수 대기 27곳은 숨긴 채(관리자 [검수 대기] 칩 → [복구]). 시드는 NEW 아님 |
 | 쓰기 경로 | 사용자 15 + 관리자 8 + 사진 서빙 — 전부 `openWriteGate`(읽기 전용 → 엣지 20/60s → Turnstile → IP 해시) 뒤 RLS·트리거·RPC. 표는 decisions 2026-09-16 "보안 스윕" |

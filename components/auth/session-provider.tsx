@@ -14,6 +14,7 @@ import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import {
   deleteAccount as requestDeleteAccount,
   getSession,
+  rememberSession,
   signInWithKakao,
   signOut as requestSignOut,
   updateNickname as requestUpdateNickname,
@@ -85,6 +86,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       alive = false;
     };
   }, []);
+
+  /** 쓰기 래퍼(lib/data.ts)가 Turnstile 전에 잡을 세션 id — 바뀔 때마다 알려 준다 */
+  useEffect(() => {
+    rememberSession(session);
+  }, [session]);
 
   const refreshSession = useCallback(async () => {
     setSession(await getSession());

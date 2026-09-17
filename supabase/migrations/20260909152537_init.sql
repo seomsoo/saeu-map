@@ -517,9 +517,12 @@ comment on view public.reviews_public is '보이는 리뷰 + 작성자 닉네임
 -- ── RPC (public, SECURITY DEFINER — 각자 auth.uid()·속도·섀도 밴을 검사한다) ──
 -- 사진 변환(Images, 월 5,000장 무료) 전에 자리가 있는지 묻는다 — 정책이 거부할 업로드를 변환부터 하지 않게(security-reviewer 2026-09-16 #7).
 -- 진짜 판정은 photos_insert 정책과 reviews_photo_once 트리거다. INVOKER — private 함수들이 각자 DEFINER.
+-- 섀도 밴이면 false — 트리거가 조용히 버릴 사진을 변환(Images 한도)부터 하지 않게. 액션에는 자리 없음(rate limited)으로 보인다(Codex PR #16 #2)
 create or replace function public.photo_slot_ok(p_place uuid default null) returns boolean
 language sql stable set search_path = '' as $$
-  select (select private.rate_ok('photo', 10, interval '1 hour', p_place)) and (select private.photos_this_month()) < 4500;
+  select not private.is_shadow_banned()
+    and (select private.rate_ok('photo', 10, interval '1 hour', p_place))
+    and (select private.photos_this_month()) < 4500;
 $$;
 revoke execute on function public.photo_slot_ok(uuid) from public, anon;
 grant execute on function public.photo_slot_ok(uuid) to authenticated;
@@ -766,6 +769,13 @@ begin
     raise exception 'invalid merge target' using errcode = 'invalid_parameter_value';
   end if;
   update public.photos set place_id = p_into where place_id = p_from;
+  -- 가게당 10장 상한은 INSERT 트리거만 지킨다 — 합쳐서 넘치면 오래된 것부터 내리고 키를 돌려준다(객체는 액션이 지운다, Codex PR #16 #6)
+  return query
+    update public.photos ph set removed_at = now()
+    where ph.id in (
+      select p.id from public.photos p where p.place_id = p_into and p.removed_at is null
+      order by p.created_at desc offset 10)
+    returning ph.place_id, ph.key;
   -- 같은 사람이 같은 날 두 가게를 확인했으면 한 건만 남긴다(유니크 인덱스)
   delete from public.checkins c where c.place_id = p_from and c.type = 'visited'
     and exists (select 1 from public.checkins t where t.place_id = p_into and t.type = 'visited' and t.actor is not distinct from c.actor and t.kst_day = c.kst_day);
@@ -887,6 +897,8 @@ create policy reports_insert on public.reports for insert to authenticated
   with check (
     (select auth.uid()) = actor
     and (select private.place_visible(place_id))
+    -- 사진 신고는 그 가게의 (보이는) 사진만 — 남의 가게 사진 id를 실으면 신고가 엉뚱한 가게에 붙는다(Codex PR #16 #4)
+    and (photo_id is null or exists (select 1 from public.photos ph where ph.id = reports.photo_id and ph.place_id = reports.place_id))
     and case kind
       when 'place_flag' then (select private.rate_ok('place_flag', 1, interval '1 day', place_id))
       when 'owner_request' then (select private.rate_ok('owner_request', 2, interval '1 day', place_id))
