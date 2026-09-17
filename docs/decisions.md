@@ -920,4 +920,5 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **#5 사진 캐시(P2)**: 1년 immutable → 하루(`/photos` 라우트·R2 httpMetadata 둘 다). 내린 사진이 브라우저·CDN 캐시에 남는 시간이다. 사진 요청은 늘지만 Free 하루 10만 안(Phase 7 R2 직서빙으로 옮기면 무관).
 - **#6 합치기 10장 상한(P2)**: INSERT 트리거만 지키던 상한을 `admin_merge_places`가 넘치면 오래된 것부터 `removed_at`을 찍고 키를 돌려준다 → 액션이 기존 freed 경로로 객체를 지운다. pgTAP 2.
 - 곁가지: `pnpm db:types`가 실패해도 파일을 비우지 않게(임시 파일 → mv). 로컬에서 `--local`이 "password authentication failed for user postgres"로 두 번 죽었다(CI는 정상, 원인 미상) — `supabase gen types typescript --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --schema public`으로 뽑으면 된다(결과 동일 확인).
-- 검증: pgTAP 94 → 99, vitest 557, advisors 0, typecheck·lint 통과, 타입 파일 변화 없음. 프리뷰에서 찜 연타·사진 업로드는 CI 뒤 브라우저로 본다.
+- 검증: pgTAP 94 → 99, vitest 560(래퍼 테스트 `lib/__tests__/data-write.test.ts` 3개 추가 — 행위자는 토큰 await 전 캡처, 찜은 한 줄), advisors 0, typecheck·lint 통과, 타입 파일 변화 없음. 로컬 dev + Playwright 실측: 찜 4연타 → 액션 요청 4개가 겹치지 않고 순서대로(각 ~300ms, 사이에 Turnstile 토큰), 새로고침 뒤 익명 세션 id가 `actor`로 실려 문을 통과, 페이지의 세션 쿠키를 지우고 누르면 `{ok:false,error:"session changed"}` + 하트 롤백. 프리뷰는 읽기 전용이라 쓰기 검증은 로컬에서만.
+- 프리뷰 503 재측정(CPU 커밋 뒤, curl 30회): 홈 24회 중 3회 + 상세 6회 중 1회 = **4/30**. 1/4에서 줄었지만 Free 10ms 안에 안정적으로 못 들어간다 — Workers Paid($5) 권고 유지.
