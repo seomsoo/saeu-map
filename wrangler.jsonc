@@ -11,6 +11,8 @@
 	"routes": [{ "pattern": "xn--r02bv8jvof.kr", "custom_domain": true }],
 	// 호출별 CPU·메모리·결과(exceededCpu 등)를 대시보드 Workers Logs에서 본다 — Free 하루 20만 줄 안(2026-09-17 503 진단)
 	"observability": { "enabled": true },
+	// Smart Placement: 워커 실행 위치를 서브리퀘스트가 몰리는 곳(서울 Supabase) 근처로 Cloudflare가 옮긴다. 느려지면 자동 복귀. 상태는 GET /accounts/{id}/workers/services/saeu-map (decisions 2026-09-18)
+	"placement": { "mode": "smart" },
 	// 서버 전용 절대 URL(metadataBase·sitemap·og:url·콜백). 프리뷰 버전은 ci.yml이 `--var SITE_URL:…`로 덮는다 (decisions 2026-09-07)
 	"vars": {
 		"SITE_URL": "https://xn--r02bv8jvof.kr"

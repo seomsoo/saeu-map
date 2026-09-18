@@ -943,3 +943,10 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **맥락**: Sentry 첫 점검(토큰 `org:read`·`project:read`·`event:read`, 값은 `.env.local`). 14일간 이슈 5·이벤트 6, 전부 브라우저. ① `Connection closed.`(React #412) ×2 = 홈 RSC 스트림 도중 워커 CPU 종료 — Paid로 해결 ② `Failed to fetch` = 홈 로드 직후 세션 부트스트랩 `POST /`가 네트워크에서 끊김, `.catch` 없어 unhandledrejection → `session-provider.tsx`에 catch(익명으로 남긴다) ③ Naver SDK `null.isArray` = NCP 인증 서버 500("잠시 후에 다시 요청") 뒤 SDK 내부 정리 — 우리 authFailure 핸들러는 정상, 재발 시 SDK 프레임 무시 ④ `submodules?.toSorted is not a function` = react-naver-maps 0.2.2가 `Array.prototype.toSorted`(Safari 16+) 사용, UA "iOS 11.0"은 Playwright iPhone 8 프리셋과 일치 ⑤ 설치 테스트 이벤트.
 - **결정**: 지원 하한은 **iOS 16(2022-09) / 같은 시기 이후 엔진**. iOS 15에 묶인 기기(iPhone 7 이하·6s·SE 1세대)는 지원하지 않는다 — 폴리필·patch를 넣지 않는다. Sentry가 트립와이어: 같은 이슈가 실사용자 UA로 다시 열리면 그때 `instrumentation-client.ts`에 `toSorted` 폴리필 4줄.
 - 곁가지: spec 6 "Workers는 Free 유지"가 같은 날 Paid 결정과 어긋나 정정. Sentry 통계는 `stats_v2`(accepted 6 · client_discard 23 = SDK 기본 필터 · 트랜잭션 폐기 18 = tracesSampleRate 0)로 확인했다.
+
+## 2026-09-18 — Smart Placement 켬 · 워커 CPU 다이어트는 런칭 뒤 실측으로
+
+- **실측**: 서버 Sentry(`withSentryConfig` + instrumentation)를 빼고 같은 코드를 빌드하면 handler.mjs **16.88 → 14.86MB(−2.0MB, 12%)**. 어제 청크 키워드 세기로 낸 "Sentry+OTel 4.9MB(30%)"는 틀렸다 — 키워드 빈도는 바이트가 아니다. 나머지는 Next 서버 런타임(번들 3.3MB + 별도 19MB)과 라우트 청크(supabase-js·zod·react-dom 서버)라 우리가 뺄 몫이 작다. 콜드 스타트 600~900ms 중 Sentry 몫은 비례로 ~100ms.
+- 로컬 workerd(`wrangler dev`) 첫 요청은 6~17초로 들쭉날쭉해 콜드 스타트 비교에 못 쓴다 — wrangler의 스크립트 적재가 섞인다. 진짜 A/B는 프리뷰 별칭 두 개를 올려 `workersInvocationsAdaptive`의 `scriptVersion` 차원으로 나눠 봐야 한다(미실행 — 계정에 버전·요청 2,700건이 생겨 승인 뒤에).
+- **결정**: 다이어트(서버 Sentry 제거·홈 ISR)는 런칭 전에 하지 않는다. 다 해도 콜드 TTFB ~1.2초가 0.8~0.9초 수준이고 이틀이 든다. 한계는 Workers 위의 Next 자체라, 실사용자 TTFB가 문제면 큰 지렛대는 호스팅(Vercel 서울 리전)이다. 1~2주 실사용자 수치(TTFB·`coloCode` 분포·콜드 비율)로 "그냥 둔다 / 다이어트 / Vercel"을 고른다.
+- **Smart Placement는 켠다**(`placement.mode: smart`, 모든 플랜). 워커→서울 Supabase 왕복(요청당 여러 번)을 줄이는 대신 엣지→워커 한 번을 더 건넌다. 사용자↔엣지 구간(KT→LAX)과 콜드 스타트는 그대로. 15분 이상 트래픽을 본 뒤 판단하며 느려지면 자동 복귀(`UNSUPPORTED_APPLICATION`), 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS`. 정적 에셋은 요청 가까운 곳에서 그대로 서빙. 다음 배포부터 적용.
