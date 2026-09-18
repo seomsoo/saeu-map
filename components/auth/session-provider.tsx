@@ -71,9 +71,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    void getSession().then((s) => {
-      if (alive) setSession(s);
-    });
+    // 네트워크에서 끊기면(뒤로 가기·새로고침이 요청을 자름) 익명으로 남긴다 — 잡지 않으면 unhandledrejection이 Sentry에 간다(SAEU-MAP-4, 2026-09-18)
+    getSession()
+      .then((s) => {
+        if (alive) setSession(s);
+      })
+      .catch(() => {});
     // 주소의 login·intent를 지운다 — 새로고침에 시트가 또 뜨지 않게 (상태는 위 초기값이 이미 읽었다)
     const params = new URLSearchParams(window.location.search);
     if (params.get("login") === "fail") {

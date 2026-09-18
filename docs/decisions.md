@@ -937,3 +937,9 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - Paid가 바꾸는 것: 요청당 CPU 10ms → 30초(종료 0), 월 1,000만 요청 포함, Workers Logs 보관 3일 → 7일. **콜드 스타트 지연(첫 응답 ~1초)은 그대로다** — 트래픽이 생기면 줄고, 안 줄면 백로그 "워커 CPU 다이어트"를 집는다.
 - 풀리는 제약: "Workers Free CPU 10ms라 OG 카드는 빌드 시에만"(decisions 2026-09-07)의 이유가 사라졌다. 코드 주석은 당시 결정의 근거라 그대로 두고, 요청 시 생성은 roadmap 백로그로(Phase 7).
 - 월 비용: Workers $5 + R2(무료 한도 안) + Supabase Free + 도메인(연). runbook 표 갱신.
+
+## 2026-09-18 — 브라우저 지원 하한: iOS 16 / 2022년 이후 엔진 (Sentry 첫 점검에서 결정)
+
+- **맥락**: Sentry 첫 점검(토큰 `org:read`·`project:read`·`event:read`, 값은 `.env.local`). 14일간 이슈 5·이벤트 6, 전부 브라우저. ① `Connection closed.`(React #412) ×2 = 홈 RSC 스트림 도중 워커 CPU 종료 — Paid로 해결 ② `Failed to fetch` = 홈 로드 직후 세션 부트스트랩 `POST /`가 네트워크에서 끊김, `.catch` 없어 unhandledrejection → `session-provider.tsx`에 catch(익명으로 남긴다) ③ Naver SDK `null.isArray` = NCP 인증 서버 500("잠시 후에 다시 요청") 뒤 SDK 내부 정리 — 우리 authFailure 핸들러는 정상, 재발 시 SDK 프레임 무시 ④ `submodules?.toSorted is not a function` = react-naver-maps 0.2.2가 `Array.prototype.toSorted`(Safari 16+) 사용, UA "iOS 11.0"은 Playwright iPhone 8 프리셋과 일치 ⑤ 설치 테스트 이벤트.
+- **결정**: 지원 하한은 **iOS 16(2022-09) / 같은 시기 이후 엔진**. iOS 15에 묶인 기기(iPhone 7 이하·6s·SE 1세대)는 지원하지 않는다 — 폴리필·patch를 넣지 않는다. Sentry가 트립와이어: 같은 이슈가 실사용자 UA로 다시 열리면 그때 `instrumentation-client.ts`에 `toSorted` 폴리필 4줄.
+- 곁가지: spec 6 "Workers는 Free 유지"가 같은 날 Paid 결정과 어긋나 정정. Sentry 통계는 `stats_v2`(accepted 6 · client_discard 23 = SDK 기본 필터 · 트랜잭션 폐기 18 = tracesSampleRate 0)로 확인했다.
