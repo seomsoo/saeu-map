@@ -97,7 +97,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 리뷰 백로그: `peel_results` 정리 | 완료 `c88cbb5` — `peel_monthly` + 월 1회 크론(`rollup-peel-results`), `peel_stats()` = 합계 + 원본 | pgTAP 080(9) · advisors 0 · 타입 갱신 |
 | 리뷰 백로그: supabase CLI npm 고정 | **하지 않음** — 로컬·CI 둘 다 2.117.0이고 CI는 `setup-cli`에 판을 적어 뒀다. 어긋나면 CI의 타입 diff가 트립와이어. postinstall 바이너리 의존성을 새로 들일 값이 없다(코드 최소주의 4) | — |
 | 리뷰 백로그: 액션 단위 테스트 | 남음 | |
-| Sentry 소스맵 | 남음 | |
+| Sentry 소스맵 | **배선 완료, 발화는 토큰 뒤** — `next.config.ts`가 `SENTRY_UPLOAD_TOKEN`이 있을 때만 업로드(main `deploy` 잡), 올린 뒤 .map 삭제. 브라우저 스택만 풀린다(서버는 OpenNext가 다시 묶는다). **사용자: Organization Token(`org:ci`) 만들어 `! gh secret set SENTRY_UPLOAD_TOKEN`**(runbook 2-5) | 토큰 없음: 빌드 통과·맵 0 · 가짜 토큰: 401 로그만 남기고 빌드 완주·맵 0(만료 토큰이 배포를 막지 않는다). 남은 발화: 배포 로그의 업로드 줄 + 새 이슈 스택의 원본 파일명 |
 | 보안 ② `author_id` | 남음 — **플랜보다 크다**: `grant select on public.reviews`가 표 전체라 뷰만 바꿔선 그대로 노출된다. 컬럼 GRANT 회수 + 목록을 DEFINER RPC로 + "내 리뷰" 판정을 uid 비교에서 사용자별 읽기로(상세는 anon 공유 캐시라 `is_mine`을 캐시에 실을 수 없다) + `reviews`를 직접 읽는 액션 2곳 | |
 | 보안 ① captcha 구조 변경 | 남음 | |
 

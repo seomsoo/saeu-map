@@ -54,7 +54,9 @@
 3. **Turnstile 위젯** (프리뷰 배포 전 — 로컬·CI는 Cloudflare 공개 더미 키를 쓴다: site `1x00000000000000000000BB`(보이지 않고 항상 통과)·secret `1x0000000000000000000000000000000AA`(항상 통과). 실패 경로를 보고 싶으면 secret을 `2x…AA`로) — dash.cloudflare.com → Turnstile → Add widget. 이름 "saeu-map", 호스트명에 `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`·`localhost`. 모드 **Managed**(위젯은 우리가 `execute` 모드로 보이지 않게 돌린다). Site key·Secret key를 `.env`에.
 4. **디스코드 웹훅** (커밋 7 전) — 알림 받을 채널 → 채널 편집 → 연동 → 웹훅 → 새 웹훅 → URL 복사 → `.env`의 `DISCORD_WEBHOOK_URL`.
    - 로컬에서 본문만 확인하려면 가짜 수신기: `python3 -m http.server 9999`는 POST를 501로 거부하니 `DISCORD_WEBHOOK_URL=http://127.0.0.1:9999/hook` + 아래 한 줄짜리 수신기(`python3 -c "...HTTPServer..."`, 커밋 7 실측)로 본다. 본문엔 연락처가 없어야 한다.
-5. **Sentry 프로젝트** (PR 전) — sentry.io → Create Project → Next.js → Settings → Client Keys(DSN) 복사 → `.env`와 `gh variable set NEXT_PUBLIC_SENTRY_DSN --body <DSN>`(공개값). Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘(`saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`). 이벤트만 쓴다(트레이싱·리플레이 꺼짐, 무료 5k/월). 소스맵 업로드(SENTRY_AUTH_TOKEN)는 Phase 7. 발화 검증: 프리뷰 배포 뒤 임시 throw 1건이 sentry.io에 뜨면 끝(decisions 2026-09-10 #6 — 안 뜨면 Phase 7로). 로컬은 가짜 수신기로 봉투(envelope)가 오는 것까지 확인했다(커밋 9).
+5. **Sentry 프로젝트** (PR 전) — sentry.io → Create Project → Next.js → Settings → Client Keys(DSN) 복사 → `.env`와 `gh variable set NEXT_PUBLIC_SENTRY_DSN --body <DSN>`(공개값). Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘(`saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`). 이벤트만 쓴다(트레이싱·리플레이 꺼짐, 무료 5k/월).
+   - **소스맵 업로드 토큰**(Phase 7, 한 번): sentry.io → Settings → Developer Settings → **Organization Tokens** → Create(이름 "saeu-map ci", 권한은 기본 `org:ci` — 업로드 전용) → 터미널에서 `! gh secret set SENTRY_UPLOAD_TOKEN`에 붙여 넣는다(채팅에 적지 않는다). 다음 main 배포부터 `deploy` 잡이 브라우저 소스맵을 올리고 .map은 지운다(`next.config.ts`). 없으면 업로드만 꺼진 채 배포된다. `.env.local`의 `SENTRY_AUTH_TOKEN`(읽기 전용 점검용)과는 다른 토큰이다. 발화 검증: 배포 로그의 업로드 줄 + 새 이슈의 스택에 원본 파일명(`components/…tsx`).
+   - 발화 검증: 프리뷰 배포 뒤 임시 throw 1건이 sentry.io에 뜨면 끝(decisions 2026-09-10 #6 — 안 뜨면 Phase 7로). 로컬은 가짜 수신기로 봉투(envelope)가 오는 것까지 확인했다(커밋 9).
 
 ## 3. 내가 CLI로 하는 것
 
