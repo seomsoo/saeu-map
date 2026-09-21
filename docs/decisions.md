@@ -981,3 +981,12 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **Sentry는 503을 거의 못 본다**: Cloudflare 집계로 72시간 799건인데 Sentry에는 3건(MAP-5 ×2 · MAP-6). 문서 요청 자체가 1102로 죽으면 JS가 실리지 않고, 서버 쪽은 아이솔레이트가 죽어 보고를 못 한다. 503의 감시는 Cloudflare `exceededResources`다(runbook 5절에 넣음).
 - **발견 — `http://xn--r02bv8jvof.kr/`가 301 없이 200**: MAP-6의 URL 태그가 `http://`였다. `curl -sI`로 확인 — Location·HSTS 없음. zone의 **Always Use HTTPS가 꺼져 있다**(`.dev`는 TLD 전체가 HSTS preload라 브라우저가 늘 https로 가서, 도메인을 붙이기 전엔 안 보였다). 영향: 주소창에 도메인만 친 사용자가 평문으로 들어오면 내 위치(`navigator.geolocation`)·공유·복사(`lib/share.ts`)가 보안 컨텍스트가 아니라 동작하지 않고, 세션 쿠키가 평문으로 오간다. 조치는 대시보드 토글 하나(사용자) — 코드로 리다이렉트를 짜지 않는다(플랫폼 내장이 먼저). runbook 3d에 추가. **같은 날 사용자가 켰고 `curl -sI http://…` → `301 Location: https://xn--r02bv8jvof.kr/` 확인.** HSTS는 따로 정한다(미정).
 - Sentry 이슈 정리는 토큰이 읽기 전용이라 UI에서: MAP-1(테스트 이벤트) resolve · MAP-2(iOS 15 이하, 지원 하한 밖) archive · MAP-4는 이 PR 배포 뒤 resolve.
+
+## 2026-09-21 — prod 카카오 로그인이 처음부터 안 됐다: 카카오 이메일을 선택 동의로 (뒤집음: "이메일은 받지 않는다")
+
+- **증상**: 사용자 보고 "카카오 로그인이 안 된다". 실측(Playwright, 새우맵.kr): 로그인 시트 → `signInWithKakao` 액션 → Supabase authorize → 카카오 로그인 페이지까지는 정상. 인가 요청이 `scope=account_email profile_image profile_nickname`.
+- **원인**: GoTrue `internal/api/provider/kakao.go`가 `account_email`을 기본 스코프에 **고정**한다 — `scopes` 옵션은 덧붙이기만 하고 빼는 길이 없다. 카카오는 앱에 설정하지 않은 동의항목이 scope에 있으면 **KOE205**(`invalid_scope`)로 거부한다(카카오 로그인 문제 해결 문서). 우리 앱엔 닉네임·프로필 사진만 있었다(runbook 2-2 "이메일은 받지 않는다"). 09-10에 Supabase 문서의 "account_email을 omit하고 Allow users without an email"을 **스코프에서 빠진다**로 읽었는데, `email_optional`은 이메일 없는 유저를 받아 줄 뿐이다. (에러 화면 문구는 직접 못 봤다 — 아래 조치 뒤 로그인이 된 것으로 확인.)
+- **왜 이제 알았나**: 카카오 왕복은 Phase 6에서 "카카오 앱 뒤"로 이월된 채 한 번도 돌지 않았다(플랜 결과 "이월", roadmap 완료 줄). 09-21의 keepalive·Paid 한도와 **같은 뿌리 세 번째** — 결정·설정을 실제 상태와 대조하지 않았다. 이월 항목은 재료가 생긴 날 바로 돈다.
+- **결정(사용자)**: 카카오 앱을 **개인 개발자 비즈 앱**으로 전환(사업자등록번호 불필요 — 본인인증 + 카카오비즈니스 통합 약관, 카카오 문서 app-setting/app)하고 카카오계정(이메일)을 **선택 동의**로. 코드·배포 변경 0, 사용자가 같은 날 로그인 성공 확인. 대안(카카오 OIDC를 서버에서 직접 받고 `signInWithIdToken` — 스코프를 우리가 정한다)은 구조 변경 반나절~하루라 런칭 전엔 사지 않았다. 이메일 수집 자체가 문제가 되면 그때 집는다.
+- **바뀌는 것**: 동의한 사용자의 이메일이 `auth.users`에 저장된다. 우리 코드는 읽지 않고(`profiles`는 닉네임·사진뿐, 세션 판별은 `sub`·provider) 화면에도 없다. 그래도 수집 항목이므로 **개인정보처리방침에 적는다**(Phase 7 플랜 D1). runbook 2-2 · `supabase/config.toml` 주석 정정(`email_optional = true`는 그대로 — 거부한 사용자를 받는다).
+- 남은 것: 병합(익명 → 카카오)·리뷰 작성·탈퇴는 폰 머니패스(플랜 0-2)에서.

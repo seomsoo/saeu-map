@@ -322,9 +322,10 @@ max_frequency = "5s"
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
 # 카카오 — Phase 6 커밋 4에서 켠다. 값은 .env의 SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID / _SECRET (runbook 2절).
-# 이메일 동의는 비즈 앱 전용이라 받지 않는다 → email_optional = true (Supabase Kakao 문서, 2026-09-10)
+# GoTrue가 scope에 account_email을 고정으로 넣는다(빼는 옵션 없음) → 카카오 앱에 이메일 동의항목이 없으면 KOE205.
+# 그래서 카카오 쪽은 이메일 **선택 동의**(개인 개발자 비즈 앱), 여기는 email_optional = true로 거부한 사용자도 받는다(decisions 2026-09-21)
 [auth.external.kakao]
-# 2026-09-17 켬 — 키는 .env.local(로컬)·config push 때 셸 env(실서비스). 이메일 동의는 안 받으므로 이메일 없는 계정 허용
+# 2026-09-17 켬 — 키는 .env.local(로컬)·config push 때 셸 env(실서비스). 이메일은 쓰지 않는다 — 없는 계정 허용
 enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_KAKAO_SECRET)"

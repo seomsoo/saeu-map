@@ -46,7 +46,8 @@
    - 앱 키 → **REST API 키**를 복사해 둔다(= client_id).
    - 카카오 로그인 → 활성화 ON, **Client Secret 생성 + "사용함"**(= client_secret).
    - 카카오 로그인 → Redirect URI에 `https://<프로젝트ref>.supabase.co/auth/v1/callback`과 `http://localhost:54321/auth/v1/callback` 둘 다.
-   - 동의항목 → **닉네임·프로필 사진 필수**. 이메일은 받지 않는다(비즈 앱 전용이라) → Supabase 쪽에서 "Allow users without an email"을 내가 켠다.
+   - **개인 개발자 비즈 앱으로 전환**(사업자등록번호 불필요): 프로필 → 계정 설정 → 본인인증 → [앱] > [일반] > [비즈니스 정보] > [개인 개발자 비즈 앱]. 이메일 동의항목을 쓰려면 필요하다.
+   - 동의항목 → **닉네임·프로필 사진 필수 + 카카오계정(이메일) 선택 동의**. 이메일은 우리가 쓰지 않는다 — Supabase Auth가 인가 요청 scope에 `account_email`을 고정으로 넣어서(빼는 옵션 없음) 동의항목에 없으면 카카오가 **KOE205**로 로그인 전체를 막는다(2026-09-21 prod에서 겪음). 거부한 사용자는 Supabase 쪽 "Allow users without an email"(`email_optional = true`, 내가 켠다)이 받는다.
    - 플랫폼 → Web 사이트 도메인에 실서비스·프리뷰·`http://localhost:3000`.
    - 두 값을 `.env.local`에 `SUPABASE_AUTH_EXTERNAL_KAKAO_CLIENT_ID=`·`SUPABASE_AUTH_EXTERNAL_KAKAO_SECRET=`로 넣고 **"넣었다"고만 알려준다** — 로컬은 `supabase/config.toml`이 그 이름으로 읽고(`[auth.external.kakao] enabled = true`로 바꾼다), 실서비스는 내가 `supabase config push`로 올린다. 값은 채팅에 적지 않는다.
    - 로컬에서 처음 카카오로 로그인한 뒤 관리자로 만들기: `psql … -c "update public.profiles set is_admin = true where id = '<uid>'"` (uid는 Studio → Authentication → Users).
