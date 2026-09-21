@@ -1,0 +1,101 @@
+# Phase 7 — 런칭 준비 (roadmap Phase 7 · spec 4.6·8·9)
+
+**상태: 초안(2026-09-21) — 승인 전.** "결정" 표의 답이 와야 "변경"·"커밋 단위"가 확정된다. 그 전까지 이 문서는 **런칭 전 남은 일 전수 목록**으로 쓴다.
+
+## Context
+
+Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다. 2026-09-21에 Workers Paid 한도 적용(재배포)·workers.dev 복구·Always Use HTTPS까지 닫았다. 이 문서는 roadmap(Phase 6 마지막 줄·백로그·Phase 7) · `phase6-backend.md` "결과"의 이월 · decisions 2026-09-16~21 · runbook · spec 8·9장을 읽어 **런칭 전에 남은 것을 한곳에** 모은 것이다.
+
+조사 시점 prod 실측(2026-09-21 21시 KST): 홈·`sitemap.xml`(URL 793)·`robots.txt` 200, TTFB 2~3.5초(콜드 + LAX 경유), `cf-placement: local-LAX`, `http://` → 301.
+
+## 0. Phase 6 닫기 (코드 0 — 실측·확인만)
+
+| # | 할 일 | 누가 | 상태 |
+|---|---|---|---|
+| 0-1 | `docs/keepalive-verify` 브랜치 push → 문서 PR → CI 통과 후 셀프 머지 | 내가(push는 사용자 승인) | 대기 |
+| 0-2 | **prod 폰 머니패스**: 확인·찜·제보(사진)·수정 제안·신고 → 카카오 로그인 → 리뷰 작성·삭제 → 익명→카카오 병합 → 탈퇴. 첫 쓰기의 Turnstile 지연도 같이 본다(프리뷰 헤드리스에서 첫 POST 6초+, decisions 2026-09-21) | 사용자(폰) + 내가(`wrangler tail`·DB 대조) | 기록 없음 — phase6 "이월" 그대로 |
+| 0-3 | prod 관리자: 카카오 로그인 뒤 `profiles.is_admin = true`(runbook 2-2) → `/admin` 5탭 실사용 → 디스코드 **실채널** 알림 발화 | 같이 | 기록 없음 |
+| 0-4 | ~~프리뷰 읽기 전용 발화~~ | 내가 | 완료 2026-09-21 (`read only` → 토스트 → 롤백) |
+| 0-5 | 검수 대기 27곳 — 관리자 [검수 대기] 칩 → 30초 보고 [복구] (runbook 3b) | 사용자 | 미착수 |
+| 0-6 | Smart Placement가 `remote-…`로 옮겼는지 재확인(지금 `local-LAX`). 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS` | 내가 | 2026-09-22 이후 |
+| 0-7 | Sentry UI 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve (토큰이 읽기 전용) | 사용자 | 미착수 |
+| 0-8 | roadmap Phase 6 "사용자 콘솔 작업" 줄 체크 + 완료 줄 갱신 | 내가 | 0-2·0-3 뒤 |
+
+0-2에서 버그가 나오면 그게 Phase 7의 어떤 항목보다 먼저다.
+
+## 결정 (권고 — 사용자 답 필요)
+
+| # | 질문 | 권고 | 근거 |
+|---|---|---|---|
+| D1 | 개인정보처리방침 페이지 | 만든다 — 정적 `/privacy` + 하단 링크 | 지금 `app/`에 없다. GA와 무관하게 카카오 닉네임·프로필 사진을 이미 받는다. 분석 켜기의 선행 조건(roadmap, decisions 2026-09-08) |
+| D2 | 동의 배너 | 없이 가고 방침에 쿠키·GA4 고지 | 국내 서비스 관행. **법률 검토가 아니라 판단이다** — 사용자 확인 필요 |
+| D3 | 축제 페이지 | 런칭 후로(roadmap Phase 7 줄 정정) | spec 8은 "런칭 후", roadmap은 Phase 7 — 어긋나 있다 |
+| D4 | `/test` 참여자 수·유형 비율 화면 | 런칭 후 | RPC는 Phase 6에 있다. 0명에서 시작하는 숫자는 역효과 — 노출 하한(예: 수백 명)을 정한 뒤 |
+| D5 | 라이브 피드(spec 8 "런칭에 포함") | 결정 아님 — 갭 스윕에서 구현 여부 확정 | 관련 코드가 `lib/map-screen-data.ts`·`lib/server/actions.ts`에 보이나 화면까지 미확인. roadmap Phase 7 줄엔 없다 |
+| D6 | HSTS | 켠다, 짧은 `max-age`부터 | decisions 2026-09-21 "따로 정한다(미정)" |
+| D7 | keepalive 실패 알림 | 워크플로 실패 시 디스코드 한 스텝 | 나흘 빨강을 월간 점검이 못 잡았다(decisions 2026-09-21, 미정) |
+| D8 | `www` 리다이렉트 | 계속 보류 | runbook 3d "치는 사람이 거의 없어 보류" |
+| D9 | 구글 서치 콘솔도 등록? | 한다(네이버와 같은 작업) | spec 4.6은 네이버만 적었다 |
+| D10 | **런칭일** | — | 역산 기준. spec 9의 나머지(SNS 채널·10월 말 판단 숫자·태그라인)는 런칭 글 전까지 |
+
+## 변경 (결정 뒤 확정)
+
+### 1. 보안 하드닝 4건 (roadmap 백로그 "보안 리뷰 백로그", 런칭 전 필수) — `supabase/migrations/` · `supabase/tests/` · `lib/server/turnstile.ts` · `lib/server/write-gate.ts`
+- ① publishable 키 유출 대비: GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken. 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 된다 → **구조 변경, 넷 중 가장 크다.**
+- ② `reviews_public.author_id` → `is_mine` (익명에게 auth uid 노출 안 함)
+- ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거)
+- ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤
+
+### 2. 최종 리뷰 백로그 (roadmap 백로그, 2026-09-16 커밋 10a)
+- 42501 매핑 통일(신고는 rate limited · 확인은 place not found)
+- 액션 단위 테스트 세트(supabase 클라이언트 목)
+- supabase CLI npm 고정(`pnpm exec supabase`)
+- `peel_results` 월 집계 후 정리 크론
+
+### 3. 서치어드바이저 — `app/layout.tsx`(소유 확인 메타, 지금 없음)
+- 네이버 서치어드바이저(+ D9면 구글) 소유 확인 → sitemap 제출. 콘솔 등록·확인 코드는 사용자, 메타 배선은 내가. 확인 코드는 공개값.
+
+### 4. 분석 — `app/privacy/page.tsx`(신규) · `app/layout.tsx` · GH variable `NEXT_PUBLIC_GA_ID`
+- D1·D2 뒤. Cloudflare Web Analytics 배선 + GA4 측정 ID(허용 목록 안 — 절대 규칙 7). GA4 내부 트래픽 제외(runbook 4-1).
+
+### 5. Sentry 소스맵 — GH secret `SENTRY_AUTH_TOKEN` · `next.config`
+- phase6 "하지 않은 것"에서 이월.
+
+### 6. 운영 — `.github/workflows/keepalive.yml`(D7) · 대시보드 HSTS(D6, 사용자)
+
+### 7. 조건부
+- 핀 공유 카드 요청 시 생성(`/og/place/[id]` — satori+resvg + R2 캐시). 조건: 새 제보가 공유되기 시작할 때. 런칭 전에 넣을지는 0-2 머니패스에서 "새 핀 공유 → 루트 카드"가 거슬리는지로 판단.
+- D5 결과 라이브 피드가 미구현이면 여기 들어온다.
+
+### 8. 마감
+- gap-sweeper(spec 4.6·8 + 이 문서) 미구현 0 · security-reviewer · 이 파일 맨 아래 "## 결과".
+
+## 사용자 몫 (콘솔·운영 — 코드와 병행)
+
+- 실기기: iOS 리뷰 폼 CTA가 키보드에 가리는지(roadmap 백로그) · 실기기 LCP(4초를 넘으면 청크 분할 백로그를 집는다, decisions 2026-09-07)
+- 사용량 알림(runbook 4-2): Cloudflare Images · Supabase Usage (NCP는 이미)
+- 런칭 글("전수조사", spec 8) · SNS 채널 개설 (D10과 함께)
+- 로컬 `[gone]` 브랜치 8개 정리(`/clean_gone`) — 사소
+
+## 검증
+
+- 매 커밋: `pnpm typecheck && pnpm lint && pnpm test`. 마이그레이션이 있으면 `pnpm db:reset && pnpm db:test && pnpm db:advisors`(0건) + `pnpm db:types` diff.
+- 보안 ①: 로컬 dev + workerd(`pnpm preview`)에서 익명 첫 쓰기·카카오 로그인·프리뷰 읽기 전용이 그대로인지. 배포 뒤 prod에서 0-2의 쓰기 한 바퀴를 다시.
+- 서치어드바이저·분석·소스맵은 **발화가 완료 조건**: 콘솔의 "소유 확인됨", GA4 실시간 1건, Sentry 스택에 원본 파일명.
+- 배포 뒤 runbook 3d 마지막 두 줄(세 주소 200 · keepalive 수동 실행).
+
+## 커밋 단위 (초안 — 한 턴 = 한 커밋)
+
+1. docs: 이 플랜 확정 + roadmap Phase 7 줄 정정(D3·D4) + decisions 기록
+2. db: 보안 ②③ (마이그레이션 + pgTAP)
+3. feat(server): 보안 ④ hostname 검증
+4. feat(auth): 보안 ① captcha 구조 변경
+5. fix/test: 리뷰 백로그 4건
+6. feat(seo): 소유 확인 메타
+7. feat: `/privacy` + 분석 배선
+8. ci: 소스맵 · keepalive 알림
+9. docs: 갭 스윕·보안 리뷰 반영 + "## 결과"
+
+## 범위 밖 (이미 "런칭 뒤"로 정한 것 — roadmap 백로그)
+
+워커 CPU 다이어트(1~2주 실측 뒤 판단, decisions 2026-09-18) · 급증 디스코드 알림 · 구글 로그인 · 시즌 스탬프 · [새로 들어온 집] 필터 재검토 · 1024 경계 리센터 · 앱(TWA/Capacitor) · 사이즈 판독기.
