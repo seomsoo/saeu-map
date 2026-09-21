@@ -87,6 +87,22 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 - 서치어드바이저·분석·소스맵은 **발화가 완료 조건**: 콘솔의 "소유 확인됨", GA4 실시간 1건, Sentry 스택에 원본 파일명.
 - 배포 뒤 runbook 3d 마지막 두 줄(세 주소 200 · keepalive 수동 실행).
 
+## 진행 (2026-09-21 — 사용자 "결정이 필요 없는 것부터 시작", 브랜치 `feat/phase7-hardening`)
+
+| 단위 | 상태 | 검증 |
+|---|---|---|
+| 보안 ④ Turnstile `hostname` | 완료 `4a35fc1` — 요청 `Host`와 대조(`x-forwarded-host`는 안 본다), 테스트 키(`result_with_testing_key`)는 건너뜀, 어긋나면 `reportError` | vitest 1 추가 · 로컬 dev 찜·해제 `{"ok":true}`. **배포 뒤 prod 첫 쓰기로 재확인**(실 secret의 hostname 표기를 아직 못 봤다 — 어긋나면 Sentry "turnstile hostname mismatch") |
+| 보안 ③ 카카오 닉네임 초기값 | 완료 `7073644` — `private.clean_nickname`(NFKC → 글자·숫자·공백만 → 12자 → 2자 미만·금칙어면 null)을 `handle_new_user`가 쓴다. 금칙어가 TS·SQL 두 곳이라 동기화 테스트 | pgTAP 070(12) · `banned-words-sync.test.ts` · `[[:alnum:]]`의 한글 판정은 로컬·prod(17.6, en_US.UTF-8) 동일 확인 |
+| 리뷰 백로그: 42501 매핑 | 완료 `4255b22` — `failFromDb`에 42501·23503, 확인·찜·신고 호출부 통일. 화면은 두 코드를 가르지 않아(grep 0) 구분용 추가 조회는 넣지 않았다 | vitest 그대로 |
+| 리뷰 백로그: `peel_results` 정리 | 완료 `c88cbb5` — `peel_monthly` + 월 1회 크론(`rollup-peel-results`), `peel_stats()` = 합계 + 원본 | pgTAP 080(9) · advisors 0 · 타입 갱신 |
+| 리뷰 백로그: supabase CLI npm 고정 | **하지 않음** — 로컬·CI 둘 다 2.117.0이고 CI는 `setup-cli`에 판을 적어 뒀다. 어긋나면 CI의 타입 diff가 트립와이어. postinstall 바이너리 의존성을 새로 들일 값이 없다(코드 최소주의 4) | — |
+| 리뷰 백로그: 액션 단위 테스트 | 남음 | |
+| Sentry 소스맵 | 남음 | |
+| 보안 ② `author_id` | 남음 — **플랜보다 크다**: `grant select on public.reviews`가 표 전체라 뷰만 바꿔선 그대로 노출된다. 컬럼 GRANT 회수 + 목록을 DEFINER RPC로 + "내 리뷰" 판정을 uid 비교에서 사용자별 읽기로(상세는 anon 공유 캐시라 `is_mine`을 캐시에 실을 수 없다) + `reviews`를 직접 읽는 액션 2곳 | |
+| 보안 ① captcha 구조 변경 | 남음 | |
+
+수치: pgTAP 99 → **120**(9 파일) · vitest 560 → **563** · advisors 0. **마이그레이션 2개는 머지 뒤 `supabase db push`(사용자 승인)로 prod에 올린다** — CI가 하지 않는다(runbook 3).
+
 ## 커밋 단위 (초안 — 한 턴 = 한 커밋)
 
 1. docs: 이 플랜 확정 + roadmap Phase 7 줄 정정(D3·D4) + decisions 기록
