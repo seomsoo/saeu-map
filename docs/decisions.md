@@ -969,6 +969,7 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **못 본 것**: 결제 상태 자체. wrangler OAuth 토큰에는 billing 권한이 없어 `/accounts/{id}/subscriptions`가 403이고, `usage_model`은 Free 때부터 `standard`라 구분이 안 된다. 대시보드(Workers & Pages 개요의 Plan, 또는 Manage Account → Billing → Subscriptions)에서 사용자가 본다.
 - **다음**: ① 대시보드에 Workers Paid가 Active인지 ② Active인데도 1102가 나면 이 PR 머지(= 재배포) 뒤 같은 curl 50회 ③ 그래도 나면 CPU가 아니라 **메모리 128MB**(1102는 둘을 구분하지 않는다, 플랜과 무관)를 의심 — Workers Logs의 outcome(`exceededCpu`/`exceededMemory`)으로 가른다. 결과를 여기에 덧붙인다.
 - **덧붙임(같은 날 16:20 KST)**: 사용자가 대시보드에서 Workers Paid **Active** 확인. 그런데도 curl 30회 중 503 4회. `wrangler tail saeu-map --format json`을 붙이고 50요청: **outcome `exceededCpu`** 22건("Worker exceeded CPU time limit."), 종료 시점 cpuTime **50ms·118ms**, `/robots.txt`도 2건 죽었다. 메모리가 아니고, 30초 한도라면 50ms에서 죽을 수 없다 → **계정은 Paid인데 09-17에 Free로 배포된 워커 버전에는 옛 CPU 한도가 그대로 붙어 있다**고 읽는다(가설 — 재배포로 확인). tail은 prod 트래픽에는 잘 붙는다(09-17의 0줄은 프리뷰 버전이라서였다). 재배포 뒤 같은 측정을 여기에 덧붙인다.
+- **덧붙임(16:30 KST) — 가설 확인, 503 0**: 사용자 승인으로 main의 deploy 잡만 재실행(`gh run rerun 35266037022 --job <deploy>` — 같은 커밋 a18ea04, 코드 변경 0). 직후 같은 측정: **curl 50회 전부 200**, tail 61건 **전부 `ok`**, 홈 cpuTime p50 176ms · **최대 1,151ms도 죽지 않았다**(재배포 전엔 50ms에서 종료). TTFB 중앙 0.51초 · 최대 2.1초(콜드). **교훈: CPU 한도는 계정이 아니라 배포된 버전에 붙는다 — 플랜을 바꾸면 재배포해야 적용된다.** PR과 묶지 않고 재배포만 따로 한 덕에 변수가 하나였다(PR에는 Smart Placement가 같이 있다). runbook 부품 표에 한 줄.
 
 ## 2026-09-21 — Sentry 두 번째 점검: 새 이슈 1건은 503의 그림자 · `http://`가 평문으로 열린다
 

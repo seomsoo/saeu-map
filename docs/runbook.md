@@ -6,7 +6,7 @@
 
 | 부품 | 무엇 | 어디 | 비용 |
 |---|---|---|---|
-| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정 · 2026-09-21 결제 — 한도 적용은 미확인, decisions 2026-09-21)** | 월 1,000만 요청(초과 100만당 $0.30) + **월 CPU 3,000만 ms**(초과 100만 ms당 $0.02) 포함, 요청당 CPU 30초. 먼저 닿는 건 CPU다 — 홈 한 번이 CPU ~210ms(p50, 2026-09-18 실측)라 3,000만 ms ≈ 홈 14만 회, 그 뒤는 홈 100만 회당 ~$4.5(CPU $4.2 + 요청 $0.3). Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
+| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정 · 2026-09-21 결제·재배포 뒤 503 0 확인)**. **플랜을 바꾸면 재배포해야 한도가 적용된다** — CPU 한도는 배포된 버전에 붙는다(decisions 2026-09-21) | 월 1,000만 요청(초과 100만당 $0.30) + **월 CPU 3,000만 ms**(초과 100만 ms당 $0.02) 포함, 요청당 CPU 30초. 먼저 닿는 건 CPU다 — 홈 한 번이 CPU ~210ms(p50, 2026-09-18 실측)라 3,000만 ms ≈ 홈 14만 회, 그 뒤는 홈 100만 회당 ~$4.5(CPU $4.2 + 요청 $0.3). Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
 | 도메인 | `새우맵.kr` = `xn--r02bv8jvof.kr`(퓨니코드) — 가비아 등록, 네임서버 Cloudflare(eric·gail), 워커 custom domain | 가비아 + Cloudflare Free | 연 2만 원 안팎 |
 | 장부(DB·인증) | Postgres + GoTrue + PostgREST | Supabase **Free** 프로젝트 1개(prod) | 500MB · MAU 5만 · egress 5GB/월 |
 | 사진 창고 | R2 `saeu-photos` | Cloudflare | 10GB · 읽기 1,000만/월 (캐시 버킷과 **합산**) |
