@@ -96,12 +96,12 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 리뷰 백로그: 42501 매핑 | 완료 `4255b22` — `failFromDb`에 42501·23503, 확인·찜·신고 호출부 통일. 화면은 두 코드를 가르지 않아(grep 0) 구분용 추가 조회는 넣지 않았다 | vitest 그대로 |
 | 리뷰 백로그: `peel_results` 정리 | 완료 `c88cbb5` — `peel_monthly` + 월 1회 크론(`rollup-peel-results`), `peel_stats()` = 합계 + 원본 | pgTAP 080(9) · advisors 0 · 타입 갱신 |
 | 리뷰 백로그: supabase CLI npm 고정 | **하지 않음** — 로컬·CI 둘 다 2.117.0이고 CI는 `setup-cli`에 판을 적어 뒀다. 어긋나면 CI의 타입 diff가 트립와이어. postinstall 바이너리 의존성을 새로 들일 값이 없다(코드 최소주의 4) | — |
-| 리뷰 백로그: 액션 단위 테스트 | 남음 | |
+| 리뷰 백로그: 액션 단위 테스트 | 완료 — `lib/server/__tests__/actions.test.ts`: 문(gate) 실패 4종 전달 · 행위자 전달 · 확인·찜·신고의 오류 코드 매핑 · 성공 시 캐시 만료·알림 · 섀도 밴은 알림 없음. 체이닝 가능한 가짜 클라이언트(`fakeDb`) — 권한·제한 자체는 pgTAP 몫 | vitest 16 추가 |
 | Sentry 소스맵 | **배선 완료, 발화는 토큰 뒤** — `next.config.ts`가 `SENTRY_UPLOAD_TOKEN`이 있을 때만 업로드(main `deploy` 잡), 올린 뒤 .map 삭제. 브라우저 스택만 풀린다(서버는 OpenNext가 다시 묶는다). **사용자: Organization Token(`org:ci`) 만들어 `! gh secret set SENTRY_UPLOAD_TOKEN`**(runbook 2-5) | 토큰 없음: 빌드 통과·맵 0 · 가짜 토큰: 401 로그만 남기고 빌드 완주·맵 0(만료 토큰이 배포를 막지 않는다). 남은 발화: 배포 로그의 업로드 줄 + 새 이슈 스택의 원본 파일명 |
 | 보안 ② `author_id` | 남음 — **플랜보다 크다**: `grant select on public.reviews`가 표 전체라 뷰만 바꿔선 그대로 노출된다. 컬럼 GRANT 회수 + 목록을 DEFINER RPC로 + "내 리뷰" 판정을 uid 비교에서 사용자별 읽기로(상세는 anon 공유 캐시라 `is_mine`을 캐시에 실을 수 없다) + `reviews`를 직접 읽는 액션 2곳 | |
 | 보안 ① captcha 구조 변경 | 남음 | |
 
-수치: pgTAP 99 → **120**(9 파일) · vitest 560 → **563** · advisors 0. **마이그레이션 2개는 머지 뒤 `supabase db push`(사용자 승인)로 prod에 올린다** — CI가 하지 않는다(runbook 3).
+수치: pgTAP 99 → **120**(9 파일) · vitest 560 → **579** · advisors 0. **마이그레이션 2개는 머지 뒤 `supabase db push`(사용자 승인)로 prod에 올린다** — CI가 하지 않는다(runbook 3).
 
 ## 커밋 단위 (초안 — 한 턴 = 한 커밋)
 
