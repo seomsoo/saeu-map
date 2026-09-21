@@ -950,3 +950,12 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 로컬 workerd(`wrangler dev`) 첫 요청은 6~17초로 들쭉날쭉해 콜드 스타트 비교에 못 쓴다 — wrangler의 스크립트 적재가 섞인다. 진짜 A/B는 프리뷰 별칭 두 개를 올려 `workersInvocationsAdaptive`의 `scriptVersion` 차원으로 나눠 봐야 한다(미실행 — 계정에 버전·요청 2,700건이 생겨 승인 뒤에).
 - **결정**: 다이어트(서버 Sentry 제거·홈 ISR)는 런칭 전에 하지 않는다. 다 해도 콜드 TTFB ~1.2초가 0.8~0.9초 수준이고 이틀이 든다. 한계는 Workers 위의 Next 자체라, 실사용자 TTFB가 문제면 큰 지렛대는 호스팅(Vercel 서울 리전)이다. 1~2주 실사용자 수치(TTFB·`coloCode` 분포·콜드 비율)로 "그냥 둔다 / 다이어트 / Vercel"을 고른다.
 - **Smart Placement는 켠다**(`placement.mode: smart`, 모든 플랜). 워커→서울 Supabase 왕복(요청당 여러 번)을 줄이는 대신 엣지→워커 한 번을 더 건넌다. 사용자↔엣지 구간(KT→LAX)과 콜드 스타트는 그대로. 15분 이상 트래픽을 본 뒤 판단하며 느려지면 자동 복귀(`UNSUPPORTED_APPLICATION`), 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS`. 정적 에셋은 요청 가까운 곳에서 그대로 서빙. 다음 배포부터 적용.
+
+## 2026-09-21 — 도메인을 붙인 배포에서 workers.dev가 꺼졌다 (keepalive 나흘 실패 · 프리뷰 별칭 404)
+
+- **증상**: `keepalive`가 09-18~21 네 번 연속 빨강(`404`, curl exit 22). `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev` 둘 다 404, 새우맵.kr은 200. 마지막 초록이 09-17이라 실사용 트래픽이 없었다면 09-24쯤 Supabase가 잠들 자리였다.
+- **원인**: wrangler는 `routes`가 있는데 `workers_dev`를 적지 않으면 **false로 추론**하고, `preview_urls`의 기본값은 `workers_dev`를 따른다(Cloudflare 문서 routing/workers-dev · configuration/previews, context7로 확인). 09-17 결정은 "workers.dev 주소는 계속 열어 둔다(keepalive·프리뷰)"였는데 설정에 적지 않았고, `wrangler.jsonc` 주석은 "계속 열려 있다"고 확인 없이 적었다. #16 머지 뒤 첫 배포에서 꺼졌다.
+- **반영**: 09-17 결정 그대로 `workers_dev: true`·`preview_urls: true`를 명시. keepalive는 **실서비스 주소**(`xn--r02bv8jvof.kr`)를 부른다 — 사용자가 들어오는 주소의 DNS·인증서까지 같이 보고, workers.dev 설정에 매이지 않는다.
+- **같은 실수 2회째**(하네스 요소의 발화 미검증 — 2026-09-01 훅 스키마): CLAUDE.md 규칙은 이미 있고, 빠진 건 "배포로 바뀌는 하네스는 배포 **뒤** 다시 발화시킨다"였다. runbook 3d 체크리스트에 배포 뒤 세 주소 200 + keepalive 수동 실행 한 줄을 넣었다. 월간 점검(runbook 5)의 "keepalive가 매일 초록인지"는 있었지만 월 1회라 나흘을 못 잡았다 — 실패를 더 빨리 알 방법(디스코드 알림 등)을 붙일지는 **미정**(사용자 결정 대기).
+- **검증은 머지 뒤**: 설정은 배포돼야 적용된다. 이 PR의 `preview` 잡이 올린 별칭 URL이 200인지(프리뷰 발화), 머지 뒤 workers.dev 200 + `gh workflow run keepalive` 초록을 확인하고 여기에 결과를 덧붙인다.
+- 곁가지: 09-18의 미반영 커밋 둘(세션 부트스트랩 catch · Smart Placement)이 머지된 `feat/phase6-backend` 위에 남아 있어 이 브랜치(`fix/keepalive-preview-url`)로 cherry-pick했다. #16이 스쿼시라 main 트리와 `4b558ff`가 같아 충돌 없음.

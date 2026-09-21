@@ -7,8 +7,11 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	// 실서비스 도메인 새우맵.kr(퓨니코드 표기, 2026-09-17). 배포하면 Cloudflare가 DNS 기록과 인증서를 자동으로 만든다. workers.dev 주소도 계속 열려 있다
+	// 실서비스 도메인 새우맵.kr(퓨니코드 표기, 2026-09-17). 배포하면 Cloudflare가 DNS 기록과 인증서를 자동으로 만든다
 	"routes": [{ "pattern": "xn--r02bv8jvof.kr", "custom_domain": true }],
+	// routes를 넣으면 wrangler가 workers_dev를 false로 추론하고 preview_urls는 그 값을 따른다 — 적지 않으면 PR 프리뷰 별칭이 404다(decisions 2026-09-21)
+	"workers_dev": true,
+	"preview_urls": true,
 	// 호출별 CPU·메모리·결과(exceededCpu 등)를 대시보드 Workers Logs에서 본다 — Free 하루 20만 줄 안(2026-09-17 503 진단)
 	"observability": { "enabled": true },
 	// Smart Placement: 워커 실행 위치를 서브리퀘스트가 몰리는 곳(서울 Supabase) 근처로 Cloudflare가 옮긴다. 느려지면 자동 복귀. 상태는 GET /accounts/{id}/workers/services/saeu-map (decisions 2026-09-18)
