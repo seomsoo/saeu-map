@@ -84,6 +84,24 @@ export type Database = {
           },
         ]
       }
+      peel_monthly: {
+        Row: {
+          month: string
+          n: number
+          type: string
+        }
+        Insert: {
+          month: string
+          n: number
+          type: string
+        }
+        Update: {
+          month?: string
+          n?: number
+          type?: string
+        }
+        Relationships: []
+      }
       peel_results: {
         Row: {
           created_at: string
