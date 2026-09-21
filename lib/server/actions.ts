@@ -258,13 +258,12 @@ export async function getBookmarkedPlaceIds(): Promise<string[]> {
 /** 내 활동 > 내 리뷰 — 카카오 세션의 리뷰(최신순) + 가게명. 숨긴 가게의 리뷰는 뷰에서 빠진다. */
 export async function getMyReviews(_now?: string): Promise<MyReview[]> {
   const db = await userClient();
-  const { data: claims } = await db.auth.getClaims();
-  const uid = claims?.claims.sub;
-  if (!uid) return [];
+  const mine = (await readSession(db)).reviewIds ?? [];
+  if (mine.length === 0) return [];
   const { data: rows, error } = await db
     .from("reviews_public")
     .select("*")
-    .eq("author_id", uid)
+    .in("id", mine)
     .order("created_at", { ascending: false });
   if (error) throw new Error("reviews unavailable");
   const reviews = rows.map(toReview);
@@ -364,9 +363,10 @@ export async function updateNickname(
   }
   const { error } = await db.from("profiles").update({ nickname: next }).eq("id", uid);
   if (error) return fail("forbidden");
-  const { data: mine } = await db.from("reviews").select("place_id").eq("author_id", uid);
+  const session = await readSession(db);
+  const { data: mine } = await db.from("reviews").select("place_id").in("id", session.reviewIds ?? []);
   for (const id of new Set((mine ?? []).map((r) => r.place_id))) expirePlace(id); // 리뷰 옆 닉네임은 상세 캐시 안에 있다
-  return okay(await readSession(db));
+  return okay(session);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -692,13 +692,14 @@ export async function attachReviewPhoto(form: FormData): Promise<Result<Review>>
   const gate = await openWriteGate(formString(form, "turnstile"), formString(form, "actor") || null);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
-  let uid: string;
   try {
-    uid = await requireKakao(db);
+    await requireKakao(db);
   } catch {
     return fail("login required");
   }
-  const { data: target } = await db.from("reviews").select("photo_key").eq("id", reviewId).eq("author_id", uid).maybeSingle();
+  // 내 리뷰인지는 me()의 목록으로 — author_id는 읽을 수 없다. 남의 리뷰면 아래 UPDATE도 RLS가 0행으로 막는다
+  if (!((await readSession(db)).reviewIds ?? []).includes(reviewId)) return fail("forbidden");
+  const { data: target } = await db.from("reviews").select("photo_key").eq("id", reviewId).maybeSingle();
   if (!target) return fail("forbidden");
   if (target.photo_key !== null) return fail("photo limit reached");
   const { data: slot } = await db.rpc("photo_slot_ok");
@@ -760,7 +761,6 @@ export async function submitReview(
     const review: Review = {
       id: crypto.randomUUID(),
       placeId: parsed.placeId,
-      authorId: uid,
       rating: parsed.rating,
       text: parsed.text,
       nickname: session.nickname ?? "",

@@ -19,8 +19,8 @@ interface ReviewSectionProps {
   reviews: Review[];
   /** 사진이 있는 가게는 네이버 링크가 여기(섹션 끝)로 온다 */
   naverUrl: string | null;
-  /** 본인 리뷰 판정 — null이면 아무 리뷰도 내 것이 아니다 */
-  currentUserId: string | null;
+  /** 이 가게에 쓴 내 리뷰(핀당 1개) — null이면 아무 리뷰도 내 것이 아니다 */
+  myReviewId: string | null;
   onRetry: () => void;
   onEdit: (review: Review) => void;
   onDelete: (reviewId: string) => void;
@@ -139,7 +139,7 @@ export function ReviewSection({
   status,
   reviews,
   naverUrl,
-  currentUserId,
+  myReviewId,
   onRetry,
   onEdit,
   onDelete,
@@ -187,7 +187,7 @@ export function ReviewSection({
             <ReviewRow
               key={review.id}
               review={review}
-              mine={currentUserId !== null && review.authorId === currentUserId}
+              mine={review.id === myReviewId}
               onEdit={onEdit}
               onDelete={onDelete}
             />

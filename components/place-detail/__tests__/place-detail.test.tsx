@@ -69,7 +69,6 @@ function review(rating: number, overrides: Partial<Review> = {}): Review {
   return {
     id: `rv${String(reviewSeq)}`,
     placeId: "nara",
-    authorId: "u-other",
     rating,
     text: "대하가 실했어요.",
     nickname: "새우헌터",
@@ -840,7 +839,6 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
     const saved: Review = {
       id: "rv-local-1",
       placeId: "nara",
-      authorId: "u-kakao-1",
       rating: 5,
       text: "머리버터구이 최고",
       nickname: "새우헌터",
@@ -876,8 +874,9 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
   });
 
   it("본인 리뷰 [수정] → 수정 폼 → '수정됨'. [삭제]는 인라인 확인 → 낙관 제거, 실패면 원복 + 토스트", async () => {
-    data.getSession.mockResolvedValue(KAKAO);
-    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터", text: "원래 글" });
+    // 내 리뷰는 세션의 reviewIds가 가른다 — 리뷰에는 작성자 uid가 없다
+    data.getSession.mockResolvedValue({ ...KAKAO, reviewIds: ["rv-mine"] });
+    const mine = review(4, { id: "rv-mine", nickname: "새우헌터", text: "원래 글" });
     const edited = { ...mine, rating: 3, text: "고친 글", editedAt: NOW };
     data.updateReview.mockResolvedValue(edited);
     data.deleteReview.mockRejectedValue(new Error("mock write failed"));
@@ -919,8 +918,8 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
 
 describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [리뷰 남기기]를 빼고 행의 [수정]만 남긴다", () => {
   it("내 리뷰가 있으면 기여 블록엔 [다녀왔어요]만, 없으면 둘 다", async () => {
-    data.getSession.mockResolvedValue(KAKAO);
-    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터" });
+    data.getSession.mockResolvedValue({ ...KAKAO, reviewIds: ["rv-mine"] });
+    const mine = review(4, { id: "rv-mine", nickname: "새우헌터" });
     const { unmount } = renderDetail(nara(), { initialReviews: [mine] });
     const band = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
     await waitFor(() => {

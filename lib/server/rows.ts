@@ -174,7 +174,6 @@ export function toPhoto(input: unknown): Photo & { placeId: string } {
 export const reviewPublicRowSchema = z.object({
   id: z.uuid(),
   place_id: z.uuid(),
-  author_id: z.uuid().nullable(),
   rating: z.number(),
   text: z.string(),
   photo_key: z.string().nullable(),
@@ -183,8 +182,7 @@ export const reviewPublicRowSchema = z.object({
   nickname: z.string().nullable(),
 });
 
-/** 탈퇴한 작성자 — 식별자 없는 표시값(리뷰는 소프트 삭제되지만 모양은 같게 둔다) */
-export const DELETED_AUTHOR = "deleted";
+/** 탈퇴한 작성자 — 표시값(리뷰는 소프트 삭제되지만 모양은 같게 둔다) */
 export const DELETED_NICKNAME = "탈퇴한 사용자";
 
 export function toReview(input: unknown): Review {
@@ -192,7 +190,6 @@ export function toReview(input: unknown): Review {
   return {
     id: row.id,
     placeId: row.place_id,
-    authorId: row.author_id ?? DELETED_AUTHOR,
     rating: row.rating,
     text: row.text,
     nickname: row.nickname ?? DELETED_NICKNAME,

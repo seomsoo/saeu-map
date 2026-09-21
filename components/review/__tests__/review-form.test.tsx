@@ -22,7 +22,6 @@ const NOW = "2026-09-01T12:00:00+09:00";
 const mine: Review = {
   id: "rv-local-1",
   placeId: "nara",
-  authorId: "u-kakao-1",
   rating: 4,
   text: "새우가 실했어요",
   nickname: "새우헌터",

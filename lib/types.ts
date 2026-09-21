@@ -167,8 +167,6 @@ export interface Review {
   /** DB uuid — 수정·삭제가 이 값을 보낸다. */
   id: string;
   placeId: string;
-  /** 작성자 세션 userId — 본인 [수정][삭제] 판정(spec 5). 화면에는 안 보인다. */
-  authorId: string;
   rating: number;
   text: string;
   nickname: string;
@@ -201,6 +199,11 @@ export interface Session {
    * URL 쿼리·dev 토글로는 켜지 않는다(로컬 관리자는 SQL로, runbook 2절).
    */
   isAdmin?: boolean;
+  /**
+   * 내가 쓴 리뷰 id(카카오만) — 본인 [수정][삭제]·[리뷰 수정] 판정(spec 5). 리뷰에는 작성자 uid가 실리지 않는다:
+   * DB가 그 열을 아무에게도 내주지 않는다(decisions 2026-09-21). 없으면 빈 목록과 같다.
+   */
+  reviewIds?: string[];
 }
 
 /** 신규 패널 [정보가 달라요] 사유 — 사유 시트 4행과 1:1 (design 화면 4 변형 (a)). */

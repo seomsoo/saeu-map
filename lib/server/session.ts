@@ -12,7 +12,13 @@ import type { Db } from "./supabase";
 
 export const VISITOR: Session = { userId: null, provider: "anonymous", nickname: null };
 
-const meSchema = z.object({ id: z.uuid(), nickname: z.string().nullable(), isAdmin: z.boolean() });
+// reviewIds는 없어도 받는다 — 앱이 마이그레이션(20260921150000)보다 먼저 배포된다. 그 몇 분은 [수정][삭제]만 안 보이고 세션은 산다
+const meSchema = z.object({
+  id: z.uuid(),
+  nickname: z.string().nullable(),
+  isAdmin: z.boolean(),
+  reviewIds: z.array(z.uuid()).default([]),
+});
 
 /**
  * 카카오 세션인가 — "익명이 아니면 카카오"로 보지 않고 공급자 클레임을 본다. 이메일 가입은 config가 닫았지만(#4) 설정이 새면
@@ -32,7 +38,7 @@ export async function readSession(db: Db): Promise<Session> {
   if (error) throw new Error("profile unavailable");
   if (me === null) return VISITOR; // 프로필 행이 없다(탈퇴 뒤 아직 유효한 JWT) — 손님으로. 다음 쓰기의 ensureUser가 세션을 정리한다
   const profile = meSchema.parse(me);
-  return { userId: claims.sub, provider: "kakao", nickname: profile.nickname, isAdmin: profile.isAdmin };
+  return { userId: claims.sub, provider: "kakao", nickname: profile.nickname, isAdmin: profile.isAdmin, reviewIds: profile.reviewIds };
 }
 
 /**

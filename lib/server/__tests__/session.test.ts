@@ -6,7 +6,7 @@ import { ensureUser, readSession, requireKakao, VISITOR } from "../session";
 function fakeDb(input: {
   claims?: { sub: string; is_anonymous?: boolean; app_metadata?: { provider?: string } } | null;
   userExists?: boolean;
-  me?: { id: string; nickname: string | null; isAdmin: boolean };
+  me?: { id: string; nickname: string | null; isAdmin: boolean; reviewIds?: string[] };
 }) {
   const signOut = vi.fn(() => Promise.resolve({ error: null }));
   const signInAnonymously = vi.fn(() =>
@@ -60,14 +60,21 @@ describe("readSession / requireKakao", () => {
     });
     const kakao = fakeDb({
       claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000001", is_anonymous: false, app_metadata: { provider: "kakao" } },
-      me: { id: "3f2a9c1e-1111-4a1a-9b1b-000000000001", nickname: "새우헌터", isAdmin: true },
+      me: { id: "3f2a9c1e-1111-4a1a-9b1b-000000000001", nickname: "새우헌터", isAdmin: true, reviewIds: ["3f2a9c1e-4444-4a1a-9b1b-000000000004"] },
     });
     expect(await readSession(kakao.db)).toEqual({
       userId: "3f2a9c1e-1111-4a1a-9b1b-000000000001",
       provider: "kakao",
       nickname: "새우헌터",
       isAdmin: true,
+      reviewIds: ["3f2a9c1e-4444-4a1a-9b1b-000000000004"],
     });
+    // 마이그레이션 전의 me()(reviewIds 없음)도 세션은 살린다 — 앱이 먼저 배포된다
+    const oldDb = fakeDb({
+      claims: { sub: "3f2a9c1e-1111-4a1a-9b1b-000000000001", is_anonymous: false, app_metadata: { provider: "kakao" } },
+      me: { id: "3f2a9c1e-1111-4a1a-9b1b-000000000001", nickname: "새우헌터", isAdmin: false },
+    });
+    expect((await readSession(oldDb.db)).reviewIds).toEqual([]);
   });
   it("비익명이어도 공급자가 카카오가 아니면 방문자다 — 이메일 가입 등 다른 경로가 열려도 게이트를 못 지난다(security-reviewer 2026-09-16)", async () => {
     const email = fakeDb({

@@ -252,7 +252,7 @@ export function usePlaceDetail({
   }, [closeOwner, onNotice]);
 
   /* ── 리뷰 쓰기 (화면 5 변형 (b)·(c)): 로그인 게이트 → 폼(오버레이), 본인 수정·낙관 삭제 ── */
-  const { session, requireLogin } = useSession();
+  const { session, requireLogin, refreshSession } = useSession();
   const [reviewForm, setReviewForm] = useState<{ initial?: Review } | null>(null);
   // 늦게 온 게이트 결과가 닫힌 상세를 움직이지 않게 (StrictMode 이중 effect: 본문에서 true)
   const alive = useRef(true);
@@ -263,11 +263,19 @@ export function usePlaceDetail({
     };
   }, []);
 
-  /** 이 가게에 쓴 내 리뷰 — 있으면 [리뷰 남기기]가 [리뷰 수정]이 된다(핀당 1개, spec 5 스팸 4겹 2). */
-  const currentUserId = session?.userId ?? null;
+  /**
+   * 이 가게에 쓴 내 리뷰 — 있으면 [리뷰 남기기]가 [리뷰 수정]이 된다(핀당 1개, spec 5 스팸 4겹 2).
+   * 리뷰에는 작성자 uid가 없다(DB가 내주지 않는다, decisions 2026-09-21) — 세션이 들고 있는 내 리뷰 id로 가른다.
+   * 이 화면에서 방금 쓴 리뷰는 세션 갱신이 돌아오기 전에도 내 것이어야 한다(섀도 밴의 가짜 리뷰는 끝까지 세션에 없다).
+   */
+  const sessionReviewIds = session?.userId == null ? undefined : session.reviewIds;
+  const [writtenHereId, setWrittenHereId] = useState<string | null>(null);
   const myReview = useMemo(
-    () => (currentUserId === null ? undefined : reviews.find((r) => r.authorId === currentUserId)),
-    [reviews, currentUserId],
+    () =>
+      session?.userId == null // 로그아웃하면 그 자리에서 아무 리뷰도 내 것이 아니다
+        ? undefined
+        : reviews.find((r) => r.id === writtenHereId || (sessionReviewIds?.includes(r.id) ?? false)),
+    [reviews, session?.userId, sessionReviewIds, writtenHereId],
   );
   /** 늦게 온 게이트 결과가 최신 목록을 봐야 한다 — 로그인 직후 리렌더 전에 resolve될 수 있다 */
   const myReviewRef = useRef(myReview);
@@ -302,10 +310,14 @@ export function usePlaceDetail({
           ? [review, ...prev.filter((r) => r.id !== review.id)]
           : prev.map((r) => (r.id === review.id ? review : r)),
       );
-      if (updated) onPatchPlace(updated);
+      if (updated) {
+        onPatchPlace(updated);
+        setWrittenHereId(review.id);
+        void refreshSession().catch(() => undefined); // 상세를 닫았다 열어도 내 리뷰로 보이게 — 실패해도 위 표시는 남는다
+      }
       onNotice(updated ? REVIEW_SAVED_NOTICE : REVIEW_UPDATED_NOTICE);
     },
-    [onPatchPlace, onNotice],
+    [onPatchPlace, onNotice, refreshSession],
   );
 
   /** 본인 리뷰 삭제 — 즉시 빠지고(낙관) 실패하면 제자리(최신순)로 돌아온다 + 토스트 */
@@ -350,8 +362,8 @@ export function usePlaceDetail({
     openPhoto,
     closePhoto,
     reportPhoto,
-    /** 본인 리뷰 판정용 — 세션을 아직 모르면 null(아무 리뷰도 내 것이 아니다) */
-    currentUserId,
+    /** 본인 리뷰 판정용 — 없거나 세션을 아직 모르면 null(아무 리뷰도 내 것이 아니다) */
+    myReviewId: myReview?.id ?? null,
     /** 이 가게에 이미 쓴 내 리뷰 — 기여 블록 버튼이 [리뷰 수정]으로 바뀐다 */
     hasMyReview: myReview !== undefined,
     reviewForm,

@@ -550,7 +550,6 @@ export type Database = {
       }
       reviews_public: {
         Row: {
-          author_id: string | null
           created_at: string | null
           edited_at: string | null
           id: string | null

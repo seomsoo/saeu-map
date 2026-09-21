@@ -98,10 +98,12 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 리뷰 백로그: supabase CLI npm 고정 | **하지 않음** — 로컬·CI 둘 다 2.117.0이고 CI는 `setup-cli`에 판을 적어 뒀다. 어긋나면 CI의 타입 diff가 트립와이어. postinstall 바이너리 의존성을 새로 들일 값이 없다(코드 최소주의 4) | — |
 | 리뷰 백로그: 액션 단위 테스트 | 완료 — `lib/server/__tests__/actions.test.ts`: 문(gate) 실패 4종 전달 · 행위자 전달 · 확인·찜·신고의 오류 코드 매핑 · 성공 시 캐시 만료·알림 · 섀도 밴은 알림 없음. 체이닝 가능한 가짜 클라이언트(`fakeDb`) — 권한·제한 자체는 pgTAP 몫 | vitest 16 추가 |
 | Sentry 소스맵 | **배선 완료, 발화는 토큰 뒤** — `next.config.ts`가 `SENTRY_UPLOAD_TOKEN`이 있을 때만 업로드(main `deploy` 잡), 올린 뒤 .map 삭제. 브라우저 스택만 풀린다(서버는 OpenNext가 다시 묶는다). **사용자: Organization Token(`org:ci`) 만들어 `! gh secret set SENTRY_UPLOAD_TOKEN`**(runbook 2-5) | 토큰 없음: 빌드 통과·맵 0 · 가짜 토큰: 401 로그만 남기고 빌드 완주·맵 0(만료 토큰이 배포를 막지 않는다). 남은 발화: 배포 로그의 업로드 줄 + 새 이슈 스택의 원본 파일명 |
-| 보안 ② `author_id` | 남음 — **플랜보다 크다**: `grant select on public.reviews`가 표 전체라 뷰만 바꿔선 그대로 노출된다. 컬럼 GRANT 회수 + 목록을 DEFINER RPC로 + "내 리뷰" 판정을 uid 비교에서 사용자별 읽기로(상세는 anon 공유 캐시라 `is_mine`을 캐시에 실을 수 없다) + `reviews`를 직접 읽는 액션 2곳 | |
+| 보안 ② `author_id` | 완료 — **뷰가 아니라 컬럼 GRANT를 거뒀다**(`reviews` 표 전체가 SELECT로 열려 있어 뷰만 바꾸면 `/rest/v1/reviews?select=author_id`로 그대로 읽혔다). `reviews_public`에서 열 제거 + 닉네임은 DEFINER 헬퍼 `private.review_nickname`, **본인 판정은 `me().reviewIds`**(상세는 anon 공유 캐시라 행마다 `is_mine`을 실을 수 없다 → 세션에 싣는다, 추가 요청 0). 화면은 `Review.authorId` 대신 `Session.reviewIds` + 이 화면에서 방금 쓴 id(`writtenHereId` — 세션 갱신 전·섀도 밴의 가짜 리뷰). `reviews`를 `author_id`로 읽던 액션 3곳(내 리뷰·닉네임 뒤 캐시 만료·리뷰 사진 소유 확인)은 id 목록으로 | pgTAP 020 11 → 17(방문자·로그인 모두 `author_id` 42501, 뷰엔 열 없음 42703, 정책의 author_id 비교는 열 권한 없이 돈다, `me().reviewIds`) · advisors 0 · 로컬 PostgREST anon 실측 · 상세 SSR 200에 리뷰·닉네임 있음/uid 없음 |
 | 보안 ① captcha 구조 변경 | 남음 | |
 
-수치: pgTAP 99 → **120**(9 파일) · vitest 560 → **579** · advisors 0. **마이그레이션 2개는 머지 뒤 `supabase db push`(사용자 승인)로 prod에 올린다** — CI가 하지 않는다(runbook 3).
+수치: pgTAP 99 → **126**(9 파일) · vitest 560 → **579** · advisors 0.
+
+**배포 순서(어기면 상세가 전원에게 깨진다)**: ① PR 머지 → `deploy` 잡 초록(새 앱) → ② `supabase db push`(사용자 승인, CI가 하지 않는다 — runbook 3) → ③ prod에서 상세 한 번 + 카카오 로그인 상태로 내 리뷰 [수정][삭제] 확인. 이유: **옛 앱은 `reviews_public.author_id`를 필수로 읽어서** 마이그레이션이 먼저 가면 리뷰 파싱이 전부 실패한다. 새 앱은 옛 DB에서도 돈다(`reviewIds` 없으면 빈 목록 — ①~② 사이 몇 분은 내 리뷰의 [수정][삭제]·내 리뷰 목록만 안 보인다). 마이그레이션 3개: `nickname_clean` · `peel_rollup` · `reviews_hide_author`.
 
 ## 커밋 단위 (초안 — 한 턴 = 한 커밋)
 
