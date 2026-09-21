@@ -86,6 +86,14 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     window.history.replaceState(null, "", "/");
   });
 
+  it("세션 로드가 네트워크에서 실패하면 로딩(익명 취급)으로 남고 잡히지 않은 거부가 없다 — Sentry SAEU-MAP-4", async () => {
+    data.getSession.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    renderConsumer();
+    await act(async () => {});
+    expect(sessionText()).toBe("loading");
+    expect(data.getSession).toHaveBeenCalledTimes(1);
+  });
+
   it("첫 로드는 익명. 게이트를 열면 시트 + 오버레이 엔트리, [나중에 할게요]면 false", async () => {
     renderConsumer();
     await waitFor(() => {

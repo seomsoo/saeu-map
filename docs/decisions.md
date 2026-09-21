@@ -937,3 +937,45 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - Paid가 바꾸는 것: 요청당 CPU 10ms → 30초(종료 0), 월 1,000만 요청 포함, Workers Logs 보관 3일 → 7일. **콜드 스타트 지연(첫 응답 ~1초)은 그대로다** — 트래픽이 생기면 줄고, 안 줄면 백로그 "워커 CPU 다이어트"를 집는다.
 - 풀리는 제약: "Workers Free CPU 10ms라 OG 카드는 빌드 시에만"(decisions 2026-09-07)의 이유가 사라졌다. 코드 주석은 당시 결정의 근거라 그대로 두고, 요청 시 생성은 roadmap 백로그로(Phase 7).
 - 월 비용: Workers $5 + R2(무료 한도 안) + Supabase Free + 도메인(연). runbook 표 갱신.
+
+## 2026-09-18 — 브라우저 지원 하한: iOS 16 / 2022년 이후 엔진 (Sentry 첫 점검에서 결정)
+
+- **맥락**: Sentry 첫 점검(토큰 `org:read`·`project:read`·`event:read`, 값은 `.env.local`). 14일간 이슈 5·이벤트 6, 전부 브라우저. ① `Connection closed.`(React #412) ×2 = 홈 RSC 스트림 도중 워커 CPU 종료 — Paid로 해결 ② `Failed to fetch` = 홈 로드 직후 세션 부트스트랩 `POST /`가 네트워크에서 끊김, `.catch` 없어 unhandledrejection → `session-provider.tsx`에 catch(익명으로 남긴다) ③ Naver SDK `null.isArray` = NCP 인증 서버 500("잠시 후에 다시 요청") 뒤 SDK 내부 정리 — 우리 authFailure 핸들러는 정상, 재발 시 SDK 프레임 무시 ④ `submodules?.toSorted is not a function` = react-naver-maps 0.2.2가 `Array.prototype.toSorted`(Safari 16+) 사용, UA "iOS 11.0"은 Playwright iPhone 8 프리셋과 일치 ⑤ 설치 테스트 이벤트.
+- **결정**: 지원 하한은 **iOS 16(2022-09) / 같은 시기 이후 엔진**. iOS 15에 묶인 기기(iPhone 7 이하·6s·SE 1세대)는 지원하지 않는다 — 폴리필·patch를 넣지 않는다. Sentry가 트립와이어: 같은 이슈가 실사용자 UA로 다시 열리면 그때 `instrumentation-client.ts`에 `toSorted` 폴리필 4줄.
+- 곁가지: spec 6 "Workers는 Free 유지"가 같은 날 Paid 결정과 어긋나 정정. Sentry 통계는 `stats_v2`(accepted 6 · client_discard 23 = SDK 기본 필터 · 트랜잭션 폐기 18 = tracesSampleRate 0)로 확인했다.
+
+## 2026-09-18 — Smart Placement 켬 · 워커 CPU 다이어트는 런칭 뒤 실측으로
+
+- **실측**: 서버 Sentry(`withSentryConfig` + instrumentation)를 빼고 같은 코드를 빌드하면 handler.mjs **16.88 → 14.86MB(−2.0MB, 12%)**. 어제 청크 키워드 세기로 낸 "Sentry+OTel 4.9MB(30%)"는 틀렸다 — 키워드 빈도는 바이트가 아니다. 나머지는 Next 서버 런타임(번들 3.3MB + 별도 19MB)과 라우트 청크(supabase-js·zod·react-dom 서버)라 우리가 뺄 몫이 작다. 콜드 스타트 600~900ms 중 Sentry 몫은 비례로 ~100ms.
+- 로컬 workerd(`wrangler dev`) 첫 요청은 6~17초로 들쭉날쭉해 콜드 스타트 비교에 못 쓴다 — wrangler의 스크립트 적재가 섞인다. 진짜 A/B는 프리뷰 별칭 두 개를 올려 `workersInvocationsAdaptive`의 `scriptVersion` 차원으로 나눠 봐야 한다(미실행 — 계정에 버전·요청 2,700건이 생겨 승인 뒤에).
+- **결정**: 다이어트(서버 Sentry 제거·홈 ISR)는 런칭 전에 하지 않는다. 다 해도 콜드 TTFB ~1.2초가 0.8~0.9초 수준이고 이틀이 든다. 한계는 Workers 위의 Next 자체라, 실사용자 TTFB가 문제면 큰 지렛대는 호스팅(Vercel 서울 리전)이다. 1~2주 실사용자 수치(TTFB·`coloCode` 분포·콜드 비율)로 "그냥 둔다 / 다이어트 / Vercel"을 고른다.
+- **Smart Placement는 켠다**(`placement.mode: smart`, 모든 플랜). 워커→서울 Supabase 왕복(요청당 여러 번)을 줄이는 대신 엣지→워커 한 번을 더 건넌다. 사용자↔엣지 구간(KT→LAX)과 콜드 스타트는 그대로. 15분 이상 트래픽을 본 뒤 판단하며 느려지면 자동 복귀(`UNSUPPORTED_APPLICATION`), 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS`. 정적 에셋은 요청 가까운 곳에서 그대로 서빙. 다음 배포부터 적용.
+
+## 2026-09-21 — 도메인을 붙인 배포에서 workers.dev가 꺼졌다 (keepalive 나흘 실패 · 프리뷰 별칭 404)
+
+- **증상**: `keepalive`가 09-18~21 네 번 연속 빨강(`404`, curl exit 22). `saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev` 둘 다 404, 새우맵.kr은 200. 마지막 초록이 09-17이라 실사용 트래픽이 없었다면 09-24쯤 Supabase가 잠들 자리였다.
+- **원인**: wrangler는 `routes`가 있는데 `workers_dev`를 적지 않으면 **false로 추론**하고, `preview_urls`의 기본값은 `workers_dev`를 따른다(Cloudflare 문서 routing/workers-dev · configuration/previews, context7로 확인). 09-17 결정은 "workers.dev 주소는 계속 열어 둔다(keepalive·프리뷰)"였는데 설정에 적지 않았고, `wrangler.jsonc` 주석은 "계속 열려 있다"고 확인 없이 적었다. #16 머지 뒤 첫 배포에서 꺼졌다.
+- **반영**: 09-17 결정 그대로 `workers_dev: true`·`preview_urls: true`를 명시. keepalive는 **실서비스 주소**(`xn--r02bv8jvof.kr`)를 부른다 — 사용자가 들어오는 주소의 DNS·인증서까지 같이 보고, workers.dev 설정에 매이지 않는다.
+- **같은 실수 2회째**(하네스 요소의 발화 미검증 — 2026-09-01 훅 스키마): CLAUDE.md 규칙은 이미 있고, 빠진 건 "배포로 바뀌는 하네스는 배포 **뒤** 다시 발화시킨다"였다. runbook 3d 체크리스트에 배포 뒤 세 주소 200 + keepalive 수동 실행 한 줄을 넣었다. 월간 점검(runbook 5)의 "keepalive가 매일 초록인지"는 있었지만 월 1회라 나흘을 못 잡았다 — 실패를 더 빨리 알 방법(디스코드 알림 등)을 붙일지는 **미정**(사용자 결정 대기).
+- **검증은 머지 뒤**: 설정은 배포돼야 적용된다. ~~이 PR의 `preview` 잡이 올린 별칭 URL이 200인지(프리뷰 발화)~~, 머지 뒤 workers.dev 200 + `gh workflow run keepalive` 초록을 확인하고 여기에 결과를 덧붙인다.
+- **PR #17의 `preview` 잡은 머지 전에 초록이 될 수 없다**(같은 날 실측): 업로드는 됐는데(Version ID `ccb566ec`) wrangler가 `Version Preview Alias URL`을 찍지 않아 CI 가드가 빨강. `workers_dev`·`preview_urls`는 코드가 아니라 **트리거 설정**이라 `versions upload`로는 안 바뀌고 `wrangler deploy`(main의 `deploy` 잡)나 `wrangler triggers deploy`만 적용한다 — 업로드 로그 끝의 "Changes to triggers … must be applied with wrangler triggers deploy", 문서 configuration/previews "the Preview URLs status will change the next time you deploy"(context7). 필수 체크는 `check`뿐이라 머지는 막히지 않는다. 프리뷰 발화는 머지·`deploy` 뒤 이 런의 `preview` 잡 재실행(`gh run rerun 35586896167 --failed`)으로 본다. 곁가지: `gh run view --log`는 R2 캐시 진행 막대(`\r` 한 줄) 뒤를 잘라 보여 준다 — wrangler 출력은 `gh api …/actions/runs/<id>/logs` zip의 스텝 파일로 읽는다.
+- 곁가지: 09-18의 미반영 커밋 둘(세션 부트스트랩 catch · Smart Placement)이 머지된 `feat/phase6-backend` 위에 남아 있어 이 브랜치(`fix/keepalive-preview-url`)로 cherry-pick했다. #16이 스쿼시라 main 트리와 `4b558ff`가 같아 충돌 없음.
+
+## 2026-09-21 — Workers Paid 결제 · 그런데 prod는 아직 1102를 낸다 (한도 적용 미확인)
+
+- **결제**: 사용자가 Workers Paid($5/월)로 올렸다(사용자 보고, 결제 화면 요약을 받음). 수치는 공식 가격표(developers.cloudflare.com/workers/platform/pricing, context7)와 일치 — 월 1,000만 요청 + **월 CPU 3,000만 ms** 포함, 요청당 CPU 30초, 초과 요청 100만당 $0.30 · CPU 100만 ms당 $0.02. Builds·Durable Objects·KV·D1 줄은 우리가 안 쓰거나 무료 한도 안이라 무관.
+- **09-18 기록에 빠졌던 숫자**: 먼저 닿는 한도는 요청 수가 아니라 CPU다. 홈 한 번이 CPU ~210ms(p50)라 3,000만 ms ≈ 홈 14만 회/월, 그 뒤는 홈 100만 회당 ~$4.5. 지금 트래픽(72시간 2,800요청)에서는 $5에서 끝난다. runbook 부품 표·월간 점검 줄 갱신.
+- **직후 실측(16:05~16:11 KST, curl 50회 · `/?n=`)**: **503 14회(28%)**, 본문 `error code: 1102`(Worker exceeded resource limits). GraphQL `workersInvocationsAdaptive`: 최근 1시간 success 18 · **exceededResources 16**(CPU p50 50ms · p99 2,050ms), 72시간 success 1,999 · **exceededResources 799(28%)**, 종료된 요청의 CPU p50이 **10.0ms**. Paid의 30초였다면 10~50ms에서 잘릴 이유가 없다 → **이 워커에는 아직 Free 한도가 걸려 있다**고 읽는다. 워커의 마지막 배포는 09-17 19:47Z(#16 머지) 그대로.
+- **사흘간 실서비스 요청의 28%가 503이었다** — 09-18에 Paid를 "결정"만 하고 결제·확인이 비어 있었다. keepalive 건과 같은 뿌리: 결정과 실제 상태를 대조하지 않았다.
+- **못 본 것**: 결제 상태 자체. wrangler OAuth 토큰에는 billing 권한이 없어 `/accounts/{id}/subscriptions`가 403이고, `usage_model`은 Free 때부터 `standard`라 구분이 안 된다. 대시보드(Workers & Pages 개요의 Plan, 또는 Manage Account → Billing → Subscriptions)에서 사용자가 본다.
+- **다음**: ① 대시보드에 Workers Paid가 Active인지 ② Active인데도 1102가 나면 이 PR 머지(= 재배포) 뒤 같은 curl 50회 ③ 그래도 나면 CPU가 아니라 **메모리 128MB**(1102는 둘을 구분하지 않는다, 플랜과 무관)를 의심 — Workers Logs의 outcome(`exceededCpu`/`exceededMemory`)으로 가른다. 결과를 여기에 덧붙인다.
+- **덧붙임(같은 날 16:20 KST)**: 사용자가 대시보드에서 Workers Paid **Active** 확인. 그런데도 curl 30회 중 503 4회. `wrangler tail saeu-map --format json`을 붙이고 50요청: **outcome `exceededCpu`** 22건("Worker exceeded CPU time limit."), 종료 시점 cpuTime **50ms·118ms**, `/robots.txt`도 2건 죽었다. 메모리가 아니고, 30초 한도라면 50ms에서 죽을 수 없다 → **계정은 Paid인데 09-17에 Free로 배포된 워커 버전에는 옛 CPU 한도가 그대로 붙어 있다**고 읽는다(가설 — 재배포로 확인). tail은 prod 트래픽에는 잘 붙는다(09-17의 0줄은 프리뷰 버전이라서였다). 재배포 뒤 같은 측정을 여기에 덧붙인다.
+- **덧붙임(16:30 KST) — 가설 확인, 503 0**: 사용자 승인으로 main의 deploy 잡만 재실행(`gh run rerun 35266037022 --job <deploy>` — 같은 커밋 a18ea04, 코드 변경 0). 직후 같은 측정: **curl 50회 전부 200**, tail 61건 **전부 `ok`**, 홈 cpuTime p50 176ms · **최대 1,151ms도 죽지 않았다**(재배포 전엔 50ms에서 종료). TTFB 중앙 0.51초 · 최대 2.1초(콜드). **교훈: CPU 한도는 계정이 아니라 배포된 버전에 붙는다 — 플랜을 바꾸면 재배포해야 적용된다.** PR과 묶지 않고 재배포만 따로 한 덕에 변수가 하나였다(PR에는 Smart Placement가 같이 있다). runbook 부품 표에 한 줄.
+
+## 2026-09-21 — Sentry 두 번째 점검: 새 이슈 1건은 503의 그림자 · `http://`가 평문으로 열린다
+
+- 14일간 이슈 6(09-18 점검 뒤 **새 이슈 1**), 수신 error accepted 7 · filtered 3 · client_discard 23. 기존 5건(SAEU-MAP-1~5)은 재발 없음 — 마지막이 09-18.
+- **SAEU-MAP-6** `An unexpected response was received from the server.`(09-21 10:52 KST, Edge 138 · Windows, unhandledrejection): 브레드크럼이 `POST / → 503`. 서버 액션 응답 자리에 1102의 text/plain이 와서 Next 클라이언트가 던진 것 — 같은 날 "Paid 한도 미적용"과 **같은 뿌리**다. 로드와 같은 초라 세션 부트스트랩(`getSession`)으로 보이고, 그렇다면 이 브랜치의 `.catch`(SAEU-MAP-4 수정)가 같이 덮는다(익명으로 남는다).
+- **Sentry는 503을 거의 못 본다**: Cloudflare 집계로 72시간 799건인데 Sentry에는 3건(MAP-5 ×2 · MAP-6). 문서 요청 자체가 1102로 죽으면 JS가 실리지 않고, 서버 쪽은 아이솔레이트가 죽어 보고를 못 한다. 503의 감시는 Cloudflare `exceededResources`다(runbook 5절에 넣음).
+- **발견 — `http://xn--r02bv8jvof.kr/`가 301 없이 200**: MAP-6의 URL 태그가 `http://`였다. `curl -sI`로 확인 — Location·HSTS 없음. zone의 **Always Use HTTPS가 꺼져 있다**(`.dev`는 TLD 전체가 HSTS preload라 브라우저가 늘 https로 가서, 도메인을 붙이기 전엔 안 보였다). 영향: 주소창에 도메인만 친 사용자가 평문으로 들어오면 내 위치(`navigator.geolocation`)·공유·복사(`lib/share.ts`)가 보안 컨텍스트가 아니라 동작하지 않고, 세션 쿠키가 평문으로 오간다. 조치는 대시보드 토글 하나(사용자) — 코드로 리다이렉트를 짜지 않는다(플랫폼 내장이 먼저). runbook 3d에 추가. **같은 날 사용자가 켰고 `curl -sI http://…` → `301 Location: https://xn--r02bv8jvof.kr/` 확인.** HSTS는 따로 정한다(미정).
+- Sentry 이슈 정리는 토큰이 읽기 전용이라 UI에서: MAP-1(테스트 이벤트) resolve · MAP-2(iOS 15 이하, 지원 하한 밖) archive · MAP-4는 이 PR 배포 뒤 resolve.

@@ -6,7 +6,7 @@
 
 | 부품 | 무엇 | 어디 | 비용 |
 |---|---|---|---|
-| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정)** | 월 1,000만 요청 포함(초과 100만당 $0.30), 요청당 CPU 30초. Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
+| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정 · 2026-09-21 결제·재배포 뒤 503 0 확인)**. **플랜을 바꾸면 재배포해야 한도가 적용된다** — CPU 한도는 배포된 버전에 붙는다(decisions 2026-09-21) | 월 1,000만 요청(초과 100만당 $0.30) + **월 CPU 3,000만 ms**(초과 100만 ms당 $0.02) 포함, 요청당 CPU 30초. 먼저 닿는 건 CPU다 — 홈 한 번이 CPU ~210ms(p50, 2026-09-18 실측)라 3,000만 ms ≈ 홈 14만 회, 그 뒤는 홈 100만 회당 ~$4.5(CPU $4.2 + 요청 $0.3). Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
 | 도메인 | `새우맵.kr` = `xn--r02bv8jvof.kr`(퓨니코드) — 가비아 등록, 네임서버 Cloudflare(eric·gail), 워커 custom domain | 가비아 + Cloudflare Free | 연 2만 원 안팎 |
 | 장부(DB·인증) | Postgres + GoTrue + PostgREST | Supabase **Free** 프로젝트 1개(prod) | 500MB · MAU 5만 · egress 5GB/월 |
 | 사진 창고 | R2 `saeu-photos` | Cloudflare | 10GB · 읽기 1,000만/월 (캐시 버킷과 **합산**) |
@@ -124,6 +124,8 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 | NCP 콘솔 → Maps → 서비스 URL | 새 도메인 추가 — ✅ 2026-09-17 | 지도가 401로 안 뜸 |
 | Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 — ✅ 2026-09-17 | 브라우저 에러가 안 들어옴 |
 | `wrangler.jsonc` `vars.SITE_URL` + `routes[custom_domain]`, `lib/seo.ts` SITE_HOST/표시명 (내가) | 새 도메인 — 새우맵.kr ✅ 2026-09-17(첫 배포 때 DNS·인증서 자동) | OG·sitemap·공유 링크가 옛 주소 |
+| 첫 배포 **뒤** `curl -so /dev/null -w '%{http_code}'`로 세 주소(새 도메인·`saeu-map.saeu-map.workers.dev`·프리뷰 별칭) + Actions → `keepalive` 수동 실행 (내가) | 전부 200·초록. `routes`를 넣으면 wrangler가 `workers_dev`·`preview_urls`를 꺼 버린다 — `wrangler.jsonc`에 둘 다 `true`로 적혀 있는지(2026-09-21) | 프리뷰 별칭 404, keepalive가 조용히 빨강(2026-09-18~21 나흘) |
+| Cloudflare → 새 도메인 → SSL/TLS → Edge Certificates → **Always Use HTTPS** 켜기 (사용자, 대시보드) — 새우맵.kr ✅ 2026-09-21(빠져 있던 걸 Sentry 점검에서 발견, 켠 뒤 301 확인) | `curl -sI http://<도메인>/`이 301 → https여야 한다. `.dev`는 TLD 전체가 HSTS preload라 브라우저가 늘 https로 가지만 커스텀 도메인은 zone 설정을 따른다 | `http://`로 치고 들어온 사람은 평문으로 200을 받는다 — 내 위치(geolocation)·공유·복사가 안 되고 세션 쿠키가 평문으로 오간다 |
 | Cloudflare → 새우맵.kr → Rules → Redirect Rules (선택) | `www.새우맵.kr/*` → `https://새우맵.kr/$1` 301 | www로 치면 안 열림(치는 사람이 거의 없어 보류) |
 
 Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에, secret은 워커 secret과 Turnstile 대시보드에만 있다(로컬 `.env.local`은 테스트 키).
@@ -140,7 +142,7 @@ Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에
 
 - Cloudflare → R2: 두 버킷 저장량·Class A/B 횟수(합산 10GB · 100만 · 1,000만).
 - Cloudflare → Images: 이번 달 변환 수(5,000 상한, 앱 상한 4,500).
-- Cloudflare → Workers: 일 요청 수 추이(10만 근접 = Paid $5 검토, decisions 2026-09-10).
+- Cloudflare → Workers: 이번 달 요청 수·**CPU ms**(포함 1,000만 · 3,000만 ms — CPU가 먼저 닿는다)와 `exceededResources`(503) 건수. Paid에서는 0이어야 한다(decisions 2026-09-21).
 - Supabase → Usage: DB 크기(500MB)·MAU(5만)·egress(5GB).
 - Sentry: 미해결 이슈.
 - GitHub → Actions: `keepalive`가 매일 초록인지(60일 무커밋이면 꺼진다).

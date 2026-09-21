@@ -138,12 +138,13 @@ v1 브리프 4장(수집 OK 범위, 리뷰·사진 재배포 금지, 판례 근�
 - Next.js(App Router, TS) + Tailwind / **네이버 지도 SDK(NCP 신규 Maps 상품)** — Web Dynamic Map 월 600만 건 무료·초과 0.1원/건, 지오코딩도 Maps(월 300만 무료)로 통일, 콘솔에서 사용량 알림(월 400만) 설정 / Supabase(익명 auth·RLS·Postgres) / Cloudflare Workers(OpenNext 어댑터 — decisions.md 2026-09-01, 원안 Vercel에서 변경)
 - 사진: ~~NCP Object Storage(크레딧, ~11/30) → 이후 Cloudflare R2 이전~~ → **처음부터 Cloudflare R2**(2026-09-10 — 우리 규모는 R2 무료 안이라 크레딧이 아끼는 돈이 0원이고, 11/30 이전 작업이 사라진다). DB에는 키만 저장(저장소 이전은 복사 + 함수 2개 교체). 업로드 시 Images 바인딩으로 1200px webp.
 - 길찾기·플레이스 링크도 네이버(딥링크·링크). 카톡 공유·카카오 로그인은 유지(지도 SDK와 무관). VWorld 지오코딩은 네이버 Geocoding으로 대체.
-- 운영: Sentry, 디스코드 웹훅(~~텔레그램 봇~~), Cloudflare(DNS·Turnstile·**Web Analytics**·R2·D1·Images), ~~Upstash~~, 네이버 서치어드바이저. Workers는 **Free 유지**(새 핀 공유 카드가 필요해지거나 하루 요청 10만 근접 시 Paid $5 — 2026-09-10).
+- 운영: Sentry, 디스코드 웹훅(~~텔레그램 봇~~), Cloudflare(DNS·Turnstile·**Web Analytics**·R2·D1·Images), ~~Upstash~~, 네이버 서치어드바이저. Workers는 ~~Free 유지~~ → **Paid $5**(2026-09-18 — 요청 수가 아니라 요청당 CPU 10ms에 걸려 503, decisions 2026-09-18).
 - **방문자 분석은 Cloudflare Web Analytics + GA4 둘 다**(2026-09-08): 보는 게 다르다. **CF**는 방문자·페이지뷰·유입을 쿠키 없이(동의 배너 불필요, 스크립트 한 줄, 이미 CF Workers에 배포 중이라 설정이 가장 짧다). **GA4**는 **퍼널** — "제보를 시작한 사람 중 몇 %가 끝냈나", "로그인 시트를 본 사람 중 몇 %가 카카오로 넘어갔나". CF로는 못 보는 값이고, 익명 유지·공급자 추가 같은 결정이 결국 이 숫자를 필요로 한다.
 - **GA4는 `NEXT_PUBLIC_GA_ID`가 있을 때만 붙고 `lazyOnload`로 받는다** — 측정 ID를 안 넣으면 dev·프리뷰에서 수집이 0이고, 늦게 받아 LCP 예산(error 12s)을 지킨다. **동의 배너·개인정보처리방침은 붙이기 전에 정한다**(GA4는 쿠키를 쓴다 — 9장·Phase 7).
 - **네이버 서치어드바이저는 분석 도구가 아니라 검색 색인·노출 관리**다 — 목적이 달라 별개로 한다.
+- 지원 브라우저 하한: **iOS 16 / 2022년 이후 엔진**(2026-09-18). 그 아래(iOS 15의 iPhone 7 이하)는 폴리필을 넣지 않는다 — Sentry 재발 시 재검토.
 - 도메인: 새우맵.kr(공유·구두용) + saeumap.kr(정식·OG·이메일) — 등록 필요.
-- 비용: 무료 티어 시작. 핀 목록 Next.js 캐시(revalidate) 필수 — 이거 하나로 MAU 1만→5만. Supabase 잠들지 않게 일일 크론 핑. Pro 전환 신호: egress 4GB, 트래픽 급증, 백업 필요.
+- 비용: ~~무료 티어 시작~~ → **Workers Paid $5/월 + 나머지는 무료 티어**(2026-09-18, 위 운영 줄). 핀 목록 Next.js 캐시(revalidate) 필수 — 이거 하나로 MAU 1만→5만. Supabase 잠들지 않게 일일 크론 핑. **Supabase** Pro 전환 신호: egress 4GB, 트래픽 급증, 백업 필요.
 
 ### 스키마 원칙 (확정본은 docs/plans/phase6-backend.md 스키마 표 — 2026-09-10)
 - **확인일은 컬럼이 아니라 `checkins` 이벤트 테이블에서 계산.** (누가·어느 가게·언제·무슨 활동) 한 줄씩 append. 타임라인·최근확인순·확인수·스탬프가 쿼리로 나옴.
