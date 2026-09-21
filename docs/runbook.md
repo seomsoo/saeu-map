@@ -125,6 +125,7 @@ node scripts/gen-seed.mjs /tmp/sample.json --exits supabase/seed/subway_exits.cs
 | Sentry → Settings → Security & Privacy → Allowed Domains | 새 도메인 추가 — ✅ 2026-09-17 | 브라우저 에러가 안 들어옴 |
 | `wrangler.jsonc` `vars.SITE_URL` + `routes[custom_domain]`, `lib/seo.ts` SITE_HOST/표시명 (내가) | 새 도메인 — 새우맵.kr ✅ 2026-09-17(첫 배포 때 DNS·인증서 자동) | OG·sitemap·공유 링크가 옛 주소 |
 | 첫 배포 **뒤** `curl -so /dev/null -w '%{http_code}'`로 세 주소(새 도메인·`saeu-map.saeu-map.workers.dev`·프리뷰 별칭) + Actions → `keepalive` 수동 실행 (내가) | 전부 200·초록. `routes`를 넣으면 wrangler가 `workers_dev`·`preview_urls`를 꺼 버린다 — `wrangler.jsonc`에 둘 다 `true`로 적혀 있는지(2026-09-21) | 프리뷰 별칭 404, keepalive가 조용히 빨강(2026-09-18~21 나흘) |
+| Cloudflare → 새 도메인 → SSL/TLS → Edge Certificates → **Always Use HTTPS** 켜기 (사용자, 대시보드) — 새우맵.kr ☐ **미완**(2026-09-21 발견) | `curl -sI http://<도메인>/`이 301 → https여야 한다. `.dev`는 TLD 전체가 HSTS preload라 브라우저가 늘 https로 가지만 커스텀 도메인은 zone 설정을 따른다 | `http://`로 치고 들어온 사람은 평문으로 200을 받는다 — 내 위치(geolocation)·공유·복사가 안 되고 세션 쿠키가 평문으로 오간다 |
 | Cloudflare → 새우맵.kr → Rules → Redirect Rules (선택) | `www.새우맵.kr/*` → `https://새우맵.kr/$1` 301 | www로 치면 안 열림(치는 사람이 거의 없어 보류) |
 
 Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에, secret은 워커 secret과 Turnstile 대시보드에만 있다(로컬 `.env.local`은 테스트 키).

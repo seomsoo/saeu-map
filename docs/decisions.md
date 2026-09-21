@@ -968,3 +968,11 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **사흘간 실서비스 요청의 28%가 503이었다** — 09-18에 Paid를 "결정"만 하고 결제·확인이 비어 있었다. keepalive 건과 같은 뿌리: 결정과 실제 상태를 대조하지 않았다.
 - **못 본 것**: 결제 상태 자체. wrangler OAuth 토큰에는 billing 권한이 없어 `/accounts/{id}/subscriptions`가 403이고, `usage_model`은 Free 때부터 `standard`라 구분이 안 된다. 대시보드(Workers & Pages 개요의 Plan, 또는 Manage Account → Billing → Subscriptions)에서 사용자가 본다.
 - **다음**: ① 대시보드에 Workers Paid가 Active인지 ② Active인데도 1102가 나면 이 PR 머지(= 재배포) 뒤 같은 curl 50회 ③ 그래도 나면 CPU가 아니라 **메모리 128MB**(1102는 둘을 구분하지 않는다, 플랜과 무관)를 의심 — Workers Logs의 outcome(`exceededCpu`/`exceededMemory`)으로 가른다. 결과를 여기에 덧붙인다.
+
+## 2026-09-21 — Sentry 두 번째 점검: 새 이슈 1건은 503의 그림자 · `http://`가 평문으로 열린다
+
+- 14일간 이슈 6(09-18 점검 뒤 **새 이슈 1**), 수신 error accepted 7 · filtered 3 · client_discard 23. 기존 5건(SAEU-MAP-1~5)은 재발 없음 — 마지막이 09-18.
+- **SAEU-MAP-6** `An unexpected response was received from the server.`(09-21 10:52 KST, Edge 138 · Windows, unhandledrejection): 브레드크럼이 `POST / → 503`. 서버 액션 응답 자리에 1102의 text/plain이 와서 Next 클라이언트가 던진 것 — 같은 날 "Paid 한도 미적용"과 **같은 뿌리**다. 로드와 같은 초라 세션 부트스트랩(`getSession`)으로 보이고, 그렇다면 이 브랜치의 `.catch`(SAEU-MAP-4 수정)가 같이 덮는다(익명으로 남는다).
+- **Sentry는 503을 거의 못 본다**: Cloudflare 집계로 72시간 799건인데 Sentry에는 3건(MAP-5 ×2 · MAP-6). 문서 요청 자체가 1102로 죽으면 JS가 실리지 않고, 서버 쪽은 아이솔레이트가 죽어 보고를 못 한다. 503의 감시는 Cloudflare `exceededResources`다(runbook 5절에 넣음).
+- **발견 — `http://xn--r02bv8jvof.kr/`가 301 없이 200**: MAP-6의 URL 태그가 `http://`였다. `curl -sI`로 확인 — Location·HSTS 없음. zone의 **Always Use HTTPS가 꺼져 있다**(`.dev`는 TLD 전체가 HSTS preload라 브라우저가 늘 https로 가서, 도메인을 붙이기 전엔 안 보였다). 영향: 주소창에 도메인만 친 사용자가 평문으로 들어오면 내 위치(`navigator.geolocation`)·공유·복사(`lib/share.ts`)가 보안 컨텍스트가 아니라 동작하지 않고, 세션 쿠키가 평문으로 오간다. 조치는 대시보드 토글 하나(사용자) — 코드로 리다이렉트를 짜지 않는다(플랫폼 내장이 먼저). runbook 3d에 ☐로 추가, 켠 뒤 `curl -sI`로 301 확인하고 여기에 덧붙인다. HSTS는 그 다음에 따로 정한다(미정).
+- Sentry 이슈 정리는 토큰이 읽기 전용이라 UI에서: MAP-1(테스트 이벤트) resolve · MAP-2(iOS 15 이하, 지원 하한 밖) archive · MAP-4는 이 PR 배포 뒤 resolve.
