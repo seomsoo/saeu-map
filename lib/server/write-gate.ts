@@ -30,7 +30,9 @@ export async function openWriteGate(
   const h = await headers();
   const ip = clientIp(h);
   if (!(await edgeRateLimitOk(ip))) return { failure: "rate limited" };
-  if (!(await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, ip))) return { failure: "bot check failed" };
+  // Host만 본다 — x-forwarded-host는 클라이언트가 실어 보낼 수 있다
+  const host = h.get("host") ?? undefined;
+  if (!(await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, ip, host))) return { failure: "bot check failed" };
   const ipHash = await hashIp(ip, env.IP_HASH_SALT);
   const db = await userClient({ ipHash });
   if (expectedActor !== null) {

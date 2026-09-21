@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clientIp, hashIp } from "../ip-hash";
+import { reportError } from "../observe";
 import { verifyTurnstile } from "../turnstile";
+
+vi.mock("../observe", () => ({ reportError: vi.fn() }));
 
 describe("hashIp — sha256(IP + salt + KST 날짜)", () => {
   it("같은 날·같은 salt면 같고, 날짜·salt가 바뀌면 다르며, 원본 IP가 안 보인다", async () => {
@@ -48,5 +51,28 @@ describe("verifyTurnstile — siteverify", () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
     await verifyTurnstile("tok", "secret", "local");
     expect((fetchMock.mock.calls.at(-1)?.[1]?.body as URLSearchParams).has("remoteip")).toBe(false);
+  });
+
+  it("요청의 Host를 주면 토큰이 만들어진 hostname과 같아야 통과한다 — 포트·한글 표기는 무시, 테스트 키는 건너뛴다", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const reply = (json: object) => fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(json), { status: 200 }));
+
+    reply({ success: true, hostname: "xn--r02bv8jvof.kr" });
+    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(true);
+    reply({ success: true, hostname: "새우맵.kr" });
+    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(true);
+    reply({ success: true, hostname: "localhost" });
+    expect(await verifyTurnstile("tok", "secret", undefined, "localhost:3000")).toBe(true);
+
+    reply({ success: true, hostname: "evil.example" });
+    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(false);
+    expect(reportError).toHaveBeenCalledWith("turnstile hostname mismatch", { got: "evil.example", want: "xn--r02bv8jvof.kr" });
+    reply({ success: true });
+    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(false);
+
+    // 테스트 secret의 응답은 hostname이 늘 example.com이다(로컬·CI)
+    reply({ success: true, hostname: "example.com", metadata: { result_with_testing_key: true } });
+    expect(await verifyTurnstile("tok", "secret", undefined, "localhost:3000")).toBe(true);
   });
 });
