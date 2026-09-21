@@ -6,7 +6,7 @@
 
 | 부품 | 무엇 | 어디 | 비용 |
 |---|---|---|---|
-| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정)** | 월 1,000만 요청 포함(초과 100만당 $0.30), 요청당 CPU 30초. Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
+| 앱(워커) | Next.js + OpenNext | Cloudflare Workers **Paid($5/월, 2026-09-18 결정 · 2026-09-21 결제 — 한도 적용은 미확인, decisions 2026-09-21)** | 월 1,000만 요청(초과 100만당 $0.30) + **월 CPU 3,000만 ms**(초과 100만 ms당 $0.02) 포함, 요청당 CPU 30초. 먼저 닿는 건 CPU다 — 홈 한 번이 CPU ~210ms(p50, 2026-09-18 실측)라 3,000만 ms ≈ 홈 14만 회, 그 뒤는 홈 100만 회당 ~$4.5(CPU $4.2 + 요청 $0.3). Free의 10ms에 콜드 스타트가 걸려 503이 났다(decisions 2026-09-18) |
 | 도메인 | `새우맵.kr` = `xn--r02bv8jvof.kr`(퓨니코드) — 가비아 등록, 네임서버 Cloudflare(eric·gail), 워커 custom domain | 가비아 + Cloudflare Free | 연 2만 원 안팎 |
 | 장부(DB·인증) | Postgres + GoTrue + PostgREST | Supabase **Free** 프로젝트 1개(prod) | 500MB · MAU 5만 · egress 5GB/월 |
 | 사진 창고 | R2 `saeu-photos` | Cloudflare | 10GB · 읽기 1,000만/월 (캐시 버킷과 **합산**) |
@@ -141,7 +141,7 @@ Turnstile site key(공개값)는 GH variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`에
 
 - Cloudflare → R2: 두 버킷 저장량·Class A/B 횟수(합산 10GB · 100만 · 1,000만).
 - Cloudflare → Images: 이번 달 변환 수(5,000 상한, 앱 상한 4,500).
-- Cloudflare → Workers: 일 요청 수 추이(10만 근접 = Paid $5 검토, decisions 2026-09-10).
+- Cloudflare → Workers: 이번 달 요청 수·**CPU ms**(포함 1,000만 · 3,000만 ms — CPU가 먼저 닿는다)와 `exceededResources`(503) 건수. Paid에서는 0이어야 한다(decisions 2026-09-21).
 - Supabase → Usage: DB 크기(500MB)·MAU(5만)·egress(5GB).
 - Sentry: 미해결 이슈.
 - GitHub → Actions: `keepalive`가 매일 초록인지(60일 무커밋이면 꺼진다).

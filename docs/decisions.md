@@ -959,3 +959,12 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **같은 실수 2회째**(하네스 요소의 발화 미검증 — 2026-09-01 훅 스키마): CLAUDE.md 규칙은 이미 있고, 빠진 건 "배포로 바뀌는 하네스는 배포 **뒤** 다시 발화시킨다"였다. runbook 3d 체크리스트에 배포 뒤 세 주소 200 + keepalive 수동 실행 한 줄을 넣었다. 월간 점검(runbook 5)의 "keepalive가 매일 초록인지"는 있었지만 월 1회라 나흘을 못 잡았다 — 실패를 더 빨리 알 방법(디스코드 알림 등)을 붙일지는 **미정**(사용자 결정 대기).
 - **검증은 머지 뒤**: 설정은 배포돼야 적용된다. 이 PR의 `preview` 잡이 올린 별칭 URL이 200인지(프리뷰 발화), 머지 뒤 workers.dev 200 + `gh workflow run keepalive` 초록을 확인하고 여기에 결과를 덧붙인다.
 - 곁가지: 09-18의 미반영 커밋 둘(세션 부트스트랩 catch · Smart Placement)이 머지된 `feat/phase6-backend` 위에 남아 있어 이 브랜치(`fix/keepalive-preview-url`)로 cherry-pick했다. #16이 스쿼시라 main 트리와 `4b558ff`가 같아 충돌 없음.
+
+## 2026-09-21 — Workers Paid 결제 · 그런데 prod는 아직 1102를 낸다 (한도 적용 미확인)
+
+- **결제**: 사용자가 Workers Paid($5/월)로 올렸다(사용자 보고, 결제 화면 요약을 받음). 수치는 공식 가격표(developers.cloudflare.com/workers/platform/pricing, context7)와 일치 — 월 1,000만 요청 + **월 CPU 3,000만 ms** 포함, 요청당 CPU 30초, 초과 요청 100만당 $0.30 · CPU 100만 ms당 $0.02. Builds·Durable Objects·KV·D1 줄은 우리가 안 쓰거나 무료 한도 안이라 무관.
+- **09-18 기록에 빠졌던 숫자**: 먼저 닿는 한도는 요청 수가 아니라 CPU다. 홈 한 번이 CPU ~210ms(p50)라 3,000만 ms ≈ 홈 14만 회/월, 그 뒤는 홈 100만 회당 ~$4.5. 지금 트래픽(72시간 2,800요청)에서는 $5에서 끝난다. runbook 부품 표·월간 점검 줄 갱신.
+- **직후 실측(16:05~16:11 KST, curl 50회 · `/?n=`)**: **503 14회(28%)**, 본문 `error code: 1102`(Worker exceeded resource limits). GraphQL `workersInvocationsAdaptive`: 최근 1시간 success 18 · **exceededResources 16**(CPU p50 50ms · p99 2,050ms), 72시간 success 1,999 · **exceededResources 799(28%)**, 종료된 요청의 CPU p50이 **10.0ms**. Paid의 30초였다면 10~50ms에서 잘릴 이유가 없다 → **이 워커에는 아직 Free 한도가 걸려 있다**고 읽는다. 워커의 마지막 배포는 09-17 19:47Z(#16 머지) 그대로.
+- **사흘간 실서비스 요청의 28%가 503이었다** — 09-18에 Paid를 "결정"만 하고 결제·확인이 비어 있었다. keepalive 건과 같은 뿌리: 결정과 실제 상태를 대조하지 않았다.
+- **못 본 것**: 결제 상태 자체. wrangler OAuth 토큰에는 billing 권한이 없어 `/accounts/{id}/subscriptions`가 403이고, `usage_model`은 Free 때부터 `standard`라 구분이 안 된다. 대시보드(Workers & Pages 개요의 Plan, 또는 Manage Account → Billing → Subscriptions)에서 사용자가 본다.
+- **다음**: ① 대시보드에 Workers Paid가 Active인지 ② Active인데도 1102가 나면 이 PR 머지(= 재배포) 뒤 같은 curl 50회 ③ 그래도 나면 CPU가 아니라 **메모리 128MB**(1102는 둘을 구분하지 않는다, 플랜과 무관)를 의심 — Workers Logs의 outcome(`exceededCpu`/`exceededMemory`)으로 가른다. 결과를 여기에 덧붙인다.
