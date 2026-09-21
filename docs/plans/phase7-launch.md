@@ -34,7 +34,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | D2 | 동의 배너 | 없이 가고 방침에 쿠키·GA4 고지 | 국내 서비스 관행. **법률 검토가 아니라 판단이다** — 사용자 확인 필요 |
 | D3 | 축제 페이지 | 런칭 후로(roadmap Phase 7 줄 정정) | spec 8은 "런칭 후", roadmap은 Phase 7 — 어긋나 있다 |
 | D4 | `/test` 참여자 수·유형 비율 화면 | 런칭 후 | RPC는 Phase 6에 있다. 0명에서 시작하는 숫자는 역효과 — 노출 하한(예: 수백 명)을 정한 뒤 |
-| D5 | 라이브 피드(spec 8 "런칭에 포함") | 결정 아님 — 갭 스윕에서 구현 여부 확정 | 관련 코드가 `lib/map-screen-data.ts`·`lib/server/actions.ts`에 보이나 화면까지 미확인. roadmap Phase 7 줄엔 없다 |
+| D5 | 라이브 피드(spec 8 "런칭에 포함") | **확인 끝(2026-09-21) — design 기준으로는 구현돼 있다.** design 화면 1-4의 캡션 "초록 라이브 점 + 오늘 N건 확인됐어요 │ 이번 주 N곳 │ 새로 들어온 집 N곳"이 `season-counter.tsx`이고 값은 `season_stats` RPC(checkins 실데이터)다 → roadmap의 "시즌 카운터 실데이터"도 Phase 6에서 끝났다. spec 8 문구의 "3분 전 을지로 OO집"(최근 확인 가게) 조각은 design에 없다 — 넣고 싶으면 결정 | 관련 코드가 `lib/map-screen-data.ts`·`lib/server/actions.ts`에 보이나 화면까지 미확인. roadmap Phase 7 줄엔 없다 |
 | D6 | HSTS | 켠다, 짧은 `max-age`부터 | decisions 2026-09-21 "따로 정한다(미정)" |
 | D7 | keepalive 실패 알림 | 워크플로 실패 시 디스코드 한 스텝 | 나흘 빨강을 월간 점검이 못 잡았다(decisions 2026-09-21, 미정) |
 | D8 | `www` 리다이렉트 | 계속 보류 | runbook 3d "치는 사람이 거의 없어 보류" |
@@ -99,7 +99,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 리뷰 백로그: 액션 단위 테스트 | 완료 — `lib/server/__tests__/actions.test.ts`: 문(gate) 실패 4종 전달 · 행위자 전달 · 확인·찜·신고의 오류 코드 매핑 · 성공 시 캐시 만료·알림 · 섀도 밴은 알림 없음. 체이닝 가능한 가짜 클라이언트(`fakeDb`) — 권한·제한 자체는 pgTAP 몫 | vitest 16 추가 |
 | Sentry 소스맵 | **배선 완료, 발화는 토큰 뒤** — `next.config.ts`가 `SENTRY_UPLOAD_TOKEN`이 있을 때만 업로드(main `deploy` 잡), 올린 뒤 .map 삭제. 브라우저 스택만 풀린다(서버는 OpenNext가 다시 묶는다). **사용자: Organization Token(`org:ci`) 만들어 `! gh secret set SENTRY_UPLOAD_TOKEN`**(runbook 2-5) | 토큰 없음: 빌드 통과·맵 0 · 가짜 토큰: 401 로그만 남기고 빌드 완주·맵 0(만료 토큰이 배포를 막지 않는다). 남은 발화: 배포 로그의 업로드 줄 + 새 이슈 스택의 원본 파일명 |
 | 보안 ② `author_id` | 완료 — **뷰가 아니라 컬럼 GRANT를 거뒀다**(`reviews` 표 전체가 SELECT로 열려 있어 뷰만 바꾸면 `/rest/v1/reviews?select=author_id`로 그대로 읽혔다). `reviews_public`에서 열 제거 + 닉네임은 DEFINER 헬퍼 `private.review_nickname`, **본인 판정은 `me().reviewIds`**(상세는 anon 공유 캐시라 행마다 `is_mine`을 실을 수 없다 → 세션에 싣는다, 추가 요청 0). 화면은 `Review.authorId` 대신 `Session.reviewIds` + 이 화면에서 방금 쓴 id(`writtenHereId` — 세션 갱신 전·섀도 밴의 가짜 리뷰). `reviews`를 `author_id`로 읽던 액션 3곳(내 리뷰·닉네임 뒤 캐시 만료·리뷰 사진 소유 확인)은 id 목록으로 | pgTAP 020 11 → 17(방문자·로그인 모두 `author_id` 42501, 뷰엔 열 없음 42703, 정책의 author_id 비교는 열 권한 없이 돈다, `me().reviewIds`) · advisors 0 · 로컬 PostgREST anon 실측 · 상세 SSR 200에 리뷰·닉네임 있음/uid 없음 |
-| 보안 ① captcha 구조 변경 | 남음 | |
+| 보안 ① captcha 구조 변경 | **사용자 결정·재료 대기 — 코드만으로 못 끝낸다** | 필요한 것: ⓐ 실 Turnstile secret을 Supabase auth 설정(`[auth.captcha]`)에 — 그 값은 사용자만 갖고 있다(로컬은 테스트 키) ⓑ prod `supabase config push`(인증 설정 변경) ⓒ 순서가 걸린 배포: captcha를 켜는 순간 **옛 앱의 익명 가입(토큰 없이 `signInAnonymously`)이 전부 거부**되고, 새 앱을 먼저 내면 첫 쓰기의 봇 확인이 GoTrue로 넘어가 있어 켜기 전까지 비어 버린다(토큰이 1회용이라 우리 siteverify와 둘 다 쓸 수 없다) → 전환용 플래그가 필요. 막는 위협은 "publishable 키가 새면 익명 유저를 대량 생성해 DB 제한을 우회"인데 키는 워커·GH secret에만 있고 `rate_ok`는 이미 fail-closed다. **권고: 런칭 뒤**(트래픽 없는 지금보다, 실제 어뷰징 신호가 보일 때 반나절 잡고) |
 
 수치: pgTAP 99 → **126**(9 파일) · vitest 560 → **579** · advisors 0.
 
