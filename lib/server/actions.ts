@@ -89,14 +89,20 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: FailCode };
 const fail = (error: FailCode): Result<never> => ({ ok: false, error });
 const okay = <T>(value: T): Result<T> => ({ ok: true, value });
 
-/** Postgres 오류 코드 → 실패 코드. RPC의 raise·유니크·RLS가 여기로 온다. */
+/**
+ * Postgres 오류 코드 → 실패 코드. RPC의 raise·유니크·RLS가 여기로 온다.
+ * 42501(RLS with check 거부)은 "가게가 안 보인다"와 "속도 제한"을 구분해 주지 않는다 — 화면은 보이는 가게만 내놓으므로
+ * 실제로는 제한이다. 호출부마다 다르게 읽던 것을 여기로 모았다(코드 리뷰 2026-09-16 #10). 화면은 아직 둘을 가르지 않는다.
+ */
 function failFromDb(error: { code?: string } | null): FailCode {
   switch (error?.code) {
     case "23505":
       return "already checked";
     case "P0003":
+    case "42501":
       return "rate limited";
     case "P0002":
+    case "23503":
       return "place not found";
     case "23514":
       return "photo limit reached";
@@ -386,7 +392,7 @@ export async function checkIn(
   const { db } = gate;
   const uid = await ensureUser(db);
   const { error } = await db.from("checkins").insert({ place_id: id, actor: uid, type: "visited" });
-  if (error) return fail(error.code === "23505" ? "already checked" : "place not found");
+  if (error) return fail(failFromDb(error));
   expirePlace(id);
   return placeOrFail(db, id);
 }
@@ -409,7 +415,7 @@ export async function setBookmark(
         .from("bookmarks")
         .upsert({ user_id: userId, place_id: id }, { onConflict: "user_id,place_id", ignoreDuplicates: true })
     : await db.from("bookmarks").delete().eq("user_id", userId).eq("place_id", id);
-  if (error) return fail(error.code === "23503" ? "place not found" : "forbidden");
+  if (error) return fail(failFromDb(error));
   const { data, error: listError } = await db.from("bookmarks").select("place_id");
   if (listError) return fail("forbidden");
   return okay(data.map((r) => r.place_id));
@@ -540,7 +546,7 @@ async function insertReport(
   const { db } = gate;
   const uid = await ensureUser(db);
   const { data, error } = await db.from("reports").insert({ ...row, actor: uid }).select("id");
-  if (error) return fail(error.code === "42501" ? "rate limited" : "place not found");
+  if (error) return fail(failFromDb(error));
   if (data.length === 0) return okay(undefined); // 섀도 밴 — 트리거가 행을 버렸다. 알림도 없이 성공한 척(최종 보안 리뷰 #2)
   await alertReport(db, row);
   return okay(undefined);
