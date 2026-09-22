@@ -69,14 +69,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   /** 콜백이 `login=fail`로 돌려보냈다 — 같은 이유의 시트를 오류 줄과 함께 다시 연다(`login=ok`는 지도 화면이 intent로 이어 간다) */
   const [failedReason, setFailedReason] = useState<LoginReason | null>(readFailedIntent);
 
+  /**
+   * 세션을 바꾸는 요청은 전부 여기를 지난다 — 순번을 잡고, 돌아왔을 때 그 사이 다른 요청이 시작됐으면 버린다.
+   * 리뷰 저장 뒤의 갱신(기다리지 않는다)이 로그아웃·탈퇴보다 늦게 돌아오면 옛 카카오 세션을 되살렸다(Codex PR #18 #1).
+   * 쓰기 자체는 이미 일어났고 화면에 무엇을 보일지만 가른다 — 마지막에 **시작한** 요청이 이긴다.
+   */
+  const seq = useRef(0);
+  const settleSession = useCallback(async (request: Promise<Session>) => {
+    const mine = ++seq.current;
+    const next = await request;
+    if (mine === seq.current) setSession(next);
+  }, []);
+
   useEffect(() => {
-    let alive = true;
     // 네트워크에서 끊기면(뒤로 가기·새로고침이 요청을 자름) 익명으로 남긴다 — 잡지 않으면 unhandledrejection이 Sentry에 간다(SAEU-MAP-4, 2026-09-18)
-    getSession()
-      .then((s) => {
-        if (alive) setSession(s);
-      })
-      .catch(() => {});
+    // StrictMode의 두 번째 effect가 순번을 올려 첫 요청은 버려진다 — alive ref와 같은 효과
+    settleSession(getSession()).catch(() => {});
     // 주소의 login·intent를 지운다 — 새로고침에 시트가 또 뜨지 않게 (상태는 위 초기값이 이미 읽었다)
     const params = new URLSearchParams(window.location.search);
     if (params.get("login") === "fail") {
@@ -85,19 +93,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const rest = params.toString();
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
     }
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [settleSession]);
 
   /** 쓰기 래퍼(lib/data.ts)가 Turnstile 전에 잡을 세션 id — 바뀔 때마다 알려 준다 */
   useEffect(() => {
     rememberSession(session);
   }, [session]);
 
-  const refreshSession = useCallback(async () => {
-    setSession(await getSession());
-  }, []);
+  const refreshSession = useCallback(() => settleSession(getSession()), [settleSession]);
 
   const finish = useCallback(() => {
     const current = promptRef.current;
@@ -146,15 +149,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return signInWithKakao(`${url.pathname}${url.search}`);
   }, []);
 
-  const signOut = useCallback(async () => {
-    setSession(await requestSignOut());
-  }, []);
-  const deleteAccount = useCallback(async () => {
-    setSession(await requestDeleteAccount());
-  }, []);
-  const updateNickname = useCallback(async (nickname: string) => {
-    setSession(await requestUpdateNickname(nickname));
-  }, []);
+  const signOut = useCallback(() => settleSession(requestSignOut()), [settleSession]);
+  const deleteAccount = useCallback(() => settleSession(requestDeleteAccount()), [settleSession]);
+  const updateNickname = useCallback((nickname: string) => settleSession(requestUpdateNickname(nickname)), [settleSession]);
 
   const value = useMemo<SessionContextValue>(
     () => ({ session, requireLogin, signOut, deleteAccount, updateNickname, refreshSession }),

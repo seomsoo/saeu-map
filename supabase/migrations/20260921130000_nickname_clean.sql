@@ -51,3 +51,8 @@ $$;
 
 revoke execute on function private.banned_words(), private.flatten_text(text), private.has_banned_word(text), private.clean_nickname(text)
   from public, anon, authenticated;
+
+-- 이 전에 가입한 프로필도 같은 규칙으로 한 번 고친다 — 트리거만 바꾸면 이미 들어온 이모지·금칙어 닉네임이 리뷰 옆에 남는다(Codex PR #18 #2).
+-- 폼(updateNickname)으로 바꾼 닉네임은 이미 같은 규칙을 지났으니 그대로다. 결과가 같은 행은 건드리지 않는다(updated_at 없음, 캐시 무관).
+update public.profiles set nickname = private.clean_nickname(nickname)
+where nickname is not null and nickname is distinct from private.clean_nickname(nickname);

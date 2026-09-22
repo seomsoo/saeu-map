@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(13);
 
 -- 카카오 닉네임 초기값 — 폼(nicknameSchema)과 같은 규칙으로 고쳐서 받는다(보안 리뷰 2026-09-16 #10)
 
@@ -19,6 +19,12 @@ select tests.create_user('00000000-0000-0000-0000-00000000c070', false, E'새​
 select is((select nickname from public.profiles where id = :'kakao1'), '새우 박사', '트리거가 고친 닉네임을 넣는다');
 select tests.create_user('00000000-0000-0000-0000-00000000c071', false, '병신') as kakao2 \gset
 select is((select nickname from public.profiles where id = :'kakao2'), null, '금칙어 닉네임은 없음으로 — 가입은 막지 않는다');
+
+-- 백필: 마이그레이션의 update 문과 같은 문장이 이미 있는 행을 고친다(마이그레이션은 빈 표에 돌았으니 여기서 그 문장을 다시 검증)
+update public.profiles set nickname = '옛 이모지 🍤' where id = :'kakao1';
+update public.profiles set nickname = private.clean_nickname(nickname)
+where nickname is not null and nickname is distinct from private.clean_nickname(nickname);
+select is((select nickname from public.profiles where id = :'kakao1'), '옛 이모지', '이미 들어온 닉네임도 같은 규칙으로 고쳐진다(백필 문장)');
 
 select * from finish();
 rollback;
