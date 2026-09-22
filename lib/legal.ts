@@ -4,5 +4,5 @@
  */
 export const LEGAL_EFFECTIVE_DATE = "2026-09-26";
 export const OPERATOR_NAME = "서민수";
-/** TODO(사용자): 공개할 문의 이메일 — 런칭 전 확정 */
-export const CONTACT_EMAIL = "contact@example.com";
+/** 공개 문의 이메일 — 사용자 지정 2026-09-22 */
+export const CONTACT_EMAIL = "usnimoes@gmail.com";

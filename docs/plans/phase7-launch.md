@@ -111,7 +111,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 단위 | 상태 | 검증 |
 |---|---|---|
 | 6 design 화면 12 + 링크 자리 | 완료 `312f399` — 흰 바탕 640 컬럼 문서 그릇, 화면 5에 캡션·하단 링크(새 탭) | — |
-| 7 `/privacy`·`/terms` | 완료 `8b4df52` `32152ae` — 본문은 Explore 조사 표(스키마·크론·위탁·탈퇴 동작)로. `lib/legal.ts` 상수(`lib/content`는 data 전용이라 밖). **문의 이메일은 TODO 사용자 값** | vitest 3 · 390×702 실측(위탁 표 3열로 정정) |
+| 7 `/privacy`·`/terms` | 완료 `8b4df52` `32152ae` — 본문은 Explore 조사 표(스키마·크론·위탁·탈퇴 동작)로. `lib/legal.ts` 상수(`lib/content`는 data 전용이라 밖). 문의 이메일 확정(2026-09-22) | vitest 3 · 390×702 실측(위탁 표 3열로 정정) |
 | 8 로그인 시트 캡션 + 내 활동 하단 | 완료 `8b4df52` — 체크박스 없음, 새 탭(오버레이 히스토리와 안 얽히게) | vitest 2 |
 | 9 분석 | **코드 0** — GA4는 이미 배선(`google-analytics.tsx`, 변수 없으면 미삽입), CF Web Analytics는 대시보드 자동 설정(prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 발화: GA4 실시간 1건 · `grep -c cloudflareinsights` = 1 |
 | 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 대기**: `gh secret set DISCORD_WEBHOOK_URL` 뒤 없는 주소로 수동 실행 → 1건 |
