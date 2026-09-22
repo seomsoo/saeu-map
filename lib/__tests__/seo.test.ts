@@ -65,10 +65,12 @@ describe("구 페이지 메타", () => {
 });
 
 describe("sitemap · 사이트 URL", () => {
-  it("홈 + 가게 전부 + 서울 25구 + 까주기 테스트 5장. 구 URL은 퍼센트 인코딩, 가게 lastModified는 확인일", () => {
+  it("홈 + 가게 전부 + 서울 25구 + 까주기 테스트 5장 + 약관·방침. 구 URL은 퍼센트 인코딩, 가게 lastModified는 확인일", () => {
     const entries = sitemapEntries(new URL("https://saeumap.example"), [nara], NOW);
-    // 홈 1 + 가게 1 + 구 25 + 테스트 표지 1 + 유형 결과 4 (초대·궁합 20개는 noindex라 빠진다)
-    expect(entries).toHaveLength(1 + 1 + SEOUL_GU.length + 1 + PEEL_SLUGS.length);
+    // 홈 1 + 가게 1 + 구 25 + 테스트 표지 1 + 유형 결과 4 (초대·궁합 20개는 noindex라 빠진다) + 약관·방침 2
+    expect(entries).toHaveLength(1 + 1 + SEOUL_GU.length + 1 + PEEL_SLUGS.length + 2);
+    expect(entries.some((e) => e.url === "https://saeumap.example/privacy")).toBe(true);
+    expect(entries.some((e) => e.url === "https://saeumap.example/terms")).toBe(true);
     expect(entries[0]?.url).toBe("https://saeumap.example/");
     expect(entries[1]).toMatchObject({
       url: "https://saeumap.example/place/nara",

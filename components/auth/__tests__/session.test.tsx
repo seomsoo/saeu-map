@@ -112,6 +112,10 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(screen.getByText("리뷰를 남기려면 로그인이 필요해요")).toBeInTheDocument();
     expect(pushState).toHaveBeenCalledWith({ saeuOverlay: true }, "", "/");
     expect(resultText()).toBe("");
+    // 동의 캡션(D1c) — 체크박스 없이 한 줄, 문서는 새 탭
+    expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
+    expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("checkbox")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "나중에 할게요" }));
     expect(back).toHaveBeenCalledTimes(1);

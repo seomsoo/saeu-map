@@ -228,6 +228,26 @@ export function ActivityPanel({
           </Fragment>
         ))}
       </nav>
+      {/* 약관·방침 입구 둘 중 하나(D1c 2026-09-22 — 지도 앱이라 푸터가 없다). 새 탭: 이 패널은 히스토리 엔트리를 쌓는
+          오버레이라 같은 탭에서 옮기면 돌아올 때 오버레이 상태와 얽힌다 */}
+      <nav aria-label="약관·방침" className="flex items-center justify-center px-5 pt-2">
+        {[
+          { label: "이용약관", href: "/terms" },
+          { label: "개인정보처리방침", href: "/privacy" },
+        ].map(({ label, href }, i) => (
+          <Fragment key={href}>
+            {i > 0 && <span aria-hidden="true" className="mx-3 h-3 w-px bg-line" />}
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener"
+              className="press text-caption-l-regular text-fg-tertiary hit-44"
+            >
+              {label}
+            </a>
+          </Fragment>
+        ))}
+      </nav>
 
       {a.editing && (
         <ReviewForm

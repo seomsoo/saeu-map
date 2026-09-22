@@ -1,4 +1,5 @@
 import type { Metadata, MetadataRoute } from "next";
+import { LEGAL_EFFECTIVE_DATE } from "./legal";
 import { guSlug, SEOUL_GU } from "./gu";
 import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
 import { checkLabel, primaryMenuLine, TAG_LABELS } from "./places";
@@ -240,5 +241,19 @@ export function sitemapEntries(base: URL, places: readonly Place[], now: string)
       changeFrequency: "monthly" as const,
       priority: 0.4,
     })),
+    // 약관·방침 — 시행일이 곧 갱신일(design 화면 12 (b))
+    ...LEGAL_PATHS.map((path) => ({
+      url: at(path),
+      lastModified: new Date(LEGAL_EFFECTIVE_DATE),
+      changeFrequency: "yearly" as const,
+      priority: 0.2,
+    })),
   ];
+}
+
+const LEGAL_PATHS = ["/privacy", "/terms"] as const;
+
+/** 약관·방침 메타 — 제목은 루트 템플릿(`%s | 새우맵`)이 붙인다. OG 카드는 루트 기본 */
+export function legalMeta(path: (typeof LEGAL_PATHS)[number], title: string, description: string): Metadata {
+  return { title, description, alternates: { canonical: path }, openGraph: { title, description, url: path, type: "website" } };
 }

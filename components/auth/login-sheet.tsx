@@ -85,6 +85,19 @@ export function LoginSheet({ reason, signIn, initialError, onDismiss }: LoginShe
             {error}
           </p>
         )}
+        {/* 동의는 캡션 한 줄로(체크박스 없음, D1c 2026-09-22). 문서는 새 탭 — 이 시트는 히스토리 엔트리를 쌓는
+            오버레이라 같은 탭에서 옮기면 돌아올 때 오버레이 상태와 얽힌다 */}
+        <p className="mt-2 text-center text-caption-l-regular text-fg-tertiary">
+          시작하면{" "}
+          <a href="/terms" target="_blank" rel="noopener" className="underline">
+            이용약관
+          </a>
+          과{" "}
+          <a href="/privacy" target="_blank" rel="noopener" className="underline">
+            개인정보처리방침
+          </a>
+          에 동의하게 됩니다
+        </p>
         <button
           ref={laterRef}
           type="button"
