@@ -12,6 +12,8 @@ export default tseslint.config(
       ".wrangler/",
       "node_modules/",
       "coverage/",
+      // Claude Code 에이전트·플러그인(자체 hooks·tests) — 앱 소스가 아니고 tsconfig 밖이라 파서가 거부한다
+      ".claude/",
       "*.config.*",
       "cloudflare-env.d.ts",
       // supabase gen types 산출물(pnpm db:types) — 손으로 고치지 않는다
