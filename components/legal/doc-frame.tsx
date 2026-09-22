@@ -107,7 +107,8 @@ export function List({ items }: { items: ReactNode[] }) {
 export function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
     <div className="-mx-5 overflow-x-auto px-5">
-      <table className="w-full min-w-120 border-collapse text-left">
+      {/* 3열부터는 480 아래로 줄이지 않는다(셀이 한 글자씩 꺾인다) — 2열은 390에도 들어간다 */}
+      <table className={`w-full border-collapse text-left ${head.length >= 3 ? "min-w-120" : ""}`}>
         <thead>
           <tr className="border-b border-line-hairline">
             {head.map((h) => (

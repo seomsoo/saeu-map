@@ -9,6 +9,16 @@ import { legalMeta } from "@/lib/seo";
  * 본문의 사실(수집 항목·보관·위탁·크론)은 스키마·서버 코드에서 뽑았다(plan phase7-launch 7). 스키마가 바뀌면 여기도 바뀐다.
  * **법률 검토가 아니라 판단이다.**
  */
+/** 위탁 표의 수탁자 셀 — 국가를 둘째 줄로(390에서 4열은 빽빽하다) */
+function vendor(name: string, country: string) {
+  return (
+    <>
+      {name}
+      <span className="block text-caption-l-regular text-fg-tertiary">{country}</span>
+    </>
+  );
+}
+
 export const metadata: Metadata = legalMeta(
   "/privacy",
   "개인정보처리방침",
@@ -83,14 +93,14 @@ export default function PrivacyPage() {
       <Section title="4. 처리 위탁과 국외 이전">
         <P>서비스 운영을 위해 다음 사업자에게 처리를 맡기고 있으며, 일부 사업자의 서버는 국외에 있습니다.</P>
         <Table
-          head={["수탁자", "맡기는 일", "이전되는 항목", "국가"]}
+          head={["수탁자 · 국가", "맡기는 일", "이전되는 항목"]}
           rows={[
-            ["Supabase, Inc.", "데이터베이스·로그인 인증", "1항의 전부(인증 정보 포함)", "대한민국(서울 리전)"],
-            ["Cloudflare, Inc.", "웹 호스팅, 사진 저장·변환, 봇 확인(Turnstile), 방문 통계", "접속 IP·브라우저 정보, 올린 사진", "미국 등(전 세계 엣지)"],
-            ["Functional Software, Inc. (Sentry)", "오류 수집", "오류 발생 시 기술 정보(입력 내용·연락처는 보내지 않음)", "미국"],
-            ["Google LLC", "방문 통계(Google Analytics)", "페이지 방문 기록·쿠키 식별자", "미국"],
-            ["카카오", "카카오 로그인", "로그인 인가 정보", "대한민국"],
-            ["네이버클라우드", "지도 표시·주소 검색", "지도를 불러올 때의 접속 IP(브라우저가 직접 요청)", "대한민국"],
+            [vendor("Supabase, Inc.", "대한민국(서울 리전)"), "데이터베이스·로그인 인증", "1항의 전부(인증 정보 포함)"],
+            [vendor("Cloudflare, Inc.", "미국 등(전 세계 엣지)"), "웹 호스팅, 사진 저장·변환, 봇 확인(Turnstile), 방문 통계", "접속 IP·브라우저 정보, 올린 사진"],
+            [vendor("Functional Software, Inc. (Sentry)", "미국"), "오류 수집", "오류 발생 시 기술 정보(입력 내용·연락처는 보내지 않음)"],
+            [vendor("Google LLC", "미국"), "방문 통계(Google Analytics)", "페이지 방문 기록·쿠키 식별자"],
+            [vendor("카카오", "대한민국"), "카카오 로그인", "로그인 인가 정보"],
+            [vendor("네이버클라우드", "대한민국"), "지도 표시·주소 검색", "지도를 불러올 때의 접속 IP(브라우저가 직접 요청)"],
           ]}
         />
         <P>
