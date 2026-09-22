@@ -26,6 +26,10 @@ describe("hashIp — sha256(IP + salt + KST 날짜)", () => {
   });
 });
 
+// 가짜 값은 상수로 — 리터럴 `"secret", "xn--…"`가 나란히 있으면 Gitleaks generic-api-key가 키로 오인한다(PR #18 CI, 2026-09-23)
+const SECRET = "secret";
+const HOST = "xn--r02bv8jvof.kr";
+
 describe("verifyTurnstile — siteverify", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -34,45 +38,49 @@ describe("verifyTurnstile — siteverify", () => {
   it("success: true일 때만 통과, 네트워크 오류·non-2xx·빈 토큰은 실패", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
-    expect(await verifyTurnstile("tok", "secret", "1.2.3.4")).toBe(true);
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true, hostname: "localhost" }), { status: 200 }));
+    expect(await verifyTurnstile("tok", SECRET, "localhost", "1.2.3.4")).toBe(true);
     const sent = fetchMock.mock.calls[0]?.[1]?.body as URLSearchParams;
     expect(sent.get("response")).toBe("tok");
     expect(sent.get("remoteip")).toBe("1.2.3.4");
 
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: false }), { status: 200 }));
-    expect(await verifyTurnstile("tok", "secret")).toBe(false);
+    expect(await verifyTurnstile("tok", SECRET, "localhost")).toBe(false);
     fetchMock.mockResolvedValueOnce(new Response("nope", { status: 500 }));
-    expect(await verifyTurnstile("tok", "secret")).toBe(false);
+    expect(await verifyTurnstile("tok", SECRET, "localhost")).toBe(false);
     fetchMock.mockRejectedValueOnce(new Error("offline"));
-    expect(await verifyTurnstile("tok", "secret")).toBe(false);
-    expect(await verifyTurnstile("", "secret")).toBe(false);
+    expect(await verifyTurnstile("tok", SECRET, "localhost")).toBe(false);
+    expect(await verifyTurnstile("", SECRET, "localhost")).toBe(false);
     // 로컬(dev)에서는 remoteip를 보내지 않는다 — "local"은 IP가 아니다
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
-    await verifyTurnstile("tok", "secret", "local");
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true, hostname: "localhost" }), { status: 200 }));
+    await verifyTurnstile("tok", SECRET, "localhost", "local");
     expect((fetchMock.mock.calls.at(-1)?.[1]?.body as URLSearchParams).has("remoteip")).toBe(false);
   });
 
-  it("요청의 Host를 주면 토큰이 만들어진 hostname과 같아야 통과한다 — 포트·한글 표기는 무시, 테스트 키는 건너뛴다", async () => {
+  it("토큰이 만들어진 hostname과 요청의 Host가 같아야 통과한다 — 포트·한글 표기는 무시, Host가 없으면 실패, 테스트 키는 건너뛴다", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     const reply = (json: object) => fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(json), { status: 200 }));
 
-    reply({ success: true, hostname: "xn--r02bv8jvof.kr" });
-    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(true);
+    reply({ success: true, hostname: HOST });
+    expect(await verifyTurnstile("tok", SECRET, HOST)).toBe(true);
     reply({ success: true, hostname: "새우맵.kr" });
-    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(true);
+    expect(await verifyTurnstile("tok", SECRET, HOST)).toBe(true);
     reply({ success: true, hostname: "localhost" });
-    expect(await verifyTurnstile("tok", "secret", undefined, "localhost:3000")).toBe(true);
+    expect(await verifyTurnstile("tok", SECRET, "localhost:3000")).toBe(true);
 
     reply({ success: true, hostname: "evil.example" });
-    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(false);
-    expect(reportError).toHaveBeenCalledWith("turnstile hostname mismatch", { got: "evil.example", want: "xn--r02bv8jvof.kr" });
+    expect(await verifyTurnstile("tok", SECRET, HOST)).toBe(false);
+    expect(reportError).toHaveBeenCalledWith("turnstile hostname mismatch", { got: "evil.example", want: HOST });
     reply({ success: true });
-    expect(await verifyTurnstile("tok", "secret", undefined, "xn--r02bv8jvof.kr")).toBe(false);
+    expect(await verifyTurnstile("tok", SECRET, HOST)).toBe(false);
+    // 요청에 Host가 없으면 통과가 아니라 실패다(fail-closed) — 런타임이 바뀌어 헤더가 빠져도 2차 방어가 조용히 꺼지지 않는다
+    reply({ success: true, hostname: HOST });
+    expect(await verifyTurnstile("tok", SECRET, null)).toBe(false);
+    expect(reportError).toHaveBeenLastCalledWith("turnstile hostname mismatch", { got: HOST, want: null });
 
     // 테스트 secret의 응답은 hostname이 늘 example.com이다(로컬·CI)
     reply({ success: true, hostname: "example.com", metadata: { result_with_testing_key: true } });
-    expect(await verifyTurnstile("tok", "secret", undefined, "localhost:3000")).toBe(true);
+    expect(await verifyTurnstile("tok", SECRET, "localhost:3000")).toBe(true);
   });
 });

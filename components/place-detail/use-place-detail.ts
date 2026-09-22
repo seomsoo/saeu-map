@@ -267,9 +267,11 @@ export function usePlaceDetail({
    * 이 가게에 쓴 내 리뷰 — 있으면 [리뷰 남기기]가 [리뷰 수정]이 된다(핀당 1개, spec 5 스팸 4겹 2).
    * 리뷰에는 작성자 uid가 없다(DB가 내주지 않는다, decisions 2026-09-21) — 세션이 들고 있는 내 리뷰 id로 가른다.
    * 이 화면에서 방금 쓴 리뷰는 세션 갱신이 돌아오기 전에도 내 것이어야 한다(섀도 밴의 가짜 리뷰는 끝까지 세션에 없다).
+   * 단 **쓴 사람에게만** — 상세를 연 채 다른 탭에서 계정이 바뀌면 그 리뷰는 더는 내 것이 아니다(security-reviewer 2026-09-22 ③).
    */
   const sessionReviewIds = session?.userId == null ? undefined : session.reviewIds;
-  const [writtenHereId, setWrittenHereId] = useState<string | null>(null);
+  const [writtenHere, setWrittenHere] = useState<{ id: string; userId: string } | null>(null);
+  const writtenHereId = writtenHere !== null && writtenHere.userId === session?.userId ? writtenHere.id : null;
   const myReview = useMemo(
     () =>
       session?.userId == null // 로그아웃하면 그 자리에서 아무 리뷰도 내 것이 아니다
@@ -303,6 +305,7 @@ export function usePlaceDetail({
   }, []);
 
   /** 저장 성공 — 새 리뷰는 맨 앞에 + 가게 확인일 갱신, 수정은 제자리 교체. 토스트는 폼이 닫힌 뒤 보인다. */
+  const writerId = session?.userId ?? null;
   const handleReviewSaved = useCallback(
     ({ review, place: updated }: ReviewSaveResult) => {
       setReviews((prev) =>
@@ -312,12 +315,12 @@ export function usePlaceDetail({
       );
       if (updated) {
         onPatchPlace(updated);
-        setWrittenHereId(review.id);
+        if (writerId !== null) setWrittenHere({ id: review.id, userId: writerId });
         void refreshSession().catch(() => undefined); // 상세를 닫았다 열어도 내 리뷰로 보이게 — 실패해도 위 표시는 남는다
       }
       onNotice(updated ? REVIEW_SAVED_NOTICE : REVIEW_UPDATED_NOTICE);
     },
-    [onPatchPlace, onNotice, refreshSession],
+    [onPatchPlace, onNotice, refreshSession, writerId],
   );
 
   /** 본인 리뷰 삭제 — 즉시 빠지고(낙관) 실패하면 제자리(최신순)로 돌아온다 + 토스트 */

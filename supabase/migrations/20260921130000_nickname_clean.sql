@@ -53,6 +53,8 @@ revoke execute on function private.banned_words(), private.flatten_text(text), p
   from public, anon, authenticated;
 
 -- 이 전에 가입한 프로필도 같은 규칙으로 한 번 고친다 — 트리거만 바꾸면 이미 들어온 이모지·금칙어 닉네임이 리뷰 옆에 남는다(Codex PR #18 #2).
--- 폼(updateNickname)으로 바꾼 닉네임은 이미 같은 규칙을 지났으니 그대로다. 결과가 같은 행은 건드리지 않는다(updated_at 없음, 캐시 무관).
+-- 폼(updateNickname)으로 바꾼 닉네임은 이미 같은 규칙을 지났으니 그대로다. 결과가 같은 행은 건드리지 않는다(updated_at 없음).
+-- 고친 행이 있으면 그 닉네임이 실린 상세 캐시(places 태그)는 이 SQL이 만료하지 못한다 — 앱 배포 뒤 db push 사이에 채워진 상세가
+-- 옛 닉네임을 유지한다. db push 뒤 재배포(새 빌드 id = 새 캐시 네임스페이스)로 닫는다(플랜 "배포 순서", security-reviewer 2026-09-22 ④). prod 실효 0(닉네임 프로필 0, 09-21).
 update public.profiles set nickname = private.clean_nickname(nickname)
 where nickname is not null and nickname is distinct from private.clean_nickname(nickname);

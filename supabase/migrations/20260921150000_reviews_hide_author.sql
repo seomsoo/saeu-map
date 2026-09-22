@@ -4,6 +4,7 @@
 -- "내 리뷰인가"는 uid 비교 대신 me()가 돌려주는 내 리뷰 id 목록으로 판정한다(상세는 anon 공유 캐시라 행마다 is_mine을 실을 수 없다).
 
 -- 작성자 닉네임 — invoker 뷰는 author_id를 못 읽게 되므로 조인 대신 이 함수가 읽어 준다. 돌려주는 건 이미 공개인 닉네임뿐이다.
+-- 전제: profiles.nickname이 누구에게나 공개(profiles_select)다. 그 정책을 좁히면 이 DEFINER가 RLS 우회로가 된다 — 같이 손봐야 한다(security-reviewer 2026-09-22 ⑤).
 create or replace function private.review_nickname(p_review_id uuid) returns text
 language sql stable security definer set search_path = '' as $$
   select pr.nickname from public.reviews r join public.profiles pr on pr.id = r.author_id where r.id = p_review_id;
