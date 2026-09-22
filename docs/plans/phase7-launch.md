@@ -13,12 +13,12 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | # | 할 일 | 누가 | 상태 |
 |---|---|---|---|
 | ~~0-0~~ | ~~prod 카카오 로그인 불가~~ — GoTrue가 scope에 `account_email`을 고정 → 카카오 앱에 동의항목이 없어 KOE205. **개인 개발자 비즈 앱 전환 + 이메일 선택 동의**로 해결, 코드·배포 변경 0 (decisions 2026-09-21). 병합·리뷰·탈퇴는 0-2에서 | 사용자(콘솔) | 완료 2026-09-21 (사용자 로그인 확인) |
-| 0-1 | `docs/keepalive-verify` 브랜치 push → 문서 PR → CI 통과 후 셀프 머지 | 내가(push는 사용자 승인) | 대기 |
+| 0-1 | ~~`docs/keepalive-verify` 브랜치 push → 문서 PR~~ — 그 커밋 6개가 `feat/phase7-hardening`(PR #18)에 이미 들어 있어 별도 PR이 필요 없다. #18 머지 뒤 로컬 브랜치만 지운다 | 내가 | PR #18에 포함 (2026-09-22 확인) |
 | 0-2 | **prod 폰 머니패스**: 확인·찜·제보(사진)·수정 제안·신고 → 카카오 로그인 → 리뷰 작성·삭제 → 익명→카카오 병합 → 탈퇴. 첫 쓰기의 Turnstile 지연도 같이 본다(프리뷰 헤드리스에서 첫 POST 6초+, decisions 2026-09-21) | 사용자(폰) + 내가(`wrangler tail`·DB 대조) | **일부 완료 2026-09-21**: 찜 → 카카오 로그인 → 병합(찜 유지) → 탈퇴(DB에서 유저·아이덴티티·프로필·찜 0 확인, decisions 같은 날). **남음**: 확인·제보(사진)·수정 제안·신고 · 리뷰 작성·삭제 · 첫 쓰기 지연 |
 | 0-3 | prod 관리자: 카카오 로그인 뒤 `profiles.is_admin = true`(runbook 2-2) → `/admin` 5탭 실사용 → 디스코드 **실채널** 알림 발화 | 같이 | 기록 없음 |
 | 0-4 | ~~프리뷰 읽기 전용 발화~~ | 내가 | 완료 2026-09-21 (`read only` → 토스트 → 롤백) |
 | 0-5 | 검수 대기 27곳 — 관리자 [검수 대기] 칩 → 30초 보고 [복구] (runbook 3b) | 사용자 | 미착수 |
-| 0-6 | Smart Placement가 `remote-…`로 옮겼는지 재확인(지금 `local-LAX`). 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS` | 내가 | 2026-09-22 이후 |
+| 0-6 | Smart Placement가 `remote-…`로 옮겼는지 재확인(지금 `local-LAX`). 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS` | 내가 | **아직 아님** — 2026-09-22 실측 `cf-placement: local-SEA`(홈·상세·sitemap, 5회). 배포 후 하루라 트래픽 부족일 가능성이 크다. 상태 코드는 대시보드 Workers → saeu-map → Settings → Placement(사용자). 런칭 뒤 1~2주 실측과 같이 다시 본다(범위 밖 "워커 CPU 다이어트"와 한 묶음) |
 | 0-7 | Sentry UI 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve (토큰이 읽기 전용) | 사용자 | 미착수 |
 | 0-8 | roadmap Phase 6 "사용자 콘솔 작업" 줄 체크 + 완료 줄 갱신 | 내가 | 0-2·0-3 뒤 |
 
@@ -78,7 +78,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 - 실기기: iOS 리뷰 폼 CTA가 키보드에 가리는지(roadmap 백로그) · 실기기 LCP(4초를 넘으면 청크 분할 백로그를 집는다, decisions 2026-09-07)
 - 사용량 알림(runbook 4-2): Cloudflare Images · Supabase Usage (NCP는 이미)
 - 런칭 글("전수조사", spec 8) · SNS 채널 개설 (D10과 함께)
-- 로컬 `[gone]` 브랜치 8개 정리(`/clean_gone`) — 사소
+- ~~로컬 `[gone]` 브랜치 8개 정리(`/clean_gone`)~~ — 2026-09-22 `fetch --prune` 뒤 0개(이미 정리됨)
 
 ## 검증
 
@@ -101,7 +101,10 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 보안 ② `author_id` | 완료 — **뷰가 아니라 컬럼 GRANT를 거뒀다**(`reviews` 표 전체가 SELECT로 열려 있어 뷰만 바꾸면 `/rest/v1/reviews?select=author_id`로 그대로 읽혔다). `reviews_public`에서 열 제거 + 닉네임은 DEFINER 헬퍼 `private.review_nickname`, **본인 판정은 `me().reviewIds`**(상세는 anon 공유 캐시라 행마다 `is_mine`을 실을 수 없다 → 세션에 싣는다, 추가 요청 0). 화면은 `Review.authorId` 대신 `Session.reviewIds` + 이 화면에서 방금 쓴 id(`writtenHereId` — 세션 갱신 전·섀도 밴의 가짜 리뷰). `reviews`를 `author_id`로 읽던 액션 3곳(내 리뷰·닉네임 뒤 캐시 만료·리뷰 사진 소유 확인)은 id 목록으로 | pgTAP 020 11 → 17(방문자·로그인 모두 `author_id` 42501, 뷰엔 열 없음 42703, 정책의 author_id 비교는 열 권한 없이 돈다, `me().reviewIds`) · advisors 0 · 로컬 PostgREST anon 실측 · 상세 SSR 200에 리뷰·닉네임 있음/uid 없음 |
 | 보안 ① captcha 구조 변경 | **사용자 결정·재료 대기 — 코드만으로 못 끝낸다** | 필요한 것: ⓐ 실 Turnstile secret을 Supabase auth 설정(`[auth.captcha]`)에 — 그 값은 사용자만 갖고 있다(로컬은 테스트 키) ⓑ prod `supabase config push`(인증 설정 변경) ⓒ 순서가 걸린 배포: captcha를 켜는 순간 **옛 앱의 익명 가입(토큰 없이 `signInAnonymously`)이 전부 거부**되고, 새 앱을 먼저 내면 첫 쓰기의 봇 확인이 GoTrue로 넘어가 있어 켜기 전까지 비어 버린다(토큰이 1회용이라 우리 siteverify와 둘 다 쓸 수 없다) → 전환용 플래그가 필요. 막는 위협은 "publishable 키가 새면 익명 유저를 대량 생성해 DB 제한을 우회"인데 키는 워커·GH secret에만 있고 `rate_ok`는 이미 fail-closed다. **권고: 런칭 뒤**(트래픽 없는 지금보다, 실제 어뷰징 신호가 보일 때 반나절 잡고) |
 
-수치: pgTAP 99 → **126**(9 파일) · vitest 560 → **579** · advisors 0.
+| security-reviewer (PR #18 diff, 머지 전) | **완료 2026-09-22 — High/Med 0.** Low 3: ① `turnstile.ts` Host 헤더가 없으면 hostname 검증을 건너뜀(fail-open) ② prod에 Cloudflare 더미 secret이 들어가면 siteverify·hostname 두 겹이 같이 꺼지는데 `lib/env`에 가드 없음 ③ `use-place-detail.ts` `writtenHereId`가 사용자 전환 뒤 남아 이전 사용자 리뷰에 [수정][삭제] 표시(RLS가 막아 표시 오류뿐). Info 2: 백필 update의 "캐시 무관" 주석 부정확(배포~db push 사이 채워진 상세는 옛 닉네임, prod 실효 0) · `private.review_nickname`은 profiles 닉네임 공개가 전제. 확인함: DEFINER `search_path=''`·EXECUTE 회수, uid 새는 경로 0, 세션은 anon 캐시 밖, Host 스푸핑 불가, 소스맵 토큰 번들 밖, 절대 규칙 위반 0 | 반영은 사용자 선별 |
+| Codex PR #18 코멘트 2건 | 완료 `a03408b` `dfad926` — ① 세션을 바꾸는 요청 다섯이 `settleSession`(요청 순번)을 지난다 ② 닉네임 트리거의 기존 프로필 백필 update(decisions 2026-09-22) | vitest 1 · pgTAP 1 추가 · CI 재실행 초록 |
+
+수치: pgTAP 99 → **127**(9 파일) · vitest 560 → **580** · advisors 0.
 
 **배포 순서(어기면 상세가 전원에게 깨진다)**: ① PR 머지 → `deploy` 잡 초록(새 앱) → ② `supabase db push`(사용자 승인, CI가 하지 않는다 — runbook 3) → ③ prod에서 상세 한 번 + 카카오 로그인 상태로 내 리뷰 [수정][삭제] 확인. 이유: **옛 앱은 `reviews_public.author_id`를 필수로 읽어서** 마이그레이션이 먼저 가면 리뷰 파싱이 전부 실패한다. 새 앱은 옛 DB에서도 돈다(`reviewIds` 없으면 빈 목록 — ①~② 사이 몇 분은 내 리뷰의 [수정][삭제]·내 리뷰 목록만 안 보인다). 마이그레이션 3개: `nickname_clean` · `peel_rollup` · `reviews_hide_author`.
 
