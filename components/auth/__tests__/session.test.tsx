@@ -248,9 +248,10 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
       expect(sessionText()).toBe("anonymous:");
     });
     // 이제야 갱신이 옛 카카오 세션을 들고 돌아온다 — 버려진다
-    await act(async () => {
+    act(() => {
       finishRefresh({ ...KAKAO, reviewIds: ["rv-1"] });
     });
+    await act(async () => {}); // resolve된 갱신이 처리될 틈
     expect(sessionText()).toBe("anonymous:");
   });
 });
