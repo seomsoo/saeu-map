@@ -57,6 +57,11 @@
 5. **Sentry 프로젝트** (PR 전) — sentry.io → Create Project → Next.js → Settings → Client Keys(DSN) 복사 → `.env`와 `gh variable set NEXT_PUBLIC_SENTRY_DSN --body <DSN>`(공개값). Settings → Security & Privacy → **Allowed Domains**에 우리 호스트 둘(`saeu-map.saeu-map.workers.dev`·`preview-saeu-map.saeu-map.workers.dev`). 이벤트만 쓴다(트레이싱·리플레이 꺼짐, 무료 5k/월).
    - **소스맵 업로드 토큰**(Phase 7, 한 번): sentry.io → Settings → Developer Settings → **Organization Tokens** → Create(이름 "saeu-map ci", 권한은 기본 `org:ci` — 업로드 전용) → 터미널에서 `! gh secret set SENTRY_UPLOAD_TOKEN`에 붙여 넣는다(채팅에 적지 않는다). 다음 main 배포부터 `deploy` 잡이 브라우저 소스맵을 올리고 .map은 지운다(`next.config.ts`). 없으면 업로드만 꺼진 채 배포된다. `.env.local`의 `SENTRY_AUTH_TOKEN`(읽기 전용 점검용)과는 다른 토큰이다. 발화 검증: 배포 로그의 업로드 줄 + 새 이슈의 스택에 원본 파일명(`components/…tsx`).
    - 발화 검증: 프리뷰 배포 뒤 임시 throw 1건이 sentry.io에 뜨면 끝(decisions 2026-09-10 #6 — 안 뜨면 Phase 7로). 로컬은 가짜 수신기로 봉투(envelope)가 오는 것까지 확인했다(커밋 9).
+6. **런칭 주 콘솔 4건** (Phase 7, decisions 2026-09-22 — 전부 코드 0이거나 공개값 하나):
+   - **GA4** — analytics.google.com → 속성 만들기(웹, `새우맵.kr`) → 측정 ID `G-…` → `! gh variable set NEXT_PUBLIC_GA_ID --body G-…`(공개값, 허용 목록 안). 코드는 이미 있다(`components/analytics/google-analytics.tsx` — 변수 없으면 미삽입, `/admin` 제외). 관리 → 데이터 스트림 → 태그 설정 → **내부 트래픽 정의**에 집 IP를 넣고 필터를 "활성"으로(4절 1). 발화: 다음 main 배포 뒤 실시간 보고서에 1건.
+   - **Cloudflare Web Analytics** — dash.cloudflare.com → Analytics & Logs → Web Analytics → Add a site → 호스트명 드롭다운에서 `새우맵.kr` 선택(**자동 설정** — 프록시된 zone이라 엣지가 비컨을 넣는다. 우리 HTML 응답에 `no-transform`이 없어 조건을 만족한다, 2026-09-22 확인). 코드 0. 발화: `curl -s https://xn--r02bv8jvof.kr/ | grep -c cloudflareinsights`가 1.
+   - **HSTS** (D6) — dash → 새우맵.kr → SSL/TLS → Edge Certificates → HTTP Strict Transport Security → Enable HSTS: **Max Age 1일(86400)**, Apply to subdomains 끔, **Preload 끔**(되돌릴 수 없다). 한 달 문제 없으면 6개월. 발화: `curl -sI https://xn--r02bv8jvof.kr/ | grep -i strict-transport`.
+   - **서치어드바이저** (D9, 네이버 + 구글) — searchadvisor.naver.com → 웹마스터 도구 → 사이트 등록 `https://새우맵.kr` → 소유확인 **HTML 태그** 방식의 `content` 값을 복사 / search.google.com/search-console → URL 접두어 → **HTML 태그**의 `content` 값. 둘 다 공개값이라 **채팅에 그대로 적어 주면** 내가 `app/layout.tsx` `metadata.verification`에 넣는다(커밋 11). 배포 뒤 콘솔에서 [소유확인] → 사이트맵 제출 `https://새우맵.kr/sitemap.xml`. 발화: 두 콘솔의 "소유 확인됨".
 
 ## 3. 내가 CLI로 하는 것
 
