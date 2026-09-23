@@ -113,8 +113,9 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 6 design 화면 12 + 링크 자리 | 완료 `312f399` — 흰 바탕 640 컬럼 문서 그릇, 화면 5에 캡션·하단 링크(새 탭) | — |
 | 7 `/privacy`·`/terms` | 완료 `8b4df52` `32152ae` — 본문은 Explore 조사 표(스키마·크론·위탁·탈퇴 동작)로. `lib/legal.ts` 상수(`lib/content`는 data 전용이라 밖). 문의 이메일 확정(2026-09-22) | vitest 3 · 390×702 실측(위탁 표 3열로 정정) |
 | 8 로그인 시트 캡션 + 내 활동 하단 | 완료 `8b4df52` — 체크박스 없음, 새 탭(오버레이 히스토리와 안 얽히게) | vitest 2 |
-| 9 분석 | GA4 측정 ID `G-3ZRVFRV7P9` 등록(09-23) + **deploy 빌드 env 배선이 빠져 있어 한 줄 추가** `46bb357`. CF Web Analytics는 대시보드 자동 설정(사용자, prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 배포 뒤 HTML에 gtag 스크립트 ✅(09-23). GA4 실시간 1건 ✅ 09-23(사용자). 남은 발화: `grep -c cloudflareinsights` = 1(CF Web Analytics 대시보드 뒤) |
+| 9 분석 | GA4 측정 ID `G-3ZRVFRV7P9` 등록(09-23) + **deploy 빌드 env 배선이 빠져 있어 한 줄 추가** `46bb357`. CF Web Analytics는 대시보드 자동 설정(사용자, prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 배포 뒤 HTML에 gtag 스크립트 ✅(09-23). GA4 실시간 1건 ✅ 09-23(사용자). CF Web Analytics 비컨 주입 ✅ 09-23(갭 스윕이 `Accept: text/html`로 확인 — 사용자가 대시보드 설정) |
 | 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 완료 09-23**: secret 등록(파이프) → 없는 주소로 수동 실행 → GET 실패·디스코드 스텝 success(run 35822190915) → 채널에 메시지 도착 ✅(사용자) → 기본값 재실행 초록 |
+| D6 HSTS | **사용자 몫, 미완** — 대시보드 SSL/TLS → Edge Certificates → max-age 1일, preload 끔(runbook 2-6) | 09-23 `curl -sI`에 `strict-transport-security` 없음 |
 | 11 소유 확인 메타 | 완료 `6df87a8` — 네이버 HTML 태그 메타(배포 뒤 prod HTML에 있음 ✅). 구글은 도메인 속성 + DNS TXT로 코드 0(09-22 확인됨) | 네이버 콘솔 [소유확인] ✅ 09-23(사용자) |
 | security-reviewer (PR #19 diff, 머지 뒤) | **완료 09-23 — High/Med 0.** Low 2: 방침 "본인 기록만 읽고" 과장(읽기는 공개) · 외부 링크 `rel` 컨벤션. Info: 속도 제한 해시 정리는 최대 48h · CF Web Analytics 고지가 콘솔 작업보다 앞섬 · "관리자 1인"은 운영 사실(월간 점검에 `is_admin` 행 수) · keepalive `url` 스킴 제한은 선택. 확인함: 셸 주입·웹훅 로그·GA_ID 허용 목록·XSS·새 탭 rel·IP 해시·Sentry PII·EXIF·탈퇴 약속·크론·규칙 1~7 | Low 2 + Info 1 문구 정정(마감 PR) |
 | Codex PR #19 코멘트 2건(P1) | 완료 — 둘 다 **문장 정정**(사용자 결정: 탈퇴해도 기여 콘텐츠는 남긴다, decisions 2026-09-23). 리뷰/기여 콘텐츠·속도 제한 해시/신고 해시를 행으로 나눠 적음. 신고 IP 해시 정리 잡은 런칭 뒤 백로그 | vitest 그대로 |
@@ -141,3 +142,29 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 ## 범위 밖 (이미 "런칭 뒤"로 정한 것 — roadmap 백로그)
 
 워커 CPU 다이어트(1~2주 실측 뒤 판단, decisions 2026-09-18) · 급증 디스코드 알림 · 구글 로그인 · 시즌 스탬프 · [새로 들어온 집] 필터 재검토 · 1024 경계 리센터 · 앱(TWA/Capacitor) · 사이즈 판독기.
+
+## 결과 (2026-09-23)
+
+**코드 완료·배포 완료.** PR #18(하드닝, 24커밋 → 스쿼시 `6030dff`) + PR #19(런칭, 12커밋 → `1f91fe7`) 머지, `supabase db push` 3개(prod 마이그레이션 5/5). 마감 PR(이 문서·roadmap·security-reviewer 문구 3건)은 별도. 런칭 9-26.
+
+| 항목 | 결과 |
+| --- | --- |
+| 테스트 | vitest 580 → **585**(53 파일: 세션 순번 가드 1 · Host fail-closed 1 · 방금 쓴 리뷰 계정 전환 1 · 문서 페이지 3 · 링크 자리 2 · sitemap). pgTAP 99 → **127**(9 파일). advisors **0** |
+| 보안 하드닝 | ② `reviews.author_id` 컬럼 GRANT 회수 + `me().reviewIds` · ③ 카카오 닉네임 트리거 + 백필 · ④ Turnstile hostname(Host 없으면 실패). ①(GoTrue captcha)은 런칭 뒤 |
+| 문서 페이지 | `/privacy`·`/terms`(design 화면 12) — 본문은 Explore 사실 표에서. 링크는 로그인 시트 캡션 + 내 활동 하단(새 탭). 시행일 9-26 |
+| 운영 | keepalive 실패 → 디스코드(발화 ✅) · Sentry 소스맵 배선(토큰 뒤 발화) · 네이버 메타 + 구글 DNS TXT(둘 다 소유 확인 ✅) · GA4 `G-3ZRVFRV7P9` 배선(실시간 ✅) · CF Web Analytics 자동 삽입(비컨 ✅) · Sentry MAP-1·4 resolve, MAP-2 archive |
+| 리뷰 | Codex #18 2건(P2) → 2 반영 · #19 2건(P1, 방침 과장) → 2 문장 정정 + 결정 "탈퇴해도 기여 콘텐츠는 남긴다" · security-reviewer #18 Low 3 → 2 반영·1 백로그, #19 Low 2 → 반영 · gap-sweeper **39항목: 구현 20 · 부분 2(0-8 roadmap Phase 6 줄, 리뷰 기록 — 이 PR에서 정리) · 미구현 1(이 절) · 범위 밖 6 · 사용자 몫 9 · 모호 1**(D5b) |
+| prod 확인 | 세 주소 200 · 상세 SSR에 작성자 id 0 · `/privacy`·`/terms` 200 · keepalive 실패 경로 → 디스코드 1건 → 기본값 초록 · 관리자 계정 승격·검수 대기 27곳 중 일부 복구(사용자) |
+| 남은 것(런칭 전, 사용자) | HSTS 1일(대시보드) · `SENTRY_UPLOAD_TOKEN` · 0-2 머니패스 나머지(확인·제보·수정·신고·리뷰 작성/삭제 = 첫 쓰기의 Turnstile hostname 재확인) · 0-3 디스코드 실채널(신고 1건이면 발화) · 검수 대기 나머지 · MAP-3·5·6·7 재확인 · 런칭 글·SNS·태그라인 |
+| 모호 1 | D5b spec 8 "3분 전 을지로 OO집" 조각 — design에 없음. **권고: 런칭 후 결정**(확인 데이터가 쌓여야 의미가 있다) |
+
+**계획에서 바뀐 것**
+- **보안 ①(익명 가입 captcha)은 런칭 뒤** — 실 secret·`config push`·전환 플래그가 필요하고 위협(publishable 키 유출 시 대량 익명 가입)은 키가 워커·GH secret에만 있어 지금 낮다.
+- **supabase CLI npm 고정은 하지 않음** — 로컬·CI 2.117.0, 타입 diff가 트립와이어.
+- **분석은 코드 0**이 될 뻔했다: GA4 컴포넌트는 Phase 6에 이미 있었고 CF Web Analytics는 엣지 자동 삽입(`no-transform` 없음). 단 **deploy 잡에 `NEXT_PUBLIC_GA_ID`를 넘기는 줄이 빠져 있어** 한 줄 추가(`46bb357`) — 변수만 등록하고 배선을 안 본 실수.
+- **구글 서치콘솔은 URL 접두어(HTML 태그)가 아니라 도메인 속성 + DNS TXT** — 코드 0, 범위 넓음. Cloudflare "이름" 칸에 도메인을 쓰면 `새우맵.kr.새우맵.kr`에 붙는다(`@`가 루트).
+- **탈퇴 시 기여 콘텐츠(가게 사진·제보·확인)는 남긴다** — 코드가 이미 그렇고 UGC 관행. Codex #19가 방침의 과장을 잡아 결정으로 승격(decisions 09-23). 신고 IP 해시 정리 잡은 백로그.
+- **`lib/legal.ts`** — `lib/content/`는 `lib/data.ts` 전용(lint 경계)이라 상수는 밖. 문서 링크는 `next/link`가 아니라 `<a target="_blank">`(오버레이 히스토리와 안 얽히게).
+- **Gitleaks 가짜 양성**: 테스트의 `"secret", "xn--…"` 인접 리터럴이 `generic-api-key`에 걸려 상수로 빼고 원 커밋에 fixup(옛 커밋이 남으면 계속 잡힌다).
+- **Sentry 정리는 사용자 대시보드가 아니라 API** — 사용자가 `event:write` 토큰을 발급해 PUT 3건.
+- **하지 않은 것(범위 밖 유지)**: 핀 공유 카드 요청 시 생성(조건부) · Smart Placement 재확인(런칭 뒤 1~2주, 지금 `local-*`) · 보안 ② prod 더미 secret 런타임 가드 · 신고 IP 해시 정리 잡 · D3·D4.
