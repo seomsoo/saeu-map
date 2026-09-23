@@ -86,6 +86,11 @@ export function ReportPanel({
       onNotice(SUBMIT_FAILED_NOTICE);
       return;
     }
+    if (typeof result === "object" && "message" in result) {
+      onNotice(result.message); // 사진 크기 — 가게는 아직 안 만들어졌다, 사진 단계로
+      onStepChange(4);
+      return;
+    }
     onCreated(result);
     onStepChange("done");
   };

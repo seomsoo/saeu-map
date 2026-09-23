@@ -20,6 +20,7 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 /** 한 번에 올리는 합계 — 서버 액션 본문 상한(next.config 32mb) 안. 10장 × 10MB를 다 받으면 워커 메모리가 위험하다 */
 export const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 export const UPLOAD_TOO_LARGE_MESSAGE = "사진은 한 번에 30MB까지 올릴 수 있어요";
+export const PHOTO_TOO_LARGE_MESSAGE = "사진 한 장은 10MB까지";
 const withinUploadBudget = (files: readonly File[]) => files.reduce((n, f) => n + f.size, 0) <= MAX_UPLOAD_BYTES;
 /** 제보 한 건의 메뉴 줄 수 — 구이 1(필수) + 회 1(선택) + 기타 3. 크롤 가게 중앙값 3줄·최대 5줄(2026-09-09). */
 export const REPORT_MENU_MAX = 5;
@@ -85,10 +86,10 @@ export const sidesSchema = z.object({
   friedRice: z.boolean(),
 });
 
-const imageFileSchema = z
+export const imageFileSchema = z
   .instanceof(File)
   .refine((f) => f.type.startsWith("image/"), "이미지 파일만")
-  .refine((f) => f.size <= MAX_PHOTO_BYTES, "사진 한 장은 10MB까지");
+  .refine((f) => f.size <= MAX_PHOTO_BYTES, PHOTO_TOO_LARGE_MESSAGE);
 
 /** 제보 입력(design 화면 3). 필수는 가게명·좌표·메뉴 한 줄뿐(spec 4.3). 구는 좌표로 판정(전국). 좌표 범위는 한국 대략 상자. */
 export const reportInputSchema = z.object({

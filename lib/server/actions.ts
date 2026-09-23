@@ -42,6 +42,7 @@ import {
   reviewPayloadSchema,
   type SuggestionInput,
   suggestionSchema,
+  imageFileSchema,
 } from "@/lib/schemas";
 import { siteUrl } from "@/lib/seo";
 import { formatKstDate } from "@/lib/time";
@@ -687,8 +688,10 @@ export async function addPlacePhotos(form: FormData): Promise<Result<Place>> {
  */
 export async function attachReviewPhoto(form: FormData): Promise<Result<Review>> {
   const reviewId = idSchema.parse(form.get("reviewId"));
-  const photo = form.get("photo");
-  if (!(photo instanceof File)) return fail("not image");
+  // 공용 이미지 스키마(이미지 타입·장당 10MB) — 본문 상한을 32MB로 올린 뒤 이 액션만 크기를 안 보면 큰 파일이 Images까지 간다(Codex PR #21 #2)
+  const parsedPhoto = imageFileSchema.safeParse(form.get("photo"));
+  if (!parsedPhoto.success) return fail("not image");
+  const photo = parsedPhoto.data;
   const gate = await openWriteGate(formString(form, "turnstile"), formString(form, "actor") || null);
   if ("failure" in gate) return fail(gate.failure);
   const { db } = gate;
