@@ -36,7 +36,6 @@ const myReview = (): MyReview => ({
   id: "rv001",
   placeId: "nara",
   placeName: "나라수산",
-  authorId: "u-kakao-1",
   rating: 5,
   text: "대하 크기가 실했어요",
   nickname: "새우헌터",

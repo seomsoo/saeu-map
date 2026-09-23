@@ -134,7 +134,7 @@ export function PlaceDetail({
         status={d.status}
         reviews={d.reviews}
         naverUrl={naverUrl}
-        currentUserId={d.currentUserId}
+        myReviewId={d.myReviewId}
         onRetry={d.retryReviews}
         onEdit={d.editReview}
         onDelete={d.deleteReview}

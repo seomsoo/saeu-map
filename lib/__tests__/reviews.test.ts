@@ -11,7 +11,7 @@ import type { Review } from "../types";
 let seq = 0;
 function review(rating: number, at = "2026-08-27T20:00:00+09:00"): Review {
   seq += 1;
-  return { id: `rv${String(seq)}`, placeId: "p1", authorId: "u-other", rating, text: "", nickname: "n", at };
+  return { id: `rv${String(seq)}`, placeId: "p1", rating, text: "", nickname: "n", at };
 }
 
 describe("ratingSummary — 리뷰 3개 미만이면 평균 숨김 (spec 4.2-9)", () => {

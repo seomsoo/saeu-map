@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STATION_NEARBY_MAX_M } from "@/lib/schemas";
-import { DELETED_AUTHOR, DELETED_NICKNAME, photoUrl, toAdminPlace, toPlace, toReview } from "../rows";
+import { DELETED_NICKNAME, photoUrl, toAdminPlace, toPlace, toReview } from "../rows";
 
 const PLACE_ID = "3f2a9c1e-1111-4a1a-9b1b-000000000001";
 const PHOTO_ID = "3f2a9c1e-2222-4a1a-9b1b-000000000002";
@@ -104,7 +104,6 @@ describe("toReview — reviews_public 행", () => {
   const row = {
     id: PHOTO_ID,
     place_id: PLACE_ID,
-    author_id: USER_ID,
     rating: 4,
     text: "좋았어요",
     photo_key: null,
@@ -119,10 +118,10 @@ describe("toReview — reviews_public 행", () => {
     expect(r.editedAt).toBe("2026-09-02T00:00:00Z");
     expect(r.photoUrl).toBe("/photos/reviews/x.webp");
   });
-  it("탈퇴한 작성자는 식별자 없는 표시값으로", () => {
-    const r = toReview({ ...row, author_id: null, nickname: null });
-    expect(r.authorId).toBe(DELETED_AUTHOR);
+  it("탈퇴한 작성자는 표시값으로 — 작성자 uid는 어느 리뷰에도 실리지 않는다", () => {
+    const r = toReview({ ...row, nickname: null });
     expect(r.nickname).toBe(DELETED_NICKNAME);
+    expect("authorId" in toReview({ ...row, author_id: USER_ID })).toBe(false); // 옛 뷰 모양이 와도 버린다
     expect("editedAt" in r).toBe(false);
   });
 });

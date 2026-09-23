@@ -97,7 +97,7 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - [x] `/test` 참여 기록 테이블 + 집계 RPC(화면은 Phase 7) · 확인 0회 제보 핀 "○일 전 등록"(백로그에서 당김)
 - [x] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
 - [ ] **사용자 콘솔 작업**(runbook 2절, PR 전에): ~~Cloudflare R2 켜기~~(2026-09-17 완료, 버킷 2개 생성) · ~~카카오 개발자 앱~~(2026-09-17 완료, config push) · ~~Turnstile 위젯~~(2026-09-17 완료) · ~~디스코드 웹훅 URL~~(워커 secret) · ~~Sentry 프로젝트 → DSN~~(GH variable, 테스트 이벤트 200)(공개값, 채팅으로 줘도 됨 — 없으면 Sentry만 꺼진 채 배포됨) · ~~`supabase login` 승인 → 호스팅 프로젝트 생성~~(2026-09-16 완료, 시드 789 임포트) · GitHub variables 3개(NCP ID·Turnstile site·Sentry DSN) + secrets 2개(Supabase URL·publishable — 로그에 안 찍히게)는 값만 주면 내가 `gh variable/secret set` · 워커 secret 6개는 `wrangler secret put`
-- 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴 → **코드 완료 2026-09-16**(플랜 "## 결과": vitest 556·pgTAP 94·advisors 0·리뷰 3종 반영). 카카오 왕복·프리뷰 발화·폰 머니패스는 콘솔 작업 뒤 첫 PR·prod에서.
+- 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴 → **코드 완료 2026-09-16**(플랜 "## 결과": vitest 556·pgTAP 94·advisors 0·리뷰 3종 반영). 카카오 왕복·~~프리뷰 발화~~(2026-09-21 별칭 URL + 읽기 전용 토스트 확인, decisions 같은 날)·폰 머니패스는 콘솔 작업 뒤 첫 PR·prod에서.
 
 ## 백로그 — 시점이 오면 집는다 (Phase 순서 밖)
 
@@ -115,7 +115,7 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - **워커 CPU 다이어트(2026-09-18 실측, decisions 같은 날)** — 조건: Paid로 가도 **홈 TTFB p50이 1초를 넘게 유지되거나 가게 2,000곳 초과**. ① 서버 Sentry(`@sentry/nextjs` Node SDK + OTel, 17MB 번들의 일부)를 `@sentry/cloudflare`로 바꾸거나 서버는 Discord 알림만으로 — 콜드 스타트 600~900ms의 첫 후보. ② 홈 RSC 페이로드 900KB(762곳 전체) → 마커용 경량 목록(id·좌표·카테고리·이름) + 카드는 보이는 만큼. ③ 홈 HTML 캐시(태그 갱신)는 Paid 전제(재생성도 CPU 제한을 받는다).
 - **보안 리뷰 백로그 4건(2026-09-16 중간 리뷰, decisions 같은 날)** — 조건: **Phase 7 런칭 준비에서 집는다**(런칭 전 하드닝). ① publishable 키 유출 대비 — GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken: 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 되므로 구조를 바꿔야 한다(`rate_ok` fail-closed로 절반은 막았다). ② `reviews_public`의 `author_id`를 `is_mine`으로 대체(익명에게 auth uid 노출 안 함). ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거). ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤.
 
-## Phase 7 — 런칭 준비 (별도 결정 후)
+## Phase 7 — 런칭 준비 (별도 결정 후 — 남은 일 전수·플랜 초안은 docs/plans/phase7-launch.md, 2026-09-21)
 - [ ] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), 서치어드바이저, 축제 페이지, 시즌 카운터 실데이터 (까주기 테스트는 Phase 5.6에서 당겨 만들었다)
 - [ ] **분석 켜기**: Cloudflare Web Analytics 배선 + GA4 측정 ID(`NEXT_PUBLIC_GA_ID`) 등록. **그 전에 개인정보처리방침·동의 배너를 정한다**(GA4는 쿠키를 쓴다 — decisions 2026-09-08)
 - [ ] SNS 채널·런칭일·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장)

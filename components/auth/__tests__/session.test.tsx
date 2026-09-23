@@ -24,7 +24,7 @@ const KAKAO: Session = { userId: "u-kakao-1", provider: "kakao", nickname: "새�
 
 /** 게이트 결과를 화면에 찍는 소비자 */
 function Consumer() {
-  const { session, requireLogin, signOut } = useSession();
+  const { session, requireLogin, signOut, refreshSession } = useSession();
   const [result, setResult] = useState("");
   return (
     <div>
@@ -48,6 +48,14 @@ function Consumer() {
         }}
       >
         로그아웃
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void refreshSession();
+        }}
+      >
+        세션 갱신
       </button>
     </div>
   );
@@ -222,5 +230,28 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     await waitFor(() => {
       expect(sessionText()).toBe("anonymous:");
     });
+  });
+
+  it("늦게 돌아온 세션 갱신은 그 뒤에 시작한 로그아웃을 덮지 않는다 — 마지막에 시작한 요청이 이긴다 (Codex PR #18 #1)", async () => {
+    data.getSession.mockResolvedValue(KAKAO);
+    renderConsumer();
+    await waitFor(() => {
+      expect(sessionText()).toBe("kakao:새우헌터");
+    });
+    // 리뷰 저장 뒤의 갱신(기다리지 않는 호출)이 느리다
+    let finishRefresh: (s: Session) => void = () => {};
+    data.getSession.mockImplementationOnce(() => new Promise<Session>((resolve) => (finishRefresh = resolve)));
+    fireEvent.click(screen.getByRole("button", { name: "세션 갱신" }));
+    // 그 사이 로그아웃 — 바로 돌아온다
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    await waitFor(() => {
+      expect(sessionText()).toBe("anonymous:");
+    });
+    // 이제야 갱신이 옛 카카오 세션을 들고 돌아온다 — 버려진다
+    act(() => {
+      finishRefresh({ ...KAKAO, reviewIds: ["rv-1"] });
+    });
+    await act(async () => {}); // resolve된 갱신이 처리될 틈
+    expect(sessionText()).toBe("anonymous:");
   });
 });

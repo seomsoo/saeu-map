@@ -69,7 +69,6 @@ function review(rating: number, overrides: Partial<Review> = {}): Review {
   return {
     id: `rv${String(reviewSeq)}`,
     placeId: "nara",
-    authorId: "u-other",
     rating,
     text: "대하가 실했어요.",
     nickname: "새우헌터",
@@ -840,7 +839,6 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
     const saved: Review = {
       id: "rv-local-1",
       placeId: "nara",
-      authorId: "u-kakao-1",
       rating: 5,
       text: "머리버터구이 최고",
       nickname: "새우헌터",
@@ -875,9 +873,41 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
     expect(within(second).queryByRole("button", { name: "리뷰 수정" })).toBeNull();
   });
 
+  it("방금 쓴 리뷰의 [수정][삭제]는 쓴 계정에만 — 저장 뒤 세션 갱신이 다른 계정을 돌려주면 사라진다", async () => {
+    // 상세를 연 채 다른 탭에서 로그아웃 → 다른 계정 로그인. 갱신 응답은 우리가 풀어 준다(시점 고정)
+    let resolveRefresh: (s: Session) => void = () => {};
+    data.getSession.mockResolvedValueOnce(KAKAO).mockImplementationOnce(
+      () =>
+        new Promise<Session>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+    const saved: Review = { id: "rv-local-1", placeId: "nara", rating: 5, text: "", nickname: "새우헌터", at: NOW };
+    data.submitReview.mockResolvedValue({ review: saved, place: nara({ checkCount: 5, lastCheckedAt: NOW }) });
+    const { props } = renderDetail(nara(), { initialReviews: [] });
+    await act(async () => {}); // 첫 세션(KAKAO)이 실릴 틈 — 그 전에 누르면 로그인 시트가 뜬다
+    fireEvent.click(screen.getByRole("button", { name: "리뷰 남기기" }));
+    const form = await screen.findByRole("dialog", { name: "리뷰 남기기" });
+    fireEvent.click(within(form).getByRole("radio", { name: "5점" }));
+    fireEvent.click(within(form).getByRole("button", { name: "등록하기" }));
+    await waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith("리뷰를 남겼어요");
+    });
+    expect(screen.getByRole("button", { name: "리뷰 삭제" })).toBeInTheDocument(); // 세션 갱신 전에도 내 것
+
+    act(() => {
+      resolveRefresh({ userId: "u-kakao-2", provider: "kakao", nickname: "다른사람" });
+    });
+    await act(async () => {}); // resolve된 갱신이 처리될 틈
+    expect(screen.queryByRole("button", { name: "리뷰 삭제" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "리뷰 수정" })).toBeNull();
+    expect(screen.getByText("새우헌터")).toBeInTheDocument(); // 리뷰 자체는 남는다
+  });
+
   it("본인 리뷰 [수정] → 수정 폼 → '수정됨'. [삭제]는 인라인 확인 → 낙관 제거, 실패면 원복 + 토스트", async () => {
-    data.getSession.mockResolvedValue(KAKAO);
-    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터", text: "원래 글" });
+    // 내 리뷰는 세션의 reviewIds가 가른다 — 리뷰에는 작성자 uid가 없다
+    data.getSession.mockResolvedValue({ ...KAKAO, reviewIds: ["rv-mine"] });
+    const mine = review(4, { id: "rv-mine", nickname: "새우헌터", text: "원래 글" });
     const edited = { ...mine, rating: 3, text: "고친 글", editedAt: NOW };
     data.updateReview.mockResolvedValue(edited);
     data.deleteReview.mockRejectedValue(new Error("mock write failed"));
@@ -919,8 +949,8 @@ describe("리뷰 쓰기 — 로그인 게이트, 폼, 본인 리뷰 수정·삭�
 
 describe("리뷰는 핀당 1개 — 내 리뷰가 있으면 기여 블록의 [리뷰 남기기]를 빼고 행의 [수정]만 남긴다", () => {
   it("내 리뷰가 있으면 기여 블록엔 [다녀왔어요]만, 없으면 둘 다", async () => {
-    data.getSession.mockResolvedValue(KAKAO);
-    const mine = review(4, { id: "rv-mine", authorId: "u-kakao-1", nickname: "새우헌터" });
+    data.getSession.mockResolvedValue({ ...KAKAO, reviewIds: ["rv-mine"] });
+    const mine = review(4, { id: "rv-mine", nickname: "새우헌터" });
     const { unmount } = renderDetail(nara(), { initialReviews: [mine] });
     const band = await screen.findByRole("region", { name: "여기 다녀오셨나요?" });
     await waitFor(() => {

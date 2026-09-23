@@ -12,7 +12,8 @@ export default defineConfig({
     // 상세 테스트가 5초를 넘겨 훅이 false failure를 낸다. 진짜 멈춘 테스트는 10초 늦게 잡히면 된다.
     testTimeout: 15_000,
     include: ["**/__tests__/**/*.test.{ts,tsx}", "**/*.test.{ts,tsx}"],
-    exclude: ["node_modules/**", ".next/**", ".open-next/**", ".wrangler/**"],
+    // .claude/: Claude Code 플러그인의 자체 테스트가 들어온다 — 앱 스위트가 아니다
+    exclude: ["node_modules/**", ".next/**", ".open-next/**", ".wrangler/**", ".claude/**"],
     setupFiles: ["./vitest.setup.ts"],
   },
   resolve: {

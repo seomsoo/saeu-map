@@ -84,6 +84,24 @@ export type Database = {
           },
         ]
       }
+      peel_monthly: {
+        Row: {
+          month: string
+          n: number
+          type: string
+        }
+        Insert: {
+          month: string
+          n: number
+          type: string
+        }
+        Update: {
+          month?: string
+          n?: number
+          type?: string
+        }
+        Relationships: []
+      }
       peel_results: {
         Row: {
           created_at: string
@@ -532,7 +550,6 @@ export type Database = {
       }
       reviews_public: {
         Row: {
-          author_id: string | null
           created_at: string | null
           edited_at: string | null
           id: string | null
