@@ -19,7 +19,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 0-4 | ~~프리뷰 읽기 전용 발화~~ | 내가 | 완료 2026-09-21 (`read only` → 토스트 → 롤백) |
 | 0-5 | 검수 대기 27곳 — 관리자 [검수 대기] 칩 → 30초 보고 [복구] (runbook 3b) | 사용자 | 미착수 |
 | 0-6 | Smart Placement가 `remote-…`로 옮겼는지 재확인(지금 `local-LAX`). 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS` | 내가 | **아직 아님** — 2026-09-22 실측 `cf-placement: local-SEA`(홈·상세·sitemap, 5회). 배포 후 하루라 트래픽 부족일 가능성이 크다. 상태 코드는 대시보드 Workers → saeu-map → Settings → Placement(사용자). 런칭 뒤 1~2주 실측과 같이 다시 본다(범위 밖 "워커 CPU 다이어트"와 한 묶음) |
-| 0-7 | Sentry UI 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve (토큰이 읽기 전용) | 사용자 | 미착수 |
+| 0-7 | Sentry 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve | 내가(사용자가 `event:write` 토큰 발급) | **완료 2026-09-23** — API PUT 3건 200. 남은 미해결 MAP-3·5·6·7(9/18~21, 네트워크 끊김류 + "unexpected response" 1건)은 배포 뒤 다시 본다 |
 | 0-8 | roadmap Phase 6 "사용자 콘솔 작업" 줄 체크 + 완료 줄 갱신 | 내가 | 0-2·0-3 뒤 |
 
 0-2에서 버그가 나오면 그게 Phase 7의 어떤 항목보다 먼저다.
