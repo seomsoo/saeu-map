@@ -115,7 +115,8 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - **워커 CPU 다이어트(2026-09-18 실측, decisions 같은 날)** — 조건: Paid로 가도 **홈 TTFB p50이 1초를 넘게 유지되거나 가게 2,000곳 초과**. ① 서버 Sentry(`@sentry/nextjs` Node SDK + OTel, 17MB 번들의 일부)를 `@sentry/cloudflare`로 바꾸거나 서버는 Discord 알림만으로 — 콜드 스타트 600~900ms의 첫 후보. ② 홈 RSC 페이로드 900KB(762곳 전체) → 마커용 경량 목록(id·좌표·카테고리·이름) + 카드는 보이는 만큼. ③ 홈 HTML 캐시(태그 갱신)는 Paid 전제(재생성도 CPU 제한을 받는다).
 - **보안 리뷰 백로그 4건(2026-09-16 중간 리뷰, decisions 같은 날)** — 조건: **Phase 7 런칭 준비에서 집는다**(런칭 전 하드닝). ① publishable 키 유출 대비 — GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken: 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 되므로 구조를 바꿔야 한다(`rate_ok` fail-closed로 절반은 막았다). ② `reviews_public`의 `author_id`를 `is_mine`으로 대체(익명에게 auth uid 노출 안 함). ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거). ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤.
 
-## Phase 7 — 런칭 준비 (별도 결정 후 — 남은 일 전수·플랜 초안은 docs/plans/phase7-launch.md, 2026-09-21)
-- [ ] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), 서치어드바이저, 축제 페이지, 시즌 카운터 실데이터 (까주기 테스트는 Phase 5.6에서 당겨 만들었다)
-- [ ] **분석 켜기**: Cloudflare Web Analytics 배선 + GA4 측정 ID(`NEXT_PUBLIC_GA_ID`) 등록. **그 전에 개인정보처리방침·동의 배너를 정한다**(GA4는 쿠키를 쓴다 — decisions 2026-09-08)
-- [ ] SNS 채널·런칭일·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장)
+## Phase 7 — 런칭 준비 (결정 10건 확정 2026-09-22, **런칭 9-26** — 남은 일 전수·플랜은 docs/plans/phase7-launch.md)
+- [ ] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), 서치어드바이저(네이버 + 구글, D9), ~~축제 페이지~~(**런칭 후** — spec 8과 맞춤, D3), ~~시즌 카운터 실데이터~~(Phase 6 `season_stats`로 이미 실데이터, D5) (까주기 테스트는 Phase 5.6에서 당겨 만들었다; `/test` 참여자 수 화면은 런칭 후, D4)
+- [ ] 보안 하드닝 ②③④ + 리뷰 백로그 + 소스맵 배선(PR #18) · `/privacy`·`/terms` + 링크 자리 + keepalive 알림(PR 2, D1·D1b·D1c·D7) · HSTS 1일(D6, 대시보드)
+- [ ] **분석 켜기**: GA4 측정 ID(`NEXT_PUBLIC_GA_ID`, 코드는 있음) + Cloudflare Web Analytics(대시보드 자동 설정, 코드 0). 방침에 고지, 동의 배너 없음(D2 2026-09-22)
+- [ ] SNS 채널·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장) — 런칭 글 전까지

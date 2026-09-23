@@ -198,6 +198,15 @@ describe("ActivityPanel — 화면 5: 프로필·3탭·로그아웃·탈퇴", ()
     expect(data.signOut).toHaveBeenCalledTimes(1);
   });
 
+  it("맨 아래 둘째 줄에 약관·방침 링크(새 탭) — 지도 앱이라 푸터가 없어 여기가 입구다 (D1c)", async () => {
+    renderPanel();
+    const nav = await screen.findByRole("navigation", { name: "약관·방침" });
+    expect(within(nav).getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
+    const privacy = within(nav).getByRole("link", { name: "개인정보처리방침" });
+    expect(privacy).toHaveAttribute("href", "/privacy");
+    expect(privacy).toHaveAttribute("target", "_blank");
+  });
+
   it("탈퇴: 확인 시트 → [취소]는 닫힘, [탈퇴하기] 실패면 오류 한 줄, 성공이면 onAccountDeleted", async () => {
     data.deleteAccount.mockRejectedValueOnce(new Error("mock write failed")).mockResolvedValueOnce(ANON);
     const { props } = renderPanel();

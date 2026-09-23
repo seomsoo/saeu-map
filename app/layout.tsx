@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   openGraph: { siteName: SITE_NAME, type: "website", locale: "ko_KR" },
+  // 네이버 서치어드바이저 소유 확인(공개값, 2026-09-22 D9). 구글은 DNS TXT(도메인 속성)라 메타가 없다 — runbook 2-6
+  verification: { other: { "naver-site-verification": "cdbd0453eeb3e1eaadacdf98d853ecfad3b8e612" } },
 };
 
 export const viewport: Viewport = {

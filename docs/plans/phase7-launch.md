@@ -19,7 +19,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 0-4 | ~~프리뷰 읽기 전용 발화~~ | 내가 | 완료 2026-09-21 (`read only` → 토스트 → 롤백) |
 | 0-5 | 검수 대기 27곳 — 관리자 [검수 대기] 칩 → 30초 보고 [복구] (runbook 3b) | 사용자 | 미착수 |
 | 0-6 | Smart Placement가 `remote-…`로 옮겼는지 재확인(지금 `local-LAX`). 트래픽 부족이면 `INSUFFICIENT_INVOCATIONS` | 내가 | **아직 아님** — 2026-09-22 실측 `cf-placement: local-SEA`(홈·상세·sitemap, 5회). 배포 후 하루라 트래픽 부족일 가능성이 크다. 상태 코드는 대시보드 Workers → saeu-map → Settings → Placement(사용자). 런칭 뒤 1~2주 실측과 같이 다시 본다(범위 밖 "워커 CPU 다이어트"와 한 묶음) |
-| 0-7 | Sentry UI 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve (토큰이 읽기 전용) | 사용자 | 미착수 |
+| 0-7 | Sentry 정리: MAP-1 resolve · MAP-2 archive · MAP-4 resolve | 내가(사용자가 `event:write` 토큰 발급) | **완료 2026-09-23** — API PUT 3건 200. 남은 미해결 MAP-3·5·6·7(9/18~21, 네트워크 끊김류 + "unexpected response" 1건)은 배포 뒤 다시 본다 |
 | 0-8 | roadmap Phase 6 "사용자 콘솔 작업" 줄 체크 + 완료 줄 갱신 | 내가 | 0-2·0-3 뒤 |
 
 0-2에서 버그가 나오면 그게 Phase 7의 어떤 항목보다 먼저다.
@@ -105,6 +105,20 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | Codex PR #18 코멘트 2건 | 완료 `a03408b` `dfad926` — ① 세션을 바꾸는 요청 다섯이 `settleSession`(요청 순번)을 지난다 ② 닉네임 트리거의 기존 프로필 백필 update(decisions 2026-09-22) | vitest 1 · pgTAP 1 추가 · CI 재실행 초록 |
 
 수치: pgTAP 99 → **127**(9 파일) · vitest 560 → **580** · advisors 0.
+
+**PR 2 `feat/phase7-launch` 진행 (2026-09-22, #18 위에 쌓음)**
+
+| 단위 | 상태 | 검증 |
+|---|---|---|
+| 6 design 화면 12 + 링크 자리 | 완료 `312f399` — 흰 바탕 640 컬럼 문서 그릇, 화면 5에 캡션·하단 링크(새 탭) | — |
+| 7 `/privacy`·`/terms` | 완료 `8b4df52` `32152ae` — 본문은 Explore 조사 표(스키마·크론·위탁·탈퇴 동작)로. `lib/legal.ts` 상수(`lib/content`는 data 전용이라 밖). 문의 이메일 확정(2026-09-22) | vitest 3 · 390×702 실측(위탁 표 3열로 정정) |
+| 8 로그인 시트 캡션 + 내 활동 하단 | 완료 `8b4df52` — 체크박스 없음, 새 탭(오버레이 히스토리와 안 얽히게) | vitest 2 |
+| 9 분석 | **코드 0** — GA4는 이미 배선(`google-analytics.tsx`, 변수 없으면 미삽입), CF Web Analytics는 대시보드 자동 설정(prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 발화: GA4 실시간 1건 · `grep -c cloudflareinsights` = 1 |
+| 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 대기**: `gh secret set DISCORD_WEBHOOK_URL` 뒤 없는 주소로 수동 실행 → 1건 |
+| 11 소유 확인 메타 | **사용자 코드 대기** — 네이버·구글 콘솔의 HTML 태그 `content` 값(공개값) | 콘솔 "소유 확인됨" |
+| Codex PR #19 코멘트 2건(P1) | 완료 — 둘 다 **문장 정정**(사용자 결정: 탈퇴해도 기여 콘텐츠는 남긴다, decisions 2026-09-23). 리뷰/기여 콘텐츠·속도 제한 해시/신고 해시를 행으로 나눠 적음. 신고 IP 해시 정리 잡은 런칭 뒤 백로그 | vitest 그대로 |
+| 12 docs | roadmap `a49b63d` · runbook 2-6 `c2410f0` · 갭 스윕·"## 결과"는 11 뒤 | — |
+
 
 **배포 순서(어기면 상세가 전원에게 깨진다)**: ① PR 머지 → `deploy` 잡 초록(새 앱) → ② `supabase db push`(사용자 승인, CI가 하지 않는다 — runbook 3) → ③ prod에서 상세 한 번 + 카카오 로그인 상태로 내 리뷰 [수정][삭제] 확인. 이유: **옛 앱은 `reviews_public.author_id`를 필수로 읽어서** 마이그레이션이 먼저 가면 리뷰 파싱이 전부 실패한다. 새 앱은 옛 DB에서도 돈다(`reviewIds` 없으면 빈 목록 — ①~② 사이 몇 분은 내 리뷰의 [수정][삭제]·내 리뷰 목록만 안 보인다). 마이그레이션 3개: `nickname_clean` · `peel_rollup` · `reviews_hide_author`. ②의 닉네임 백필이 행을 고쳤으면(prod는 닉네임 프로필 0이라 실효 없음) ①~② 사이에 채워진 상세 캐시가 옛 닉네임을 들고 있다 — 다음 main 머지(문서 PR이라도 `deploy`가 돈다)가 새 빌드 id로 캐시를 새로 시작하니 그걸로 닫는다(security-reviewer 2026-09-22 ④).
 
