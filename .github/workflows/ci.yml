@@ -321,6 +321,8 @@ jobs:
           TURNSTILE_SECRET_KEY: build-only-dummy
           IP_HASH_SALT: build-only-dummy-salt-0000000000
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          # GA4 측정 ID(공개값, 허용 목록) — 실서비스 빌드에만. 프리뷰·check는 통계에 섞이면 안 되니 안 넘긴다(없으면 스크립트 미삽입)
+          NEXT_PUBLIC_GA_ID: ${{ vars.NEXT_PUBLIC_GA_ID }}
           # 소스맵 업로드 — 없으면(빈 값) next.config.ts가 업로드를 끈다. 실서비스 빌드에서만 올린다(프리뷰·check는 안 올린다)
           SENTRY_UPLOAD_TOKEN: ${{ secrets.SENTRY_UPLOAD_TOKEN }}
         run: pnpm run deploy
