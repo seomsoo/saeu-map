@@ -113,9 +113,9 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 6 design 화면 12 + 링크 자리 | 완료 `312f399` — 흰 바탕 640 컬럼 문서 그릇, 화면 5에 캡션·하단 링크(새 탭) | — |
 | 7 `/privacy`·`/terms` | 완료 `8b4df52` `32152ae` — 본문은 Explore 조사 표(스키마·크론·위탁·탈퇴 동작)로. `lib/legal.ts` 상수(`lib/content`는 data 전용이라 밖). 문의 이메일 확정(2026-09-22) | vitest 3 · 390×702 실측(위탁 표 3열로 정정) |
 | 8 로그인 시트 캡션 + 내 활동 하단 | 완료 `8b4df52` — 체크박스 없음, 새 탭(오버레이 히스토리와 안 얽히게) | vitest 2 |
-| 9 분석 | **코드 0** — GA4는 이미 배선(`google-analytics.tsx`, 변수 없으면 미삽입), CF Web Analytics는 대시보드 자동 설정(prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 발화: GA4 실시간 1건 · `grep -c cloudflareinsights` = 1 |
-| 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 대기**: `gh secret set DISCORD_WEBHOOK_URL` 뒤 없는 주소로 수동 실행 → 1건 |
-| 11 소유 확인 메타 | **사용자 코드 대기** — 네이버·구글 콘솔의 HTML 태그 `content` 값(공개값) | 콘솔 "소유 확인됨" |
+| 9 분석 | GA4 측정 ID `G-3ZRVFRV7P9` 등록(09-23) + **deploy 빌드 env 배선이 빠져 있어 한 줄 추가** `46bb357`. CF Web Analytics는 대시보드 자동 설정(사용자, prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 배포 뒤 HTML에 gtag 스크립트 ✅(09-23). 남은 발화: GA4 실시간 1건(사용자) · `grep -c cloudflareinsights` = 1(대시보드 뒤) |
+| 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 완료 09-23**: secret 등록(파이프) → 없는 주소로 수동 실행 → GET 실패·디스코드 스텝 success(run 35822190915) → 기본값 재실행 초록 |
+| 11 소유 확인 메타 | 완료 `6df87a8` — 네이버 HTML 태그 메타(배포 뒤 prod HTML에 있음 ✅). 구글은 도메인 속성 + DNS TXT로 코드 0(09-22 확인됨) | 네이버 콘솔 [소유확인]은 사용자(배포 뒤) |
 | Codex PR #19 코멘트 2건(P1) | 완료 — 둘 다 **문장 정정**(사용자 결정: 탈퇴해도 기여 콘텐츠는 남긴다, decisions 2026-09-23). 리뷰/기여 콘텐츠·속도 제한 해시/신고 해시를 행으로 나눠 적음. 신고 IP 해시 정리 잡은 런칭 뒤 백로그 | vitest 그대로 |
 | 12 docs | roadmap `a49b63d` · runbook 2-6 `c2410f0` · 갭 스윕·"## 결과"는 11 뒤 | — |
 
