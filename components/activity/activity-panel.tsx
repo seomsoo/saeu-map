@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/auth/session-provider";
+import { warmWriteGate } from "@/lib/data";
 import { PlaceCard, PlaceCardSkeleton } from "@/components/map-screen/place-card";
 import { ReviewRow } from "@/components/place-detail/review-section";
 import { ReviewForm } from "@/components/review/review-form";
@@ -81,6 +82,10 @@ export function ActivityPanel({
   onAccountDeleted,
   onNotice,
 }: ActivityPanelProps) {
+  // 봇 확인(2~5초)을 찜 해제·닉네임·탈퇴 전에 미리 — plan write-latency 2026-09-23
+  useEffect(() => {
+    warmWriteGate();
+  }, []);
   const { session, signOut, deleteAccount, updateNickname } = useSession();
   const a = useActivity({ now, tab, onNotice });
 

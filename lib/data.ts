@@ -26,7 +26,7 @@ import type {
   Session,
 } from "./types";
 import * as actions from "./server/actions";
-import { turnstileToken } from "./turnstile-client";
+import { turnstileToken, warmTurnstile } from "./turnstile-client";
 import { shrinkImage } from "./image-shrink";
 import { MAX_PHOTO_BYTES, MAX_UPLOAD_BYTES, PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "./schemas";
 import type { Result } from "./server/actions";
@@ -49,6 +49,15 @@ function unwrap<T>(result: Result<T>): T {
 /** 쓰기마다 Turnstile 토큰 한 장(브라우저). 서버에서 쓰기를 부를 일은 없다 — 빈 토큰은 문에서 거부된다. */
 function token(): Promise<string> {
   return typeof window === "undefined" ? Promise.resolve("") : turnstileToken();
+}
+
+/**
+ * 쓰기 화면이 열릴 때 부른다 — 봇 확인(2~5초)을 제출 전에 미리 끝내 둔다(plan write-latency 2026-09-23).
+ * 화면마다 `useEffect(() => { warmWriteGate(); }, [])` 한 줄. 서버·예열 중·이미 준비됨이면 아무것도 안 한다.
+ */
+export function warmWriteGate(): void {
+  if (typeof window === "undefined") return;
+  warmTurnstile();
 }
 
 /**
