@@ -76,3 +76,4 @@ lighthouserc.ci.json
 smoke*.html
 smoke-sitemap.xml
 wrangler.log
+.claude/skills/
