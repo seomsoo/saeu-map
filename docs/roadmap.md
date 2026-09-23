@@ -116,7 +116,8 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - **보안 리뷰 백로그 4건(2026-09-16 중간 리뷰, decisions 같은 날)** — 조건: **Phase 7 런칭 준비에서 집는다**(런칭 전 하드닝). ① publishable 키 유출 대비 — GoTrue captcha(`[auth.captcha] turnstile`) + `signInAnonymously`에 captchaToken: 토큰이 1회용이라 지금의 서버 siteverify와 이중 검증이 안 되므로 구조를 바꿔야 한다(`rate_ok` fail-closed로 절반은 막았다). ② `reviews_public`의 `author_id`를 `is_mine`으로 대체(익명에게 auth uid 노출 안 함). ③ 카카오 닉네임 초기값을 폼과 같은 정규화·금칙어 검사로(트리거). ④ Turnstile siteverify `hostname` 검증 — 더미 키의 hostname 확인 뒤.
 
 ## Phase 7 — 런칭 준비 (결정 10건 확정 2026-09-22, **런칭 9-26** — 남은 일 전수·플랜은 docs/plans/phase7-launch.md)
-- [ ] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), 서치어드바이저(네이버 + 구글, D9), ~~축제 페이지~~(**런칭 후** — spec 8과 맞춤, D3), ~~시즌 카운터 실데이터~~(Phase 6 `season_stats`로 이미 실데이터, D5) (까주기 테스트는 Phase 5.6에서 당겨 만들었다; `/test` 참여자 수 화면은 런칭 후, D4)
-- [ ] 보안 하드닝 ②③④ + 리뷰 백로그 + 소스맵 배선(PR #18) · `/privacy`·`/terms` + 링크 자리 + keepalive 알림(PR 2, D1·D1b·D1c·D7) · HSTS 1일(D6, 대시보드)
-- [ ] **분석 켜기**: GA4 측정 ID(`NEXT_PUBLIC_GA_ID`, 코드는 있음) + Cloudflare Web Analytics(대시보드 자동 설정, 코드 0). 방침에 고지, 동의 배너 없음(D2 2026-09-22)
+- [x] ~~도메인 연결~~(2026-09-17 `새우맵.kr` — Phase 6 PR에 포함, 외부 서비스 4곳 호스트명 추가는 runbook 3d), ~~서치어드바이저~~(네이버 + 구글 둘 다 소유 확인 2026-09-23, D9), ~~축제 페이지~~(**런칭 후** — spec 8과 맞춤, D3), ~~시즌 카운터 실데이터~~(Phase 6 `season_stats`로 이미 실데이터, D5) (까주기 테스트는 Phase 5.6에서 당겨 만들었다; `/test` 참여자 수 화면은 런칭 후, D4)
+- [x] ~~보안 하드닝 ②③④ + 리뷰 백로그 + 소스맵 배선~~(PR #18 머지·db push 2026-09-23) · ~~`/privacy`·`/terms` + 링크 자리 + keepalive 알림~~(PR #19 머지·발화 2026-09-23, D1·D1b·D1c·D7)
+- [x] ~~HSTS~~(D6, 대시보드 — 2026-09-23 켬, `max-age=2592000` = 1개월(대시보드 최소 단위), preload 끔, No-Sniff 켬. `curl -sI`로 헤더 확인. Codex PR #20: 미완 항목은 체크 줄에 섞지 않는다)
+- [x] ~~**분석 켜기**~~: GA4 측정 ID `G-3ZRVFRV7P9` 등록 + deploy 배선(실시간 1건 확인) · Cloudflare Web Analytics 자동 설정(비컨 주입 확인) — 2026-09-23. 방침에 고지, 동의 배너 없음(D2 2026-09-22)
 - [ ] SNS 채널·판단 숫자·태그라인·신규 패널 이름 확정 (spec 9장) — 런칭 글 전까지
