@@ -116,6 +116,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 9 분석 | GA4 측정 ID `G-3ZRVFRV7P9` 등록(09-23) + **deploy 빌드 env 배선이 빠져 있어 한 줄 추가** `46bb357`. CF Web Analytics는 대시보드 자동 설정(사용자, prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 배포 뒤 HTML에 gtag 스크립트 ✅(09-23). GA4 실시간 1건 ✅ 09-23(사용자). 남은 발화: `grep -c cloudflareinsights` = 1(CF Web Analytics 대시보드 뒤) |
 | 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 완료 09-23**: secret 등록(파이프) → 없는 주소로 수동 실행 → GET 실패·디스코드 스텝 success(run 35822190915) → 채널에 메시지 도착 ✅(사용자) → 기본값 재실행 초록 |
 | 11 소유 확인 메타 | 완료 `6df87a8` — 네이버 HTML 태그 메타(배포 뒤 prod HTML에 있음 ✅). 구글은 도메인 속성 + DNS TXT로 코드 0(09-22 확인됨) | 네이버 콘솔 [소유확인] ✅ 09-23(사용자) |
+| security-reviewer (PR #19 diff, 머지 뒤) | **완료 09-23 — High/Med 0.** Low 2: 방침 "본인 기록만 읽고" 과장(읽기는 공개) · 외부 링크 `rel` 컨벤션. Info: 속도 제한 해시 정리는 최대 48h · CF Web Analytics 고지가 콘솔 작업보다 앞섬 · "관리자 1인"은 운영 사실(월간 점검에 `is_admin` 행 수) · keepalive `url` 스킴 제한은 선택. 확인함: 셸 주입·웹훅 로그·GA_ID 허용 목록·XSS·새 탭 rel·IP 해시·Sentry PII·EXIF·탈퇴 약속·크론·규칙 1~7 | Low 2 + Info 1 문구 정정(마감 PR) |
 | Codex PR #19 코멘트 2건(P1) | 완료 — 둘 다 **문장 정정**(사용자 결정: 탈퇴해도 기여 콘텐츠는 남긴다, decisions 2026-09-23). 리뷰/기여 콘텐츠·속도 제한 해시/신고 해시를 행으로 나눠 적음. 신고 IP 해시 정리 잡은 런칭 뒤 백로그 | vitest 그대로 |
 | 12 docs | roadmap `a49b63d` · runbook 2-6 `c2410f0` · 갭 스윕·"## 결과"는 11 뒤 | — |
 

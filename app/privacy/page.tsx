@@ -80,7 +80,7 @@ export default function PrivacyPage() {
               "가게 정보의 일부로 계속 보관. 탈퇴하면 계정과의 연결만 끊겨 누가 올렸는지 알 수 없게 됨. 특정 사진의 삭제를 원하면 문의처로",
             ],
             ["신고·사장님 요청의 연락처·메시지", "처리 뒤 보관. 탈퇴하면 연락처·메시지는 삭제"],
-            ["속도 제한 기록의 IP 해시", "1일 뒤 자동 삭제"],
+            ["속도 제한 기록의 IP 해시", "하루가 지나면 매일 자동 정리(최대 이틀)"],
             ["신고·사장님 요청에 붙는 IP 해시", "그 기록과 함께 보관(탈퇴해도 남음). 해시에 날짜가 섞여 다음 날부터는 어떤 IP·활동과도 연결할 수 없음"],
             ["익명 계정", "30일 동안 활동이 없고 남긴 기록이 없으면 매월 자동 삭제"],
             ["까주기 테스트 결과", "월 단위 합계만 남기고 개별 결과는 다음 달 삭제"],
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
         <P>
           방문 통계에는 Google Analytics(쿠키 사용)와 Cloudflare Web Analytics(쿠키 없음)를 씁니다. 어느 화면이 많이 쓰이는지
           보기 위한 것이며 개인을 식별하는 데 쓰지 않습니다. Google Analytics 수집은{" "}
-          <a href="https://tools.google.com/dlpage/gaoptout" className="underline" rel="noopener" target="_blank">
+          <a href="https://tools.google.com/dlpage/gaoptout" className="underline" rel="noopener noreferrer" target="_blank">
             Google의 차단 도구
           </a>
           로 거부할 수 있습니다.
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
           items={[
             "모든 통신은 HTTPS로 암호화합니다",
             "원본 IP 주소를 저장하지 않고, 하루마다 바뀌는 해시값만 도배 방지에 씁니다",
-            "데이터베이스는 행 단위 접근 제어로 본인 기록만 읽고 쓸 수 있게 하며, 리뷰 작성자의 계정 식별자는 누구에게도 노출하지 않습니다",
+            "데이터베이스는 행 단위 접근 제어로 본인 것만 고치고 지울 수 있게 하며, 리뷰 작성자의 계정 식별자는 누구에게도 노출하지 않습니다",
             "사진은 올릴 때 크기를 줄여 다시 저장하므로 촬영 위치 등 메타데이터가 제거됩니다",
             "관리자 권한은 운영자 1인에게만 있습니다",
           ]}
