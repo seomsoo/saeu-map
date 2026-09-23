@@ -116,6 +116,7 @@ Phase 6 코드는 끝났고(2026-09-16) prod(`새우맵.kr`)가 실 DB로 돈다
 | 9 분석 | **코드 0** — GA4는 이미 배선(`google-analytics.tsx`, 변수 없으면 미삽입), CF Web Analytics는 대시보드 자동 설정(prod HTML에 `no-transform` 없음 확인). runbook 2-6 | 발화: GA4 실시간 1건 · `grep -c cloudflareinsights` = 1 |
 | 10 keepalive 알림 | 완료 `b5a499c` — `if: failure()` 디스코드, secret 없으면 경고만. 수동 실행 `url` 입력으로 발화 검증 | **발화 대기**: `gh secret set DISCORD_WEBHOOK_URL` 뒤 없는 주소로 수동 실행 → 1건 |
 | 11 소유 확인 메타 | **사용자 코드 대기** — 네이버·구글 콘솔의 HTML 태그 `content` 값(공개값) | 콘솔 "소유 확인됨" |
+| Codex PR #19 코멘트 2건(P1) | 완료 — 둘 다 **문장 정정**(사용자 결정: 탈퇴해도 기여 콘텐츠는 남긴다, decisions 2026-09-23). 리뷰/기여 콘텐츠·속도 제한 해시/신고 해시를 행으로 나눠 적음. 신고 IP 해시 정리 잡은 런칭 뒤 백로그 | vitest 그대로 |
 | 12 docs | roadmap `a49b63d` · runbook 2-6 `c2410f0` · 갭 스윕·"## 결과"는 11 뒤 | — |
 
 
