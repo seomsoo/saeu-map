@@ -17,6 +17,10 @@ export const MAX_PLACE_PHOTOS = 10;
 export const STATION_NEARBY_MAX_M = 800;
 /** 업로드 한 장 상한 (security-reviewer 2026-09-08). 서버 재인코딩(Images 바인딩)이 진짜 방어선이고 이건 "말도 안 되는 파일"을 막는 문. */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+/** 한 번에 올리는 합계 — 서버 액션 본문 상한(next.config 32mb) 안. 10장 × 10MB를 다 받으면 워커 메모리가 위험하다 */
+export const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
+export const UPLOAD_TOO_LARGE_MESSAGE = "사진은 한 번에 30MB까지 올릴 수 있어요";
+const withinUploadBudget = (files: readonly File[]) => files.reduce((n, f) => n + f.size, 0) <= MAX_UPLOAD_BYTES;
 /** 제보 한 건의 메뉴 줄 수 — 구이 1(필수) + 회 1(선택) + 기타 3. 크롤 가게 중앙값 3줄·최대 5줄(2026-09-09). */
 export const REPORT_MENU_MAX = 5;
 /** 그중 기타 줄 상한. 회 토글과 무관하게 고정 — 남는 자리로 계산하면 6줄이 되는 구멍(2026-09-09). */
@@ -95,7 +99,7 @@ export const reportInputSchema = z.object({
   sides: sidesSchema,
   hoursNote: cleanText(z.string().trim().max(80)),
   /** 4단계 미리보기까지 고른 파일. 서버 액션은 이 배열을 받지 않는다(별도 업로드 — 플랜 커밋 6). */
-  photos: z.array(imageFileSchema).max(MAX_PLACE_PHOTOS),
+  photos: z.array(imageFileSchema).max(MAX_PLACE_PHOTOS).refine(withinUploadBudget, UPLOAD_TOO_LARGE_MESSAGE),
   /** 2단계 중복 의심에 "다른 가게예요"로 답했으면 그 후보 id */
   duplicateOf: idSchema.nullable(),
   /** 사용자가 붙여넣은 네이버 지도 링크 — API 응답이 아니라 규칙 2에 안 걸린다. 허용 호스트만. */
@@ -203,7 +207,7 @@ export type OwnerRequestInput = z.infer<typeof ownerRequestSchema>;
 
 export const photoUploadSchema = z.object({
   placeId: idSchema,
-  files: z.array(imageFileSchema).min(1).max(MAX_PLACE_PHOTOS),
+  files: z.array(imageFileSchema).min(1).max(MAX_PLACE_PHOTOS).refine(withinUploadBudget, UPLOAD_TOO_LARGE_MESSAGE),
 });
 
 export const resolveReportSchema = z.object({

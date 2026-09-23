@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // 사진은 서버 액션 FormData로 올린다 — Next 기본 본문 상한 1MB에 폰 사진(3~6MB)이 걸려 prod 첫 제보에서 사진만 떨어졌다
+  // (Sentry SAEU-MAP-8 "Body exceeded 1 MB limit", 2026-09-23). 한 번에 30MB(lib/schemas MAX_UPLOAD_BYTES) + multipart 여유.
+  experimental: { serverActions: { bodySizeLimit: "32mb" } },
   // 빌드 시각 — 핀 공유 카드는 빌드 때만 만들어지므로(Workers Free CPU 10ms) 그 뒤 생긴 핀은 루트 카드로 보낸다(lib/seo.ts placeOgImagePath).
   // NEXT_PUBLIC_이 아니라 규칙 7 목록 밖이지만 값은 시각 하나라 비밀이 아니다(decisions 2026-09-16)
   env: { BUILD_AT: new Date().toISOString() },

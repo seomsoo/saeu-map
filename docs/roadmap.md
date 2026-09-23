@@ -96,7 +96,7 @@ Phase 7 항목을 앞으로 당겼다(2026-09-09). 목 데이터로 만들 수 �
 - [x] /admin 중복 의심 큐(`duplicateSuspectOf`) + 이전 가게 처리(합치기·리다이렉트 — spec 4.3 엣지) + 검수 필터
 - [x] `/test` 참여 기록 테이블 + 집계 RPC(화면은 Phase 7) · 확인 0회 제보 핀 "○일 전 등록"(백로그에서 당김)
 - [x] 런칭 전 보안 스윕 (쓰기 경로 × 검증·권한·제한·에러 표)
-- [ ] **사용자 콘솔 작업**(runbook 2절, PR 전에): ~~Cloudflare R2 켜기~~(2026-09-17 완료, 버킷 2개 생성) · ~~카카오 개발자 앱~~(2026-09-17 완료, config push) · ~~Turnstile 위젯~~(2026-09-17 완료) · ~~디스코드 웹훅 URL~~(워커 secret) · ~~Sentry 프로젝트 → DSN~~(GH variable, 테스트 이벤트 200)(공개값, 채팅으로 줘도 됨 — 없으면 Sentry만 꺼진 채 배포됨) · ~~`supabase login` 승인 → 호스팅 프로젝트 생성~~(2026-09-16 완료, 시드 789 임포트) · GitHub variables 3개(NCP ID·Turnstile site·Sentry DSN) + secrets 2개(Supabase URL·publishable — 로그에 안 찍히게)는 값만 주면 내가 `gh variable/secret set` · 워커 secret 6개는 `wrangler secret put`
+- [x] **사용자 콘솔 작업**(runbook 2절 — 2026-09-23 전부 완료: 카카오 왕복·병합·탈퇴·리뷰 작성/삭제·다녀왔어요·신고→디스코드 실채널·관리자 /admin·검수 복구 9/27. 제보 사진은 1MB 상한 버그 → `fix/photo-body-limit`): ~~Cloudflare R2 켜기~~(2026-09-17 완료, 버킷 2개 생성) · ~~카카오 개발자 앱~~(2026-09-17 완료, config push) · ~~Turnstile 위젯~~(2026-09-17 완료) · ~~디스코드 웹훅 URL~~(워커 secret) · ~~Sentry 프로젝트 → DSN~~(GH variable, 테스트 이벤트 200)(공개값, 채팅으로 줘도 됨 — 없으면 Sentry만 꺼진 채 배포됨) · ~~`supabase login` 승인 → 호스팅 프로젝트 생성~~(2026-09-16 완료, 시드 789 임포트) · GitHub variables 3개(NCP ID·Turnstile site·Sentry DSN) + secrets 2개(Supabase URL·publishable — 로그에 안 찍히게)는 값만 주면 내가 `gh variable/secret set` · 워커 secret 6개는 `wrangler secret put`
 - 완료: 목 JSON 삭제해도 전 기능 동작, RLS 테스트 통과, 폰 머니패스 실 DB로 한 바퀴 → **코드 완료 2026-09-16**(플랜 "## 결과": vitest 556·pgTAP 94·advisors 0·리뷰 3종 반영). 카카오 왕복·~~프리뷰 발화~~(2026-09-21 별칭 URL + 읽기 전용 토스트 확인, decisions 같은 날)·폰 머니패스는 콘솔 작업 뒤 첫 PR·prod에서.
 
 ## 백로그 — 시점이 오면 집는다 (Phase 순서 밖)
