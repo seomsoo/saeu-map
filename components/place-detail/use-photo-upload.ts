@@ -39,6 +39,8 @@ function preload(url: string): Promise<void> {
 export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoUploadInput) {
   const [optimistic, setOptimistic] = useState<{ place: Place; urls: readonly string[] } | null>(null);
   const pendingRef = useRef(false);
+  /** 미리보기의 수명은 쓰기 잠금과 다르다 — 늦게 끝난 앞 업로드의 정리가 뒤 업로드의 미리보기를 걷지 않게(Codex PR #23) */
+  const seqRef = useRef(0);
 
   /*
    * 미리보기 URL은 **다음 렌더가 커밋된 뒤** 되돌린다. `finally`에서 바로 revoke하면 화면이 아직 그 URL을
@@ -65,6 +67,7 @@ export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoU
         return { id: `temp-${String(tempSeq)}`, url: URL.createObjectURL(file), uploadedAt: now };
       });
       pendingRef.current = true;
+      const seq = ++seqRef.current;
       const photos = [...base.photos, ...preview];
       setOptimistic({
         place: { ...base, photos, thumbnailUrl: photos[0]?.url ?? null },
@@ -78,6 +81,7 @@ export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoU
              * ("다녀왔어요"의 useCheckIn과 같은 규칙). 시트를 닫거나 단계를 옮기는 콜백이 아니라서
              * alive 가드를 두지 않는다(CLAUDE.md 비동기 가드는 "아직 그 화면인가"가 결과를 바꿀 때의 규칙).
              */
+            pendingRef.current = false; // 쓰기는 끝났다 — 다음 선택은 받는다(미리보기를 걷는 건 아래서 따로)
             onPatchPlace(updated);
             onNotice(PHOTO_UPLOADED_NOTICE);
             // 서버 사진을 먼저 받아 둔 뒤 미리보기를 걷는다 — 바로 바꾸면 내려오는 동안 타일이 흰색으로 빈다(prod 폰 2026-09-24)
@@ -85,12 +89,12 @@ export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoU
             await Promise.race([Promise.all(fresh.map((photo) => preload(photo.url))), wait(PRELOAD_TIMEOUT_MS)]);
           },
           () => {
+            pendingRef.current = false;
             onNotice(PHOTO_UPLOAD_FAILED_NOTICE);
           },
         )
         .finally(() => {
-          pendingRef.current = false;
-          setOptimistic(null);
+          if (seqRef.current === seq) setOptimistic(null); // 그 사이 새 업로드가 시작됐으면 그쪽 미리보기는 건드리지 않는다
         });
     },
     [place, now, onPatchPlace, onNotice],

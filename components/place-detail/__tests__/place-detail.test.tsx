@@ -991,6 +991,23 @@ describe("사진 올리기 — ＋ 타일이 곧 파일 선택기 (spec 4.2 \"�
     expect(props.onPatchPlace).toHaveBeenCalledWith(uploaded);
   });
 
+  it("서버 사진을 받아 두는 동안(최대 4초) 다음 선택을 버리지 않는다 — 잠금은 쓰기가 끝나면 바로 풀린다 (Codex PR #23)", async () => {
+    // decode()가 영원히 안 끝나는 브라우저 흉내 — 미리보기는 남고 잠금만 풀려야 한다
+    Object.defineProperty(HTMLImageElement.prototype, "decode", { value: () => new Promise(() => {}), configurable: true });
+    try {
+      data.addPlacePhotos.mockResolvedValueOnce(nara({ photos: [photo(1), photo(2)] })).mockResolvedValueOnce(nara({ photos: [photo(1), photo(2), photo(3)] }));
+      const { props } = renderDetail(nara({ photos: [photo(1)] }));
+      fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("a.jpg")] } });
+      await waitFor(() => {
+        expect(props.onNotice).toHaveBeenCalledWith("사진을 올렸어요");
+      });
+      fireEvent.change(screen.getByLabelText("사진 파일"), { target: { files: [image("b.jpg")] } });
+      expect(data.addPlacePhotos).toHaveBeenCalledTimes(2); // 예전엔 4초 동안 조용히 버려졌다
+    } finally {
+      delete (HTMLImageElement.prototype as { decode?: unknown }).decode;
+    }
+  });
+
   it("실패하면 방금 넣은 사진이 빠지고 토스트", async () => {
     data.addPlacePhotos.mockRejectedValue(new Error("mock write failed"));
     const { props } = renderDetail(nara({ photos: [photo(1)] }));
