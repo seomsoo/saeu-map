@@ -7,15 +7,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const actions = vi.hoisted(() => ({
   checkIn: vi.fn(),
   setBookmark: vi.fn(),
+  submitReport: vi.fn(),
+  addPlacePhotos: vi.fn(),
 }));
-const turnstile = vi.hoisted(() => ({ turnstileToken: vi.fn<() => Promise<string>>() }));
+const turnstile = vi.hoisted(() => ({ turnstileToken: vi.fn<() => Promise<string>>(), warmTurnstile: vi.fn() }));
+// 줄이기는 브라우저 캔버스 몫 — 여기선 원본 그대로(검사 경로만 본다)
+vi.mock("../image-shrink", () => ({ shrinkImage: (f: File) => Promise.resolve(f) }));
 vi.mock("../server/actions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../server/actions")>()),
   ...actions,
 }));
 vi.mock("../turnstile-client", () => turnstile);
 
-import { checkIn, rememberSession, setBookmark } from "../data";
+import { checkIn, rememberSession, setBookmark, submitReport } from "../data";
+import { UPLOAD_TOO_LARGE_MESSAGE } from "../schemas";
 
 const ok = <T,>(value: T) => ({ ok: true as const, value });
 const session = (userId: string | null) => ({ userId, provider: "anonymous" as const, nickname: null });
@@ -23,6 +28,8 @@ const session = (userId: string | null) => ({ userId, provider: "anonymous" as c
 beforeEach(() => {
   actions.checkIn.mockReset();
   actions.setBookmark.mockReset();
+  actions.submitReport.mockReset();
+  actions.addPlacePhotos.mockReset();
   turnstile.turnstileToken.mockReset();
   rememberSession(null);
 });
@@ -71,5 +78,29 @@ describe("찜 쓰기는 한 줄로", () => {
     await expect(second).resolves.toEqual(["p1"]);
     expect(actions.setBookmark).toHaveBeenCalledTimes(2);
     expect(actions.setBookmark).toHaveBeenLastCalledWith("p1", false, "tok", null);
+  });
+});
+
+describe("제보 사진은 가게를 만들기 전에 거른다 (Codex PR #21 #1)", () => {
+  const report = (photos: File[]) => ({
+    name: "새우집", lat: 37.5, lng: 127, menus: [], sides: [], hoursNote: null, photos, naverPlaceUrl: null, duplicateOf: null,
+  });
+  const big = (mb: number) => new File([new Uint8Array(mb * 1024 * 1024)], "big.jpg", { type: "image/jpeg" });
+
+  it("합계 30MB를 넘으면 문구로 throw하고 가게 만들기 액션은 부르지 않는다", async () => {
+    turnstile.turnstileToken.mockResolvedValue("tok");
+    await expect(submitReport(report([big(9), big(9), big(9), big(9)]) as never, "2026-09-24T00:00:00Z")).rejects.toThrow(
+      UPLOAD_TOO_LARGE_MESSAGE,
+    );
+    expect(actions.submitReport).not.toHaveBeenCalled();
+  });
+
+  it("범위 안이면 가게를 만든 뒤 사진을 올린다", async () => {
+    turnstile.turnstileToken.mockResolvedValue("tok");
+    actions.submitReport.mockResolvedValue(ok({ id: "p1" }));
+    actions.addPlacePhotos.mockResolvedValue(ok({ id: "p1", photos: [{}] }));
+    await submitReport(report([big(2)]) as never, "2026-09-24T00:00:00Z");
+    expect(actions.submitReport).toHaveBeenCalledTimes(1);
+    expect(actions.addPlacePhotos).toHaveBeenCalledTimes(1);
   });
 });

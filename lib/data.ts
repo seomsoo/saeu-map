@@ -27,6 +27,8 @@ import type {
 } from "./types";
 import * as actions from "./server/actions";
 import { turnstileToken } from "./turnstile-client";
+import { shrinkImage } from "./image-shrink";
+import { MAX_PHOTO_BYTES, MAX_UPLOAD_BYTES, PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "./schemas";
 import type { Result } from "./server/actions";
 import type { ReportInput, ReviewInput, ReviewPatch } from "./schemas";
 
@@ -182,13 +184,26 @@ export function setBookmark(placeId: string, bookmarked: boolean): Promise<strin
 }
 
 /** 제보 등록. 사진은 가게가 생긴 뒤 같은 업로드 길(addPlacePhotos)로 — 업로드가 실패해도 제보는 남는다(사진 없는 가게). */
+
+/**
+ * 올리기 전에 **폰에서 먼저 줄이고**(1200px webp, lib/image-shrink) 크기를 검사한다 — 제보는 가게를 만들기 **전에** 걸러야
+ * "가게는 됐는데 사진만 조용히 빠진" 성공처럼 보이는 실패가 없다(Codex PR #21 #1). 줄인 뒤엔 보통 100~300KB라 검사는 뒷받침.
+ */
+async function prepareUploads(files: readonly File[]): Promise<File[]> {
+  const ready = await Promise.all(files.map(shrinkImage));
+  if (ready.some((f) => f.size > MAX_PHOTO_BYTES)) throw new Error(PHOTO_TOO_LARGE_MESSAGE);
+  if (ready.reduce((n, f) => n + f.size, 0) > MAX_UPLOAD_BYTES) throw new Error(UPLOAD_TOO_LARGE_MESSAGE);
+  return ready;
+}
+
 export async function submitReport(input: ReportInput, now: DateInput): Promise<Place> {
   const { photos, ...payload } = input;
   const actor = knownUserId;
+  const ready = photos.length === 0 ? [] : await prepareUploads(photos); // 가게를 만들기 전에
   const place = unwrap(await actions.submitReport(payload, await token(), String(now), actor));
-  if (photos.length === 0) return place;
+  if (ready.length === 0) return place;
   try {
-    return await uploadPlacePhotos(place.id, photos, actor);
+    return await uploadPlacePhotos(place.id, ready, actor);
   } catch {
     return place;
   }
@@ -224,7 +239,8 @@ export async function submitOwnerRequest(input: Parameters<typeof actions.submit
 
 /** 사진 올리기 — 파일은 FormData로(액션 인자로 직렬화되지 않는다). 즉시 반영이라 갱신된 Place를 돌려준다. */
 export async function addPlacePhotos(placeId: string, files: readonly File[], _now: DateInput): Promise<Place> {
-  return uploadPlacePhotos(placeId, files, knownUserId);
+  const actor = knownUserId;
+  return uploadPlacePhotos(placeId, await prepareUploads(files), actor);
 }
 
 async function uploadPlacePhotos(placeId: string, files: readonly File[], actor: string | null): Promise<Place> {
@@ -240,13 +256,14 @@ async function uploadPlacePhotos(placeId: string, files: readonly File[], actor:
 export async function submitReview(input: ReviewInput, now: DateInput): Promise<{ review: Review; place: Place }> {
   const { photo, ...payload } = input;
   const actor = knownUserId;
+  const ready = photo === null ? null : (await prepareUploads([photo]))[0]; // 리뷰를 만들기 전에
   const saved = unwrap(await actions.submitReview(payload, await token(), String(now), actor));
-  if (photo === null) return saved;
+  if (ready === undefined || ready === null) return saved;
   const form = new FormData();
   form.set("reviewId", saved.review.id);
   form.set("actor", actor ?? "");
   form.set("turnstile", await token());
-  form.set("photo", photo);
+  form.set("photo", ready);
   try {
     const review = unwrap(await actions.attachReviewPhoto(form));
     return { review, place: saved.place };

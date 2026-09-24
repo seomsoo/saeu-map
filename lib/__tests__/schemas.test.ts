@@ -7,6 +7,7 @@ import {
   reportPayloadSchema,
   reviewInputSchema,
   suggestionSchema,
+  UPLOAD_TOO_LARGE_MESSAGE,
 } from "../schemas";
 
 const ID = "3f2a9c1e-1111-4a1a-9b1b-000000000001";
@@ -35,6 +36,14 @@ describe("reportInputSchema — 제보 입력", () => {
     expect(reportInputSchema.safeParse({ ...base, photos: Array.from({ length: MAX_PLACE_PHOTOS + 1 }, () => image()) }).success).toBe(false);
     expect(reportInputSchema.safeParse({ ...base, naverPlaceUrl: "https://evil.example/x" }).success).toBe(false);
     expect(reportInputSchema.safeParse({ ...base, naverPlaceUrl: "https://naver.me/abc" }).success).toBe(true);
+  });
+
+  it("한 번에 올리는 합계는 30MB까지 — 한 장 10MB는 되지만 4장 × 9MB는 거부(서버 액션 본문 32MB 안, SAEU-MAP-8)", () => {
+    const big = (mb: number) => new File([new Uint8Array(mb * 1024 * 1024)], "big.jpg", { type: "image/jpeg" });
+    expect(reportInputSchema.safeParse({ ...base, photos: [big(10)] }).success).toBe(true);
+    const over = reportInputSchema.safeParse({ ...base, photos: [big(9), big(9), big(9), big(9)] });
+    expect(over.success).toBe(false);
+    expect(JSON.stringify(over.error?.issues)).toContain(UPLOAD_TOO_LARGE_MESSAGE);
   });
 
   it("서버 액션 페이로드에는 파일이 없다 — photos 키 자체를 받지 않는다", () => {

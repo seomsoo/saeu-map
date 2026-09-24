@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { REPORT_EXTRA_MENU_MAX, submitReport, type ReportMenuInput } from "@/lib/data";
+import { PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "@/lib/schemas";
 import type { LatLng, Place, Sides } from "@/lib/types";
 import { EMPTY_MENU_DRAFT, validateMenuDraft, type MenuDraft } from "./menu-draft";
 
@@ -79,7 +80,7 @@ export function useReportFlow() {
    * 3단계 값이 검증을 통과하지 못하면(뒤로 가서 지운 경우) "invalid"로 돌려보낸다.
    */
   const submit = useCallback(
-    async (pin: LatLng, now: string): Promise<Place | null | "invalid"> => {
+    async (pin: LatLng, now: string): Promise<Place | null | "invalid" | { message: string }> => {
       const menus = menusOf(draft);
       if (!menus) return "invalid";
       setSubmitting(true);
@@ -100,8 +101,10 @@ export function useReportFlow() {
         );
         setCreated(place);
         return place;
-      } catch {
-        return null;
+      } catch (error) {
+        // 사진 크기는 가게를 만들기 전에 걸린다 — 문구 그대로 보여 준다(그 외는 일반 실패)
+        const known = error instanceof Error && (error.message === PHOTO_TOO_LARGE_MESSAGE || error.message === UPLOAD_TOO_LARGE_MESSAGE);
+        return known ? { message: error.message } : null;
       } finally {
         setSubmitting(false);
       }
