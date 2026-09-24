@@ -8,6 +8,7 @@ import {
   getPlaceDetail,
   type PhotoReportReason,
   reportPhoto as requestReportPhoto,
+  warmWriteGate,
 } from "@/lib/data";
 import {
   isPhotoHistoryState,
@@ -69,6 +70,10 @@ export function usePlaceDetail({
   onNotice,
 }: UsePlaceDetailInput) {
   const [reviews, setReviews] = useState<Review[]>(initialReviews ?? []);
+  // 봇 확인(2~5초)을 확인·찜·사진·제안·신고 전에 미리 — plan write-latency 2026-09-23
+  useEffect(() => {
+    warmWriteGate();
+  }, []);
   const [status, setStatus] = useState<ReviewsStatus>(initialReviews ? "ready" : "loading");
   const [attempt, setAttempt] = useState(0);
 

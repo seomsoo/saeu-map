@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { REPORT_EXTRA_MENU_MAX, submitReport, type ReportMenuInput } from "@/lib/data";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { REPORT_EXTRA_MENU_MAX, submitReport, warmWriteGate, type ReportMenuInput } from "@/lib/data";
 import { PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "@/lib/schemas";
 import type { LatLng, Place, Sides } from "@/lib/types";
 import { EMPTY_MENU_DRAFT, validateMenuDraft, type MenuDraft } from "./menu-draft";
@@ -64,6 +64,10 @@ function menusOf(draft: ReportDraft): ReportMenuInput[] | null {
 
 export function useReportFlow() {
   const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
+  // 봇 확인(2~5초)을 제출 전에 미리 — plan write-latency 2026-09-23
+  useEffect(() => {
+    warmWriteGate();
+  }, []);
   /** 이미 "다른 가게예요"라고 답한 후보 — 핀을 옮겨 다시 확정해도 같은 후보는 다시 묻지 않는다 */
   const dismissedDuplicateIds = useRef(new Set<string>());
 

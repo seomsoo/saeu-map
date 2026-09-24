@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { submitReview, updateReview } from "@/lib/data";
+import { useCallback, useEffect, useState } from "react";
+import { submitReview, updateReview, warmWriteGate } from "@/lib/data";
 import type { Place, Review } from "@/lib/types";
 
 export const REVIEW_TEXT_MAX = 500;
@@ -29,6 +29,10 @@ interface UseReviewFormInput {
  */
 export function useReviewForm({ placeId, now, initial }: UseReviewFormInput) {
   const [rating, setRating] = useState(initial?.rating ?? 0);
+  // 봇 확인(2~5초)을 제출 전에 미리 — plan write-latency 2026-09-23
+  useEffect(() => {
+    warmWriteGate();
+  }, []);
   const [text, setText] = useState(initial?.text ?? "");
   const [photo, setPhoto] = useState<File | null>(null);
   const [ratingError, setRatingError] = useState<string | null>(null);
