@@ -24,6 +24,18 @@ interface UsePhotoUploadInput {
  * 미리보기 URL은 이 훅이 만든 것이라 확정·실패 양쪽에서 되돌린다(revoke). 확정된 사진은 `lib/data.ts`가
  * 자기 URL을 따로 만들어 들고 있다 — 그래서 여기서 revoke해도 스트립이 깨지지 않는다(decisions 2026-09-08).
  */
+/** 서버 사진이 캐시에 들어올 때까지 — 미리보기를 걷는 시점. 못 받으면(느린 망) 이 시간 뒤엔 그냥 걷는다 */
+const PRELOAD_TIMEOUT_MS = 4000;
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** `decode()`는 디코딩까지 끝나야 resolve — 없거나 실패하면(jsdom·깨진 파일) 바로 넘어간다 */
+function preload(url: string): Promise<void> {
+  if (typeof Image === "undefined") return Promise.resolve();
+  const img = new Image();
+  if (typeof img.decode !== "function") return Promise.resolve();
+  img.src = url;
+  return img.decode().catch(() => undefined);
+}
+
 export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoUploadInput) {
   const [optimistic, setOptimistic] = useState<{ place: Place; urls: readonly string[] } | null>(null);
   const pendingRef = useRef(false);
@@ -60,7 +72,7 @@ export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoU
       });
       addPlacePhotos(base.id, picked, now)
         .then(
-          (updated) => {
+          async (updated) => {
             /*
              * 상세가 닫힌 뒤에 와도 그대로 확정한다 — 쓰기는 이미 일어났고 가게 데이터의 진실은 부모다
              * ("다녀왔어요"의 useCheckIn과 같은 규칙). 시트를 닫거나 단계를 옮기는 콜백이 아니라서
@@ -68,6 +80,9 @@ export function usePhotoUpload({ place, now, onPatchPlace, onNotice }: UsePhotoU
              */
             onPatchPlace(updated);
             onNotice(PHOTO_UPLOADED_NOTICE);
+            // 서버 사진을 먼저 받아 둔 뒤 미리보기를 걷는다 — 바로 바꾸면 내려오는 동안 타일이 흰색으로 빈다(prod 폰 2026-09-24)
+            const fresh = updated.photos.filter((photo) => !base.photos.some((had) => had.id === photo.id));
+            await Promise.race([Promise.all(fresh.map((photo) => preload(photo.url))), wait(PRELOAD_TIMEOUT_MS)]);
           },
           () => {
             onNotice(PHOTO_UPLOAD_FAILED_NOTICE);
