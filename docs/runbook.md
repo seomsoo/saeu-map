@@ -63,6 +63,7 @@
    - **HSTS** (D6) — dash → 새우맵.kr → SSL/TLS → Edge Certificates → HTTP Strict Transport Security → Enable HSTS **On** + **Max Age 1 month**(대시보드는 월 단위만 — 1일은 API로만), Apply to subdomains 끔, **Preload 끔**(되돌릴 수 없다), No-Sniff 켬. ✅ 2026-09-23 `max-age=2592000`. 한 달 문제 없으면 6개월. 주의: No-Sniff만 저장되고 Enable 스위치가 꺼진 채 저장될 수 있다 — 헤더로 확인. 발화: `curl -sI https://xn--r02bv8jvof.kr/ | grep -i strict-transport`.
    - **keepalive 실패 알림** (D7) — 워커 secret과 같은 웹훅 URL을 GH secret에도: `! gh secret set DISCORD_WEBHOOK_URL`(없으면 워크플로가 경고만 내고 통과한다). 발화: Actions → `keepalive` → Run workflow → `url`에 `https://xn--r02bv8jvof.kr/nope` → 잡 빨강 + 디스코드에 `[keepalive] …` 1건 → 기본값으로 한 번 더 돌려 초록 확인.
    - **서치어드바이저** (D9, 네이버 + 구글 — 둘 다 2026-09-22 완료) — **네이버**: searchadvisor.naver.com → 웹마스터 도구 → 사이트 등록 `https://새우맵.kr` → 소유확인 **HTML 태그**의 `content` 값 → `app/layout.tsx` `metadata.verification`(공개값, 커밋 `6df87a8`) → 배포 **뒤** [소유확인] → 요청 → 사이트맵 제출 `https://새우맵.kr/sitemap.xml`. **구글**: search.google.com/search-console → 속성 추가 → **도메인**(URL 접두어 아님) `새우맵.kr` → DNS TXT 값 복사 → Cloudflare DNS → TXT 레코드, **이름은 `@`**(도메인을 쓰면 `새우맵.kr.새우맵.kr`에 붙어 확인 실패 — 2026-09-22 겪음), 내용 `google-site-verification=…` → [확인] 즉시 통과(코드 0) → Sitemaps에 sitemap.xml 제출. 발화: 두 콘솔의 "소유 확인됨"(구글 ✅ 09-22, 네이버는 배포 뒤).
+   - **sitemap 제출 확인**(2026-09-25 SEO 점검 — 코드로는 볼 수 없어 미확인): 네이버 → 요청 → 사이트맵 제출에 `https://새우맵.kr/sitemap.xml`이 있고 상태가 정상인지, 구글 → 색인 생성 → Sitemaps에 같은 URL이 "성공"인지. 없으면 제출. 배포 뒤 상세 URL 하나를 Rich Results Test(search.google.com/test/rich-results)에 넣어 Restaurant가 잡히는지 본다(plan seo-crawlability).
 
 ## 3. 내가 CLI로 하는 것
 

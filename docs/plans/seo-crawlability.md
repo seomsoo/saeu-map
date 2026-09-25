@@ -1,6 +1,6 @@
 # SEO·GEO 보강 — 크롤러가 읽을 내용과 링크 (2026-09-25, 런칭 전 점검에서 나온 것)
 
-**상태: 실행 중.** 브랜치 `seo/crawlability`(문구 커밋 `45be047` "서울 → 전국"에서 이어감), PR 하나.
+**상태: 구현 끝(2026-09-25, 아래 "## 결과") — PR 대기.** 브랜치 `seo/crawlability`(문구 커밋 `45be047` "서울 → 전국"에서 이어감), PR 하나.
 
 ## Context
 
@@ -57,3 +57,20 @@ next 16.3.3 · react 19.2.8. **새 패키지 없음.**
 
 - 네이버 서치어드바이저·구글 서치콘솔에 **sitemap.xml 제출됐는지** 확인(runbook엔 소유 확인만 완료로 적혀 있다).
 - 배포 뒤 Rich Results Test(`https://search.google.com/test/rich-results`)에 상세 URL 하나.
+
+## 결과 (2026-09-25)
+
+- 브랜치 `seo/crawlability`(worktree `.claude/worktrees/seo` — 다른 세션이 같은 트리에서 `perf/diet-1`로 바꿔 놓아 분리했다). 커밋: 문구 1 · turnstile 픽스 1(cherry-pick) · 플랜 1 · 변경 1~4 각 1.
+- 테스트 597 → **606**(+9: seo 6 · json-ld 2 · place-card 1), 전부 통과. typecheck·lint 0. 새 패키지 0.
+- **SSR 발화**(로컬 Supabase + `next dev -p 3001`, curl):
+
+| 페이지 | canonical | og:site_name·locale | og:image | ld+json | `<a href="/place/` | `<a href="/gu/` | 주소 |
+|---|---|---|---|---|---|---|---|
+| 홈 | ✅ `/` | ✅ | 루트 카드 | WebSite | **0**(목록은 idle 뒤) | 0 | — |
+| 상세 | ✅ | ✅ | 핀 카드 | Restaurant(주소·좌표·카테고리) | 0 | 1 | `hidden` 블록에 도로명 ✅ · description 첫 조각 ✅ |
+| 구(마포구, 로컬 시드 4곳) | ✅ | ✅ | 구 카드 | BreadcrumbList + ItemList(4) | 4 | 0 | — |
+| 약관 | ✅ | ✅ | 루트 카드(전엔 없음) | — | 0 | 0 | — |
+
+- `<link rel=icon>` 32 + 96 두 개, `theme-color` ✅. Playwright(크롬) 상세·구·홈: **하이드레이션 경고 0**. 콘솔 오류는 전부 네이버 SDK 401(`localhost:3001`은 미등록 도메인)과 그로 인한 `<Marker>` 오류 — 환경 문제.
+- **계획에서 바뀐 것**: "홈은 카드 링크로 링크 그래프를 얻는다"는 틀렸다 — 홈 SSR엔 카드가 없다(위 표). 링크 그래프는 sitemap → 구 → 상세 → 구. 홈→구 링크 자리는 미정(decisions 2026-09-25).
+- **prod 확인(배포 뒤, 사용자)**: 같은 curl + Rich Results Test 1회 + 서치어드바이저·서치콘솔 sitemap 제출 확인(runbook 2-6).

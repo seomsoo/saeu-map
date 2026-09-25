@@ -1017,3 +1017,14 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 2026-09-03의 "CLAUDE.md의 '서울 새우구이 지도'는 제품 정체성이라 그대로 둔다"를 뒤집는다. 시드가 부산·광주권까지 들어와(2026-09-10 지역 확장, ≈790곳) 서울만 가리키는 문구가 사실과 어긋났다. spec 1의 "정체성 문구·태그라인은 Phase 7 런칭 글과 함께 재확정"에 대한 답이다.
 - 바뀐 곳: `lib/seo.ts` SITE_DESCRIPTION(meta description·홈 og:description), `app/opengraph-image.tsx` alt, `components/og/share-card.tsx` 캡션 4곳(루트·핀·구·테스트 카드 — 빌드 시 생성이라 다음 배포에 반영), `app/terms/page.tsx` 1조, CLAUDE.md·spec 1·design 서비스 줄.
 - 그대로 둔 곳: 구 카드 eyebrow "서울"과 `/gu/` 25페이지·sitemap의 "서울 25구"는 사실 표기다(구 페이지는 서울만 있다). spec 1 태그라인 후보 "서울 새우구이 421곳"·spec 8 런칭 글 인용은 후보·인용문이라 손대지 않았다.
+
+## 2026-09-25 — SEO·GEO 보강: 카드는 링크, JSON-LD, 주소를 HTML에 (플랜 docs/plans/seo-crawlability.md)
+- **prod 실측에서 나온 것만 고쳤다.** 메타·OG·robots·sitemap·AI 봇 통과(GPTBot·ClaudeBot·PerplexityBot·Yeti 전부 200)는 이미 돼 있었고, 빠진 건 크롤러가 읽을 내용과 링크였다: 홈·구·상세 HTML에 `/place/`·`/gu/` `<a>` 0개, 상세 본문에 도로명 0건, ld+json 0건, 홈만 canonical 없음, 하위 페이지에 og:site_name·locale 없음, 약관 og:image 없음, 파비콘 32px.
+- **카드는 `<button>`이 아니라 `<a href="/place/[id]">`다.** 보통 클릭은 `preventDefault` + 시트 열기(URL은 훅이 이미 pushState로 같은 주소로 맞춘다), 수정키·가운데 클릭은 브라우저 기본(새 탭). `next/link`는 안 쓴다 — 뷰포트 프리페치가 카드 수만큼 워커를 깨운다. `draggable=false`, `aria-current="page"`. 테스트는 `getByRole("link")`. 상세 헤더의 구 이름은 `/gu/구` 링크(서울 25구만, 일반 `<a>` — 앱 내 history 상태기와 클라이언트 라우팅을 섞지 않는다).
+- **JSON-LD는 `<script>`의 텍스트 자식으로 넣는다 — 규칙 6(dangerouslySetInnerHTML 금지)은 그대로다.** React DOM은 script 자식을 이스케이프하지 않는다(`renderToStaticMarkup` 실측). 그래서 `components/seo/json-ld.tsx`가 JSON.stringify 뒤 `<`·`>`·`&`를 `<`·`>`·`&`으로 바꿔 `</script>` 탈출을 막는다(상호는 유저 입력). 테스트가 `</script>` 상호를 고정한다. 서버 컴포넌트에서만 렌더. 데이터는 `lib/seo.ts` 순수 객체 — 홈 WebSite · 상세 Restaurant(PostalAddress·GeoCoordinates·servesCuisine·aggregateRating은 리뷰 3개↑만·sameAs 네이버) · 구 BreadcrumbList+ItemList.
+- **상세 제목 "상호 · ○○구 새우구이", 설명 첫 조각은 도로명 주소(없는 제보 핀은 구).** og:title은 상호만(카톡 카드). 서울 밖은 "부산 수영구"(`guFullLabel`). 접힌 주소 블록은 DOM에 두고 `hidden` — 보이는 건 같고 크롤러는 읽는다.
+- **`openGraph` 공통 조각(`OG_BASE`)을 모든 메타에 스프레드.** 페이지의 `openGraph`는 레이아웃 것을 통째로 덮는다(Next는 얕은 병합) — 그래서 site_name·locale이 빠졌고, 같은 이유로 약관의 루트 카드(파일 컨벤션)도 안 붙었다 → `ROOT_OG_IMAGE`를 명시. 홈은 `homeMeta()`로 canonical `/`·og:url.
+- **홈 HTML엔 여전히 가게 링크가 0개다.** 목록은 지도 idle 뒤 뷰포트로 채워지므로 SSR엔 카드가 없다. 링크 그래프는 sitemap → `/gu/` 25페이지(카드 링크) → 상세(구 링크)로 잇는다. 홈에서 구로 가는 자리(예: 목록 끝 "지역별 보기")는 D1c "지도 앱이라 푸터가 없다"와 부딪혀 **미정 — 사용자 결정 필요**. 홈 페이로드·본문 텍스트는 perf-diet B1.
+- **안 한 것(이미 결정)**: www 리다이렉트(D8 보류), workers.dev 중복(홈 canonical로 해소 — 프록시 리다이렉트는 요청마다 워커 CPU), 푸터(D1c), manifest·llms.txt·favicon.ico, `maximum-scale=1`(지도 앱 핀치 충돌 방지로 보고 둔다 — 근거 기록은 없다).
+- 파비콘 `app/icon1.png` 96px(shrimp.webp 알파 원본에서 sips) — 구글 검색결과 권장 48px 이상. 32px는 탭용으로 유지. `viewport.themeColor` `#ffffff`(`--color-common-0`).
+- 같은 PR에 `fix/turnstile-poll-teardown`의 5줄(7ffec0a)을 cherry-pick했다 — origin/main에 없어 이 브랜치의 전체 테스트가 간헐적으로 "Errors 1"로 빨갛다(stop hook 재현). 그 브랜치는 머지 뒤 지운다.
