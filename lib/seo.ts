@@ -3,7 +3,7 @@ import { LEGAL_EFFECTIVE_DATE } from "./legal";
 import { guSlug, SEOUL_GU } from "./gu";
 import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
 import { checkLabel, markerCategory, primaryMenuLine, TAG_LABELS } from "./places";
-import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
+import type { PeelMatch, PeelTest, PeelType, Place, PlaceSummary } from "./types";
 
 /**
  * SEO 문자열 — 순수 함수(spec 4.6). 페이지의 generateMetadata·sitemap이 부르고, 테스트는 여기만 본다.
@@ -124,7 +124,7 @@ export function guTitle(name: string, count: number): string {
 }
 
 /** 구 페이지 설명: 확인 많은 순 상호 3곳. 0곳이면 제보 유도 한 줄 */
-export function guDescription(name: string, places: readonly Place[]): string {
+export function guDescription(name: string, places: readonly PlaceSummary[]): string {
   if (places.length === 0) {
     return `${name}에는 아직 등록된 새우구이 가게가 없어요. 아는 곳이 있다면 제보해주세요.`;
   }
@@ -142,7 +142,7 @@ export function guOgImagePath(name: string): string | null {
   return slug ? `/og/gu/${slug}` : null;
 }
 
-export function guMeta(name: string, places: readonly Place[]): Metadata {
+export function guMeta(name: string, places: readonly PlaceSummary[]): Metadata {
   const title = guTitle(name, places.length);
   const description = guDescription(name, places);
   const path = guPath(name);
@@ -248,7 +248,7 @@ export function peelMatchMeta(a: PeelType, b: PeelType, match: PeelMatch): Metad
 }
 
 /** sitemap: 홈 + 가게 전부(확인일이 갱신 시각) + 서울 25구(가게 0곳 포함 — 런칭 글 "구별 카드 25장"의 자리) */
-export function sitemapEntries(base: URL, places: readonly Place[], now: string): MetadataRoute.Sitemap {
+export function sitemapEntries(base: URL, places: readonly PlaceSummary[], now: string): MetadataRoute.Sitemap {
   const at = (path: string) => new URL(path, base).toString();
   return [
     { url: at("/"), lastModified: new Date(now), changeFrequency: "daily", priority: 1 },
@@ -308,7 +308,7 @@ export function splitGuLabel(gu: string): { sido: string; sigungu: string } | nu
 }
 
 /** 확인 많은 순, 동률은 가나다 — 구 설명·구 카드·ItemList가 같은 순서를 쓴다 */
-export function byChecks(a: Place, b: Place): number {
+export function byChecks(a: PlaceSummary, b: PlaceSummary): number {
   return b.checkCount - a.checkCount || a.name.localeCompare(b.name, "ko");
 }
 
@@ -361,7 +361,7 @@ export function placeJsonLd(place: Place, base: URL, now: string) {
 }
 
 /** 구 — BreadcrumbList(홈 › 구) + ItemList(확인 많은 순 가게 전부). 배열 하나를 한 스크립트에 */
-export function guJsonLd(name: string, places: readonly Place[], base: URL) {
+export function guJsonLd(name: string, places: readonly PlaceSummary[], base: URL) {
   const at = (path: string) => new URL(path, base).toString();
   const title = guTitle(name, places.length);
   return [

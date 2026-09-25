@@ -13,7 +13,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import { pushOverlayHistoryEntry } from "@/lib/history-state";
-import type { LatLng, Place } from "@/lib/types";
+import type { LatLng, PlaceSummary } from "@/lib/types";
 import { DeleteAccountSheet } from "./delete-account-sheet";
 import { ProfileRow } from "./profile-row";
 import { ACTIVITY_TABS, useActivity, type ActivityTab, type LoadStatus } from "./use-activity";
@@ -23,7 +23,7 @@ interface ActivityPanelProps {
   tab: ActivityTab;
   onTabChange: (tab: ActivityTab) => void;
   /** 찜한 가게 — 진실은 지도 훅(places ∩ bookmarkedIds) */
-  bookmarkedPlaces: readonly Place[];
+  bookmarkedPlaces: readonly PlaceSummary[];
   /** 찜 목록 로드 상태 (4상태) — 목록과 같은 곳에서 온다 */
   bookmarksStatus: LoadStatus;
   onRetryBookmarks: () => void;

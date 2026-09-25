@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import { useRef } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
 import type { Place } from "@/lib/types";
 
 interface PhotoAreaProps {
   place: Place;
+  /** 전체 가게(사진 목록)가 아직 안 왔다 — 스켈레톤(plan perf-diet B1, 4상태) */
+  loading?: boolean | undefined;
   /** 고른 이미지 파일 — 확인 단계 없이 바로 올라간다(spec 4.2 "사진은 즉시") */
   onPickPhotos: (files: File[]) => void;
   /** 사진 탭 → 전체 화면 뷰어 (design 화면 2 변형 (e)) */
@@ -52,7 +55,7 @@ function FullTile() {
  * 카피가 두 줄인 이유: 여기는 버튼 라벨이 아니라 빈 상태다. 상태 한 줄 + 요청 한 줄이 그 문법이고,
  * 스트립 안 ＋ 타일은 그대로 액션 라벨("사진 추가")을 쓴다. 네이버 링크는 사진 유무와 무관하게 리뷰 끝.
  */
-export function PhotoArea({ place, onPickPhotos, onOpenPhoto }: PhotoAreaProps) {
+export function PhotoArea({ place, loading = false, onPickPhotos, onOpenPhoto }: PhotoAreaProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const openPicker = () => {
     inputRef.current?.click();
@@ -77,6 +80,14 @@ export function PhotoArea({ place, onPickPhotos, onOpenPhoto }: PhotoAreaProps) 
       }}
     />
   );
+
+  if (loading) {
+    return (
+      <div className="px-5 pt-1 pb-3" aria-busy="true" aria-label="사진 불러오는 중">
+        <Skeleton className="h-32 w-full rounded-12" />
+      </div>
+    );
+  }
 
   if (place.photos.length === 0) {
     return (

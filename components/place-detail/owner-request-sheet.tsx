@@ -6,7 +6,7 @@ import { ChipButton } from "@/components/ui/chip";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { TextField } from "@/components/ui/text-field";
 import { submitOwnerRequest } from "@/lib/data";
-import type { OwnerRequestKind, Place } from "@/lib/types";
+import type { OwnerRequestKind, PlaceSummary } from "@/lib/types";
 
 export const OWNER_REQUEST_FAILED_MESSAGE = "보내지 못했어요. 다시 시도해주세요";
 const CONTACT_ERROR = "연락드릴 곳을 알려주세요";
@@ -19,7 +19,8 @@ const KINDS: { value: OwnerRequestKind; label: string }[] = [
 ];
 
 interface OwnerRequestSheetProps {
-  place: Place;
+  /** id·이름만 — 목록 요약이어도 된다(plan perf-diet B1) */
+  place: Pick<PlaceSummary, "id" | "name">;
   /** 접수 성공 — 부모가 시트를 닫고 토스트를 낸다 */
   onSubmitted: () => void;
   /** 딤·Escape·✕·뒤로가기 */

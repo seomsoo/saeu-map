@@ -11,7 +11,7 @@ import { useMediaQuery } from "@/components/ui/use-media-query";
 import { useNotice } from "@/components/ui/use-notice";
 import { peelMatchPath, peelTypePath } from "@/lib/peel-test";
 import { sharePath, shareUrl } from "@/lib/share";
-import type { PeelMatch, PeelType, Place } from "@/lib/types";
+import type { PeelMatch, PeelType, PlaceSummary } from "@/lib/types";
 import { TypeArt } from "./type-art";
 
 /**
@@ -54,7 +54,7 @@ export function PeelMatchView({
   mine: PeelType;
   partner: PeelType;
   match: PeelMatch;
-  places: Place[];
+  places: PlaceSummary[];
   now: string;
 }) {
   const router = useRouter();

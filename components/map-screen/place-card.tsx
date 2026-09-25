@@ -10,11 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { checkLabel, distanceKm, primaryMenuParts, sideChips, TAG_LABELS } from "@/lib/places";
 import { formatDistance } from "@/lib/geo";
 import { formatRating } from "@/lib/reviews";
-import type { LatLng, Place } from "@/lib/types";
+import type { LatLng, PlaceSummary } from "@/lib/types";
 import { cx } from "@/lib/cx";
 
 interface PlaceCardProps {
-  place: Place;
+  place: PlaceSummary;
   now: string;
   /** 거리 기준점 — 내 위치, 없으면 지도 중심("가까운순"과 같은 기준). null이면 거리 숨김. */
   origin: LatLng | null;
@@ -30,7 +30,7 @@ interface PlaceCardProps {
 }
 
 /** 썸네일 타일 72px — 사진 없는 집(콤팩트 행)만 쓴다. 마커 플레이스홀더와 같은 톤(가라앉은 배경 + 새우). */
-export function PlaceThumbnail({ place }: { place: Place }) {
+export function PlaceThumbnail({ place }: { place: PlaceSummary }) {
   return (
     <div className="flex size-18 shrink-0 items-center justify-center overflow-hidden rounded-12 bg-bg-sunken">
       {place.thumbnailUrl ? (
@@ -52,7 +52,7 @@ export function PlaceThumbnail({ place }: { place: Place }) {
 }
 
 /** 오른쪽 끝 상태 — 신규 라벨 또는 "○일 전 확인" */
-function CheckLabel({ place, now }: { place: Place; now: string }) {
+function CheckLabel({ place, now }: { place: PlaceSummary; now: string }) {
   return place.isNew ? (
     <Chip size="xs" tone="active">
       새로 제보됨
@@ -65,7 +65,7 @@ function CheckLabel({ place, now }: { place: Place; now: string }) {
 }
 
 /** 평점 — 리뷰 3개 이상일 때만 채워진다(lib/data가 집계). 마크는 별이 아니라 새우다. */
-function Rating({ place }: { place: Place }) {
+function Rating({ place }: { place: PlaceSummary }) {
   if (!place.rating) return null;
   return (
     <span
@@ -84,7 +84,7 @@ function Rating({ place }: { place: Place }) {
  * 역까지의 거리(상세에는 있다)를 여기 붙이면 뜻이 다른 숫자 둘("나까지"·"역까지")이 나란히 서서
  * 읽을 때마다 구분해야 한다 (2026-09-08).
  */
-function MetaLine({ place, origin }: { place: Place; origin: LatLng | null }) {
+function MetaLine({ place, origin }: { place: PlaceSummary; origin: LatLng | null }) {
   const distance = origin ? formatDistance(distanceKm(place, origin)) : null;
   const categories = place.tags.map((tag) => TAG_LABELS[tag]).join(" · ");
   const station = place.nearestStation;
@@ -108,7 +108,7 @@ function MetaLine({ place, origin }: { place: Place; origin: LatLng | null }) {
 }
 
 /** 대표 메뉴 — 가격을 앞세우고 이름은 보조로. 가격 미상이면 줄 자체가 없다. */
-function PriceLine({ place, compact }: { place: Place; compact?: boolean }) {
+function PriceLine({ place, compact }: { place: PlaceSummary; compact?: boolean }) {
   const menu = primaryMenuParts(place);
   if (!menu) return null;
   return (
@@ -124,7 +124,7 @@ function PriceLine({ place, compact }: { place: Place; compact?: boolean }) {
   );
 }
 
-function SideChips({ place }: { place: Place }) {
+function SideChips({ place }: { place: PlaceSummary }) {
   const sides = sideChips(place.sides).filter((s) => s.active);
   if (sides.length === 0) return null;
   return (

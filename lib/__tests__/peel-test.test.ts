@@ -6,7 +6,7 @@ const fixture = vi.hoisted(() => {
   const sides = (n: number) => ({ headButter: n >= 1, ramen: n >= 2, friedRice: n >= 3 });
   const make = (id: string, tags: PlaceTag[], side: number, specialist: boolean, checkCount = 0): Place => ({
     id, name: id, gu: "마포구", addressRoad: null, addressJibun: null, lat: 37.5, lng: 127, nearestStation: null,
-    tags, specialist, naverPlaceUrl: null, photos: [], thumbnailUrl: null, hoursNote: null, menus: [],
+    tags, specialist, naverPlaceUrl: null, photos: [], thumbnailUrl: null, hoursNote: null, menus: [], menu: null,
     sides: sides(side), source: "seed", needsReview: false, lastCheckedAt: "2026-09-01T00:00:00Z", checkCount, isNew: false,
   });
   return [

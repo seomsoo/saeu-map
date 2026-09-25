@@ -3,7 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { SessionProvider } from "@/components/auth/session-provider";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { MAX_PLACE_PHOTOS } from "@/lib/data";
-import type { Photo, Place, PlaceDetail as PlaceDetailData, Review, Session } from "@/lib/types";
+import { toSummary } from "@/lib/places";
+import type { Photo, Place, PlaceDetail as PlaceDetailData, PlaceSummary, Review, Session } from "@/lib/types";
 import { PlaceDetail, type PlaceDetailProps } from "../place-detail";
 import { OWNER_REQUEST_FAILED_MESSAGE } from "../owner-request-sheet";
 import { REASON_FAILED_MESSAGE } from "../reason-sheet";
@@ -99,7 +100,7 @@ function nara(overrides: Partial<Place> = {}): Place {
   });
 }
 
-function renderDetail(place: Place, overrides: Partial<PlaceDetailProps> = {}) {
+function renderDetail(place: PlaceSummary, overrides: Partial<PlaceDetailProps> = {}) {
   const props: PlaceDetailProps = {
     place,
     now: NOW,
@@ -142,6 +143,50 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("PlaceDetail — 목록 요약만 받았을 때 (plan perf-diet B1)", () => {
+  it("사진·영업시간·메뉴 자리는 스켈레톤, 상호·역은 바로, 전체가 오면 채워진다", async () => {
+    renderDetail(toSummary(nara()));
+    const article = screen.getByRole("article", { name: "나라수산 상세" });
+    expect(within(article).getByRole("heading", { level: 2, name: "나라수산" })).toBeInTheDocument();
+    expect(within(article).getByText(/마포역/)).toBeInTheDocument();
+    expect(within(article).getByLabelText("사진 불러오는 중")).toBeInTheDocument();
+    expect(within(article).getByLabelText("영업시간 불러오는 중")).toBeInTheDocument();
+    expect(within(article).getByLabelText("메뉴 불러오는 중")).toBeInTheDocument();
+    expect(within(article).queryByText("23:00 라스트오더, 월 휴무")).not.toBeInTheDocument();
+
+    expect(await within(article).findByText("23:00 라스트오더, 월 휴무")).toBeInTheDocument();
+    expect(within(article).getByText("생새우소금구이")).toBeInTheDocument();
+    expect(within(article).queryByLabelText("사진 불러오는 중")).not.toBeInTheDocument();
+    expect(within(article).queryByLabelText("메뉴 불러오는 중")).not.toBeInTheDocument();
+    expect(data.getPlaceDetail).toHaveBeenCalledWith("nara", NOW);
+  });
+
+  it("전체가 오기 전엔 다녀왔어요가 막히고, 온 뒤엔 된다", async () => {
+    let finish: (detail: PlaceDetailData) => void = () => {};
+    data.getPlaceDetail.mockImplementationOnce(() => new Promise<PlaceDetailData>((resolve) => (finish = resolve)));
+    data.checkIn.mockResolvedValue({ ...nara(), checkCount: 5 });
+    renderDetail(toSummary(nara()));
+    fireEvent.click(screen.getByRole("button", { name: /다녀왔어요/ }));
+    expect(data.checkIn).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finish({ place: nara(), reviews: [] });
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /다녀왔어요/ }));
+    await waitFor(() => {
+      expect(data.checkIn).toHaveBeenCalledWith("nara", NOW);
+    });
+  });
+
+  it("전체(Place)를 받으면 재요청·스켈레톤 없이 바로 그린다 — 쓰기 응답으로 덮인 항목·직접 진입", () => {
+    renderDetail(nara(), { initialReviews: [] });
+    expect(screen.queryByLabelText("사진 불러오는 중")).not.toBeInTheDocument();
+    expect(screen.getByText("23:00 라스트오더, 월 휴무")).toBeInTheDocument();
+    expect(data.getPlaceDetail).not.toHaveBeenCalled();
+  });
 });
 
 describe("PlaceDetail — 화면 2 순서 1~10", () => {

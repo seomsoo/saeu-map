@@ -20,6 +20,7 @@ import type {
   PeelTest,
   PeelType,
   Place,
+  PlaceSummary,
   Report,
   ReportStatus,
   Review,
@@ -100,12 +101,12 @@ export function getPeelType(slug: PeelSlug): Promise<PeelType | null> {
 }
 
 /** 사이드가 많을수록 손이 가는 집 — 까주는 쪽(축 A)의 가중치다. */
-function sideCount(place: Place): number {
+function sideCount(place: PlaceSummary): number {
   return SIDE_KEYS.filter((key) => place.sides[key]).length;
 }
 
 /** 추천 순위 공통 — 평점(리뷰 3개 이상일 때만 붙는다) → 리뷰 수 → 확인 수 → 이름. */
-function byRatingThenChecks(a: Place, b: Place): number {
+function byRatingThenChecks(a: PlaceSummary, b: PlaceSummary): number {
   return (
     (b.rating?.average ?? 0) - (a.rating?.average ?? 0) ||
     (b.rating?.count ?? 0) - (a.rating?.count ?? 0) ||
@@ -115,18 +116,18 @@ function byRatingThenChecks(a: Place, b: Place): number {
 }
 
 /** 유형에 어울리는 가게 3곳 (design 화면 11-3). 축 B로 거르고 축 A로 가른다. */
-export async function getPeelTypePlaces(slug: PeelSlug, now: DateInput = Date.now()): Promise<Place[]> {
+export async function getPeelTypePlaces(slug: PeelSlug, now: DateInput = Date.now()): Promise<PlaceSummary[]> {
   const type = await getPeelType(slug);
   if (!type) return [];
   const places = await getPlaces({ tag: type.taste }, String(now));
-  const weight = (p: Place) => (type.role === "peel" ? sideCount(p) : p.specialist ? 1 : 0);
+  const weight = (p: PlaceSummary) => (type.role === "peel" ? sideCount(p) : p.specialist ? 1 : 0);
   return [...places]
     .sort((a, b) => weight(b) - weight(a) || byRatingThenChecks(a, b))
     .slice(0, PEEL_PLACE_COUNT);
 }
 
 /** 둘이 같이 갈 가게 3곳 (design 화면 11-5). 취향이 갈리면 구이·회를 둘 다 하는 집. */
-export async function getPeelMatchPlaces(a: PeelSlug, b: PeelSlug, now: DateInput = Date.now()): Promise<Place[]> {
+export async function getPeelMatchPlaces(a: PeelSlug, b: PeelSlug, now: DateInput = Date.now()): Promise<PlaceSummary[]> {
   const [first, second] = await Promise.all([getPeelType(a), getPeelType(b)]);
   if (!first || !second) return [];
   const all = await getPlaces({}, String(now));

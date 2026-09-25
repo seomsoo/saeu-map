@@ -1,10 +1,10 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import { checkSentence } from "@/lib/places";
 import { cx } from "@/lib/cx";
-import type { Place } from "@/lib/types";
+import type { PlaceSummary } from "@/lib/types";
 
 interface ContributionBandProps {
-  place: Place;
+  place: PlaceSummary;
   now: string;
   /** 이 세션에서 이미 확인함(핀당 하루 1회) 또는 낙관적 반영 중 */
   done: boolean;

@@ -5,6 +5,7 @@
 import "server-only";
 import { z } from "zod";
 import { STATION_NEARBY_MAX_M } from "@/lib/limits";
+import { primaryMenuOf } from "@/lib/places";
 import type { Photo, Place, Review } from "@/lib/types";
 
 const menuSchema = z.object({
@@ -96,6 +97,7 @@ export function toPlace(input: unknown, now: string = new Date().toISOString()):
     thumbnailUrl: photos[0]?.url ?? null,
     hoursNote: row.hours_note,
     menus: row.menus,
+    menu: primaryMenuOf(row.menus),
     sides: toSides(row.sides),
     source: row.source,
     needsReview: false,
@@ -138,6 +140,7 @@ export function toAdminPlace(input: unknown, photos: readonly Photo[] = []): Pla
     thumbnailUrl: photos[0]?.url ?? null,
     hoursNote: row.hours_note,
     menus: row.menus,
+    menu: primaryMenuOf(row.menus),
     sides: toSides(row.sides),
     source: row.source,
     needsReview: row.needs_review,

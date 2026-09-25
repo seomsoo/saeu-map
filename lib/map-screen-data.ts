@@ -5,10 +5,11 @@ import {
   getSeasonStats,
   getSession,
 } from "./data";
-import type { EventCard, Place, SeasonStats, Session } from "./types";
+import type { EventCard, PlaceSummary, SeasonStats, Session } from "./types";
 
 export interface MapScreenData {
-  places: Place[];
+  /** 목록 요약 — 상세 전용 필드는 없다(plan perf-diet B1). 상세는 `getPlaceDetail` */
+  places: PlaceSummary[];
   stats: SeasonStats;
   eventCard: EventCard | null;
   bookmarkedIds: string[];

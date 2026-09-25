@@ -106,6 +106,7 @@ Playwright 390×702 콜드(같은 날, 위 실측 표): 폰트 요청 19 · SDK 
 | A6 | `react-hook-form`·`@hookform/resolvers` 제거(import 0건) | 번들 변화 0 | lock 갱신, 테스트 그대로 |
 | B3ⓐ | `/photos` 라우트에 Cache API(`caches.default`) — 히트면 R2를 안 읽고, 저장은 `waitUntil` | 같은 콜로 재요청 TTFB ~1s → **캐시 히트** — 배포 뒤 `curl` 2회로 확인(지금 prod 사진은 404라 새 업로드 뒤) | `next dev`엔 `caches`가 없어 그대로 R2. 유닛 테스트 없음(워커 전용) |
 | B2 | `useIncrementalList` — 시트 카드 30장 + 끝 감시 `li`(600px 앞에서 30장씩) | 첫 화면 `li` 281 → **≤31** — 배포 뒤 Playwright DOM 수 | 훅 테스트 4(늘림·짧은 목록·목록 교체 시 리셋·IO 없으면 전부). map-screen 테스트는 jsdom(IO 없음)이라 전부 그리는 경로 |
+| B1 | `PlaceSummary`(목록·마커·검색 필드 + 대표 메뉴 `menu`) / `Place extends PlaceSummary`(전체). `getPlaces`는 `toSummary`, 상세는 `getPlaceDetail`의 전체로 채우고 그동안 사진·영업시간·메뉴 자리는 스켈레톤, 확인·사진·제안은 잠금. 부모 목록의 항목이 전체면(쓰기 응답·`/place/[id]` 시드) 재요청 없이 바로 | 홈 `places` 페이로드 **854KB → 528KB(−38%), gz 109 → 77KB(−30%)** — prod 771곳 데이터에 같은 필드 목록을 적용한 예상치, **배포 뒤 프로브로 확정** | typecheck·lint·vitest 607(+3: 요약 → 스켈레톤 → 채움 · 로드 전 다녀왔어요 잠금 · 전체면 재요청 없음). 지번은 동 이름 검색 때문에 남겼다 |
 
 ## 검증
 

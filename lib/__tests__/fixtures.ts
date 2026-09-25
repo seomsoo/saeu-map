@@ -1,3 +1,4 @@
+import { primaryMenuOf } from "../places";
 import type { Menu, Place } from "../types";
 
 let seq = 0;
@@ -5,6 +6,7 @@ let seq = 0;
 /** 테스트용 Place. 필요한 필드만 덮어쓴다. */
 export function makePlace(overrides: Partial<Place> = {}): Place {
   seq += 1;
+  const menus = overrides.menus ?? [];
   return {
     id: `t${seq}`,
     name: `가게${seq}`,
@@ -20,7 +22,8 @@ export function makePlace(overrides: Partial<Place> = {}): Place {
     photos: [],
     thumbnailUrl: null,
     hoursNote: null,
-    menus: [],
+    menus,
+    menu: primaryMenuOf(menus), // 서버 toPlace와 같은 규칙 — overrides.menu가 있으면 그게 이긴다
     sides: { headButter: false, ramen: false, friedRice: false },
     source: "seed",
     needsReview: false,

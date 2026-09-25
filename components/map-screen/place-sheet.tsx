@@ -15,7 +15,7 @@ import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
 import type {
   EventCard as EventCardData,
   LatLng,
-  Place,
+  PlaceSummary,
   SeasonStats,
   SortKey,
 } from "@/lib/types";
@@ -28,7 +28,7 @@ const SORT_OPTIONS = SORT_KEYS.map((key) => ({ key, label: SORT_LABELS[key] }));
 
 interface PlaceSheetProps {
   status: MapStatus;
-  places: Place[];
+  places: PlaceSummary[];
   count: number;
   /** 보고 있는 지역 — "마포구 일대" / "서울 전체" */
   areaLabel: string;

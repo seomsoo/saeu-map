@@ -7,7 +7,7 @@ import { getGuOfPoint } from "@/lib/data";
 import { findDuplicate, findOverlapping } from "@/lib/duplicates";
 import { formatDistance, haversineKm } from "@/lib/geo";
 import { TAG_LABELS } from "@/lib/places";
-import type { LatLng, Place } from "@/lib/types";
+import type { LatLng, PlaceSummary } from "@/lib/types";
 import { AddressSearch } from "./address-search";
 import { StepFrame } from "./step-frame";
 
@@ -15,7 +15,7 @@ export const OUTSIDE_KOREA_ERROR = "한국 안의 위치만 제보할 수 있어
 
 /** 중복 의심 후보 — name: 150m 안 비슷한 상호 / overlap: 핀 자리(30m) 기존 가게 / tap: 지도에서 탭한 마커 */
 interface Candidate {
-  place: Place;
+  place: PlaceSummary;
   reason: "name" | "overlap" | "tap";
 }
 
@@ -29,7 +29,7 @@ interface StepLocationProps {
   /** 1단계에서 넣은 이름 — 중복 재검사에 쓴다 */
   name: string;
   pin: LatLng | null;
-  places: readonly Place[];
+  places: readonly PlaceSummary[];
   /** 이미 "다른 가게예요"라고 답한 후보인지 — 다시 묻지 않는다 */
   isDuplicateDismissed: (id: string) => boolean;
   geocode: (query: string) => Promise<AddressHit[]>;
@@ -37,7 +37,7 @@ interface StepLocationProps {
   /** 주소 검색으로 핀 이동 */
   onPinChange: (point: LatLng) => void;
   /** 중복 후보가 보이게 지도를 맞춘다 (핀 + 후보) */
-  onShowCandidate: (candidate: Place) => void;
+  onShowCandidate: (candidate: PlaceSummary) => void;
   /** 지도에서 탭한 기존 마커 — 그 가게로 후보 패널을 연다(지도 훅이 fitBounds까지 한다) */
   tappedPlaceId: string | null;
   onClearTapped: () => void;

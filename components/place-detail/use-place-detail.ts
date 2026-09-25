@@ -19,7 +19,7 @@ import { useOverlayHistory } from "@/components/ui/use-overlay-history";
 import { isMobileUserAgent, naverPlaceWebUrl, naverRouteAppUrl } from "@/lib/naver-links";
 import { sortReviewsNewest } from "@/lib/reviews";
 import { copyText, sharePlace } from "@/lib/share";
-import type { Place, Review, SuggestField } from "@/lib/types";
+import type { Place, PlaceSummary, Review, SuggestField } from "@/lib/types";
 import type { ReasonKind } from "./reason-sheet";
 import type { ReviewsStatus } from "./review-section";
 import { useCheckIn } from "./use-check-in";
@@ -44,7 +44,8 @@ export const PHOTO_REPORT_FAILED_NOTICE = "신고를 접수하지 못했어요";
 const APP_OPEN_TIMEOUT_MS = 1500;
 
 interface UsePlaceDetailInput {
-  place: Place;
+  /** 목록 요약. 전체(`Place`)를 받으면(쓰기 응답으로 갱신된 항목·`/place/[id]` 직접 진입) 재요청 없이 바로 그린다 */
+  place: PlaceSummary;
   now: string;
   /** 서버가 함께 내려준 리뷰(/place/[id] 직접 진입). 있으면 클라이언트 재요청 없음. */
   initialReviews?: Review[] | undefined;
@@ -53,6 +54,29 @@ interface UsePlaceDetailInput {
   onPatchPlace: (place: Place) => void;
   onChecked: (placeId: string) => void;
   onNotice: (message: string) => void;
+}
+
+/**
+ * 전체 가게인가 — 목록에는 요약과 전체(쓰기 응답·직접 진입으로 덮인 항목)가 섞여 있다(plan perf-diet B1). `in`은 TS의 표준 좁히기다.
+ */
+function isFullPlace(place: PlaceSummary): place is Place {
+  return "menus" in place && Array.isArray((place as Place).menus);
+}
+
+/**
+ * 전체가 오기 전의 임시 객체 — 상세 전용 필드는 비어 있고, 그 자리는 `detailReady`가 false인 동안 스켈레톤이다.
+ * 이 값으로 쓰기를 하면 빈 필드가 부모 목록에 확정되므로 확인·사진·제안은 ready 전엔 막는다(로드는 ~0.3s).
+ */
+function provisional(summary: PlaceSummary): Place {
+  return {
+    ...summary,
+    naverPlaceUrl: null,
+    photos: [],
+    hoursNote: null,
+    menus: summary.menu ? [summary.menu] : [],
+    source: "seed",
+    needsReview: false,
+  };
 }
 
 /**
@@ -74,12 +98,26 @@ export function usePlaceDetail({
   useEffect(() => {
     warmWriteGate();
   }, []);
+  /* ── 전체 가게(사진·메뉴 전부·영업시간·링크, plan perf-diet B1) — 부모 목록의 항목이 이미 전체면 그게 진실이다(쓰기 응답·직접 진입으로 덮인다).
+        요약이면 리뷰와 같은 요청으로 받은 전체를 쓴다. 가게 데이터의 진실은 부모(`places` state)라는 원칙 그대로다. ── */
+  const [fetched, setFetched] = useState<Place | null>(null);
+  const full = isFullPlace(place) ? place : fetched;
+  const detailReady = full !== null;
+  const base = useMemo(() => full ?? provisional(place), [full, place]);
+  /** 쓰기 응답(전체)은 부모 목록과 이 화면의 전체를 같이 갱신한다 */
+  const patchPlace = useCallback(
+    (updated: Place) => {
+      setFetched(updated); // 부모가 다시 그리기 전에도(테스트·늦은 렌더) 이 화면은 최신 전체를 본다
+      onPatchPlace(updated);
+    },
+    [onPatchPlace],
+  );
   const [status, setStatus] = useState<ReviewsStatus>(initialReviews ? "ready" : "loading");
   const [attempt, setAttempt] = useState(0);
 
-  /* ── 리뷰 로드 (컴포넌트는 place.id로 key되어 가게가 바뀌면 처음 상태에서 다시 시작) ── */
+  /* ── 리뷰·전체 로드 (컴포넌트는 place.id로 key되어 가게가 바뀌면 처음 상태에서 다시 시작) ── */
   useEffect(() => {
-    if (initialReviews && attempt === 0) return;
+    if (initialReviews && attempt === 0) return; // 직접 진입은 리뷰와 함께 전체 가게도 부모 목록에 덮여 온다(map-screen seeded)
     let cancelled = false;
     const load = async () => {
       try {
@@ -90,6 +128,7 @@ export function usePlaceDetail({
           return;
         }
         setReviews(detail.reviews);
+        setFetched(detail.place);
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -110,16 +149,25 @@ export function usePlaceDetail({
   const {
     place: checkedPlace,
     done,
-    checkIn,
-  } = useCheckIn({ place, now, checked, onPatchPlace, onChecked, onNotice });
+    checkIn: checkInLoaded,
+  } = useCheckIn({ place: base, now, checked, onPatchPlace: patchPlace, onChecked, onNotice });
+  const checkIn = useCallback(() => {
+    if (detailReady) checkInLoaded(); // 전체가 오기 전의 임시 객체로 쓰면 빈 필드가 확정된다
+  }, [detailReady, checkInLoaded]);
 
   /* ── 사진 올리기: 고른 즉시 스트립에 → 성공 시 부모 확정, 실패 시 빠지고 토스트 (spec 4.2 "사진은 즉시") ── */
-  const { place: shownPlace, uploadPhotos } = usePhotoUpload({
+  const { place: shownPlace, uploadPhotos: uploadPhotosLoaded } = usePhotoUpload({
     place: checkedPlace,
     now,
-    onPatchPlace,
+    onPatchPlace: patchPlace,
     onNotice,
   });
+  const uploadPhotos = useCallback(
+    (files: File[]) => {
+      if (detailReady) uploadPhotosLoaded(files);
+    },
+    [detailReady, uploadPhotosLoaded],
+  );
 
   /* ── 복사·공유·길찾기 ── */
   const copyAddress = useCallback(() => {
@@ -204,10 +252,14 @@ export function usePlaceDetail({
     setSuggestField(null);
   }, []);
   const closeSuggest = useOverlayHistory(suggestField !== null, clearSuggest);
-  const openSuggest = useCallback((field: SuggestField) => {
-    pushOverlayHistoryEntry();
-    setSuggestField(field);
-  }, []);
+  const openSuggest = useCallback(
+    (field: SuggestField) => {
+      if (!detailReady) return; // 제안 폼은 전체 값(메뉴 전부·영업시간)을 미리 채운다
+      pushOverlayHistoryEntry();
+      setSuggestField(field);
+    },
+    [detailReady],
+  );
   /** 늦게 온 응답이 "이미 닫힌 시트를 또 닫는" 일이 없게 — 상태를 핸들러가 재구독 없이 읽는다 */
   const suggestOpenRef = useRef(false);
   useEffect(() => {
@@ -216,12 +268,12 @@ export function usePlaceDetail({
   const handleSuggested = useCallback(
     (updated: Place) => {
       // 쓰기는 이미 일어났다 — 갱신은 무조건 한다. 닫기·토스트만 "아직 열려 있을 때"다
-      onPatchPlace(updated);
+      patchPlace(updated);
       if (!suggestOpenRef.current) return;
       closeSuggest();
       onNotice(SUGGEST_THANKS_NOTICE);
     },
-    [onPatchPlace, closeSuggest, onNotice],
+    [patchPlace, closeSuggest, onNotice],
   );
 
   /* ── 하단 줄 — [정보 수정 제안]·[신고]는 사유 시트 하나가 맡는다(사유 목록만 다르다) ── */
@@ -319,13 +371,13 @@ export function usePlaceDetail({
           : prev.map((r) => (r.id === review.id ? review : r)),
       );
       if (updated) {
-        onPatchPlace(updated);
+        patchPlace(updated);
         if (writerId !== null) setWrittenHere({ id: review.id, userId: writerId });
         void refreshSession().catch(() => undefined); // 상세를 닫았다 열어도 내 리뷰로 보이게 — 실패해도 위 표시는 남는다
       }
       onNotice(updated ? REVIEW_SAVED_NOTICE : REVIEW_UPDATED_NOTICE);
     },
-    [onPatchPlace, onNotice, refreshSession, writerId],
+    [patchPlace, onNotice, refreshSession, writerId],
   );
 
   /** 본인 리뷰 삭제 — 즉시 빠지고(낙관) 실패하면 제자리(최신순)로 돌아온다 + 토스트 */
@@ -345,6 +397,8 @@ export function usePlaceDetail({
 
   return {
     place: shownPlace,
+    /** 전체 가게가 왔다 — false면 사진·영업시간·메뉴 자리는 스켈레톤이고 확인·사진·제안은 막혀 있다 */
+    detailReady,
     done,
     reviews,
     status,

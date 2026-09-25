@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ModalSheet, closeEnclosingDialog } from "@/components/ui/modal-sheet";
 import { flagPlace, reportPlace } from "@/lib/data";
-import type { Place, PlaceFlagReason, PlaceReportReason } from "@/lib/types";
+import type { PlaceFlagReason, PlaceReportReason, PlaceSummary } from "@/lib/types";
 
 /** 정보 수정 제안 — "값이 틀렸다" (design 화면 2-9). */
 const FLAG_REASONS: { value: PlaceFlagReason; label: string }[] = [
@@ -30,7 +30,8 @@ export const REASON_FAILED_MESSAGE = "접수하지 못했어요. 다시 눌러�
 export type ReasonKind = "flag" | "report";
 
 interface ReasonSheetProps {
-  place: Place;
+  /** id·이름만 — 목록 요약이어도 된다(plan perf-diet B1) */
+  place: Pick<PlaceSummary, "id" | "name">;
   kind: ReasonKind;
   /** 접수 성공 — 부모가 시트를 닫고 토스트를 낸다 */
   onSubmitted: () => void;

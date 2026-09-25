@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { findNameMatches } from "@/lib/duplicates";
 import { TAG_LABELS } from "@/lib/places";
-import type { Place } from "@/lib/types";
+import type { PlaceSummary } from "@/lib/types";
 import { StepFrame } from "./step-frame";
 
 export const NAME_MAX = 40;
 export const NAME_REQUIRED_ERROR = "가게 이름을 입력해주세요";
 
 interface StepNameProps {
-  places: readonly Place[];
+  places: readonly PlaceSummary[];
   value: string;
   onChange: (value: string) => void;
   onBack: () => void;

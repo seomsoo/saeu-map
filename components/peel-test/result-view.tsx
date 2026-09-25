@@ -11,7 +11,7 @@ import { useNotice } from "@/components/ui/use-notice";
 import { peelInvitePath } from "@/lib/peel-test";
 import { cx } from "@/lib/cx";
 import { sharePath, shareUrl } from "@/lib/share";
-import type { PeelType, Place } from "@/lib/types";
+import type { PeelType, PlaceSummary } from "@/lib/types";
 import { useTookTest } from "./session-flag";
 import { TypeArt } from "./type-art";
 import { TypeMatrix } from "./type-matrix";
@@ -34,7 +34,7 @@ export function PeelResultView({
   partner: PeelType;
   /** 매트릭스에 네 유형이 다 필요하다 */
   types: PeelType[];
-  places: Place[];
+  places: PlaceSummary[];
   now: string;
 }) {
   const router = useRouter();
