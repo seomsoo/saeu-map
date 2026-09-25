@@ -6,12 +6,16 @@ import {
   DEFAULT_SITE_URL,
   displayOrigin,
   guDescription,
+  guFullLabel,
+  homeMeta,
   isPreviewHost,
   guMeta,
   guTitle,
+  legalMeta,
   placeDescription,
   placeMeta,
   placeOgImagePath,
+  placeTitle,
   siteUrl,
   sitemapEntries,
 } from "../seo";
@@ -28,16 +32,37 @@ const nara = makePlace({
 });
 
 describe("핀 페이지 메타 (spec 4.6)", () => {
-  it("설명은 구 · 카테고리 · 대표 메뉴 · 확인 라벨", () => {
+  it("설명은 도로명 주소 · 카테고리 · 대표 메뉴 · 확인 라벨 — 주소 없는 제보 핀은 구", () => {
     expect(placeDescription(nara, NOW)).toBe(
+      "서울 마포구 마포대로 1 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인",
+    );
+    expect(placeDescription({ ...nara, addressRoad: null }, NOW)).toBe(
       "마포구 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인",
     );
   });
-  it("제목은 상호(템플릿이 ' | 새우맵'을 붙인다), canonical·og:url은 /place/[id]", () => {
+  it("제목은 '상호 · 구 카테고리'(템플릿이 ' | 새우맵'을 붙인다), og:title은 상호만, canonical·og:url은 /place/[id]", () => {
     const meta = placeMeta(nara, NOW);
-    expect(meta.title).toBe("나라수산");
+    expect(meta.title).toBe("나라수산 · 마포구 새우구이");
     expect(meta.alternates?.canonical).toBe("/place/nara");
-    expect(meta.openGraph).toMatchObject({ title: "나라수산", url: "/place/nara" });
+    expect(meta.openGraph).toMatchObject({ title: "나라수산", url: "/place/nara", siteName: "새우맵", locale: "ko_KR" });
+  });
+  it("서울 밖은 시도를 앞에, 회만 파는 집은 생새우회", () => {
+    expect(guFullLabel("수영구(부산)")).toBe("부산 수영구");
+    expect(guFullLabel("서초구")).toBe("서초구");
+    expect(placeTitle({ ...nara, gu: "수영구(부산)", tags: ["raw"] })).toBe("나라수산 · 부산 수영구 생새우회");
+  });
+});
+
+describe("홈·약관 메타 (prod 실측 2026-09-25 — canonical·og:image가 빠져 있었다)", () => {
+  it("홈은 canonical '/' + og:url + 루트 카드", () => {
+    const meta = homeMeta();
+    expect(meta.alternates?.canonical).toBe("/");
+    expect(meta.openGraph).toMatchObject({ url: "/", siteName: "새우맵", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] });
+  });
+  it("약관·방침은 루트 카드를 명시한다(파일 컨벤션은 페이지 openGraph에 덮인다)", () => {
+    const meta = legalMeta("/privacy", "개인정보처리방침", "설명");
+    expect(meta.alternates?.canonical).toBe("/privacy");
+    expect(meta.openGraph).toMatchObject({ url: "/privacy", siteName: "새우맵", images: [{ url: "/opengraph-image" }] });
   });
 });
 

@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import MapScreen from "@/components/map-screen/map-screen";
 import { loadMapScreenData } from "@/lib/map-screen-data";
+import { homeMeta } from "@/lib/seo";
+
+/** 제목·설명은 레이아웃 기본. canonical·og:url·루트 카드만 여기서(lib/seo.ts homeMeta) */
+export const metadata: Metadata = homeMeta();
 
 interface HomePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
