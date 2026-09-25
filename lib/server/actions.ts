@@ -18,11 +18,9 @@ import { placePhotoKey, reviewPhotoKey } from "@/lib/photo-key";
 import { sameOriginPath } from "@/lib/safe-next";
 import { PEEL_SLUGS } from "@/lib/peel-test";
 import { matchesQuery, normalizeQuery } from "@/lib/places";
+import { ADMIN_PAGE_SIZE, MAX_PLACE_PHOTOS, REPORT_ATTENTION_COUNT } from "@/lib/limits";
 import {
-  ADMIN_PAGE_SIZE,
   type AdminListFilter,
-  MAX_PLACE_PHOTOS,
-  REPORT_ATTENTION_COUNT,
   idSchema,
   nicknameSchema,
   type OwnerRequestInput,

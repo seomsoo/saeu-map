@@ -4,11 +4,12 @@
  * DSN이 없으면(로컬·프리뷰) 초기화하지 않는다 — captureException은 no-op이 된다.
  */
 import * as Sentry from "@sentry/nextjs";
-import { env } from "@/lib/env";
 
-if (env.NEXT_PUBLIC_SENTRY_DSN !== undefined) {
+// lib/env는 서버 전용(zod·t3-env를 브라우저에 싣지 않는다 — plan perf-diet A1). 빈 문자열도 "없음"으로 본다
+const dsn = process.env["NEXT_PUBLIC_SENTRY_DSN"];
+if (dsn) {
   Sentry.init({
-    dsn: env.NEXT_PUBLIC_SENTRY_DSN,
+    dsn,
     tracesSampleRate: 0,
     sendDefaultPii: false,
   });

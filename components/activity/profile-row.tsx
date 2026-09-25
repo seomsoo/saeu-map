@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { EditButton } from "@/components/place-detail/edit-button";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
-import { nicknameSchema } from "@/lib/data";
+import { isValidNickname, normalizeNickname } from "@/lib/data";
 import type { Session } from "@/lib/types";
 
 export const NICKNAME_RANGE_MESSAGE = "한글·영문·숫자로 2~12자 적어주세요";
@@ -42,13 +42,14 @@ export function ProfileRow({ session, onSave, onNotice }: ProfileRowProps) {
 
   const save = () => {
     if (pending) return; // Enter 연타 — 버튼은 disabled지만 키보드 경로는 아니다
-    const parsed = nicknameSchema.safeParse(draft);
-    if (!parsed.success) {
+    // 서버의 nicknameSchema와 같은 두 함수(lib/limits) — 판정이 갈리지 않는다
+    const normalized = normalizeNickname(draft);
+    if (!isValidNickname(normalized)) {
       setError(NICKNAME_RANGE_MESSAGE);
       return;
     }
     setPending(true);
-    onSave(parsed.data).then(
+    onSave(normalized).then(
       () => {
         setPending(false);
         setEditing(false);

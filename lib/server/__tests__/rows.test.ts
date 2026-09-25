@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STATION_NEARBY_MAX_M } from "@/lib/schemas";
+import { STATION_NEARBY_MAX_M } from "@/lib/limits";
 import { DELETED_NICKNAME, photoUrl, toAdminPlace, toPlace, toReview } from "../rows";
 
 const PLACE_ID = "3f2a9c1e-1111-4a1a-9b1b-000000000001";

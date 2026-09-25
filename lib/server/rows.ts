@@ -4,7 +4,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { STATION_NEARBY_MAX_M } from "@/lib/schemas";
+import { STATION_NEARBY_MAX_M } from "@/lib/limits";
 import type { Photo, Place, Review } from "@/lib/types";
 
 const menuSchema = z.object({

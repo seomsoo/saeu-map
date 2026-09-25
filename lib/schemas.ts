@@ -1,37 +1,29 @@
 /**
- * 데이터 계층의 상수·입력 스키마 — 컴포넌트(폼)와 서버 액션이 **같은 값**을 본다.
- * 순수 모듈이라 클라이언트 번들에 들어가도 되고, 서버 액션 파일("use server")은 async 함수만 export할 수 있어 여기 산다.
- * DB 쪽 상한(가게당 사진 10장·메뉴 5줄·후기 500자)은 supabase/migrations에도 같은 숫자로 박혀 있다 — 여기가 UI의 첫 방어선, DB가 마지막.
+ * 입력 스키마(zod) — 서버 액션이 마지막으로 검사하는 문. 상수와 순수 검증은 lib/limits.ts에 있고 여기는 그 상수로 스키마를 만든다.
+ * **브라우저는 이 파일을 import하지 않는다**(plan perf-diet A1): zod 4가 로케일 253개를 실어 클라이언트 JS의 22%였다.
+ * 컴포넌트는 lib/data.ts에서 상수(값)와 타입만 받는다 — `export type *`라 zod는 따라오지 않는다.
  */
 import { z } from "zod";
 import { BANNED_MESSAGE, hasBannedWord, hasUrl, URL_MESSAGE } from "./content-filter";
+import {
+  MAX_MENU_EDITS,
+  MAX_PHOTO_BYTES,
+  MAX_PLACE_PHOTOS,
+  MAX_UPLOAD_BYTES,
+  MENU_NAME_MAX,
+  MENU_PRICE_MAX,
+  MENU_PRICE_MIN,
+  MENU_UNIT_RAW_MAX,
+  PHOTO_TOO_LARGE_MESSAGE,
+  REPORT_MENU_MAX,
+  UPLOAD_TOO_LARGE_MESSAGE,
+  isValidNickname,
+  normalizeNickname,
+} from "./limits";
 import { isAllowedNaverPlaceUrl } from "./naver-links";
 import type { PlaceTag } from "./types";
 
-/** 한 가게에 붙일 수 있는 사진 수 (decisions 2026-09-03). 익명 업로드에 상한이 없으면 도배가 가장 싼 공격이다. */
-export const MAX_PLACE_PHOTOS = 10;
-/**
- * 이 거리(출구에서 직선 m) 밖이면 "역 근처"로 치지 않고 상세에서 역 줄을 지운다.
- * 800m ≈ 실제 도보 1km 남짓. DB에는 2km 안의 사실만 있고 컷은 코드가 갖는다.
- */
-export const STATION_NEARBY_MAX_M = 800;
-/** 업로드 한 장 상한 (security-reviewer 2026-09-08). 서버 재인코딩(Images 바인딩)이 진짜 방어선이고 이건 "말도 안 되는 파일"을 막는 문. */
-export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-/** 한 번에 올리는 합계 — 서버 액션 본문 상한(next.config 32mb) 안. 10장 × 10MB를 다 받으면 워커 메모리가 위험하다 */
-export const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
-export const UPLOAD_TOO_LARGE_MESSAGE = "사진은 한 번에 30MB까지 올릴 수 있어요";
-export const PHOTO_TOO_LARGE_MESSAGE = "사진 한 장은 10MB까지";
 const withinUploadBudget = (files: readonly File[]) => files.reduce((n, f) => n + f.size, 0) <= MAX_UPLOAD_BYTES;
-/** 제보 한 건의 메뉴 줄 수 — 구이 1(필수) + 회 1(선택) + 기타 3. 크롤 가게 중앙값 3줄·최대 5줄(2026-09-09). */
-export const REPORT_MENU_MAX = 5;
-/** 그중 기타 줄 상한. 회 토글과 무관하게 고정 — 남는 자리로 계산하면 6줄이 되는 구멍(2026-09-09). */
-export const REPORT_EXTRA_MENU_MAX = REPORT_MENU_MAX - 2;
-/** 메뉴 제안 한 번에 담을 수 있는 기존 줄 수 */
-export const MAX_MENU_EDITS = 20;
-/** 신고가 이만큼 쌓이면 관리자 화면에서 눈에 띄게 표시한다. 자동 숨김은 없다(decisions 2026-09-08·2026-09-10). */
-export const REPORT_ATTENTION_COUNT = 3;
-/** 관리자 목록이 한 번에 가져오는 최대 행 수 — SQL LIMIT. */
-export const ADMIN_PAGE_SIZE = 100;
 
 /** 가게 id·사진 id·리뷰 id 공통 형태(uuid). */
 export const idSchema = z.uuid();
@@ -71,10 +63,10 @@ export const photoReportSchema = z.object({
  * kg·g는 숫자만("1", "500"), 한판·반판·N마리는 표기 자체, 단위 없음은 null.
  */
 export const reportMenuSchema = z.object({
-  name: cleanText(z.string().trim().min(1).max(30)),
-  price: z.number().int().min(100).max(999_999),
+  name: cleanText(z.string().trim().min(1).max(MENU_NAME_MAX)),
+  price: z.number().int().min(MENU_PRICE_MIN).max(MENU_PRICE_MAX),
   unit: z.enum(["kg", "g", "pan", "count", "none"]),
-  unitRaw: z.string().trim().max(10).nullable(),
+  unitRaw: z.string().trim().max(MENU_UNIT_RAW_MAX).nullable(),
   /** true = 새우회 줄("새우회도 팔아요"), false = 구이 줄 */
   raw: z.boolean(),
 });
@@ -116,21 +108,8 @@ export type ReportMenuInput = z.infer<typeof reportMenuSchema>;
 export type ReportInput = z.infer<typeof reportInputSchema>;
 export type ReportPayload = z.infer<typeof reportPayloadSchema>;
 
-/**
- * 닉네임 — 한글·영문·숫자 2~12자, 단어 사이 공백 하나 (spec 5).
- * NFKC로 정규화하고 문자 종류를 제한한다: 폭 없는 공백·방향 제어문자로 빈 이름이나 남 흉내를 못 만들게 (security-reviewer 2026-09-04).
- */
-export const nicknameSchema = z
-  .string()
-  .transform((s) => s.normalize("NFKC").trim())
-  .pipe(
-    z
-      .string()
-      .min(2)
-      .max(12)
-      .regex(/^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u)
-      .refine((v) => !hasBannedWord(v), BANNED_MESSAGE),
-  );
+/** 닉네임 — 규칙은 lib/limits.ts(`normalizeNickname`·`isValidNickname`). 폼과 같은 함수라 판정이 갈릴 수 없다. */
+export const nicknameSchema = z.string().transform(normalizeNickname).refine(isValidNickname, BANNED_MESSAGE);
 
 /** 리뷰 입력(design 화면 5 변형 (b)): 별점 필수, 후기 선택 500자, 사진 1장 선택. */
 export const reviewInputSchema = z.object({

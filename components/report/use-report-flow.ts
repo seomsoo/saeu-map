@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { REPORT_EXTRA_MENU_MAX, submitReport, warmWriteGate, type ReportMenuInput } from "@/lib/data";
-import { PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "@/lib/schemas";
+import { PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "@/lib/data";
 import type { LatLng, Place, Sides } from "@/lib/types";
 import { EMPTY_MENU_DRAFT, validateMenuDraft, type MenuDraft } from "./menu-draft";
 

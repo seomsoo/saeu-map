@@ -28,14 +28,16 @@ import type {
 import * as actions from "./server/actions";
 import { turnstileToken, warmTurnstile } from "./turnstile-client";
 import { shrinkImage } from "./image-shrink";
-import { MAX_PHOTO_BYTES, MAX_UPLOAD_BYTES, PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "./schemas";
+import { MAX_PHOTO_BYTES, MAX_UPLOAD_BYTES, PHOTO_TOO_LARGE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE } from "./limits";
 import type { Result } from "./server/actions";
 import type { ReportInput, ReviewInput, ReviewPatch } from "./schemas";
 
 import eventCardJson from "./content/event-card.json";
 import peelTestJson from "./content/peel-test.json";
 
-export * from "./schemas";
+/** 상수·순수 검증은 값으로, 입력 타입은 타입으로만 — zod(lib/schemas)는 브라우저 번들에 들어오지 않는다(plan perf-diet A1) */
+export * from "./limits";
+export type * from "./schemas";
 
 const rawEventCard = eventCardJson as EventCard;
 const rawPeelTest = peelTestJson as PeelTest;

@@ -1,3 +1,5 @@
+// 서버 전용(plan perf-diet A1): 브라우저는 `process.env["NEXT_PUBLIC_…"]`를 직접 읽는다(Next가 빌드에 박는다) — zod·t3-env를 클라이언트에 싣지 않기 위해
+import "server-only";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
