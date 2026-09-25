@@ -7,15 +7,18 @@ import {
   displayOrigin,
   guDescription,
   guFullLabel,
+  guJsonLd,
   homeMeta,
   isPreviewHost,
   guMeta,
   guTitle,
   legalMeta,
   placeDescription,
+  placeJsonLd,
   placeMeta,
   placeOgImagePath,
   placeTitle,
+  siteJsonLd,
   siteUrl,
   sitemapEntries,
 } from "../seo";
@@ -132,5 +135,73 @@ describe("sitemap · 사이트 URL", () => {
     expect(displayOrigin("https://preview-saeu-map.saeu-map.workers.dev")).toBe("https://preview-saeu-map.saeu-map.workers.dev");
     expect(displayOrigin("http://localhost:3000")).toBe("http://localhost:3000");
     expect(DEFAULT_SITE_URL).toBe("https://xn--r02bv8jvof.kr");
+  });
+});
+
+describe("JSON-LD (plan seo-crawlability 2)", () => {
+  const base = new URL("https://saeumap.example");
+  it("홈은 WebSite", () => {
+    expect(siteJsonLd(base)).toMatchObject({ "@type": "WebSite", name: "새우맵", url: "https://saeumap.example/" });
+  });
+  it("상세는 Restaurant — 주소·좌표·카테고리, 평점·네이버 링크·사진은 있을 때만", () => {
+    const ld = placeJsonLd(nara, base, NOW);
+    expect(ld).toMatchObject({
+      "@type": "Restaurant",
+      name: "나라수산",
+      url: "https://saeumap.example/place/nara",
+      servesCuisine: ["새우구이", "생새우회"],
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "서울 마포구 마포대로 1",
+        addressLocality: "마포구",
+        addressRegion: "서울",
+        addressCountry: "KR",
+      },
+      geo: { "@type": "GeoCoordinates", latitude: 37.54, longitude: 126.95 },
+    });
+    expect(ld).not.toHaveProperty("aggregateRating");
+    expect(ld).not.toHaveProperty("sameAs");
+    expect(ld).not.toHaveProperty("image");
+    const rated = placeJsonLd(
+      {
+        ...nara,
+        gu: "수영구(부산)",
+        addressRoad: null,
+        rating: { count: 4, average: 4.5 },
+        naverPlaceUrl: "https://map.naver.com/p/1",
+        thumbnailUrl: "/photos/a.webp",
+      },
+      base,
+      NOW,
+    );
+    expect(rated).toMatchObject({
+      address: { addressLocality: "수영구", addressRegion: "부산" },
+      aggregateRating: { ratingValue: 4.5, reviewCount: 4, bestRating: 5 },
+      sameAs: ["https://map.naver.com/p/1"],
+      image: "https://saeumap.example/photos/a.webp",
+    });
+    expect(rated.address).not.toHaveProperty("streetAddress");
+  });
+  it("구는 빵부스러기 + 확인 많은 순 ItemList", () => {
+    const [crumbs, list] = guJsonLd(
+      "마포구",
+      [nara, makePlace({ id: "a", name: "가나수산", gu: "마포구", checkCount: 9 })],
+      base,
+    );
+    expect(crumbs).toMatchObject({
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { position: 1, item: "https://saeumap.example/" },
+        { position: 2, name: "마포구 새우구이 2곳", item: "https://saeumap.example/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC" },
+      ],
+    });
+    expect(list).toMatchObject({
+      "@type": "ItemList",
+      numberOfItems: 2,
+      itemListElement: [
+        { position: 1, name: "가나수산", url: "https://saeumap.example/place/a" },
+        { position: 2, name: "나라수산" },
+      ],
+    });
   });
 });

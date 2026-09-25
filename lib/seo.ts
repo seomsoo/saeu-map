@@ -90,9 +90,8 @@ export function placeOgImagePath(place: Pick<Place, "id" | "createdAt">, buildAt
 
 /** "서초구" · "부산 수영구" — `Place.gu`는 서울이면 구 이름만, 밖이면 "수영구(부산)"(decisions 2026-09-04). 검색 제목엔 시도를 앞에 */
 export function guFullLabel(gu: string): string {
-  const open = gu.indexOf("(");
-  if (open === -1 || !gu.endsWith(")")) return gu;
-  return `${gu.slice(open + 1, -1)} ${gu.slice(0, open)}`;
+  const { sido, sigungu } = splitGuLabel(gu);
+  return sido === "서울" ? sigungu : `${sido} ${sigungu}`;
 }
 
 /** 검색 결과 제목 "풍천가 서초직영점 · 서초구 새우구이" — 지역·카테고리 키워드(네이버). og:title은 상호만(카톡 카드) */
@@ -128,7 +127,7 @@ export function guDescription(name: string, places: readonly Place[]): string {
     return `${name}에는 아직 등록된 새우구이 가게가 없어요. 아는 곳이 있다면 제보해주세요.`;
   }
   const top = [...places]
-    .sort((a, b) => b.checkCount - a.checkCount || a.name.localeCompare(b.name, "ko"))
+    .sort(byChecks)
     .slice(0, 3)
     .map((p) => p.name)
     .join(", ");
@@ -291,4 +290,94 @@ export function legalMeta(path: (typeof LEGAL_PATHS)[number], title: string, des
     alternates: { canonical: path },
     openGraph: { ...OG_BASE, title, description, url: path, images: [ROOT_OG_IMAGE] },
   };
+}
+
+/* ── JSON-LD (schema.org) — 순수 객체. components/seo/json-ld.tsx가 직렬화한다 (plan seo-crawlability 2) ──────── */
+
+/** `Place.gu` → 시도·시군구. 서울은 괄호가 없다("마포구"), 밖은 "수영구(부산)" (decisions 2026-09-04) */
+export function splitGuLabel(gu: string): { sido: string; sigungu: string } {
+  const open = gu.indexOf("(");
+  if (open === -1 || !gu.endsWith(")")) return { sido: "서울", sigungu: gu };
+  return { sido: gu.slice(open + 1, -1), sigungu: gu.slice(0, open) };
+}
+
+/** 확인 많은 순, 동률은 가나다 — 구 설명·구 카드·ItemList가 같은 순서를 쓴다 */
+export function byChecks(a: Place, b: Place): number {
+  return b.checkCount - a.checkCount || a.name.localeCompare(b.name, "ko");
+}
+
+/** 홈 — WebSite */
+export function siteJsonLd(base: URL) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: base.toString(),
+    description: SITE_DESCRIPTION,
+    inLanguage: "ko",
+  };
+}
+
+/**
+ * 상세 — Restaurant. 주소(PostalAddress)·좌표·카테고리·평점(리뷰 3개↑일 때만 `rating`이 있다)·네이버 플레이스(sameAs)·대표 사진.
+ * 영업시간은 자유 메모(`hoursNote`)라 openingHours로 못 만든다. 상호·메뉴는 유저 입력 — 직렬화 쪽이 `<`를 막는다.
+ */
+export function placeJsonLd(place: Place, base: URL, now: string) {
+  const at = (path: string) => new URL(path, base).toString();
+  const { sido, sigungu } = splitGuLabel(place.gu);
+  return {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: place.name,
+    url: at(placePath(place)),
+    description: placeDescription(place, now),
+    servesCuisine: place.tags.map((tag) => TAG_LABELS[tag]),
+    address: {
+      "@type": "PostalAddress",
+      ...(place.addressRoad !== null && { streetAddress: place.addressRoad }),
+      addressLocality: sigungu,
+      addressRegion: sido,
+      addressCountry: "KR",
+    },
+    geo: { "@type": "GeoCoordinates", latitude: place.lat, longitude: place.lng },
+    ...(place.thumbnailUrl !== null && { image: at(place.thumbnailUrl) }),
+    ...(place.rating && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: place.rating.average,
+        reviewCount: place.rating.count,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    }),
+    ...(place.naverPlaceUrl !== null && { sameAs: [place.naverPlaceUrl] }),
+  };
+}
+
+/** 구 — BreadcrumbList(홈 › 구) + ItemList(확인 많은 순 가게 전부). 배열 하나를 한 스크립트에 */
+export function guJsonLd(name: string, places: readonly Place[], base: URL) {
+  const at = (path: string) => new URL(path, base).toString();
+  const title = guTitle(name, places.length);
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: SITE_NAME, item: base.toString() },
+        { "@type": "ListItem", position: 2, name: title, item: at(guPath(name)) },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: title,
+      numberOfItems: places.length,
+      itemListElement: [...places].sort(byChecks).map((place, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: place.name,
+        url: at(placePath(place)),
+      })),
+    },
+  ];
 }

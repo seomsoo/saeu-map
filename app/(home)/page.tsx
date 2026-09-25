@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import MapScreen from "@/components/map-screen/map-screen";
+import { JsonLd } from "@/components/seo/json-ld";
+import { env } from "@/lib/env";
 import { loadMapScreenData } from "@/lib/map-screen-data";
-import { homeMeta } from "@/lib/seo";
+import { homeMeta, siteJsonLd, siteUrl } from "@/lib/seo";
 
 /** 제목·설명은 레이아웃 기본. canonical·og:url·루트 카드만 여기서(lib/seo.ts homeMeta) */
 export const metadata: Metadata = homeMeta();
@@ -23,5 +25,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   const data = await loadMapScreenData(now);
-  return <MapScreen now={now} {...data} />;
+  return (
+    <>
+      <JsonLd data={siteJsonLd(siteUrl(env.SITE_URL))} />
+      <MapScreen now={now} {...data} />
+    </>
+  );
 }
