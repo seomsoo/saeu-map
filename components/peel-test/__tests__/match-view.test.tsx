@@ -74,7 +74,7 @@ describe("궁합 결과", () => {
   it("같이 갈 가게를 그리고 누르면 상세로 간다", () => {
     view();
     expect(screen.getByRole("heading", { name: "둘이 같이 갈 새우집" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /나라수산/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산/ }));
     expect(push).toHaveBeenCalledWith("/place/p1");
   });
 

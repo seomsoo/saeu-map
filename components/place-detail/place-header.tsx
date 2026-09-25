@@ -1,3 +1,4 @@
+import { isSeoulGu } from "@/lib/gu";
 import { checkLabel, TAG_LABELS } from "@/lib/places";
 import type { Place } from "@/lib/types";
 
@@ -11,7 +12,15 @@ export function PlaceHeader({ place, now }: { place: Place; now: string }) {
     <div className="px-5 pb-5">
       <h2 className="text-title-s-semibold text-fg">{place.name}</h2>
       <p className="mt-0.5 text-body-m-regular text-fg-secondary">
-        {categories} · {place.gu}
+        {categories} ·{" "}
+        {/* 구 페이지로 가는 내부 링크(plan seo-crawlability 3) — /gu/는 서울 25구만 있다. 앱 밖 전체 이동이라 next/link가 아니다(로그인 시트의 약관 링크와 같은 문법) */}
+        {isSeoulGu(place.gu) ? (
+          <a href={`/gu/${encodeURIComponent(place.gu)}`} className="underline">
+            {place.gu}
+          </a>
+        ) : (
+          place.gu
+        )}
       </p>
       <p className="mt-1 text-caption-l-regular text-fg-tertiary">
         <span>{checkLabel(place, now)}</span>

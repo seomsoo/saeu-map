@@ -100,7 +100,7 @@ describe("ActivityPanel — 화면 5: 프로필·3탭·로그아웃·탈퇴", ()
     ]);
     fireEvent.click(within(list).getByRole("button", { name: "나라수산 찜 해제" }));
     expect(props.onToggleBookmark).toHaveBeenCalledWith("nara");
-    fireEvent.click(within(list).getByRole("button", { name: "365활새우 창우수산, 영등포구" }));
+    fireEvent.click(within(list).getByRole("link", { name: "365활새우 창우수산, 영등포구" }));
     expect(props.onOpenPlace).toHaveBeenCalledWith("changwoo");
     expect(props.onPlaceIdsChange).toHaveBeenLastCalledWith(["nara", "changwoo"]);
     fireEvent.click(screen.getByRole("tab", { name: "내 리뷰" }));

@@ -352,9 +352,9 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     vi.spyOn(window.history, "back").mockImplementation(() => {});
     fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
-    expect(screen.getByRole("button", { name: /나라수산, 마포구/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /나라수산, 마포구/ })).toHaveAttribute(
       "aria-current",
-      "true",
+      "page",
     );
     vi.restoreAllMocks();
   });
@@ -362,7 +362,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
   it("카드 탭 → 선택 + 지도 이동(panTo)", async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산, 마포구/ }));
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
   });
 
@@ -598,7 +598,7 @@ describe("MapScreen — design 화면 1의 1~8", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 가짜 지도 중심 (37.55, 127.0) ↔ 나라수산 (37.54, 126.95) ≈ 4.5km
-    expect(screen.getByRole("button", { name: /나라수산, 마포구/ })).toHaveTextContent(/\d(\.\d)?km · 마포구/);
+    expect(screen.getByRole("link", { name: /나라수산, 마포구/ })).toHaveTextContent(/\d(\.\d)?km · 마포구/);
   });
 });
 
@@ -606,7 +606,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
   const openNara = async () => {
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
-    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산, 마포구/ }));
   };
 
   const history = { pushState: vi.fn(), replaceState: vi.fn(), back: vi.fn() };
@@ -729,7 +729,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     expect(await screen.findByRole("heading", { name: "마포구 1곳" })).toBeInTheDocument();
     expect(listCards()[0]).toHaveTextContent("나라수산");
     // 다음 테스트를 위해 원복 (모듈 메모리)
-    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산, 마포구/ }));
     fireEvent.click(await screen.findByRole("button", { name: "찜" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "false");
@@ -813,7 +813,7 @@ describe("MapScreen — 화면 2 상세 열기/닫기·URL 동기화", () => {
     // 목 쓰기 지연(400ms)이 끝나야 부모 places에 확정된다
     await act(() => new Promise<void>((resolve) => setTimeout(resolve, 450)));
     fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
-    const card = screen.getByRole("button", { name: /나라수산, 마포구/ });
+    const card = screen.getByRole("link", { name: /나라수산, 마포구/ });
     expect(card).toHaveTextContent("오늘 확인");
     await waitFor(() => {
       expect(card).toHaveTextContent("오늘 확인");
@@ -1260,7 +1260,7 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
       fireEvent.click(screen.getByRole("button", { name: "내 활동" }));
       expect(await screen.findByRole("region", { name: "내 활동" })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /나라수산, 마포구/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산, 마포구/ }));
     expect(screen.getByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     expect(pushState).toHaveBeenLastCalledWith({ saeuDetail: true }, "", "/place/nara");
     // 뒤로: 상세 엔트리가 빠지고 me 표식 엔트리로
@@ -1298,7 +1298,7 @@ describe("화면 5 — 프로필 버튼 → 로그인 시트 → 내 활동 패�
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     const bookmarkIn = async (name: RegExp) => {
-      fireEvent.click(screen.getByRole("button", { name }));
+      fireEvent.click(screen.getByRole("link", { name }));
       fireEvent.click(await screen.findByRole("button", { name: "찜" }));
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "찜" })).toHaveAttribute("aria-pressed", "true");
@@ -1345,7 +1345,7 @@ describe("Phase 4 보정 — 닫기 히스토리·신규 패널 필터 빈 상�
     renderScreen();
     await screen.findByRole("heading", { name: "서울 전체 4곳" });
     // 찜하지 않은 가게를 열었다 닫으면 selectedId만 남는다
-    fireEvent.click(screen.getByRole("button", { name: /365활새우 창우수산, 영등포구/ }));
+    fireEvent.click(screen.getByRole("link", { name: /365활새우 창우수산, 영등포구/ }));
     expect(screen.getByRole("article", { name: /창우수산 상세/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "상세 닫기" }));
     await openMe();
@@ -1432,7 +1432,7 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
     vi.spyOn(window.history, "pushState").mockImplementation(() => {});
-    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    fireEvent.click(screen.getByRole("link", { name: "나라수산, 마포구" }));
     expect(fake.map.panTo).toHaveBeenCalledTimes(1);
     const target = fake.map.panTo.mock.lastCall?.[0] as { lat(): number; lng(): number };
     // 세로는 가리는 게 없어 그대로(핀의 위도), 가로만 패널 폭의 절반만큼 왼쪽으로
@@ -1462,7 +1462,7 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     await screen.findByRole("list", { name: "가게 목록" });
     const marker = () => screen.getByText("나라수산", { selector: '[data-testid="marker"]' });
     const other = () => screen.getByText("365활새우 창우수산", { selector: '[data-testid="marker"]' });
-    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+    const card = screen.getByRole("link", { name: "나라수산, 마포구" });
 
     fireEvent.pointerEnter(card, { pointerType: "mouse" });
     expect(marker().getAttribute("data-icon")).toContain("saeu-marker--hovered");
@@ -1503,7 +1503,7 @@ describe("데스크탑 그릇 (design 화면 6 — 같은 컴포넌트, 데스�
     desktop();
     renderScreen();
     await screen.findByRole("list", { name: "가게 목록" });
-    fireEvent.click(screen.getByRole("button", { name: "나라수산, 마포구" }));
+    fireEvent.click(screen.getByRole("link", { name: "나라수산, 마포구" }));
     expect(await screen.findByRole("article", { name: "나라수산 상세" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "제보" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "목록" }));
