@@ -20,6 +20,8 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 grep -q "새우맵" smoke.html 2>/dev/null || fail "worker did not serve /"
+# 홈 HTML엔 세션 필드가 실린다(plan perf-diet A3) — 응답이 캐시에 남으면 안 된다. 대시보드 Cache Rule이 붙어도 여기서 잡힌다(security-reviewer 2026-09-25)
+curl -sI "$BASE/" | grep -qi "^cache-control:.*no-store" || fail "/ must be Cache-Control: no-store (session in SSR HTML)"
 echo "smoke ok: / ($(wc -c < smoke.html) bytes)"
 
 # 가게 하나 — 공개 뷰에서, HTML 이스케이프가 끼지 않는 상호로(&·<·>·따옴표 없음). 서울 구(…구, 괄호 없음)는 /gu 확인용

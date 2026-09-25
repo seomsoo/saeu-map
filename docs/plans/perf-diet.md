@@ -104,7 +104,7 @@ Playwright 390×702 콜드(같은 날, 위 실측 표): 폰트 요청 19 · SDK 
 | A4 | `/place/[id]`에서 상세와 지도 데이터를 `Promise.all` | 상세 TTFB 기준선 1.16s → **배포 뒤 프로브** | notFound·permanentRedirect 경로 그대로(둘 다 기다린 뒤 판정) |
 | A5 | `NaverMapProvider` 렌더에서 `preconnect`+`preload(SDK)` — SSR이 head에 `<link>`를 넣는다. 주소는 `lib/naver-sdk.ts`, 테스트가 react-naver-maps `buildUrl`과 대조 | SDK 요청 시작 3.3s(하이드레이션 뒤) → **HTML 파싱 직후** — 배포 뒤 Playwright로 시작 시각·요청 1회 확인 | naver-sdk.test 2. 타일 호스트(pstatic)는 규칙 3 도메인이라 코드에 안 둔다 |
 | A6 | `react-hook-form`·`@hookform/resolvers` 제거(import 0건) | 번들 변화 0 | lock 갱신, 테스트 그대로 |
-| B3ⓐ | `/photos` 라우트에 Cache API(`caches.default`) — 히트면 R2를 안 읽고, 저장은 `waitUntil` | 같은 콜로 재요청 TTFB ~1s → **캐시 히트** — 배포 뒤 `curl` 2회로 확인(지금 prod 사진은 404라 새 업로드 뒤) | `next dev`엔 `caches`가 없어 그대로 R2. 유닛 테스트 없음(워커 전용) |
+| B3ⓐ | `/photos` 라우트에 Cache API(`caches.default`) — 히트면 R2를 안 읽고, 저장은 `waitUntil`. security-reviewer 뒤: 키는 origin+경로(쿼리 제거), 콜로 TTL `s-maxage=3600`, 사진 삭제 경로(`deletePhotoObject`)가 같은 콜로 캐시를 지운다 | 같은 콜로 재요청 TTFB ~1s → **캐시 히트** — 배포 뒤 prod 커스텀 도메인에서 `curl` 2회(프리뷰 workers.dev는 Cache API가 no-op이라 항상 미스가 정상) | `next dev`엔 `caches`가 없어 그대로 R2. 유닛 테스트 없음(워커 전용) |
 | B2 | `useIncrementalList` — 시트 카드 30장 + 끝 감시 `li`(600px 앞에서 30장씩) | 첫 화면 `li` 281 → **≤31** — 배포 뒤 Playwright DOM 수 | 훅 테스트 4(늘림·짧은 목록·목록 교체 시 리셋·IO 없으면 전부). map-screen 테스트는 jsdom(IO 없음)이라 전부 그리는 경로 |
 | B1 | `PlaceSummary`(목록·마커·검색 필드 + 대표 메뉴 `menu`) / `Place extends PlaceSummary`(전체). `getPlaces`는 `toSummary`, 상세는 `getPlaceDetail`의 전체로 채우고 그동안 사진·영업시간·메뉴 자리는 스켈레톤, 확인·사진·제안은 잠금. 부모 목록의 항목이 전체면(쓰기 응답·`/place/[id]` 시드) 재요청 없이 바로 | 홈 `places` 페이로드 **854KB → 528KB(−38%), gz 109 → 77KB(−30%)** — prod 771곳 데이터에 같은 필드 목록을 적용한 예상치, **배포 뒤 프로브로 확정** | typecheck·lint·vitest 607(+3: 요약 → 스켈레톤 → 채움 · 로드 전 다녀왔어요 잠금 · 전체면 재요청 없음). 지번은 동 이름 검색 때문에 남겼다 |
 | B5 | Sentry 브라우저 몫 **측정** — 같은 트리를 `instrumentation-client.ts` 있이/없이 빌드해 홈 JS gzip 합 비교 | **299KB → 247KB: Sentry 브라우저 SDK = 52KB gz(17%)** | **결정(시니어 통상 선택): 지금은 둔다.** 지금까지 잡은 5건 중 2건이 부팅 중 오류(React #412·부트스트랩 fetch)라 지연 로드는 그걸 놓친다. 최소 클라이언트(`@sentry/browser` `BrowserClient` + 필요한 통합만)는 RUM·Lighthouse가 JS를 병목으로 지목할 때 집는다 — 판돈 52KB |
@@ -132,6 +132,8 @@ next 16.3.3 · react 19.2.8 · zod 4.5.4 · @opennextjs/cloudflare 1.20.5 · @se
 ## 범위 밖
 
 곁가지 발견 3건(사진 404·Smart Placement·의존성)은 위 "곁가지" 절 — 사진 404는 이 플랜과 별개로 먼저 봐야 한다. 청크 분할(제보·리뷰·내 활동을 `next/dynamic`으로)은 앱 코드 몫이 44KB gz라 A1 뒤 다시 잰다 — 20KB 아래면 안 한다.
+
+**security-reviewer(2026-09-25, 브랜치 diff)**: High 0 · Med 1(내린 사진의 콜로 캐시 잔존 → B3ⓐ에 반영) · Low 1(캐시 키 쿼리 변형 → 반영). 정보로 남긴 것: SSR 세션은 `no-store`라 캐시 잔존 없음(smoke.sh에 단언 추가) · **기존 문제(이 PR 밖)**: SSR의 `getClaims()`가 만료 토큰을 갱신하되 RSC에선 쿠키를 못 써 회전된 refresh token이 저장되지 않는다 → 다음 쓰기가 옛 토큰을 재사용하면 Supabase reuse-detection이 세션을 폐기할 수 있다(`lib/server/supabase.ts` `setAll` catch). 백로그: 갱신은 라우트 핸들러에서만 하거나 `loadMapScreenData`가 `userClient()` 하나를 만들어 둘에 넘긴다.
 
 ## 결과 (2026-09-25 코드 완료 · prod 확정치는 배포 뒤 이 표에 채운다)
 
