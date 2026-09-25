@@ -69,6 +69,7 @@
 
 로컬은 `pnpm db:start`(Docker Supabase) → `pnpm db:reset`(마이그레이션 + seed) → `pnpm db:test`(pgTAP) → `pnpm db:advisors`(0건). Studio는 http://127.0.0.1:54323.
 워커 런타임 확인은 `npx opennextjs-cloudflare build && npx opennextjs-cloudflare populateCache local && npx wrangler dev --port 8787 --compatibility-flags nodejs_compat` — 마지막 플래그는 `global_fetch_strictly_public`을 빼서 워커가 127.0.0.1의 로컬 Supabase를 부를 수 있게 한다(실서비스 설정은 그대로). 런타임 변수는 `.dev.vars`(gitignore).
+정적 에셋 캐시 헤더는 **`public/_headers`뿐**이다 — `next.config`의 `headers()`는 Workers에서 정적 에셋에 닿지 않는다(ASSETS 바인딩이 워커 앞에서 낸다, 2026-09-25). Pretendard를 올릴 땐 `public/fonts/pretendard-<버전>/`처럼 **경로에 버전**을 붙인다: 1년 immutable이라 같은 경로면 옛 조각이 남는다.
 
 ```
 # Cloudflare (wrangler 로그인 확인됨 2026-09-10)

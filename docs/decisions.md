@@ -54,7 +54,7 @@
 
 ## 2026-09-01 — Pretendard dynamic subset 전환 (단일 2MB woff2 폐기)
 - **맥락**: PretendardVariable.woff2 단일 파일 2MB를 전 방문자가 다운로드하는 구조였음. DAU 2천 가정 시 폰트만 월 60~120GB 전송 → Hobby 무료 한도(100GB) 위협.
-- **결정**: pretendard 패키지의 dynamic subset(unicode-range 92분할)으로 전환. 화면에 쓰인 글자 범위의 조각만 다운로드 — 방문당 ~100KB, 약 95% 절감. `/fonts/*`는 immutable 캐시 헤더.
+- **결정**: pretendard 패키지의 dynamic subset(unicode-range 92분할)으로 전환. 화면에 쓰인 글자 범위의 조각만 다운로드 — 방문당 ~100KB, 약 95% 절감. `/fonts/*`는 immutable 캐시 헤더. → **2026-09-25 정정**: 그 헤더는 `next.config` `headers()`에 있었고 Workers에선 적용된 적이 없다(아래 2026-09-25 항목). `public/_headers`로 옮김.
 - **트레이드오프**: next/font 최적화(preload) 포기. FOUT은 font-display: swap + 시스템 폴백으로 수용.
 - TanStack Query — 서버 컴포넌트 구조라 클라이언트 fetch 없음. 재검토: 지도 뷰포트 단위 로딩 도입 시.
 - 가격 뱃지·가격 지수 — kg 단위 표본 20곳 미만. 재검토: 시즌 중 표본 충족 시.
@@ -1029,3 +1029,9 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - 파비콘 `app/icon1.png` 96px(shrimp.webp 알파 원본에서 sips) — 구글 검색결과 권장 48px 이상. 32px는 탭용으로 유지. `viewport.themeColor` `#ffffff`(`--color-common-0`).
 - turnstile 폴링 teardown 픽스(7ffec0a)는 처음엔 이 브랜치에 cherry-pick했으나 #25로 main에 먼저 들어가 리베이스(2026-09-29)에서 빠졌다.
 - **구 "미상"은 서울이 아니다(Codex PR #26 P2, 2026-09-29)**: 시드 변환기(`scripts/convert_seed.py`)가 주소에 시·구가 없으면 `gu`를 `"미상"`으로 넣는데, "괄호 없으면 서울" 규칙이 그걸 서울로 읽어 JSON-LD가 `서울/미상`, 검색 제목이 "상호 · 미상 새우구이"로 나갔다. `lib/seo.ts UNKNOWN_GU` — 미상이면 시·구 필드를 빼고(도로명·국가만) 제목은 "상호 · 새우구이". 시드의 3곳은 지번으로 확인해 정정했다(노인과새우 서울대점 → 관악구, 대하 → 용산구, 향동 새우에서 방어까지 → 고양시(경기)). **prod DB도 같은 값으로 고쳤다(2026-09-29, `supabase db query --linked --project-ref …` — 링크·비밀번호 없이 Management API로 실행된다)** — 그 뒤 세 가게에 다녀왔어요 1회씩(또는 아무 쓰기)으로 `places`·`place:<id>` 캐시 태그를 갱신한다(관리자 UI에 구 수정은 없다).
+
+## 2026-09-25 — 성능 다이어트 (plan docs/plans/perf-diet.md, 실측 기준선은 그 파일)
+
+- **맥락**: 런칭 직전 prod 실측(LAX). 홈 HTML 920KB 중 RSC 903KB · 홈 JS 397KB gz 중 zod 로케일 86KB · 폰트 19조각이 방문마다 재검증 · 하이드레이션 뒤에야 지도 SDK 요청과 세션 POST. **사용자 결정**: 추천안 전부(A 6건 · B1 목록 요약형 · B2 목록 점진 렌더 · B3ⓐ 사진 Cache API), B4 목록 캐시 SWR은 보류, B5 Sentry 브라우저 몫은 측정만. 이후 단위별 승인 없이 진행하고 결정이 필요하면 시니어 통상 선택으로(같은 날 지시).
+- **A1 zod는 브라우저에 싣지 않는다**: zod 4 classic은 `export * as locales`로 253개 로케일을 실어 보내고 Turbopack이 못 털어 낸다(`E.164-nummer`가 홈 청크에 있었다). 상수·닉네임·메뉴 순수 검증은 `lib/limits.ts`(zod import 금지), `lib/env.ts`는 `server-only`(브라우저는 `process.env["NEXT_PUBLIC_…"]` 직접), `lib/data.ts`는 상수만 값으로·입력 타입은 `export type *`. 로컬 프로덕션 빌드 홈 JS gz 397 → 301KB, 청크 26개에서 로케일 문자열 0건.
+- **A2 폰트 immutable은 `public/_headers`로**: 2026-09-01의 "`/fonts/*` immutable"은 `next.config` `headers()`에 있었고 **Workers에선 적용된 적이 없다** — 정적 에셋은 ASSETS 바인딩이 워커 앞에서 내므로 `_headers`만 본다(prod 실측 `max-age=0, must-revalidate`, 재방문마다 19조각 조건부 요청). `headers()`는 지웠다. 발화 확인은 배포 뒤 `curl -I …/woff2`. 폰트 버전을 올릴 땐 경로에 버전(runbook 3절).

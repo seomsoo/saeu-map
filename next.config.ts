@@ -11,19 +11,8 @@ const nextConfig: NextConfig = {
   // 빌드 시각 — 핀 공유 카드는 빌드 때만 만들어지므로(Workers Free CPU 10ms) 그 뒤 생긴 핀은 루트 카드로 보낸다(lib/seo.ts placeOgImagePath).
   // NEXT_PUBLIC_이 아니라 규칙 7 목록 밖이지만 값은 시각 하나라 비밀이 아니다(decisions 2026-09-16)
   env: { BUILD_AT: new Date().toISOString() },
-  async headers() {
-    return [
-      {
-        source: "/fonts/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-    ];
-  },
+  // 정적 에셋 캐시 헤더는 여기(`headers()`)가 아니라 public/_headers — Workers는 ASSETS 바인딩이 워커 앞에서 public/을 내므로
+  // Next의 headers()가 닿지 않는다(2026-09-25 prod 실측: /fonts가 max-age=0으로 나가고 있었다, plan perf-diet A2).
 };
 
 /**

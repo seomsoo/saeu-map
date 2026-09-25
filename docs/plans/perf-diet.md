@@ -99,6 +99,7 @@ Playwright 390×702 콜드(같은 날, 위 실측 표): 폰트 요청 19 · SDK 
 | 커밋 | 무엇 | 전 → 후 (같은 방법) | 검증 |
 |---|---|---|---|
 | A1 | zod 클라이언트 제거 — `lib/limits.ts`(상수·닉네임·메뉴 순수 검증) 분리, `lib/env.ts` server-only, `lib/data.ts`는 `export type *` | 홈 JS gz 합 **397KB → 301KB(−24%)**(로컬 프로덕션 빌드, `gzip -c` 합), 정적 청크 26개에서 zod 로케일 문자열 **0건** | typecheck·lint·vitest 597 통과. 닉네임·메뉴 줄 판정은 서버 스키마와 같은 함수·상수 |
+| A2 | 폰트 immutable → `public/_headers`, `next.config` `headers()` 삭제, decisions 09-01 정정·runbook 3절 | 폰트 조각 Cache-Control `max-age=0, must-revalidate` → `max-age=31536000, immutable` — **배포 뒤 prod에서 확인**(로컬 next start는 `_headers`를 안 본다). 재방문 조건부 요청 19 → 0 예상 | 코드 변화 없음. 발화는 배포 뒤 `curl -I` |
 
 ## 검증
 
