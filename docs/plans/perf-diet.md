@@ -100,6 +100,8 @@ Playwright 390×702 콜드(같은 날, 위 실측 표): 폰트 요청 19 · SDK 
 |---|---|---|---|
 | A1 | zod 클라이언트 제거 — `lib/limits.ts`(상수·닉네임·메뉴 순수 검증) 분리, `lib/env.ts` server-only, `lib/data.ts`는 `export type *` | 홈 JS gz 합 **397KB → 301KB(−24%)**(로컬 프로덕션 빌드, `gzip -c` 합), 정적 청크 26개에서 zod 로케일 문자열 **0건** | typecheck·lint·vitest 597 통과. 닉네임·메뉴 줄 판정은 서버 스키마와 같은 함수·상수 |
 | A2 | 폰트 immutable → `public/_headers`, `next.config` `headers()` 삭제, decisions 09-01 정정·runbook 3절 | 폰트 조각 Cache-Control `max-age=0, must-revalidate` → `max-age=31536000, immutable` — **배포 뒤 prod에서 확인**(로컬 next start는 `_headers`를 안 본다). 재방문 조건부 요청 19 → 0 예상 | 코드 변화 없음. 발화는 배포 뒤 `curl -I` |
+| A3 | 세션을 `loadMapScreenData`의 `Promise.all`에 넣어 `SessionProvider` `initialSession`으로 — 첫 로드 `getSession()` POST 생략 | 첫 로드의 같은 origin POST **1 → 0**(페이지뷰당 워커 호출 1회·~0.3s), 프로필 아이콘 "아직 모름" 구간 0 — **배포 뒤 Playwright로 확인** | session.test 11(+1: 초기값이 있으면 getSession 미호출·갱신은 그대로) |
+| A4 | `/place/[id]`에서 상세와 지도 데이터를 `Promise.all` | 상세 TTFB 기준선 1.16s → **배포 뒤 프로브** | notFound·permanentRedirect 경로 그대로(둘 다 기다린 뒤 판정) |
 
 ## 검증
 
