@@ -122,6 +122,11 @@ jobs:
           npx wrangler dev --port 8787 --log-level warn --compatibility-flags nodejs_compat > wrangler.log 2>&1 &
           scripts/smoke.sh http://localhost:8787
 
+      # plan perf-diet S1: 홈 JS gzip 합 예산 — zod 로케일 86KB 같은 회귀를 사람이 아니라 CI가 잡는다(바이트는 Lighthouse와 달리 결정적이다).
+      # 같은 workerd(:8787)에서 홈 HTML의 <script src> 전부를 받아 여기서 gzip한다. 예산 = A1 뒤 로컬 빌드 299KB + 10%. 표는 잡 로그에.
+      - name: Perf budget (home JS gzip total)
+        run: scripts/perf-probe.sh http://localhost:8787 --budget-js-kb 330
+
       # Phase 5: 모바일 LCP 예산 (roadmap). 같은 workerd(:8787)에 Lighthouse. NCP 키가 dummy라 지도는 에러 상태 — 우리 셸의 LCP를 잰다.
       # 수치는 로컬 workerd 실측으로 정했다 (decisions 2026-09-07). @lhci/cli는 의존성이 아니라 npx로.
       - name: Lighthouse (mobile LCP budget)
