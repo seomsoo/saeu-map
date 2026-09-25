@@ -4,7 +4,7 @@ import { getPlaces } from "@/lib/data";
 import { shrimpPotArt } from "@/lib/og/art";
 import { ogFonts } from "@/lib/og/font";
 
-export const alt = "새우맵 — 서울 새우구이 지도";
+export const alt = "새우맵 — 전국 새우구이 지도";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

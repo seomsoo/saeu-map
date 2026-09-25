@@ -10,7 +10,7 @@ import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
  * **서버 전용**: siteUrl()이 t3-env server 변수를 읽는다(클라이언트 컴포넌트에서 import 금지).
  */
 export const SITE_NAME = "새우맵";
-export const SITE_DESCRIPTION = "서울 새우구이 지도. 다녀온 사람들의 확인과 제보로 갱신돼요";
+export const SITE_DESCRIPTION = "전국 새우구이 지도. 다녀온 사람들의 확인과 제보로 갱신돼요";
 /**
  * 실서비스 도메인 `새우맵.kr`(2026-09-17). 기계용 표기는 퓨니코드 `xn--r02bv8jvof.kr` — canonical·og:url·sitemap·콜백 URL은 이걸 쓴다
  * (URL 객체가 어차피 이 형태로 바꾼다). 사람에게 보여 주는 링크(공유·복사)만 `displayOrigin`으로 한글 표기.

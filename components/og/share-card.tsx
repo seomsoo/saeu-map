@@ -142,7 +142,7 @@ export function ShareCard(props: ShareCardProps) {
           {props.menu && <Text size={36} color={INK} style={oneLine}>{props.menu}</Text>}
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <Brand caption="서울 새우구이 지도" />
+          <Brand caption="전국 새우구이 지도" />
           <PinMotif category={props.category} />
         </div>
       </div>
@@ -158,7 +158,7 @@ export function ShareCard(props: ShareCardProps) {
           {props.names && <Text size={28} color={GRAY_500} style={oneLine}>{props.names}</Text>}
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <Brand caption="서울 새우구이 지도" />
+          <Brand caption="전국 새우구이 지도" />
           {/* 0곳인 구에 "0" 클러스터는 말이 안 된다 — 모티프 없이 */}
           {props.count > 0 && <ClusterMotif count={props.count} />}
         </div>
@@ -175,7 +175,7 @@ export function ShareCard(props: ShareCardProps) {
           <Text size={32} color={GRAY_600} style={oneLine}>{props.sub}</Text>
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <Brand caption="서울 새우구이 지도" />
+          <Brand caption="전국 새우구이 지도" />
           {props.score === undefined ? (
             // 유형 캐릭터는 정사각 400이라 루트 카드(200×190)보다 크게 앉힌다 — 공유 카드의 주인공이다
             // eslint-disable-next-line @next/next/no-img-element -- satori는 next/image를 모른다
@@ -190,7 +190,7 @@ export function ShareCard(props: ShareCardProps) {
   return (
     <div style={root}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <Text size={28} color={GRAY_600}>서울 새우구이 지도</Text>
+        <Text size={28} color={GRAY_600}>전국 새우구이 지도</Text>
         <Text size={96} weight={700}>새우맵</Text>
         <Text size={36} color={GRAY_600}>다녀온 사람들의 확인과 제보로 갱신돼요</Text>
       </div>

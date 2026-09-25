@@ -11,7 +11,7 @@
 - DB(로컬 Docker Supabase): `pnpm db:start` / `pnpm db:reset`(마이그레이션 + seed) / `pnpm db:test`(pgTAP RLS 테스트) / `pnpm db:advisors`(0건이 기준) / `pnpm db:types`(→ lib/db/database.types.ts). 스키마 변경은 `supabase/migrations/`에 파일로만.
 - dev 전용 상태 토글: `/?mock=error` → 라우트 에러 화면(app/error.tsx). production에선 무시.
 
-서울 새우구이 지도. 모바일 퍼스트 웹. 상세 스펙은 docs/를 먼저 읽어라:
+전국 새우구이 지도. 모바일 퍼스트 웹. 상세 스펙은 docs/를 먼저 읽어라:
 - docs/spec.md — 통합 기획서 (모든 제품 결정과 이유)
 - docs/design.md — 화면별 레이아웃·스타일 스펙 + 디자인 토큰 표
 - docs/decisions.md — 결정 로그 (여기 없는 결정은 미정이다. 임의로 정하지 말고 물어라)
