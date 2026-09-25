@@ -9,6 +9,7 @@ import { OutlineButton } from "@/components/ui/outline-button";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIncrementalList } from "@/components/ui/use-incremental-list";
 import { assertNever } from "@/lib/assert-never";
 import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
 import type {
@@ -151,6 +152,8 @@ export function PlaceSheet({
   const isReport = mode === "report";
   const isMe = mode === "me";
   const panel = isDetail || isReport || isMe;
+  // 카드는 30장씩 — 헤더의 "N곳"은 전체(count), 보이는 카드만 점진(plan perf-diet B2)
+  const { visible, done, sentinelRef } = useIncrementalList(places);
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
@@ -235,7 +238,7 @@ export function PlaceSheet({
           <>
             {/* 카드 사이는 헤어라인이 아니라 여백으로 나눈다 (design 화면 1 카드, 2026-09-08) */}
             <ul aria-label="가게 목록" className="pb-safe-bottom-or-3">
-              {places.map((place) => (
+              {visible.map((place) => (
                 <PlaceCard
                   key={place.id}
                   place={place}
@@ -248,6 +251,8 @@ export function PlaceSheet({
                   onToggleBookmark={onToggleBookmark}
                 />
               ))}
+              {/* 끝 감시 요소 — 600px 앞에서 다음 30장을 붙인다. 다 그리면 없어진다 */}
+              {!done && <li ref={sentinelRef} aria-hidden="true" className="h-px" />}
             </ul>
             {/* 목록 끝 제보 CTA — 다 훑고 "여긴 없네" 하는 순간이 제보 동기가 가장 높다.
                 데스크탑만: 모바일은 FAB 줄의 [＋ 제보]가 그 자리다(채운 레드는 화면당 한 곳) */}

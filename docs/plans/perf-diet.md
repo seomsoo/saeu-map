@@ -102,6 +102,10 @@ Playwright 390×702 콜드(같은 날, 위 실측 표): 폰트 요청 19 · SDK 
 | A2 | 폰트 immutable → `public/_headers`, `next.config` `headers()` 삭제, decisions 09-01 정정·runbook 3절 | 폰트 조각 Cache-Control `max-age=0, must-revalidate` → `max-age=31536000, immutable` — **배포 뒤 prod에서 확인**(로컬 next start는 `_headers`를 안 본다). 재방문 조건부 요청 19 → 0 예상 | 코드 변화 없음. 발화는 배포 뒤 `curl -I` |
 | A3 | 세션을 `loadMapScreenData`의 `Promise.all`에 넣어 `SessionProvider` `initialSession`으로 — 첫 로드 `getSession()` POST 생략 | 첫 로드의 같은 origin POST **1 → 0**(페이지뷰당 워커 호출 1회·~0.3s), 프로필 아이콘 "아직 모름" 구간 0 — **배포 뒤 Playwright로 확인** | session.test 11(+1: 초기값이 있으면 getSession 미호출·갱신은 그대로) |
 | A4 | `/place/[id]`에서 상세와 지도 데이터를 `Promise.all` | 상세 TTFB 기준선 1.16s → **배포 뒤 프로브** | notFound·permanentRedirect 경로 그대로(둘 다 기다린 뒤 판정) |
+| A5 | `NaverMapProvider` 렌더에서 `preconnect`+`preload(SDK)` — SSR이 head에 `<link>`를 넣는다. 주소는 `lib/naver-sdk.ts`, 테스트가 react-naver-maps `buildUrl`과 대조 | SDK 요청 시작 3.3s(하이드레이션 뒤) → **HTML 파싱 직후** — 배포 뒤 Playwright로 시작 시각·요청 1회 확인 | naver-sdk.test 2. 타일 호스트(pstatic)는 규칙 3 도메인이라 코드에 안 둔다 |
+| A6 | `react-hook-form`·`@hookform/resolvers` 제거(import 0건) | 번들 변화 0 | lock 갱신, 테스트 그대로 |
+| B3ⓐ | `/photos` 라우트에 Cache API(`caches.default`) — 히트면 R2를 안 읽고, 저장은 `waitUntil` | 같은 콜로 재요청 TTFB ~1s → **캐시 히트** — 배포 뒤 `curl` 2회로 확인(지금 prod 사진은 404라 새 업로드 뒤) | `next dev`엔 `caches`가 없어 그대로 R2. 유닛 테스트 없음(워커 전용) |
+| B2 | `useIncrementalList` — 시트 카드 30장 + 끝 감시 `li`(600px 앞에서 30장씩) | 첫 화면 `li` 281 → **≤31** — 배포 뒤 Playwright DOM 수 | 훅 테스트 4(늘림·짧은 목록·목록 교체 시 리셋·IO 없으면 전부). map-screen 테스트는 jsdom(IO 없음)이라 전부 그리는 경로 |
 
 ## 검증
 
