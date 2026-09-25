@@ -102,6 +102,25 @@ describe("SessionProvider — 세션 로드, 로그인 게이트(Promise), 로�
     expect(data.getSession).toHaveBeenCalledTimes(1);
   });
 
+  it("서버가 세션을 내려주면(initialSession) 처음부터 그 세션이고 getSession을 부르지 않는다 — plan perf-diet A3", async () => {
+    data.getSession.mockClear(); // restoreAllMocks는 vi.fn()의 호출 기록을 지우지 않는다 — 앞 테스트의 1회가 남는다
+    render(
+      <SessionProvider initialSession={KAKAO}>
+        <Consumer />
+      </SessionProvider>,
+    );
+    await act(async () => {});
+    expect(sessionText()).toBe("kakao:새우헌터");
+    expect(data.getSession).not.toHaveBeenCalled();
+    // 그 뒤의 변화는 여전히 갱신으로 맞춘다
+    data.getSession.mockResolvedValue(ANON);
+    fireEvent.click(screen.getByRole("button", { name: "세션 갱신" }));
+    await waitFor(() => {
+      expect(sessionText()).toBe("anonymous:");
+    });
+    expect(data.getSession).toHaveBeenCalledTimes(1);
+  });
+
   it("첫 로드는 익명. 게이트를 열면 시트 + 오버레이 엔트리, [나중에 할게요]면 false", async () => {
     renderConsumer();
     await waitFor(() => {

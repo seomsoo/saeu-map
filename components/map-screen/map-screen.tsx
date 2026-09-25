@@ -21,6 +21,7 @@ import type {
   Place,
   PlaceDetail as PlaceDetailData,
   SeasonStats,
+  Session,
 } from "@/lib/types";
 import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
@@ -37,6 +38,8 @@ export interface MapScreenProps {
   stats: SeasonStats;
   eventCard: EventCardData | null;
   bookmarkedIds: string[];
+  /** 서버가 쿠키로 읽은 세션 — 페이지 세 곳은 늘 준다(lib/map-screen-data). 없으면(테스트) SessionProvider가 마운트 때 읽는다 */
+  session?: Session | undefined;
   /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
   initialPlaceId?: string | undefined;
   /** 서버가 함께 내려준 상세(리뷰 포함) — SSR HTML에 상세가 들어가고 클라이언트 재요청이 없다 */
@@ -60,7 +63,7 @@ function reloadPage() {
  */
 export default function MapScreen(props: MapScreenProps) {
   return (
-    <SessionProvider>
+    <SessionProvider initialSession={props.session}>
       <MapScreenBody {...props} />
     </SessionProvider>
   );
