@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { BottomSheet, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -152,8 +152,10 @@ export function PlaceSheet({
   const isReport = mode === "report";
   const isMe = mode === "me";
   const panel = isDetail || isReport || isMe;
-  // 카드는 30장씩 — 헤더의 "N곳"은 전체(count), 보이는 카드만 점진(plan perf-diet B2)
-  const { visible, done, sentinelRef } = useIncrementalList(places);
+  // 카드는 30장씩 — 헤더의 "N곳"은 전체(count), 보이는 카드만 점진(plan perf-diet B2).
+  // 리셋 키는 id 순서다: 찜 토글·지도 idle은 내용이 같은 새 배열을 만들므로 identity로 리셋하면 스크롤 위치가 잘린다(reviewer P2)
+  const listKey = useMemo(() => places.map((p) => p.id).join("\n"), [places]);
+  const { visible, done, sentinelRef } = useIncrementalList(places, listKey);
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">

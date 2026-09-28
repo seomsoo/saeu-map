@@ -30,7 +30,8 @@ export async function GET(request: Request, context: { params: Promise<{ key: st
   });
   if (edge) {
     const { ctx } = (await getCloudflareContext({ async: true })) as { ctx: { waitUntil(promise: Promise<unknown>): void } };
-    ctx.waitUntil(edge.put(cacheKey.toString(), response.clone()));
+    // put은 본문이 너무 크거나 캐시 금지 헤더면 reject한다(Cloudflare 문서) — 응답은 이미 나갔으니 조용히(reviewer 2026-09-25 P3)
+    ctx.waitUntil(edge.put(cacheKey.toString(), response.clone()).catch(() => undefined));
   }
   return response;
 }

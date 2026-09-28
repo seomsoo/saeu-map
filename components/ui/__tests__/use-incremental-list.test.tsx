@@ -24,7 +24,7 @@ function reachEnd() {
 }
 
 function List({ items, step }: { items: readonly string[]; step?: number }) {
-  const { visible, done, sentinelRef } = useIncrementalList(items, step);
+  const { visible, done, sentinelRef } = useIncrementalList(items, items.join("\n"), step);
   return (
     <ul aria-label="목록">
       {visible.map((v) => (
@@ -72,6 +72,15 @@ describe("useIncrementalList — 처음 step장, 끝이 보이면 step장씩 더
     rerender(<List items={items(50, "집")} step={30} />);
     expect(shown()).toBe(30);
     expect(screen.getByText("집1")).toBeInTheDocument();
+  });
+
+  it("같은 id 순서의 새 배열(찜 토글·지도 idle)이면 한도를 유지한다 — reviewer P2", () => {
+    const first = items(70);
+    const { rerender } = render(<List items={first} step={30} />);
+    reachEnd();
+    expect(shown()).toBe(60);
+    rerender(<List items={[...first]} step={30} />); // 내용 같고 identity만 다르다
+    expect(shown()).toBe(60);
   });
 
   it("IntersectionObserver가 없으면 전부 그린다", () => {
