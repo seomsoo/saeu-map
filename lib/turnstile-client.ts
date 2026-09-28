@@ -41,6 +41,11 @@ function waitForApi(): Promise<TurnstileApi> {
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const tick = () => {
+      // 문서가 내려간 뒤(테스트 환경 정리·페이지 이탈)에도 타이머가 살아 window를 만지면 미처리 오류가 된다 — 조용히 접는다(CI 2026-09-24)
+      if (typeof window === "undefined" || typeof document === "undefined") {
+        reject(new Error("turnstile host gone"));
+        return;
+      }
       const api = window.turnstile;
       if (api) resolve(api);
       else if (Date.now() - started > SCRIPT_TIMEOUT_MS) reject(new Error("turnstile script missing"));
