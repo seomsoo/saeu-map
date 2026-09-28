@@ -205,3 +205,14 @@ describe("JSON-LD (plan seo-crawlability 2)", () => {
     });
   });
 });
+
+describe("구 미상(시드 변환기의 '미상') — 서울로 오인하지 않는다 (Codex PR #26 P2)", () => {
+  it("제목은 구 없이 '상호 · 새우구이', 라벨은 빈 문자열", () => {
+    expect(guFullLabel("미상")).toBe("");
+    expect(placeTitle({ ...nara, gu: "미상" })).toBe("나라수산 · 새우구이");
+  });
+  it("Restaurant 주소에 addressLocality·addressRegion을 넣지 않는다 — 도로명·국가만", () => {
+    const ld = placeJsonLd({ ...nara, gu: "미상", addressRoad: "꽃내음3길 55 1층" }, new URL("https://saeumap.example"), NOW);
+    expect(ld.address).toEqual({ "@type": "PostalAddress", streetAddress: "꽃내음3길 55 1층", addressCountry: "KR" });
+  });
+});

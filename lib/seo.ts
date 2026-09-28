@@ -88,15 +88,17 @@ export function placeOgImagePath(place: Pick<Place, "id" | "createdAt">, buildAt
   return prerendered ? `/og/place/${place.id}` : "/opengraph-image";
 }
 
-/** "서초구" · "부산 수영구" — `Place.gu`는 서울이면 구 이름만, 밖이면 "수영구(부산)"(decisions 2026-09-04). 검색 제목엔 시도를 앞에 */
+/** "서초구" · "부산 수영구" — `Place.gu`는 서울이면 구 이름만, 밖이면 "수영구(부산)"(decisions 2026-09-04). 검색 제목엔 시도를 앞에. 미상이면 빈 문자열 */
 export function guFullLabel(gu: string): string {
-  const { sido, sigungu } = splitGuLabel(gu);
-  return sido === "서울" ? sigungu : `${sido} ${sigungu}`;
+  const split = splitGuLabel(gu);
+  if (!split) return "";
+  return split.sido === "서울" ? split.sigungu : `${split.sido} ${split.sigungu}`;
 }
 
-/** 검색 결과 제목 "풍천가 서초직영점 · 서초구 새우구이" — 지역·카테고리 키워드(네이버). og:title은 상호만(카톡 카드) */
+/** 검색 결과 제목 "풍천가 서초직영점 · 서초구 새우구이" — 지역·카테고리 키워드(네이버). og:title은 상호만(카톡 카드). 구 미상이면 "상호 · 새우구이" */
 export function placeTitle(place: Place): string {
-  return `${place.name} · ${guFullLabel(place.gu)} ${TAG_LABELS[markerCategory(place.tags)]}`;
+  const area = guFullLabel(place.gu);
+  return `${place.name} · ${area ? `${area} ` : ""}${TAG_LABELS[markerCategory(place.tags)]}`;
 }
 
 export function placeMeta(place: Place, now: string): Metadata {
@@ -294,8 +296,12 @@ export function legalMeta(path: (typeof LEGAL_PATHS)[number], title: string, des
 
 /* ── JSON-LD (schema.org) — 순수 객체. components/seo/json-ld.tsx가 직렬화한다 (plan seo-crawlability 2) ──────── */
 
-/** `Place.gu` → 시도·시군구. 서울은 괄호가 없다("마포구"), 밖은 "수영구(부산)" (decisions 2026-09-04) */
-export function splitGuLabel(gu: string): { sido: string; sigungu: string } {
+/** 시드 변환기가 구를 못 정했을 때 넣는 값(scripts/convert_seed.py). "괄호 없으면 서울" 규칙의 예외 — 지역을 모른다 (Codex PR #26 P2) */
+export const UNKNOWN_GU = "미상";
+
+/** `Place.gu` → 시도·시군구. 서울은 괄호가 없다("마포구"), 밖은 "수영구(부산)" (decisions 2026-09-04). 미상이면 null */
+export function splitGuLabel(gu: string): { sido: string; sigungu: string } | null {
+  if (gu === UNKNOWN_GU) return null;
   const open = gu.indexOf("(");
   if (open === -1 || !gu.endsWith(")")) return { sido: "서울", sigungu: gu };
   return { sido: gu.slice(open + 1, -1), sigungu: gu.slice(0, open) };
@@ -324,7 +330,7 @@ export function siteJsonLd(base: URL) {
  */
 export function placeJsonLd(place: Place, base: URL, now: string) {
   const at = (path: string) => new URL(path, base).toString();
-  const { sido, sigungu } = splitGuLabel(place.gu);
+  const split = splitGuLabel(place.gu);
   return {
     "@context": "https://schema.org",
     "@type": "Restaurant",
@@ -335,8 +341,8 @@ export function placeJsonLd(place: Place, base: URL, now: string) {
     address: {
       "@type": "PostalAddress",
       ...(place.addressRoad !== null && { streetAddress: place.addressRoad }),
-      addressLocality: sigungu,
-      addressRegion: sido,
+      // 구 미상이면 시·구를 빼고 도로명·국가만 — "서울 미상"으로 거짓 표기하지 않는다(Codex PR #26 P2: 시드 3곳, 그중 1곳은 고양)
+      ...(split && { addressLocality: split.sigungu, addressRegion: split.sido }),
       addressCountry: "KR",
     },
     geo: { "@type": "GeoCoordinates", latitude: place.lat, longitude: place.lng },
