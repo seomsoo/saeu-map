@@ -2,7 +2,7 @@ import type { Metadata, MetadataRoute } from "next";
 import { LEGAL_EFFECTIVE_DATE } from "./legal";
 import { guSlug, SEOUL_GU } from "./gu";
 import { PEEL_SLUGS, peelInvitePath, peelMatchPath, peelTypePath } from "./peel-test";
-import { checkLabel, primaryMenuLine, TAG_LABELS } from "./places";
+import { checkLabel, markerCategory, primaryMenuLine, TAG_LABELS } from "./places";
 import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
 
 /**
@@ -10,7 +10,22 @@ import type { PeelMatch, PeelTest, PeelType, Place } from "./types";
  * **서버 전용**: siteUrl()이 t3-env server 변수를 읽는다(클라이언트 컴포넌트에서 import 금지).
  */
 export const SITE_NAME = "새우맵";
-export const SITE_DESCRIPTION = "서울 새우구이 지도. 다녀온 사람들의 확인과 제보로 갱신돼요";
+export const SITE_DESCRIPTION = "전국 새우구이 지도. 다녀온 사람들의 확인과 제보로 갱신돼요";
+/**
+ * 모든 페이지의 `openGraph`에 스프레드한다. 페이지의 `openGraph`는 레이아웃 것을 **통째로** 덮어(Next는 얕은 병합)
+ * 상세·구·테스트·약관에 og:site_name·og:locale이 빠져 있었다(prod 실측 2026-09-25).
+ */
+const OG_BASE = { siteName: SITE_NAME, type: "website", locale: "ko_KR" } as const;
+/** 루트 공유 카드(app/opengraph-image.tsx). 홈·약관·배포 뒤 생긴 핀이 쓴다 — 파일 컨벤션은 페이지 `openGraph`에 덮이므로 명시 */
+const ROOT_OG_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE_NAME} — 전국 새우구이 지도` };
+
+/** 홈 — canonical·og:url이 없어 workers.dev 호스트·쿼리 변형이 중복 후보였다(prod 실측 2026-09-25). 제목은 레이아웃 기본(새우맵) */
+export function homeMeta(): Metadata {
+  return {
+    alternates: { canonical: "/" },
+    openGraph: { ...OG_BASE, title: SITE_NAME, description: SITE_DESCRIPTION, url: "/", images: [ROOT_OG_IMAGE] },
+  };
+}
 /**
  * 실서비스 도메인 `새우맵.kr`(2026-09-17). 기계용 표기는 퓨니코드 `xn--r02bv8jvof.kr` — canonical·og:url·sitemap·콜백 URL은 이걸 쓴다
  * (URL 객체가 어차피 이 형태로 바꾼다). 사람에게 보여 주는 링크(공유·복사)만 `displayOrigin`으로 한글 표기.
@@ -48,10 +63,13 @@ export function guPath(name: string): string {
   return `/gu/${encodeURIComponent(name)}`;
 }
 
-/** 핀 페이지 설명 한 줄: "마포구 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인" */
+/**
+ * 핀 페이지 설명 한 줄: "서울 마포구 마포대로 1 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인".
+ * 첫 조각은 **도로명 주소**(없는 제보 핀은 구) — 검색 스니펫·AI 답변의 1순위 지역 신호인데 HTML 본문엔 접힘 뒤라 없었다(2026-09-25).
+ */
 export function placeDescription(place: Place, now: string): string {
   return [
-    place.gu,
+    place.addressRoad ?? place.gu,
     ...place.tags.map((tag) => TAG_LABELS[tag]),
     primaryMenuLine(place),
     checkLabel(place, now),
@@ -70,18 +88,31 @@ export function placeOgImagePath(place: Pick<Place, "id" | "createdAt">, buildAt
   return prerendered ? `/og/place/${place.id}` : "/opengraph-image";
 }
 
+/** "서초구" · "부산 수영구" — `Place.gu`는 서울이면 구 이름만, 밖이면 "수영구(부산)"(decisions 2026-09-04). 검색 제목엔 시도를 앞에. 미상이면 빈 문자열 */
+export function guFullLabel(gu: string): string {
+  const split = splitGuLabel(gu);
+  if (!split) return "";
+  return split.sido === "서울" ? split.sigungu : `${split.sido} ${split.sigungu}`;
+}
+
+/** 검색 결과 제목 "풍천가 서초직영점 · 서초구 새우구이" — 지역·카테고리 키워드(네이버). og:title은 상호만(카톡 카드). 구 미상이면 "상호 · 새우구이" */
+export function placeTitle(place: Place): string {
+  const area = guFullLabel(place.gu);
+  return `${place.name} · ${area ? `${area} ` : ""}${TAG_LABELS[markerCategory(place.tags)]}`;
+}
+
 export function placeMeta(place: Place, now: string): Metadata {
   const description = placeDescription(place, now);
   const path = placePath(place);
   return {
-    title: place.name,
+    title: placeTitle(place),
     description,
     alternates: { canonical: path },
     openGraph: {
       title: place.name,
       description,
       url: path,
-      type: "website",
+      ...OG_BASE,
       images: [{ url: placeOgImagePath(place), width: 1200, height: 630, alt: `${place.name} 공유 카드` }],
     },
   };
@@ -98,7 +129,7 @@ export function guDescription(name: string, places: readonly Place[]): string {
     return `${name}에는 아직 등록된 새우구이 가게가 없어요. 아는 곳이 있다면 제보해주세요.`;
   }
   const top = [...places]
-    .sort((a, b) => b.checkCount - a.checkCount || a.name.localeCompare(b.name, "ko"))
+    .sort(byChecks)
     .slice(0, 3)
     .map((p) => p.name)
     .join(", ");
@@ -124,7 +155,7 @@ export function guMeta(name: string, places: readonly Place[]): Metadata {
       title,
       description,
       url: path,
-      type: "website",
+      ...OG_BASE,
       // 파일 컨벤션 대신 명시 — 한글 세그먼트의 프리렌더 이미지가 정적 서빙에서 404였다 (decisions 2026-09-07)
       ...(image && { images: [{ url: image, width: 1200, height: 630, alt: `${name} 새우구이 공유 카드` }] }),
     },
@@ -155,7 +186,7 @@ export function peelTestMeta(content: PeelTest): Metadata {
       title: content.title,
       description,
       url: "/test",
-      type: "website",
+      ...OG_BASE,
       ...peelOgImage("intro", `${content.title} 공유 카드`),
     },
   };
@@ -172,7 +203,7 @@ export function peelTypeMeta(type: PeelType): Metadata {
       title: type.name,
       description,
       url: path,
-      type: "website",
+      ...OG_BASE,
       ...peelOgImage(type.slug, `${type.name} 공유 카드`),
     },
   };
@@ -193,7 +224,7 @@ export function peelInviteMeta(type: PeelType): Metadata {
       title,
       description,
       url: peelInvitePath(type.slug),
-      type: "website",
+      ...OG_BASE,
       ...peelOgImage(`with-${type.slug}`, `${type.name} 궁합 신청 카드`),
     },
   };
@@ -210,7 +241,7 @@ export function peelMatchMeta(a: PeelType, b: PeelType, match: PeelMatch): Metad
       title,
       description,
       url: peelMatchPath(a.slug, b.slug),
-      type: "website",
+      ...OG_BASE,
       ...peelOgImage(`${a.slug}-${b.slug}`, "궁합 공유 카드"),
     },
   };
@@ -253,7 +284,106 @@ export function sitemapEntries(base: URL, places: readonly Place[], now: string)
 
 const LEGAL_PATHS = ["/privacy", "/terms"] as const;
 
-/** 약관·방침 메타 — 제목은 루트 템플릿(`%s | 새우맵`)이 붙인다. OG 카드는 루트 기본 */
+/** 약관·방침 메타 — 제목은 루트 템플릿(`%s | 새우맵`)이 붙인다. OG 카드는 루트 카드를 **명시**(파일 컨벤션은 여기 `openGraph`에 덮여 안 붙었다, prod 실측 2026-09-25) */
 export function legalMeta(path: (typeof LEGAL_PATHS)[number], title: string, description: string): Metadata {
-  return { title, description, alternates: { canonical: path }, openGraph: { title, description, url: path, type: "website" } };
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { ...OG_BASE, title, description, url: path, images: [ROOT_OG_IMAGE] },
+  };
+}
+
+/* ── JSON-LD (schema.org) — 순수 객체. components/seo/json-ld.tsx가 직렬화한다 (plan seo-crawlability 2) ──────── */
+
+/** 시드 변환기가 구를 못 정했을 때 넣는 값(scripts/convert_seed.py). "괄호 없으면 서울" 규칙의 예외 — 지역을 모른다 (Codex PR #26 P2) */
+export const UNKNOWN_GU = "미상";
+
+/** `Place.gu` → 시도·시군구. 서울은 괄호가 없다("마포구"), 밖은 "수영구(부산)" (decisions 2026-09-04). 미상이면 null */
+export function splitGuLabel(gu: string): { sido: string; sigungu: string } | null {
+  if (gu === UNKNOWN_GU) return null;
+  const open = gu.indexOf("(");
+  if (open === -1 || !gu.endsWith(")")) return { sido: "서울", sigungu: gu };
+  return { sido: gu.slice(open + 1, -1), sigungu: gu.slice(0, open) };
+}
+
+/** 확인 많은 순, 동률은 가나다 — 구 설명·구 카드·ItemList가 같은 순서를 쓴다 */
+export function byChecks(a: Place, b: Place): number {
+  return b.checkCount - a.checkCount || a.name.localeCompare(b.name, "ko");
+}
+
+/** 홈 — WebSite */
+export function siteJsonLd(base: URL) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: base.toString(),
+    description: SITE_DESCRIPTION,
+    inLanguage: "ko",
+  };
+}
+
+/**
+ * 상세 — Restaurant. 주소(PostalAddress)·좌표·카테고리·평점(리뷰 3개↑일 때만 `rating`이 있다)·네이버 플레이스(sameAs)·대표 사진.
+ * 영업시간은 자유 메모(`hoursNote`)라 openingHours로 못 만든다. 상호·메뉴는 유저 입력 — 직렬화 쪽이 `<`를 막는다.
+ */
+export function placeJsonLd(place: Place, base: URL, now: string) {
+  const at = (path: string) => new URL(path, base).toString();
+  const split = splitGuLabel(place.gu);
+  return {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: place.name,
+    url: at(placePath(place)),
+    description: placeDescription(place, now),
+    servesCuisine: place.tags.map((tag) => TAG_LABELS[tag]),
+    address: {
+      "@type": "PostalAddress",
+      ...(place.addressRoad !== null && { streetAddress: place.addressRoad }),
+      // 구 미상이면 시·구를 빼고 도로명·국가만 — "서울 미상"으로 거짓 표기하지 않는다(Codex PR #26 P2: 시드 3곳, 그중 1곳은 고양)
+      ...(split && { addressLocality: split.sigungu, addressRegion: split.sido }),
+      addressCountry: "KR",
+    },
+    geo: { "@type": "GeoCoordinates", latitude: place.lat, longitude: place.lng },
+    ...(place.thumbnailUrl !== null && { image: at(place.thumbnailUrl) }),
+    ...(place.rating && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: place.rating.average,
+        reviewCount: place.rating.count,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    }),
+    ...(place.naverPlaceUrl !== null && { sameAs: [place.naverPlaceUrl] }),
+  };
+}
+
+/** 구 — BreadcrumbList(홈 › 구) + ItemList(확인 많은 순 가게 전부). 배열 하나를 한 스크립트에 */
+export function guJsonLd(name: string, places: readonly Place[], base: URL) {
+  const at = (path: string) => new URL(path, base).toString();
+  const title = guTitle(name, places.length);
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: SITE_NAME, item: base.toString() },
+        { "@type": "ListItem", position: 2, name: title, item: at(guPath(name)) },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: title,
+      numberOfItems: places.length,
+      itemListElement: [...places].sort(byChecks).map((place, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: place.name,
+        url: at(placePath(place)),
+      })),
+    },
+  ];
 }

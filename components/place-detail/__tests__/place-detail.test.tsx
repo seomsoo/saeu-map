@@ -164,7 +164,9 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
 
     // 2. 상호 + 텍스트 태그 (닫기 ✕는 본문이 아니라 시트 헤더에 있다)
     const title = within(article).getByRole("heading", { level: 2, name: "나라수산" });
-    expect(within(article).getByText("새우구이 · 생새우회 · 마포구")).toBeInTheDocument();
+    const guLink = within(article).getByRole("link", { name: "마포구" });
+    expect(guLink).toHaveAttribute("href", "/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC");
+    expect(guLink.closest("p")).toHaveTextContent("새우구이 · 생새우회 · 마포구");
     expect(upload.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // 신선도는 상호 아래 캡션 (확인 줄 해체)
@@ -177,7 +179,7 @@ describe("PlaceDetail — 화면 2 순서 1~10", () => {
       name: "5호선 마포역 3번출구에서 240m",
     });
     expect(stationToggle).toHaveAttribute("aria-expanded", "false");
-    expect(within(article).queryByText("서울 마포구 마포대로12길 34")).toBeNull();
+    expect(within(article).getByText("서울 마포구 마포대로12길 34")).not.toBeVisible();
     fireEvent.click(stationToggle);
     const road = within(article).getByText("서울 마포구 마포대로12길 34");
     expect(
@@ -438,7 +440,7 @@ describe("정보 블록 — 최근접역 줄 + 접히는 주소", () => {
     const toggle = stationToggle(article, "5호선 마포역 3번출구에서 240m");
 
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(within(article).queryByText("서울 마포구 마포대로12길 34")).toBeNull();
+    expect(within(article).getByText("서울 마포구 마포대로12길 34")).not.toBeVisible();
     expect(within(article).queryByRole("button", { name: "주소 복사" })).toBeNull();
 
     fireEvent.click(toggle);
@@ -450,7 +452,7 @@ describe("정보 블록 — 최근접역 줄 + 접히는 주소", () => {
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(within(article).queryByText("서울 마포구 마포대로12길 34")).toBeNull();
+    expect(within(article).getByText("서울 마포구 마포대로12길 34")).not.toBeVisible();
     await settled();
   });
 

@@ -3,9 +3,11 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import MapScreen from "@/components/map-screen/map-screen";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getMergedPlaceTarget, getPlaceDetail } from "@/lib/data";
+import { env } from "@/lib/env";
 import { loadMapScreenData } from "@/lib/map-screen-data";
-import { placeMeta } from "@/lib/seo";
+import { placeJsonLd, placeMeta, siteUrl } from "@/lib/seo";
 
 interface PlacePageProps {
   // Next 16: params는 Promise. 생성형 PageProps 헬퍼는 .next/ 산출물이라 CI typecheck(빌드 전)에서 못 쓴다.
@@ -47,5 +49,10 @@ export default async function PlacePage({ params }: PlacePageProps) {
   if (!detail) notFound();
 
   const data = await loadMapScreenData(now);
-  return <MapScreen now={now} {...data} initialPlaceId={detail.place.id} initialDetail={detail} />;
+  return (
+    <>
+      <JsonLd data={placeJsonLd(detail.place, siteUrl(env.SITE_URL), now)} />
+      <MapScreen now={now} {...data} initialPlaceId={detail.place.id} initialDetail={detail} />
+    </>
+  );
 }

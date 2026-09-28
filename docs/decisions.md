@@ -282,7 +282,7 @@ Phase 3를 눌러 본 뒤 나온 지적 4건(계획 `docs/plans/phase3-report-fo
 - **전국 허용.** 경계 데이터를 두 파일로: 서울 25구(원본 해상도, DP 20m, 60KB)를 먼저 보고, 서울 밖일 때만 전국 226개 시군구 단순화본(`southkorea/southkorea-maps` KOSTAT 2013, Apache-2.0, 180KB)을 동적 import. 라벨은 서울 "마포구", 그 밖 `"{시군구}({시도 약칭})"`("김포시(경기)", "해운대구(부산)", "창원시 진해구(경남)") — 크롤러의 김포 표기와 같고 동구·남구 같은 중복 이름이 구별된다. 시도 약칭은 KOSTAT 코드 앞 두 자리 표. 한국 밖(바다)만 "한국 안의 위치만 제보할 수 있어요".
 - **전국 정밀도는 낮다.** 서울 밖 단순화본은 시군구 경계 근처 수백 m가 옆 시군구로 갈 수 있다(원본 55MB는 클라이언트에 실을 수 없다). 라벨은 "어느 동네냐"용이고 Phase 6 관리자가 고친다. API 호출 증가는 없다(전부 클라이언트 연산).
 - **[마리]의 "몇 마리" 입력은 칩 행 아래 TextField**(폭 128, 접미 "마리", 바로 포커스). 칩 행 오른쪽 끝에 두니 가로 스크롤 밖이라 보이지 않았다. 단위 칩 행은 **줄바꿈**으로 — 마지막 칩이 잘려 숨는 것이 발견성을 해쳤다.
-- CLAUDE.md의 "서울 새우구이 지도"는 제품 정체성이라 그대로 둔다. 시드는 서울(+김포 1곳), 제보만 전국을 받는다.
+- ~~CLAUDE.md의 "서울 새우구이 지도"는 제품 정체성이라 그대로 둔다.~~ → 2026-09-25 "전국 새우구이 지도"로 뒤집음(아래 항목). 시드는 서울(+김포 1곳), 제보만 전국을 받는다.
 
 ## 2026-09-04 — Codex PR #6 코멘트 5건: 늦은 비동기 완료 가드, 규칙 2 문구, 경계 프리페치
 
@@ -1012,3 +1012,20 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **제보 사진이 prod에서 떨어졌다 — 서버 액션 본문 1MB(2026-09-23, Sentry SAEU-MAP-8)**: 사진은 서버 액션 FormData로 올리는데 Next 기본 `bodySizeLimit`이 1MB라 폰 사진(3~6MB)이 파싱 전에 거부됐다. 가게는 별도 액션이라 생성됐고 사진만 0장. 로컬·프리뷰 머니패스는 작은 샘플 사진만 써서 못 잡았다 → **머니패스의 사진은 실제 폰 원본으로**(runbook 3d). 고침: `experimental.serverActions.bodySizeLimit: "32mb"` + 스키마에 한 번 합계 30MB 검사(`MAX_UPLOAD_BYTES`, 10장 × 10MB를 다 받으면 워커 메모리가 위험). 클라이언트 리사이즈(캔버스 → 1200px webp)는 본문을 수백 KB로 줄이는 근본 해법이라 런칭 뒤 백로그(→ 다음 날 #21에 같이 반영, 아래 09-24). **검수 대기 18곳은 숨긴 채 둔다**(사용자). 등록 체감 지연은 콜드 TTFB 1.3~6.3s(엣지 미국·DB 서울) + 쓰기 경로의 `await notifyAdmin` — Smart Placement·waitUntil 백로그와 한 묶음.
 - **사진은 폰에서 먼저 줄인다(2026-09-24, 사용자 즉시 결정)**: 원본을 그대로 보내던 구조가 1MB 상한 버그의 근본이라 `lib/image-shrink.ts`(캔버스 → 1200px webp 0.82, 웹 표준만, 실패 시 원본)를 `lib/data.ts`의 세 업로드 경로(제보·리뷰·상세 ＋타일) 앞에 둔다. 서버 Images 변환·상한(32MB·합계 30MB)은 그대로(규격 통일·EXIF 제거·뒷받침). Codex PR #21 2건 반영: 크기 검사는 **가게·리뷰를 만들기 전에**(제보 흐름은 문구 토스트 + 사진 단계 복귀), 리뷰 사진 액션도 공용 이미지 스키마. 플랜 docs/plans/photo-shrink.md.
 - **쓰기 체감 6~7초 → 1초(2026-09-24, PR #22 Turnstile 예비 토큰)**: 쓰기 화면이 열릴 때 챌린지를 미리 돌려 두니 prod 폰 수정 제안이 1초. 서버는 이미 `waitUntil`이라 변경 0. 같은 날 #21(폰에서 먼저 줄이기 + 본문 32MB)로 사진 2장이 900×1200 webp 149·272KB로 저장·서빙 확인, #23은 올린 직후 흰 타일(서버 사진을 `img.decode()`로 받아 둔 뒤 미리보기를 걷는다 — 잠금은 쓰기가 끝나면 바로, 미리보기 수명은 순번). 실제 가게(풍천가 서초직영점)에 올린 테스트 사진 2장은 관리자 액션과 같은 절차(DB `removed_at` + R2 삭제)로 지우고 다음 쓰기가 캐시를 풀었다. 머니패스 0-2·0-3 전부 완료.
+
+## 2026-09-25 — 정체성 문구 "서울 새우구이 지도" → "전국 새우구이 지도" (사용자 결정)
+- 2026-09-03의 "CLAUDE.md의 '서울 새우구이 지도'는 제품 정체성이라 그대로 둔다"를 뒤집는다. 시드가 부산·광주권까지 들어와(2026-09-10 지역 확장, ≈790곳) 서울만 가리키는 문구가 사실과 어긋났다. spec 1의 "정체성 문구·태그라인은 Phase 7 런칭 글과 함께 재확정"에 대한 답이다.
+- 바뀐 곳: `lib/seo.ts` SITE_DESCRIPTION(meta description·홈 og:description), `app/opengraph-image.tsx` alt, `components/og/share-card.tsx` 캡션 4곳(루트·핀·구·테스트 카드 — 빌드 시 생성이라 다음 배포에 반영), `app/terms/page.tsx` 1조, CLAUDE.md·spec 1·design 서비스 줄.
+- 그대로 둔 곳: 구 카드 eyebrow "서울"과 `/gu/` 25페이지·sitemap의 "서울 25구"는 사실 표기다(구 페이지는 서울만 있다). spec 1 태그라인 후보 "서울 새우구이 421곳"·spec 8 런칭 글 인용은 후보·인용문이라 손대지 않았다.
+
+## 2026-09-25 — SEO·GEO 보강: 카드는 링크, JSON-LD, 주소를 HTML에 (플랜 docs/plans/seo-crawlability.md)
+- **prod 실측에서 나온 것만 고쳤다.** 메타·OG·robots·sitemap·AI 봇 통과(GPTBot·ClaudeBot·PerplexityBot·Yeti 전부 200)는 이미 돼 있었고, 빠진 건 크롤러가 읽을 내용과 링크였다: 홈·구·상세 HTML에 `/place/`·`/gu/` `<a>` 0개, 상세 본문에 도로명 0건, ld+json 0건, 홈만 canonical 없음, 하위 페이지에 og:site_name·locale 없음, 약관 og:image 없음, 파비콘 32px.
+- **카드는 `<button>`이 아니라 `<a href="/place/[id]">`다.** 보통 클릭은 `preventDefault` + 시트 열기(URL은 훅이 이미 pushState로 같은 주소로 맞춘다), 수정키·가운데 클릭은 브라우저 기본(새 탭). `next/link`는 안 쓴다 — 뷰포트 프리페치가 카드 수만큼 워커를 깨운다. `draggable=false`, `aria-current="page"`. 테스트는 `getByRole("link")`. 상세 헤더의 구 이름은 `/gu/구` 링크(서울 25구만, 일반 `<a>` — 앱 내 history 상태기와 클라이언트 라우팅을 섞지 않는다).
+- **JSON-LD는 `<script>`의 텍스트 자식으로 넣는다 — 규칙 6(dangerouslySetInnerHTML 금지)은 그대로다.** React DOM은 script 자식을 이스케이프하지 않는다(`renderToStaticMarkup` 실측). 그래서 `components/seo/json-ld.tsx`가 JSON.stringify 뒤 `<`·`>`·`&`를 `<`·`>`·`&`으로 바꿔 `</script>` 탈출을 막는다(상호는 유저 입력). 테스트가 `</script>` 상호를 고정한다. 서버 컴포넌트에서만 렌더. 데이터는 `lib/seo.ts` 순수 객체 — 홈 WebSite · 상세 Restaurant(PostalAddress·GeoCoordinates·servesCuisine·aggregateRating은 리뷰 3개↑만·sameAs 네이버) · 구 BreadcrumbList+ItemList.
+- **상세 제목 "상호 · ○○구 새우구이", 설명 첫 조각은 도로명 주소(없는 제보 핀은 구).** og:title은 상호만(카톡 카드). 서울 밖은 "부산 수영구"(`guFullLabel`). 접힌 주소 블록은 DOM에 두고 `hidden` — 보이는 건 같고 크롤러는 읽는다.
+- **`openGraph` 공통 조각(`OG_BASE`)을 모든 메타에 스프레드.** 페이지의 `openGraph`는 레이아웃 것을 통째로 덮는다(Next는 얕은 병합) — 그래서 site_name·locale이 빠졌고, 같은 이유로 약관의 루트 카드(파일 컨벤션)도 안 붙었다 → `ROOT_OG_IMAGE`를 명시. 홈은 `homeMeta()`로 canonical `/`·og:url.
+- **홈 HTML엔 여전히 가게 링크가 0개다.** 목록은 지도 idle 뒤 뷰포트로 채워지므로 SSR엔 카드가 없다. 링크 그래프는 sitemap → `/gu/` 25페이지(카드 링크) → 상세(구 링크)로 잇는다. 홈에서 구로 가는 자리(예: 목록 끝 "지역별 보기")는 D1c "지도 앱이라 푸터가 없다"와 부딪혀 **미정 — 사용자 결정 필요**. 홈 페이로드·본문 텍스트는 perf-diet B1.
+- **안 한 것(이미 결정)**: www 리다이렉트(D8 보류), workers.dev 중복(홈 canonical로 해소 — 프록시 리다이렉트는 요청마다 워커 CPU), 푸터(D1c), manifest·llms.txt·favicon.ico, `maximum-scale=1`(지도 앱 핀치 충돌 방지로 보고 둔다 — 근거 기록은 없다).
+- 파비콘 `app/icon1.png` 96px(shrimp.webp 알파 원본에서 sips) — 구글 검색결과 권장 48px 이상. 32px는 탭용으로 유지. `viewport.themeColor` `#ffffff`(`--color-common-0`).
+- turnstile 폴링 teardown 픽스(7ffec0a)는 처음엔 이 브랜치에 cherry-pick했으나 #25로 main에 먼저 들어가 리베이스(2026-09-29)에서 빠졌다.
+- **구 "미상"은 서울이 아니다(Codex PR #26 P2, 2026-09-29)**: 시드 변환기(`scripts/convert_seed.py`)가 주소에 시·구가 없으면 `gu`를 `"미상"`으로 넣는데, "괄호 없으면 서울" 규칙이 그걸 서울로 읽어 JSON-LD가 `서울/미상`, 검색 제목이 "상호 · 미상 새우구이"로 나갔다. `lib/seo.ts UNKNOWN_GU` — 미상이면 시·구 필드를 빼고(도로명·국가만) 제목은 "상호 · 새우구이". 시드의 3곳은 지번으로 확인해 정정했다(노인과새우 서울대점 → 관악구, 대하 → 용산구, 향동 새우에서 방어까지 → 고양시(경기)). **prod DB도 같은 값으로 고쳤다(2026-09-29, `supabase db query --linked --project-ref …` — 링크·비밀번호 없이 Management API로 실행된다)** — 그 뒤 세 가게에 다녀왔어요 1회씩(또는 아무 쓰기)으로 `places`·`place:<id>` 캐시 태그를 갱신한다(관리자 UI에 구 수정은 없다).

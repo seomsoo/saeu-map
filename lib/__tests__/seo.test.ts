@@ -6,12 +6,19 @@ import {
   DEFAULT_SITE_URL,
   displayOrigin,
   guDescription,
+  guFullLabel,
+  guJsonLd,
+  homeMeta,
   isPreviewHost,
   guMeta,
   guTitle,
+  legalMeta,
   placeDescription,
+  placeJsonLd,
   placeMeta,
   placeOgImagePath,
+  placeTitle,
+  siteJsonLd,
   siteUrl,
   sitemapEntries,
 } from "../seo";
@@ -28,16 +35,37 @@ const nara = makePlace({
 });
 
 describe("핀 페이지 메타 (spec 4.6)", () => {
-  it("설명은 구 · 카테고리 · 대표 메뉴 · 확인 라벨", () => {
+  it("설명은 도로명 주소 · 카테고리 · 대표 메뉴 · 확인 라벨 — 주소 없는 제보 핀은 구", () => {
     expect(placeDescription(nara, NOW)).toBe(
+      "서울 마포구 마포대로 1 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인",
+    );
+    expect(placeDescription({ ...nara, addressRoad: null }, NOW)).toBe(
       "마포구 · 새우구이 · 생새우회 · 생새우소금구이 1kg 60,000원 · 어제 확인",
     );
   });
-  it("제목은 상호(템플릿이 ' | 새우맵'을 붙인다), canonical·og:url은 /place/[id]", () => {
+  it("제목은 '상호 · 구 카테고리'(템플릿이 ' | 새우맵'을 붙인다), og:title은 상호만, canonical·og:url은 /place/[id]", () => {
     const meta = placeMeta(nara, NOW);
-    expect(meta.title).toBe("나라수산");
+    expect(meta.title).toBe("나라수산 · 마포구 새우구이");
     expect(meta.alternates?.canonical).toBe("/place/nara");
-    expect(meta.openGraph).toMatchObject({ title: "나라수산", url: "/place/nara" });
+    expect(meta.openGraph).toMatchObject({ title: "나라수산", url: "/place/nara", siteName: "새우맵", locale: "ko_KR" });
+  });
+  it("서울 밖은 시도를 앞에, 회만 파는 집은 생새우회", () => {
+    expect(guFullLabel("수영구(부산)")).toBe("부산 수영구");
+    expect(guFullLabel("서초구")).toBe("서초구");
+    expect(placeTitle({ ...nara, gu: "수영구(부산)", tags: ["raw"] })).toBe("나라수산 · 부산 수영구 생새우회");
+  });
+});
+
+describe("홈·약관 메타 (prod 실측 2026-09-25 — canonical·og:image가 빠져 있었다)", () => {
+  it("홈은 canonical '/' + og:url + 루트 카드", () => {
+    const meta = homeMeta();
+    expect(meta.alternates?.canonical).toBe("/");
+    expect(meta.openGraph).toMatchObject({ url: "/", siteName: "새우맵", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] });
+  });
+  it("약관·방침은 루트 카드를 명시한다(파일 컨벤션은 페이지 openGraph에 덮인다)", () => {
+    const meta = legalMeta("/privacy", "개인정보처리방침", "설명");
+    expect(meta.alternates?.canonical).toBe("/privacy");
+    expect(meta.openGraph).toMatchObject({ url: "/privacy", siteName: "새우맵", images: [{ url: "/opengraph-image" }] });
   });
 });
 
@@ -107,5 +135,84 @@ describe("sitemap · 사이트 URL", () => {
     expect(displayOrigin("https://preview-saeu-map.saeu-map.workers.dev")).toBe("https://preview-saeu-map.saeu-map.workers.dev");
     expect(displayOrigin("http://localhost:3000")).toBe("http://localhost:3000");
     expect(DEFAULT_SITE_URL).toBe("https://xn--r02bv8jvof.kr");
+  });
+});
+
+describe("JSON-LD (plan seo-crawlability 2)", () => {
+  const base = new URL("https://saeumap.example");
+  it("홈은 WebSite", () => {
+    expect(siteJsonLd(base)).toMatchObject({ "@type": "WebSite", name: "새우맵", url: "https://saeumap.example/" });
+  });
+  it("상세는 Restaurant — 주소·좌표·카테고리, 평점·네이버 링크·사진은 있을 때만", () => {
+    const ld = placeJsonLd(nara, base, NOW);
+    expect(ld).toMatchObject({
+      "@type": "Restaurant",
+      name: "나라수산",
+      url: "https://saeumap.example/place/nara",
+      servesCuisine: ["새우구이", "생새우회"],
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "서울 마포구 마포대로 1",
+        addressLocality: "마포구",
+        addressRegion: "서울",
+        addressCountry: "KR",
+      },
+      geo: { "@type": "GeoCoordinates", latitude: 37.54, longitude: 126.95 },
+    });
+    expect(ld).not.toHaveProperty("aggregateRating");
+    expect(ld).not.toHaveProperty("sameAs");
+    expect(ld).not.toHaveProperty("image");
+    const rated = placeJsonLd(
+      {
+        ...nara,
+        gu: "수영구(부산)",
+        addressRoad: null,
+        rating: { count: 4, average: 4.5 },
+        naverPlaceUrl: "https://map.naver.com/p/1",
+        thumbnailUrl: "/photos/a.webp",
+      },
+      base,
+      NOW,
+    );
+    expect(rated).toMatchObject({
+      address: { addressLocality: "수영구", addressRegion: "부산" },
+      aggregateRating: { ratingValue: 4.5, reviewCount: 4, bestRating: 5 },
+      sameAs: ["https://map.naver.com/p/1"],
+      image: "https://saeumap.example/photos/a.webp",
+    });
+    expect(rated.address).not.toHaveProperty("streetAddress");
+  });
+  it("구는 빵부스러기 + 확인 많은 순 ItemList", () => {
+    const [crumbs, list] = guJsonLd(
+      "마포구",
+      [nara, makePlace({ id: "a", name: "가나수산", gu: "마포구", checkCount: 9 })],
+      base,
+    );
+    expect(crumbs).toMatchObject({
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { position: 1, item: "https://saeumap.example/" },
+        { position: 2, name: "마포구 새우구이 2곳", item: "https://saeumap.example/gu/%EB%A7%88%ED%8F%AC%EA%B5%AC" },
+      ],
+    });
+    expect(list).toMatchObject({
+      "@type": "ItemList",
+      numberOfItems: 2,
+      itemListElement: [
+        { position: 1, name: "가나수산", url: "https://saeumap.example/place/a" },
+        { position: 2, name: "나라수산" },
+      ],
+    });
+  });
+});
+
+describe("구 미상(시드 변환기의 '미상') — 서울로 오인하지 않는다 (Codex PR #26 P2)", () => {
+  it("제목은 구 없이 '상호 · 새우구이', 라벨은 빈 문자열", () => {
+    expect(guFullLabel("미상")).toBe("");
+    expect(placeTitle({ ...nara, gu: "미상" })).toBe("나라수산 · 새우구이");
+  });
+  it("Restaurant 주소에 addressLocality·addressRegion을 넣지 않는다 — 도로명·국가만", () => {
+    const ld = placeJsonLd({ ...nara, gu: "미상", addressRoad: "꽃내음3길 55 1층" }, new URL("https://saeumap.example"), NOW);
+    expect(ld.address).toEqual({ "@type": "PostalAddress", streetAddress: "꽃내음3길 55 1층", addressCountry: "KR" });
   });
 });

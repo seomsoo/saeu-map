@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import MapScreen from "@/components/map-screen/map-screen";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getGuCenter, getPlaces } from "@/lib/data";
+import { env } from "@/lib/env";
 import { SEOUL_CENTER } from "@/lib/geo";
 import { isSeoulGu } from "@/lib/gu";
 import { loadMapScreenData } from "@/lib/map-screen-data";
-import { guMeta } from "@/lib/seo";
+import { guJsonLd, guMeta, siteUrl } from "@/lib/seo";
 
 interface GuPageProps {
   params: Promise<{ name: string }>;
@@ -43,5 +45,11 @@ export default async function GuPage({ params }: GuPageProps) {
   await connection();
   const now = new Date().toISOString();
   const [data, center] = await Promise.all([loadMapScreenData(now), getGuCenter(gu)]);
-  return <MapScreen now={now} {...data} initialGu={{ name: gu, center: center ?? SEOUL_CENTER }} />;
+  return (
+    <>
+      {/* 빵부스러기 + 이 구의 가게 목록(ItemList). 전체 목록에서 구로 거른다 — generateMetadata의 getPlaces({ gu })와 같은 집합 */}
+      <JsonLd data={guJsonLd(gu, data.places.filter((place) => place.gu === gu), siteUrl(env.SITE_URL))} />
+      <MapScreen now={now} {...data} initialGu={{ name: gu, center: center ?? SEOUL_CENTER }} />
+    </>
+  );
 }

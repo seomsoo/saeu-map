@@ -106,8 +106,12 @@ function LocationGroup({
             />
           </button>
         )}
-        {(station === null || open) && place.addressRoad !== null && (
-          <div className={cx("flex items-start gap-3", station !== null && "mt-0.5")}>
+        {/* 접힌 상태에도 DOM에 둔다(`hidden`) — 크롤러·AI가 읽을 도로명이 HTML에 있어야 한다(plan seo-crawlability 3). 보이는 건 같다 */}
+        {place.addressRoad !== null && (
+          <div
+            hidden={station !== null && !open}
+            className={cx("flex items-start gap-3", station !== null && "mt-0.5")}
+          >
             <div className="min-w-0 flex-1">
               <p className="text-body-m-regular text-fg-secondary">{place.addressRoad}</p>
               {place.addressJibun !== null && (

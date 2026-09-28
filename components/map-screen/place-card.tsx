@@ -158,7 +158,7 @@ export const PlaceCard = memo(function PlaceCard({
   onToggleBookmark,
 }: PlaceCardProps) {
   const ref = useRef<HTMLLIElement | null>(null);
-  const hover = (id: string | null) => (e: ReactPointerEvent<HTMLButtonElement>) => {
+  const hover = (id: string | null) => (e: ReactPointerEvent<HTMLAnchorElement>) => {
     if (e.pointerType === "mouse") onHoverChange?.(id);
   };
 
@@ -174,12 +174,18 @@ export const PlaceCard = memo(function PlaceCard({
 
   return (
     <li ref={ref} data-place-id={place.id} className="relative px-3 py-1">
-      <button
-        type="button"
-        onClick={() => {
+      {/* 카드는 **링크**다(plan seo-crawlability 3) — HTML에 /place/[id]가 있어야 크롤러가 따라간다(전에는 button이라 내부 링크 0개).
+          보통 클릭은 기본 동작을 막고 앱 안에서 연다(URL은 훅이 pushState로 같은 주소로 맞춘다). 수정키·가운데 클릭은 브라우저에 맡겨 새 탭.
+          next/link가 아닌 이유: 뷰포트 프리페치가 카드 수만큼(수백) 워커를 깨운다. draggable=false — 목록 드래그가 링크 드래그가 되지 않게 */}
+      <a
+        href={`/place/${encodeURIComponent(place.id)}`}
+        draggable={false}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
           onSelect(place.id);
         }}
-        aria-current={selected ? "true" : undefined}
+        aria-current={selected ? "page" : undefined}
         aria-label={`${place.name}, ${place.gu}`}
         onPointerEnter={onHoverChange && hover(place.id)}
         onPointerLeave={onHoverChange && hover(null)}
@@ -228,7 +234,7 @@ export const PlaceCard = memo(function PlaceCard({
             </span>
           </span>
         )}
-      </button>
+      </a>
       {trailing !== undefined && (
         <div className="absolute top-1/2 right-5 -translate-y-1/2">{trailing}</div>
       )}

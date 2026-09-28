@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { makeMenu, makePlace } from "@/lib/__tests__/fixtures";
 import { PlaceCard } from "../place-card";
 
@@ -147,17 +147,33 @@ describe("PlaceCard", () => {
     );
   });
 
-  it("탭하면 onSelect(id), 선택되면 aria-current", () => {
+  it("탭하면 onSelect(id), 선택되면 aria-current=page", () => {
     const { place, onSelect, unmount } = renderCard();
-    fireEvent.click(screen.getByRole("button", { name: /나라수산/ }));
+    fireEvent.click(screen.getByRole("link", { name: /나라수산/ }));
     expect(onSelect).toHaveBeenCalledWith(place.id);
     unmount();
 
     renderCard({ selected: true });
-    expect(screen.getByRole("button", { name: /나라수산/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /나라수산/ })).toHaveAttribute(
       "aria-current",
-      "true",
+      "page",
     );
+  });
+
+  it("카드는 링크다 — href는 /place/[id], 보통 클릭은 기본 동작을 막고 앱 안에서 열며, 수정키 클릭은 브라우저에 맡긴다(새 탭) (plan seo-crawlability 3)", () => {
+    const { place, onSelect } = renderCard();
+    const card = screen.getByRole("link", { name: "나라수산, 마포구" });
+    expect(card).toHaveAttribute("href", `/place/${place.id}`);
+    expect(card).toHaveAttribute("draggable", "false");
+    const plain = createEvent.click(card);
+    fireEvent(card, plain);
+    expect(plain.defaultPrevented).toBe(true);
+    expect(onSelect).toHaveBeenCalledWith(place.id);
+    onSelect.mockClear();
+    const withMeta = createEvent.click(card, { metaKey: true });
+    fireEvent(card, withMeta);
+    expect(withMeta.defaultPrevented).toBe(false);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });
 
@@ -175,7 +191,7 @@ describe("PlaceCard trailing — 카드 오른쪽 액션(내 활동 찜 탭의 �
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
     // 카드 버튼 안에 버튼이 들어가지 않는다 (a11y: 중첩 인터랙티브 금지)
-    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+    const card = screen.getByRole("link", { name: "나라수산, 마포구" });
     expect(card.querySelector("button")).toBeNull();
   });
 });
@@ -184,7 +200,7 @@ describe("hover (design 화면 6 — 데스크탑 카드 ↔ 마커)", () => {
   it("마우스가 올라가면 onHoverChange(id), 떠나면 null. 터치 포인터는 무시", () => {
     const onHoverChange = vi.fn();
     const { place } = renderCard({ onHoverChange });
-    const card = screen.getByRole("button", { name: "나라수산, 마포구" });
+    const card = screen.getByRole("link", { name: "나라수산, 마포구" });
     fireEvent.pointerEnter(card, { pointerType: "mouse" });
     expect(onHoverChange).toHaveBeenLastCalledWith(place.id);
     fireEvent.pointerLeave(card, { pointerType: "mouse" });

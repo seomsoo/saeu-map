@@ -23,6 +23,8 @@ export const viewport: Viewport = {
   // --spacing-safe-* 토큰과 pb-safe-bottom-or-3/pt-safe-top-or-3 유틸이 전부 12px 폴백으로 죽어 있었다.
   // cover를 켜면 지도(absolute inset-0)가 상태바·홈 인디케이터 뒤까지 그려지고, 콘텐츠는 위 토큰들이 되민다.
   viewportFit: "cover",
+  // 안드로이드 크롬 주소창·탭 전환 화면의 색 — 라이트 배경 토큰 `--color-common-0`과 같은 값(다크 벌은 아직 없다)
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
