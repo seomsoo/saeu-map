@@ -143,15 +143,17 @@ next 16.3.3 · react 19.2.8 · zod 4.5.4 · @opennextjs/cloudflare 1.20.5 · @se
 
 | 지표 | 전 (기준선, prod) | 후 | 근거 |
 |---|---|---|---|
-| 홈 JS gzip 합 | 397KB (16청크) | **301KB** (로컬 프로덕션 빌드, −24%) → prod 확정: _배포 뒤_ | A1 (zod 로케일 86KB). B5 측정: 그중 Sentry 52KB는 둔다 |
-| 홈 `places` 페이로드 | 854KB (gz 109KB) | **528KB 예상** (gz 77KB, −38%/−30%) → prod 확정: _배포 뒤_ | B1 |
-| 폰트 조각 캐시 | `max-age=0, must-revalidate` (재방문마다 19회 재검증) | `immutable` 1년 → prod 확정: _배포 뒤 curl -I_ | A2 |
+| 홈 JS gzip 합 | 397KB (16청크) | **300KB** (프리뷰 #27 실측, −24% · CI 예산 게이트 299KB) → prod 확정: _배포 뒤_ | A1 (zod 로케일 86KB). B5 측정: 그중 Sentry 52KB는 둔다 |
+| 홈 RSC 페이로드 / HTML | 881KB / 898KB (gz 114KB) | **549KB / 567KB (gz 86KB)** (프리뷰 #27 실측, prod DB, −38%/−25%) → prod 확정: _배포 뒤_ | B1 |
+| 폰트 조각 캐시 | `max-age=0, must-revalidate` (재방문마다 19회 재검증) | **`public,max-age=31536000,immutable`** (프리뷰 #27 `curl -I` 발화 확인) | A2 |
 | 첫 로드 세션 POST | 1회 (+0.3s, 하이드레이션 뒤) | **0회** → prod 확정: _배포 뒤 Playwright_ | A3 |
 | 지도 SDK 요청 시작 | 3.3s (하이드레이션 뒤) | HTML 파싱 직후 preload → prod 확정: _배포 뒤_ | A5 |
 | 첫 화면 시트 카드 DOM | `li` 281 | **≤31** → prod 확정: _배포 뒤_ | B2 |
 | 사진 재요청 | 매번 워커 + R2 | 같은 콜로 재요청은 캐시 히트 → _새 업로드 뒤 확인_ | B3ⓐ |
 | 상세 TTFB | 1.16s (홈 0.68s) | _배포 뒤 프로브_ | A4 |
-| Lighthouse(CI, 모바일) | 55 / LCP 5.3s · 상세 56 / 8.6s | _이 PR의 CI 코멘트_ | — |
+| Lighthouse(CI, 모바일) | 55 / LCP 5.3s · 상세 56 / 8.6s | **55 / LCP 4.7s · 상세 55 / 7.5s** (PR #27 코멘트, 3회 중앙값) | — |
 | 실사용자 LCP p75(KR) · 서버 CPU p50 | _사용자가 대시보드에서_ | _배포 7일 뒤_ | S2·S3 |
+
+Codex PR #27 P1(사용자 "수정하자"): 점진 렌더 훅이 렌더 중 `typeof IntersectionObserver`를 봐서 서버는 전부·브라우저는 30장을 그려 hydration이 어긋났다 → `useSyncExternalStore`(서버 스냅샷 "지원")로 첫 렌더를 양쪽 30장으로 고정, 서버 렌더 테스트 추가. 리셋 키·IO 없는 브라우저 전부 펼침은 그대로.
 
 계획에서 바뀐 것: ① B5는 측정 뒤 "둔다"로 결정(부팅 중 오류가 실제 이슈의 40%) ② A5의 타일 호스트 preconnect는 규칙 3 도메인이라 뺌 ③ 프로브의 JS 지표를 "서버 전송 바이트"에서 "직접 gzip"으로 — prod(brotli)·CI(wrangler dev 무압축)를 같은 자로 재기 위해 ④ B1의 지번(`addressJibun`)은 동 이름 검색 때문에 요약에 남김(예상치 413 → 528KB). 남은 것: 배포 뒤 prod 프로브·Playwright·`curl -I`로 위 표의 "배포 뒤" 칸 채우기, 7일 뒤 S2·S3.
