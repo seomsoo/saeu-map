@@ -1027,4 +1027,4 @@ roadmap "런칭 전 보안 스윕" 산출물. 사용자 쓰기는 전부 `openWr
 - **홈 HTML엔 여전히 가게 링크가 0개다.** 목록은 지도 idle 뒤 뷰포트로 채워지므로 SSR엔 카드가 없다. 링크 그래프는 sitemap → `/gu/` 25페이지(카드 링크) → 상세(구 링크)로 잇는다. 홈에서 구로 가는 자리(예: 목록 끝 "지역별 보기")는 D1c "지도 앱이라 푸터가 없다"와 부딪혀 **미정 — 사용자 결정 필요**. 홈 페이로드·본문 텍스트는 perf-diet B1.
 - **안 한 것(이미 결정)**: www 리다이렉트(D8 보류), workers.dev 중복(홈 canonical로 해소 — 프록시 리다이렉트는 요청마다 워커 CPU), 푸터(D1c), manifest·llms.txt·favicon.ico, `maximum-scale=1`(지도 앱 핀치 충돌 방지로 보고 둔다 — 근거 기록은 없다).
 - 파비콘 `app/icon1.png` 96px(shrimp.webp 알파 원본에서 sips) — 구글 검색결과 권장 48px 이상. 32px는 탭용으로 유지. `viewport.themeColor` `#ffffff`(`--color-common-0`).
-- 같은 PR에 `fix/turnstile-poll-teardown`의 5줄(7ffec0a)을 cherry-pick했다 — origin/main에 없어 이 브랜치의 전체 테스트가 간헐적으로 "Errors 1"로 빨갛다(stop hook 재현). 그 브랜치는 머지 뒤 지운다.
+- turnstile 폴링 teardown 픽스(7ffec0a)는 처음엔 이 브랜치에 cherry-pick했으나 #25로 main에 먼저 들어가 리베이스(2026-09-29)에서 빠졌다.

@@ -21,7 +21,7 @@ prod(`새우맵.kr`)를 curl로 그대로 점검했다(2026-09-25). **메타·OG
 
 | # | 무엇 | 파일 | 근거·방법 |
 |---|---|---|---|
-| 0 | **turnstile 폴링 teardown 픽스 cherry-pick**(`7ffec0a`, 5줄). origin/main엔 없어 이 브랜치의 전체 테스트가 간헐적으로 "Errors 1"로 빨갛다(stop hook 재현) | `lib/turnstile-client.ts` | `fix/turnstile-poll-teardown` 브랜치는 머지 뒤 지운다 |
+| 0 | ~~turnstile 폴링 teardown 픽스 cherry-pick~~ — #25로 main에 먼저 들어가 리베이스(2026-09-29)에서 빠졌다 | — | — |
 | 1 | **메타 보강** — ① 홈 `canonical: "/"`·`og:url` ② `openGraph` 공통 조각(siteName·locale·type)을 `lib/seo.ts`의 모든 메타에 스프레드(발견 5) ③ 약관·방침 `images: /opengraph-image`(발견 6) ④ 상세 title `"상호 · ○○구 새우구이"`(og:title은 상호 그대로 — 카톡 카드용) ⑤ description 첫 조각을 구 대신 **도로명 주소**(없으면 구) ⑥ `viewport.themeColor` 흰색 | `lib/seo.ts` `app/(home)/page.tsx` `app/layout.tsx` `lib/__tests__/seo.test.ts` | 순수 함수라 테스트로 고정 |
 | 2 | **JSON-LD** — 홈 `WebSite` · 상세 `Restaurant`(name·url·image·PostalAddress·GeoCoordinates·servesCuisine·aggregateRating(리뷰 3개↑만)·sameAs 네이버 링크) · 구 `BreadcrumbList` + `ItemList`(가게 url·name). `components/seo/json-ld.tsx`는 `<script type="application/ld+json">`에 **텍스트 자식**으로 넣는다 — React는 script 자식을 이스케이프하지 않는다(`renderToStaticMarkup` 실측 2026-09-25) → `JSON.stringify` 뒤 `<`·`>`·`&`를 `<`·`>`·`&`으로 바꿔 `</script>` 탈출을 막는다. **dangerouslySetInnerHTML은 안 쓴다(규칙 6 유지)** | `lib/seo.ts`(순수 객체) `components/seo/json-ld.tsx` 홈·상세·구 page.tsx 테스트 | 상호는 유저 입력이다 — `</script>` 상호로 테스트 고정 |
 | 3 | **내부 링크** — ① 카드 `<button>` → `<a href="/place/<id>">`. 클릭은 지금처럼 `preventDefault` + 시트 열기(URL은 이미 `pushState`로 `/place/<id>`가 된다), **수정키·가운데 클릭은 기본 동작**(새 탭). `next/link`가 아니라 일반 `<a>` — 771개 뷰포트 프리페치는 워커 비용이다. `draggable={false}` ② 상세 헤더 "새우구이 · 마포구"의 구 → `<a href="/gu/마포구">`(서울 25구만, 일반 `<a>` 전체 이동 — 앱 내 history 상태기와 클라이언트 라우팅이 섞이지 않게) ③ 주소 disclosure: 접힌 상태에도 주소 블록을 DOM에 두고 `hidden`(발견 2) | `components/map-screen/place-card.tsx` `components/place-detail/place-header.tsx` `components/place-detail/info-rows.tsx` 테스트 3파일(`button` → `link` 6곳) | 보이는 결과는 같다 |
@@ -60,7 +60,7 @@ next 16.3.3 · react 19.2.8. **새 패키지 없음.**
 
 ## 결과 (2026-09-25)
 
-- 브랜치 `seo/crawlability`(worktree `.claude/worktrees/seo` — 다른 세션이 같은 트리에서 `perf/diet-1`로 바꿔 놓아 분리했다). 커밋: 문구 1 · turnstile 픽스 1(cherry-pick) · 플랜 1 · 변경 1~4 각 1.
+- 브랜치 `seo/crawlability`(worktree `.claude/worktrees/seo` — 다른 세션이 같은 트리에서 `perf/diet-1`로 바꿔 놓아 분리했다). 커밋: 문구 1 · 플랜 1 · 변경 1~4 각 1 · 문서 1 (turnstile 픽스는 #25로 main에 먼저 들어가 리베이스에서 빠짐).
 - 테스트 597 → **606**(+9: seo 6 · json-ld 2 · place-card 1), 전부 통과. typecheck·lint 0. 새 패키지 0.
 - **SSR 발화**(로컬 Supabase + `next dev -p 3001`, curl):
 
