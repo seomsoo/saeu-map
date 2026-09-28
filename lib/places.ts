@@ -4,6 +4,7 @@ import type {
   LatLng,
   Menu,
   Place,
+  PlaceSummary,
   PlaceTag,
   Sides,
   SortKey,
@@ -28,7 +29,7 @@ export function normalizeQuery(query: string): string {
 }
 
 /** 우리 데이터 내 검색: 상호 · 구 · 동(지번) · 도로명. */
-export function matchesQuery(place: Place, normalized: string): boolean {
+export function matchesQuery(place: PlaceSummary, normalized: string): boolean {
   if (!normalized) return true;
   const haystack = [
     place.name,
@@ -43,7 +44,7 @@ export function matchesQuery(place: Place, normalized: string): boolean {
 }
 
 /** 탭 = 다중 태그 매칭 (구이+회 가게는 두 탭 모두에 나옴). */
-export function matchesTab(place: Place, tab: TabKey): boolean {
+export function matchesTab(place: PlaceSummary, tab: TabKey): boolean {
   if (tab === "all") return true;
   return place.tags.includes(tab);
 }
@@ -64,7 +65,7 @@ export function isSideChip(chip: ChipKey): chip is keyof Sides {
 
 /** 칩은 AND — 켜진 칩 조건을 전부 만족해야 남는다. */
 export function matchesChips(
-  place: Place,
+  place: PlaceSummary,
   chips: readonly ChipKey[],
   bookmarkedIds: ReadonlySet<string>,
 ): boolean {
@@ -89,9 +90,9 @@ export function matchesChips(
 }
 
 export function filterPlaces(
-  places: readonly Place[],
+  places: readonly PlaceSummary[],
   filter: PlaceListFilter,
-): Place[] {
+): PlaceSummary[] {
   const q = normalizeQuery(filter.query);
   return places.filter(
     (p) =>
@@ -105,15 +106,15 @@ export function filterPlaces(
 
 const collator = new Intl.Collator("ko");
 
-function byName(a: Place, b: Place): number {
+function byName(a: PlaceSummary, b: PlaceSummary): number {
   return collator.compare(a.name, b.name);
 }
 
-function byRecent(a: Place, b: Place): number {
+function byRecent(a: PlaceSummary, b: PlaceSummary): number {
   return b.lastCheckedAt.localeCompare(a.lastCheckedAt);
 }
 
-export function distanceKm(place: Place, origin: LatLng): number {
+export function distanceKm(place: PlaceSummary, origin: LatLng): number {
   return haversineKm(origin, { lat: place.lat, lng: place.lng });
 }
 
@@ -125,10 +126,10 @@ export function distanceKm(place: Place, origin: LatLng): number {
  * origin이 없으면 distance는 입력 순서를 유지한다(호출자가 지도 중심을 넘긴다).
  */
 export function sortPlaces(
-  places: readonly Place[],
+  places: readonly PlaceSummary[],
   sort: SortKey,
   origin: LatLng | null,
-): Place[] {
+): PlaceSummary[] {
   const copy = [...places];
   switch (sort) {
     case "distance": {
@@ -159,9 +160,37 @@ export const SORT_KEYS: readonly SortKey[] = ["distance", "recent", "checks"];
 
 /* ────────────────────────── 카드 표시용 ────────────────────────── */
 
-/** 대표 메뉴: 가격 있는 첫 메뉴 → 없으면 첫 메뉴 → 메뉴 없으면 null. */
-export function primaryMenu(place: Place): Menu | null {
-  return place.menus.find((m) => m.price !== null) ?? place.menus[0] ?? null;
+/** 대표 메뉴 고르기: 가격 있는 첫 메뉴 → 없으면 첫 메뉴 → 메뉴 없으면 null. 서버 `toPlace`·테스트 픽스처가 `menu`를 채울 때 쓴다. */
+export function primaryMenuOf(menus: readonly Menu[]): Menu | null {
+  return menus.find((m) => m.price !== null) ?? menus[0] ?? null;
+}
+
+/** 대표 메뉴 — 요약(`menu`)에 이미 골라져 있다(plan perf-diet B1: 목록은 메뉴 전부를 싣지 않는다) */
+export function primaryMenu(place: Pick<PlaceSummary, "menu">): Menu | null {
+  return place.menu;
+}
+
+/** 전체 → 목록 요약. 홈 페이로드의 필드 목록이 곧 이 함수다 — 카드·마커·검색이 읽는 것만(plan perf-diet B1). */
+export function toSummary(place: Place): PlaceSummary {
+  return {
+    id: place.id,
+    name: place.name,
+    gu: place.gu,
+    addressRoad: place.addressRoad,
+    addressJibun: place.addressJibun,
+    lat: place.lat,
+    lng: place.lng,
+    nearestStation: place.nearestStation,
+    tags: place.tags,
+    specialist: place.specialist,
+    thumbnailUrl: place.thumbnailUrl,
+    menu: place.menu,
+    sides: place.sides,
+    lastCheckedAt: place.lastCheckedAt,
+    checkCount: place.checkCount,
+    isNew: place.isNew,
+    ...(place.rating !== undefined && { rating: place.rating }),
+  };
 }
 
 /** 단위 칩 텍스트. unit_raw에 접미를 붙인다. none은 칩 없음. */
@@ -187,7 +216,7 @@ export function unitChipLabel(menu: Menu): string | null {
  * 대표 메뉴 한 줄 — "왕새우 소금구이 1kg 35,000원". 메뉴가 없으면 null (제보 완료 카드·신규 패널 행).
  * 크롤 메뉴명에 단위가 이미 들어 있으면("생새우대하구이 한판" + 한판) 단위를 한 번만 쓴다.
  */
-export function primaryMenuLine(place: Place): string | null {
+export function primaryMenuLine(place: Pick<PlaceSummary, "menu">): string | null {
   const menu = primaryMenu(place);
   if (!menu) return null;
   const unit = unitChipLabel(menu);
@@ -201,7 +230,7 @@ export function primaryMenuLine(place: Place): string | null {
  * 카드용 대표 메뉴 — **가격을 앞세우고 이름은 보조로** 나눠 준다(한 줄 문자열로는 가격만 강조할 수 없다).
  * 가격 미상이면 null: 카드에서 그 줄 자체가 사라진다.
  */
-export function primaryMenuParts(place: Place): { price: string; name: string } | null {
+export function primaryMenuParts(place: Pick<PlaceSummary, "menu">): { price: string; name: string } | null {
   const menu = primaryMenu(place);
   if (!menu || menu.price === null) return null;
   const unit = unitChipLabel(menu);
@@ -300,7 +329,7 @@ const DENSEST_RADIUS_KM = 5;
  * 서울시청 고정보다 첫 화면에 보이는 가게가 많고(목 50곳 기준 12 → 18곳), 평균·중앙값과 달리
  * 서울 밖 제보 한두 건에 끌려가지 않는다. 데이터가 비면 null (호출자가 서울 중심으로 떨어진다).
  */
-export function densestPoint(places: readonly Place[]): LatLng | null {
+export function densestPoint(places: readonly PlaceSummary[]): LatLng | null {
   const first = places[0];
   if (!first) return null;
   // 도시 규모에선 등거리 근사로 충분하다. O(n²)라 haversine의 삼각함수를 피한다.
@@ -368,7 +397,7 @@ function topKey(counts: ReadonlyMap<string, number>): string {
  * 중심이 살짝 넘어갔다는 이유로 "서대문구"가 된다.
  */
 export function areaLabel(
-  visible: readonly Place[],
+  visible: readonly PlaceSummary[],
   total: number,
   bounds?: BoundsLiteral,
   centerGu?: string | null,

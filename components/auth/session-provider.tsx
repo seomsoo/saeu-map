@@ -58,8 +58,19 @@ interface Prompt {
  * 시트는 히스토리 엔트리 하나(saeuOverlay)를 쌓고, 닫힘은 popstate로 정리된 뒤에야 호출자에게 결과가 간다
  * (그래야 로그인 직후 여는 리뷰 폼의 엔트리를 늦은 back()이 삼키지 않는다 — use-overlay-history).
  */
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+export function SessionProvider({
+  children,
+  initialSession,
+}: {
+  children: ReactNode;
+  /**
+   * 서버가 요청 쿠키로 읽어 내려준 세션(지도 화면 세 페이지). 있으면 첫 로드의 `getSession()` POST를 건너뛴다 —
+   * 페이지뷰마다 워커 호출 1회·왕복 ~0.3s와 프로필 아이콘의 "아직 모름" 깜빡임이 사라진다(plan perf-diet A3).
+   * 없으면(관리자 화면·테스트) 지금처럼 마운트 때 읽는다.
+   */
+  initialSession?: Session | undefined;
+}) {
+  const [session, setSession] = useState<Session | null>(initialSession ?? null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   /** state의 거울 — 핸들러가 재구독 없이 읽고, setState 업데이터 안에서 부수효과(히스토리·resolve)를 내지 않는다 */
   const promptRef = useRef<Prompt | null>(null);
@@ -82,9 +93,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // 서버가 세션을 내려줬으면 다시 묻지 않는다. 그 뒤의 변화(OAuth 콜백·다른 탭)는 refreshSession·settleSession이 맞춘다
     // 네트워크에서 끊기면(뒤로 가기·새로고침이 요청을 자름) 익명으로 남긴다 — 잡지 않으면 unhandledrejection이 Sentry에 간다(SAEU-MAP-4, 2026-09-18)
     // StrictMode의 두 번째 effect가 순번을 올려 첫 요청은 버려진다 — alive ref와 같은 효과
-    settleSession(getSession()).catch(() => {});
+    if (initialSession === undefined) settleSession(getSession()).catch(() => {});
     // 주소의 login·intent를 지운다 — 새로고침에 시트가 또 뜨지 않게 (상태는 위 초기값이 이미 읽었다)
     const params = new URLSearchParams(window.location.search);
     if (params.get("login") === "fail") {
@@ -93,7 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const rest = params.toString();
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
     }
-  }, [settleSession]);
+  }, [settleSession, initialSession]);
 
   /** 쓰기 래퍼(lib/data.ts)가 Turnstile 전에 잡을 세션 id — 바뀔 때마다 알려 준다 */
   useEffect(() => {

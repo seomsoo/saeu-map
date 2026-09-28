@@ -17,12 +17,10 @@ import { applyMenuEdits, toMenu } from "@/lib/menu-edits";
 import { placePhotoKey, reviewPhotoKey } from "@/lib/photo-key";
 import { sameOriginPath } from "@/lib/safe-next";
 import { PEEL_SLUGS } from "@/lib/peel-test";
-import { matchesQuery, normalizeQuery } from "@/lib/places";
+import { matchesQuery, normalizeQuery, primaryMenuOf, toSummary } from "@/lib/places";
+import { ADMIN_PAGE_SIZE, MAX_PLACE_PHOTOS, REPORT_ATTENTION_COUNT } from "@/lib/limits";
 import {
-  ADMIN_PAGE_SIZE,
   type AdminListFilter,
-  MAX_PLACE_PHOTOS,
-  REPORT_ATTENTION_COUNT,
   idSchema,
   nicknameSchema,
   type OwnerRequestInput,
@@ -53,6 +51,7 @@ import type {
   Photo,
   Place,
   PlaceDetail,
+  PlaceSummary,
   PlaceEdit,
   PlaceFlagReason,
   PlaceReportReason,
@@ -157,10 +156,11 @@ const cachedAllPlaces = cachedUnlessBuilding(
   [TAG_PLACES],
 );
 
-export async function getPlaces(filter: PlaceFilter = {}, now: string = new Date().toISOString()): Promise<Place[]> {
+/** 목록은 요약(`PlaceSummary`)만 — 홈 HTML의 98%가 이 배열이라 상세 전용 필드를 싣지 않는다(plan perf-diet B1). 전체는 `getPlaceDetail`. */
+export async function getPlaces(filter: PlaceFilter = {}, now: string = new Date().toISOString()): Promise<PlaceSummary[]> {
   const query = normalizeQuery(filter.query ?? "");
   return (await cachedAllPlaces())
-    .map((place) => ({ ...place, isNew: isNewPlace(place, now) })) // 7일 NEW 배지는 읽을 때 — 캐시 채울 때 얼어붙지 않게(코드 리뷰 #3)
+    .map((place) => toSummary({ ...place, isNew: isNewPlace(place, now) })) // 7일 NEW 배지는 읽을 때 — 캐시 채울 때 얼어붙지 않게(코드 리뷰 #3)
     .filter((p) => {
       if (filter.tag && !p.tags.includes(filter.tag)) return false;
       if (filter.gu && p.gu !== filter.gu) return false;
@@ -463,6 +463,7 @@ export async function submitReport(
 /** 섀도 밴 사용자에게 보여 줄 "방금 등록한 가게" — DB엔 숨긴 채 있다(성공한 척, spec 5) */
 function placeFromReport(id: string, report: ReportPayload, gu: string, tags: Place["tags"], sides: string[]): Place {
   const now = new Date().toISOString();
+  const menus = report.menus.map(toMenu);
   return {
     id,
     name: report.name,
@@ -478,7 +479,8 @@ function placeFromReport(id: string, report: ReportPayload, gu: string, tags: Pl
     photos: [],
     thumbnailUrl: null,
     hoursNote: report.hoursNote === "" ? null : report.hoursNote,
-    menus: report.menus.map(toMenu),
+    menus,
+    menu: primaryMenuOf(menus),
     sides: toSides(sides),
     source: "report",
     needsReview: false,

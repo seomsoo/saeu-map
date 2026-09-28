@@ -2,3 +2,7 @@
 # https://opennext.js.org/cloudflare/caching#static-assets-caching
 /_next/static/*
   Cache-Control: public,max-age=31536000,immutable
+# Pretendard dynamic subset 92조각 + CSS (decisions 2026-09-01 · 2026-09-25 정정). next.config `headers()`는 Workers 정적 에셋에 안 먹는다 —
+# ASSETS 바인딩이 워커 앞에서 내므로 이 파일만 본다. 폰트 버전을 올릴 때는 디렉터리 이름에 버전을 붙인다(같은 경로면 1년간 옛 조각이 남는다).
+/fonts/*
+  Cache-Control: public,max-age=31536000,immutable

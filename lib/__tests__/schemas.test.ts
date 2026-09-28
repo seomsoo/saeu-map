@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { MAX_PLACE_PHOTOS, UPLOAD_TOO_LARGE_MESSAGE } from "../limits";
 import {
-  MAX_PLACE_PHOTOS,
   nicknameSchema,
   ownerRequestSchema,
   reportInputSchema,
   reportPayloadSchema,
   reviewInputSchema,
   suggestionSchema,
-  UPLOAD_TOO_LARGE_MESSAGE,
 } from "../schemas";
 
 const ID = "3f2a9c1e-1111-4a1a-9b1b-000000000001";

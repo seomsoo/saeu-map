@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cx } from "@/lib/cx";
 import type { Place } from "@/lib/types";
 import { shortJibun } from "./address";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EditButton } from "./edit-button";
 import { formatStationLine, numericLines } from "./station-line";
 import { SubwayBadge } from "./subway-badge";
@@ -132,6 +133,8 @@ function LocationGroup({
 
 interface PlaceInfoProps {
   place: Place;
+  /** 영업시간(전체 가게)이 아직 안 왔다 — 역·주소는 요약에 있어 바로 그리고 그 행만 스켈레톤(plan perf-diet B1) */
+  loading?: boolean | undefined;
   onCopy: () => void;
   onSuggestHours: () => void;
   /** 도로명이 null(제보 핀)일 때 "주소를 알려주세요" 입구 */
@@ -148,12 +151,17 @@ interface PlaceInfoProps {
  * 위치↔영업시간 12, 블록 아래 16. 6이면 지번과의 2와 구분이 안 돼 영업시간이 주소 셋째 줄로 읽힌다.
  * 영업시간이 없을 때만 눈에 띄는 인라인 입구가 된다("영업 중" 판정은 하지 않는다).
  */
-export function PlaceInfo({ place, onCopy, onSuggestHours, onSuggestAddress }: PlaceInfoProps) {
+export function PlaceInfo({ place, loading = false, onCopy, onSuggestHours, onSuggestAddress }: PlaceInfoProps) {
   return (
     <div className="px-5 pb-4">
       <LocationGroup place={place} onCopy={onCopy} onSuggestAddress={onSuggestAddress} />
 
-      {place.hoursNote ? (
+      {loading ? (
+        <div className="mt-3 flex gap-1.5" aria-busy="true" aria-label="영업시간 불러오는 중">
+          <span className="icon-[ci--clock] mt-0.5 size-4 shrink-0 text-fg-tertiary" aria-hidden="true" />
+          <Skeleton className="h-5 w-40" />
+        </div>
+      ) : place.hoursNote ? (
         <div className="mt-3 flex gap-1.5">
           <span
             className="icon-[ci--clock] mt-0.5 size-4 shrink-0 text-fg-tertiary"

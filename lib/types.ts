@@ -42,12 +42,17 @@ export interface NearestStation {
   lines: string[];
 }
 
-export interface Place {
+/**
+ * 목록·마커·검색·카드가 읽는 필드만 — 홈 HTML에 실리는 가게 771곳의 모양이다(plan perf-diet B1: 전체를 실으면 854KB, 요약은 절반).
+ * 상세 화면은 `getPlaceDetail`이 돌려주는 `Place`(전체)로 채운다. `Place`는 이 타입의 상위 집합이라 전체를 받은 자리는 요약이 필요한 어디에나 쓸 수 있다.
+ */
+export interface PlaceSummary {
   id: string;
   name: string;
   gu: string;
-  /** 도로명 주소. 제보 핀은 주소를 저장하지 않아 null(규칙 2) → 상세에 "주소를 알려주세요" 입구. */
+  /** 도로명 주소. 제보 핀은 주소를 저장하지 않아 null(규칙 2) → 상세에 "주소를 알려주세요" 입구. 검색 대상. */
   addressRoad: string | null;
+  /** 지번 — 동 이름 검색("망원동")이 여기에 걸린다. 상세 접힌 주소에도 쓴다 */
   addressJibun: string | null;
   lat: number;
   lng: number;
@@ -55,15 +60,30 @@ export interface Place {
   nearestStation: NearestStation | null;
   tags: PlaceTag[];
   specialist: boolean;
+  /** 대표 = photos[0].url. 카드·마커가 쓴다. 없으면 null → 마커는 플레이스홀더. */
+  thumbnailUrl: string | null;
+  /** 대표 메뉴 — 가격 있는 첫 메뉴, 없으면 첫 메뉴(`primaryMenuOf`). 카드 한 줄이 읽는다. 메뉴가 없으면 null */
+  menu: Menu | null;
+  sides: Sides;
+  lastCheckedAt: string;
+  checkCount: number;
+  isNew: boolean;
+  /**
+   * 카드·마커가 쓰는 평점 요약 — **리뷰 3개 이상일 때만** 채워진다(spec 4.2-9 "3개 미만 평균 숨김").
+   * 집계는 DB 뷰(places_public)가 한다.
+   */
+  rating?: { count: number; average: number };
+}
+
+/** 가게 전체 — 상세·쓰기 응답·관리자. 요약(`PlaceSummary`)에 상세 전용 필드가 더해진다. */
+export interface Place extends PlaceSummary {
   naverPlaceUrl: string | null;
   /** 가게 사진 전부(제보·업로드 순, 최대 MAX_PLACE_PHOTOS장). 상세가 이 순서로 가로 스트립을 그린다. */
   photos: Photo[];
-  /** 대표 = photos[0].url. 카드·마커가 쓴다. 없으면 null → 마커는 플레이스홀더. */
-  thumbnailUrl: string | null;
   /** 영업시간 메모(제보 자유 입력, spec 4.3-4). 없으면 null → 상세에 "영업시간을 알려주세요" 입구. "영업 중" 판정은 하지 않는다(2026-09-02). */
   hoursNote: string | null;
+  /** 메뉴 전부 — 대표 한 줄(`menu`)은 여기서 고른다(서버 `toPlace`가 같이 채운다) */
   menus: Menu[];
-  sides: Sides;
   source: "seed" | "report";
   /**
    * 운영자가 사후 확인한 시각(UTC ISO, spec 4.4·4.5). **배지일 뿐 사용자 화면을 바꾸지 않는다** —
@@ -78,15 +98,7 @@ export interface Place {
   /** 사장님 요청으로 내렸다 — 재제보 시 관리자에게 경고를 띄우는 근거(spec 5). */
   removedByOwner?: boolean;
   needsReview: boolean;
-  lastCheckedAt: string;
-  checkCount: number;
-  isNew: boolean;
   createdAt?: string;
-  /**
-   * 카드·마커가 쓰는 평점 요약 — **리뷰 3개 이상일 때만** 채워진다(spec 4.2-9 "3개 미만 평균 숨김").
-   * 집계는 lib/data.ts가 한다(규칙 1) — Phase 6에서 그 함수만 SQL 집계로 바뀐다.
-   */
-  rating?: { count: number; average: number };
   /** 제보 2단계 중복 의심에 "다른 가게예요"로 답하고 등록된 경우 그 후보 id — 관리자 큐 표시용, UI에는 안 보인다(spec 4.3-2). */
   duplicateSuspectOf?: string;
   /** 그 후보의 상호 — 관리자 목록에서만 채운다(관리자 목록에서 읽으니 숨긴 후보도 이름이 있다). */

@@ -1,5 +1,5 @@
 import { haversineKm } from "./geo";
-import type { LatLng, Place } from "./types";
+import type { LatLng, PlaceSummary } from "./types";
 
 /**
  * 중복 가게 판정 — 크롤러 `collect.py`의 `same_place`를 그대로 이식했다(spec 4.3-2).
@@ -15,7 +15,7 @@ export const PIN_OVERLAP_KM = 0.03;
 export const NAME_MATCH_MIN_CHARS = 1;
 export const NAME_MATCH_LIMIT = 5;
 
-export type PlaceLike = Pick<Place, "name" | "lat" | "lng">;
+export type PlaceLike = Pick<PlaceSummary, "name" | "lat" | "lng">;
 
 /** collect.py `norm_name`: 공백·기호를 떼고 소문자로. */
 export function normalizeName(s: string): string {
@@ -124,11 +124,11 @@ export function samePlace(a: PlaceLike, b: PlaceLike): boolean {
 }
 
 /** 후보와 같은 가게로 보이는 것 중 가장 가까운 가게. 없으면 null. */
-export function findDuplicate(
+export function findDuplicate<T extends PlaceLike>(
   candidate: PlaceLike,
-  places: readonly Place[],
-): Place | null {
-  let best: Place | null = null;
+  places: readonly T[],
+): T | null {
+  let best: T | null = null;
   let bestKm = Number.POSITIVE_INFINITY;
   for (const place of places) {
     if (!samePlace(candidate, place)) continue;
@@ -142,8 +142,8 @@ export function findDuplicate(
 }
 
 /** 핀 자리(PIN_OVERLAP_KM 안)에 있는 가장 가까운 가게 — 상호는 보지 않는다. 없으면 null. */
-export function findOverlapping(point: LatLng, places: readonly Place[]): Place | null {
-  let best: Place | null = null;
+export function findOverlapping<T extends PlaceLike>(point: LatLng, places: readonly T[]): T | null {
+  let best: T | null = null;
   let bestKm = Number.POSITIVE_INFINITY;
   for (const place of places) {
     const km = haversineKm(point, place);
@@ -166,11 +166,11 @@ export function findOverlapping(point: LatLng, places: readonly Place[]): Place 
  *   3. **초성** — "ㄴㄹㅅㅅ"이 "나라수산"을 찾는다(초성만 친 토큰에만 적용, 오검색을 늘리지 않게)
  * 정렬은 전체 문자열 유사도 순이고 limit으로 자른다.
  */
-export function findNameMatches(
+export function findNameMatches<T extends PlaceLike>(
   query: string,
-  places: readonly Place[],
+  places: readonly T[],
   limit = NAME_MATCH_LIMIT,
-): Place[] {
+): T[] {
   const q = normalizeName(query);
   if (Array.from(q).length < NAME_MATCH_MIN_CHARS) return [];
   const tokens = query.split(/\s+/).map(normalizeName).filter(Boolean);

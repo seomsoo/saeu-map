@@ -1,5 +1,5 @@
 import Supercluster from "supercluster";
-import type { BoundsLiteral, Place } from "./types";
+import type { BoundsLiteral, PlaceSummary } from "./types";
 
 /**
  * 마커 클러스터링 — supercluster 래퍼. naver 전역을 쓰지 않는 순수 모듈.
@@ -10,7 +10,7 @@ import type { BoundsLiteral, Place } from "./types";
 
 export type ClusterItem =
   | { kind: "cluster"; id: number; lat: number; lng: number; count: number }
-  | { kind: "place"; place: Place };
+  | { kind: "place"; place: PlaceSummary };
 
 export interface PlaceIndex {
   getItems(bounds: BoundsLiteral, zoom: number): ClusterItem[];
@@ -28,7 +28,7 @@ export interface ClusterOptions {
 }
 
 export function buildPlaceIndex(
-  places: readonly Place[],
+  places: readonly PlaceSummary[],
   options: ClusterOptions = {},
 ): PlaceIndex {
   const byId = new Map(places.map((p) => [p.id, p]));

@@ -8,7 +8,8 @@
  * 쓰기 화면이 열릴 때 `warmTurnstile()`로 미리 한 장 받아 두고, 제출은 그걸 즉시 쓴 뒤 다음 장을 예열한다.
  * 서버 검증은 그대로다(1회용·5분·hostname) — 시점만 앞당긴다.
  */
-import { env } from "@/lib/env";
+/** 빌드가 박는 공개값(규칙 7 허용 목록). lib/env는 서버 전용이라 여기서 직접 읽는다 — 서버 쪽 t3-env가 빌드 때 비어 있지 않음을 검사한다 */
+const SITE_KEY = process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"] ?? "";
 
 interface TurnstileApi {
   render(container: HTMLElement, options: TurnstileOptions): string;
@@ -71,7 +72,7 @@ async function requestToken(): Promise<string> {
     current = { resolve, reject };
     if (widgetId === null) {
       widgetId = api.render(host, {
-        sitekey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+        sitekey: SITE_KEY,
         execution: "execute",
         appearance: "interaction-only",
         callback: (token) => {

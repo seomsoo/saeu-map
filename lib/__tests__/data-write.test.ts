@@ -20,7 +20,7 @@ vi.mock("../server/actions", async (importOriginal) => ({
 vi.mock("../turnstile-client", () => turnstile);
 
 import { checkIn, rememberSession, setBookmark, submitReport } from "../data";
-import { UPLOAD_TOO_LARGE_MESSAGE } from "../schemas";
+import { UPLOAD_TOO_LARGE_MESSAGE } from "../limits";
 
 const ok = <T,>(value: T) => ({ ok: true as const, value });
 const session = (userId: string | null) => ({ userId, provider: "anonymous" as const, nickname: null });

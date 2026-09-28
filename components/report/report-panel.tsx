@@ -2,7 +2,7 @@
 
 import type { AddressHit } from "@/components/map/map-view";
 import { sharePlace } from "@/lib/share";
-import type { LatLng, Place } from "@/lib/types";
+import type { LatLng, Place, PlaceSummary } from "@/lib/types";
 import { StepDone } from "./step-done";
 import { StepExtras } from "./step-extras";
 import { StepLocation } from "./step-location";
@@ -15,7 +15,7 @@ export const SUBMIT_FAILED_NOTICE = "등록하지 못했어요. 다시 시도해
 
 export interface ReportPanelProps {
   step: ReportStep;
-  places: readonly Place[];
+  places: readonly PlaceSummary[];
   /** 서버 렌더 시각(ISO) — 등록 시각의 목 기준. 클라이언트 Date.now() 금지 */
   now: string;
   /** 2단계 핀 (지도 훅 소유) */
@@ -27,7 +27,7 @@ export interface ReportPanelProps {
   /** 주소 검색으로 핀 이동 */
   onPinChange: (point: LatLng) => void;
   /** 중복 후보가 보이게 지도를 맞춘다 */
-  onShowCandidate: (candidate: Place) => void;
+  onShowCandidate: (candidate: PlaceSummary) => void;
   /** 2단계에서 탭한 기존 마커 — 그 가게로 중복 의심 패널을 연다 */
   tappedPlaceId: string | null;
   onClearTapped: () => void;

@@ -1,4 +1,7 @@
-import { reportMenuSchema, type ReportMenuInput } from "@/lib/data";
+import { hasBannedWord, hasUrl } from "@/lib/content-filter";
+import { MENU_NAME_MAX, MENU_PRICE_MAX, MENU_PRICE_MIN, type ReportMenuInput } from "@/lib/data";
+
+export { MENU_NAME_MAX };
 
 /**
  * 3단계 메뉴 줄 입력값과 검증 (design 화면 3-3). 단위 칩 → Menu.unit/unit_raw 변환은 `unitChipLabel`이
@@ -33,7 +36,6 @@ export interface MenuDraftErrors {
   count?: string;
 }
 
-export const MENU_NAME_MAX = 30;
 export const MENU_ERRORS = {
   name: "메뉴 이름을 알려주세요",
   price: "가격을 숫자로 알려주세요",
@@ -78,24 +80,26 @@ function unitOf(draft: MenuDraft): Pick<ReportMenuInput, "unit" | "unitRaw"> | n
   }
 }
 
-/** 한 줄 검증 — 오류가 없으면 menu, 있으면 필드별 오류. 최종 문은 lib/data의 스키마다. */
+/**
+ * 한 줄 검증 — 오류가 없으면 menu, 있으면 필드별 오류. 최종 문은 서버의 `reportMenuSchema`(같은 상수·같은 링크/금칙어 판정).
+ * zod를 여기서 부르지 않는다 — 브라우저 번들에 zod를 싣지 않기 위해(plan perf-diet A1).
+ */
 export function validateMenuDraft(
   draft: MenuDraft,
   raw: boolean,
 ): { menu: ReportMenuInput; errors: null } | { menu: null; errors: MenuDraftErrors } {
   const errors: MenuDraftErrors = {};
   const name = draft.name.trim();
-  if (name.length === 0 || name.length > MENU_NAME_MAX) errors.name = MENU_ERRORS.name;
+  if (name.length === 0 || name.length > MENU_NAME_MAX || hasUrl(name) || hasBannedWord(name)) {
+    errors.name = MENU_ERRORS.name;
+  }
   const price = Number(priceDigits(draft.price));
-  if (!Number.isInteger(price) || price < 100) errors.price = MENU_ERRORS.price;
+  if (!Number.isInteger(price) || price < MENU_PRICE_MIN || price > MENU_PRICE_MAX) errors.price = MENU_ERRORS.price;
   if (draft.unit === null) errors.unit = MENU_ERRORS.unit;
   const unit = unitOf(draft);
   if (draft.unit === "count" && unit === null) errors.count = MENU_ERRORS.count;
   if (Object.keys(errors).length > 0 || unit === null) return { menu: null, errors };
-
-  const parsed = reportMenuSchema.safeParse({ name, price, raw, ...unit });
-  if (!parsed.success) return { menu: null, errors: { name: MENU_ERRORS.name } };
-  return { menu: parsed.data, errors: null };
+  return { menu: { name, price, raw, ...unit }, errors: null };
 }
 
 /**

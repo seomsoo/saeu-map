@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { ActivityPanel } from "@/components/activity/activity-panel";
 import { SessionProvider, useSession } from "@/components/auth/session-provider";
 import { MapControls } from "@/components/map/map-controls";
@@ -18,9 +18,10 @@ import { DESKTOP_MEDIA_QUERY } from "@/lib/layout";
 import type {
   EventCard as EventCardData,
   LatLng,
-  Place,
   PlaceDetail as PlaceDetailData,
+  PlaceSummary,
   SeasonStats,
+  Session,
 } from "@/lib/types";
 import { CategoryDropdown } from "./category-dropdown";
 import { FabRow } from "./fab-row";
@@ -33,10 +34,13 @@ import { useMapScreen, type InitialGu } from "./use-map-screen";
 export interface MapScreenProps {
   /** 서버 렌더 시각(ISO). 모든 상대 시간 계산의 기준 — 클라이언트에서 new Date() 금지. */
   now: string;
-  places: Place[];
+  /** 목록 요약(plan perf-diet B1). `/place/[id]`는 `initialDetail`의 전체 가게로 그 항목을 덮는다 */
+  places: PlaceSummary[];
   stats: SeasonStats;
   eventCard: EventCardData | null;
   bookmarkedIds: string[];
+  /** 서버가 쿠키로 읽은 세션 — 페이지 세 곳은 늘 준다(lib/map-screen-data). 없으면(테스트) SessionProvider가 마운트 때 읽는다 */
+  session?: Session | undefined;
   /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
   initialPlaceId?: string | undefined;
   /** 서버가 함께 내려준 상세(리뷰 포함) — SSR HTML에 상세가 들어가고 클라이언트 재요청이 없다 */
@@ -60,7 +64,7 @@ function reloadPage() {
  */
 export default function MapScreen(props: MapScreenProps) {
   return (
-    <SessionProvider>
+    <SessionProvider initialSession={props.session}>
       <MapScreenBody {...props} />
     </SessionProvider>
   );
@@ -80,7 +84,12 @@ function MapScreenBody({
   const topStackRef = useRef<HTMLDivElement | null>(null);
   const { session } = useSession();
   const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
-  const s = useMapScreen({ places, bookmarkedIds, initialPlaceId, initialGu, mapRef, topStackRef });
+  // /place/[id] 직접 진입: 서버가 준 전체 가게로 목록의 그 항목을 덮는다 — 상세가 재요청·스켈레톤 없이 바로 그려진다(plan perf-diet B1)
+  const seeded = useMemo(
+    () => (initialDetail ? places.map((p) => (p.id === initialDetail.place.id ? initialDetail.place : p)) : places),
+    [places, initialDetail],
+  );
+  const s = useMapScreen({ places: seeded, bookmarkedIds, initialPlaceId, initialGu, mapRef, topStackRef });
 
   const detailPlace = s.detailPlace;
   /** 제보 2단계: 지도 빈 곳 탭 = 핀 이동 (드래그는 미세 조정). 다른 단계에선 무시 */

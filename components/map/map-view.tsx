@@ -18,7 +18,7 @@ import {
   useNavermaps,
 } from "react-naver-maps";
 import type { ClusterItem } from "@/lib/cluster";
-import type { BoundsLiteral, LatLng, Place, Viewport } from "@/lib/types";
+import type { BoundsLiteral, LatLng, PlaceSummary, Viewport } from "@/lib/types";
 import { isInactive } from "@/lib/time";
 import { markerCategory, primaryMenuLine } from "@/lib/places";
 import Image from "next/image";
@@ -91,7 +91,7 @@ export interface MapHandle {
 
 /** 마커 hover 툴팁 — 가게 + 컨테이너 픽셀 위치 (design 화면 6). 마우스가 마커에 있는 동안만 산다 */
 interface MarkerTooltipState {
-  place: Place;
+  place: PlaceSummary;
   x: number;
   y: number;
   /** hover 시점의 지도 컨테이너 폭 — 사진 카드가 가장자리에서 잘리지 않게 물리는 데 쓴다 */
@@ -202,7 +202,7 @@ export function MapView({
   }, [selectedId]);
 
   const handleMarkerHover = useCallback(
-    (place: Place, offset: { x: number; y: number } | null) => {
+    (place: PlaceSummary, offset: { x: number; y: number } | null) => {
       // 선택된 핀은 패널이 이미 상세다 — 프리뷰를 겹쳐 그리지 않는다 (design 화면 7)
       if (offset && place.id === selectedIdRef.current) return;
       if (offset) {
@@ -556,7 +556,7 @@ const PlaceMarkers = memo(function PlaceMarkers({
   now: string;
   onPlaceClick: (placeId: string) => void;
   onClusterClick: (clusterId: number, center: LatLng) => void;
-  onPlaceHover: (place: Place, offset: { x: number; y: number } | null) => void;
+  onPlaceHover: (place: PlaceSummary, offset: { x: number; y: number } | null) => void;
 }) {
   return (
     <>
@@ -595,12 +595,12 @@ const PlaceMarker = memo(function PlaceMarker({
   onSelect,
   onHover,
 }: {
-  place: Place;
+  place: PlaceSummary;
   selected: boolean;
   hovered: boolean;
   inactive: boolean;
   onSelect: (placeId: string) => void;
-  onHover: (place: Place, offset: { x: number; y: number } | null) => void;
+  onHover: (place: PlaceSummary, offset: { x: number; y: number } | null) => void;
 }) {
   const navermaps = useNavermaps();
   const map = useMap();

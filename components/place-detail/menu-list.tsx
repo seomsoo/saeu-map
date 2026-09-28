@@ -1,19 +1,34 @@
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice, unitChipLabel } from "@/lib/places";
 import type { Menu } from "@/lib/types";
 import { EditButton } from "./edit-button";
 
 /** 5. 대표 메뉴 — 메뉴명 + 단위(회색 텍스트) / 가격 오른쪽(tabular). 수정 입구는 제목 오른쪽 하나뿐. 없으면 "메뉴 알려주기". */
-export function MenuList({ menus, onSuggest }: { menus: Menu[]; onSuggest: () => void }) {
+export function MenuList({
+  menus,
+  loading = false,
+  onSuggest,
+}: {
+  menus: Menu[];
+  /** 메뉴 전부(전체 가게)가 아직 안 왔다 — 목록 요약엔 대표 한 줄뿐이라 스켈레톤(plan perf-diet B1) */
+  loading?: boolean | undefined;
+  onSuggest: () => void;
+}) {
   return (
     <section aria-labelledby="place-menu-heading" className="px-5 pt-4 pb-3">
       <div className="flex items-center justify-between gap-3">
         <h3 id="place-menu-heading" className="text-body-l-semibold text-fg">
           대표 메뉴
         </h3>
-        {menus.length > 0 && <EditButton label="대표 메뉴 수정" onClick={onSuggest} />}
+        {!loading && menus.length > 0 && <EditButton label="대표 메뉴 수정" onClick={onSuggest} />}
       </div>
-      {menus.length === 0 ? (
+      {loading ? (
+        <div className="mt-3 space-y-2" aria-busy="true" aria-label="메뉴 불러오는 중">
+          <Skeleton className="h-5 w-3/5" />
+          <Skeleton className="h-5 w-2/5" />
+        </div>
+      ) : menus.length === 0 ? (
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className="text-body-m-regular text-fg-secondary">메뉴 정보가 없어요</p>
           <Button size="sm" onClick={onSuggest}>

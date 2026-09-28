@@ -6,6 +6,8 @@
  */
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { env } from "@/lib/env";
+import { siteUrl } from "@/lib/seo";
 import { reportError } from "./observe";
 
 const MAX_EDGE_PX = 1200;
@@ -50,9 +52,34 @@ export async function storePhoto(file: Blob, key: string): Promise<"stored" | "n
   return "stored";
 }
 
+/** 워커의 콜로 캐시(Cache API). `next dev`(Node)·`*.workers.dev`(프리뷰)엔 없거나 no-op → null이면 매번 R2 */
+export interface EdgeCache {
+  match(url: string): Promise<Response | undefined>;
+  put(url: string, response: Response): Promise<void>;
+  delete(url: string): Promise<boolean>;
+}
+export function edgeCache(): EdgeCache | null {
+  const caches = (globalThis as { caches?: { default?: EdgeCache } }).caches;
+  return caches?.default ?? null;
+}
+
+/** 서빙 라우트가 캐시 키로 쓰는 공개 주소(origin + 경로, 쿼리 없음) — 삭제가 같은 키를 지운다 */
+export function photoCacheKey(key: string): string {
+  return new URL(`/photos/${key}`, siteUrl(env.SITE_URL)).toString();
+}
+
+/** 콜로 캐시에 두는 시간 — 내린 사진(신고·리뷰 삭제·탈퇴)이 URL을 아는 사람에게 남는 상한이기도 하다(security-reviewer 2026-09-25). 브라우저는 하루(Codex PR #16 #5) */
+export const PHOTO_EDGE_TTL_S = 3600;
+
 export async function deletePhotoObject(key: string): Promise<void> {
   const { photos } = await bindings();
   await photos.delete(key);
+  // 같은 콜로의 캐시도 — 다른 콜로는 PHOTO_EDGE_TTL_S 안에 빠진다. 실패해도 객체는 이미 지워졌다(베스트에포트)
+  try {
+    await edgeCache()?.delete(photoCacheKey(key));
+  } catch (e) {
+    reportError("photo edge cache delete failed", { key }, e);
+  }
 }
 
 /** DB에서 뗀 사진의 R2 객체 지우기 — 실패해도 호출자는 성공이다(행은 이미 바뀌었다). 고아 객체는 월간 점검(runbook)이 잡는다 */

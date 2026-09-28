@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { BottomSheet, type SheetMode, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -9,12 +9,13 @@ import { OutlineButton } from "@/components/ui/outline-button";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIncrementalList } from "@/components/ui/use-incremental-list";
 import { assertNever } from "@/lib/assert-never";
 import { SORT_KEYS, SORT_LABELS } from "@/lib/places";
 import type {
   EventCard as EventCardData,
   LatLng,
-  Place,
+  PlaceSummary,
   SeasonStats,
   SortKey,
 } from "@/lib/types";
@@ -27,7 +28,7 @@ const SORT_OPTIONS = SORT_KEYS.map((key) => ({ key, label: SORT_LABELS[key] }));
 
 interface PlaceSheetProps {
   status: MapStatus;
-  places: Place[];
+  places: PlaceSummary[];
   count: number;
   /** 보고 있는 지역 — "마포구 일대" / "서울 전체" */
   areaLabel: string;
@@ -151,6 +152,10 @@ export function PlaceSheet({
   const isReport = mode === "report";
   const isMe = mode === "me";
   const panel = isDetail || isReport || isMe;
+  // 카드는 30장씩 — 헤더의 "N곳"은 전체(count), 보이는 카드만 점진(plan perf-diet B2).
+  // 리셋 키는 id 순서다: 찜 토글·지도 idle은 내용이 같은 새 배열을 만들므로 identity로 리셋하면 스크롤 위치가 잘린다(reviewer P2)
+  const listKey = useMemo(() => places.map((p) => p.id).join("\n"), [places]);
+  const { visible, done, sentinelRef } = useIncrementalList(places, listKey);
   const header = (
     <div className="flex w-full min-w-0 flex-col gap-0.5">
       <div className="flex items-center justify-between gap-3">
@@ -235,7 +240,7 @@ export function PlaceSheet({
           <>
             {/* 카드 사이는 헤어라인이 아니라 여백으로 나눈다 (design 화면 1 카드, 2026-09-08) */}
             <ul aria-label="가게 목록" className="pb-safe-bottom-or-3">
-              {places.map((place) => (
+              {visible.map((place) => (
                 <PlaceCard
                   key={place.id}
                   place={place}
@@ -248,6 +253,8 @@ export function PlaceSheet({
                   onToggleBookmark={onToggleBookmark}
                 />
               ))}
+              {/* 끝 감시 요소 — 600px 앞에서 다음 30장을 붙인다. 다 그리면 없어진다 */}
+              {!done && <li ref={sentinelRef} aria-hidden="true" className="h-px" />}
             </ul>
             {/* 목록 끝 제보 CTA — 다 훑고 "여긴 없네" 하는 순간이 제보 동기가 가장 높다.
                 데스크탑만: 모바일은 FAB 줄의 [＋ 제보]가 그 자리다(채운 레드는 화면당 한 곳) */}

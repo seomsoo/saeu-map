@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { ReviewForm } from "@/components/review/review-form";
 import { SectionBand } from "@/components/ui/section-band";
 import { isAllowedNaverPlaceUrl } from "@/lib/naver-links";
-import type { Place, Review } from "@/lib/types";
+import type { Place, PlaceSummary, Review } from "@/lib/types";
 import { ActionRow } from "./action-row";
 import { ContributionBand } from "./contribution-band";
 import { OwnerRequestSheet } from "./owner-request-sheet";
@@ -22,7 +22,8 @@ import { SidesRow } from "./sides-row";
 import { usePlaceDetail } from "./use-place-detail";
 
 export interface PlaceDetailProps {
-  place: Place;
+  /** 목록 요약(plan perf-diet B1). 전체(`Place`)를 받으면 재요청 없이 바로 그린다 — 쓰기 응답·직접 진입이 그렇다 */
+  place: PlaceSummary;
   /** 서버 렌더 시각(ISO) — 상대 시간·낙관적 확인일의 기준 */
   now: string;
   bookmarked: boolean;
@@ -66,7 +67,7 @@ export function PlaceDetail({
     onNotice,
   });
   // 외부 링크는 화이트리스트 호스트만 (규칙 3의 링크판)
-  const naverUrl = isAllowedNaverPlaceUrl(place.naverPlaceUrl) ? place.naverPlaceUrl : null;
+  const naverUrl = isAllowedNaverPlaceUrl(d.place.naverPlaceUrl) ? d.place.naverPlaceUrl : null;
 
   // 제보 완료에서 넘어온 리뷰 의도는 한 번만 — ref라 StrictMode 이중 effect에도 게이트가 두 번 서지 않는다
   const autoHandled = useRef(false);
@@ -81,13 +82,14 @@ export function PlaceDetail({
   return (
     <article aria-label={`${place.name} 상세`}>
       {/* 1 */}
-      <PhotoArea place={d.place} onPickPhotos={d.uploadPhotos} onOpenPhoto={d.openPhoto} />
+      <PhotoArea place={d.place} loading={!d.detailReady} onPickPhotos={d.uploadPhotos} onOpenPhoto={d.openPhoto} />
       {/* 2 */}
       <PlaceHeader place={d.place} now={now} />
       {d.place.isNew && <NewPlaceBanner />}
       {/* 3 — 주소·지번·영업시간 한 블록 */}
       <PlaceInfo
         place={d.place}
+        loading={!d.detailReady}
         onCopy={d.copyAddress}
         onSuggestHours={() => {
           d.openSuggest("hours");
@@ -107,6 +109,7 @@ export function PlaceDetail({
       {/* 5 */}
       <MenuList
         menus={d.place.menus}
+        loading={!d.detailReady}
         onSuggest={() => {
           d.openSuggest("menus");
         }}

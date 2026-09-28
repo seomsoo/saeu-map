@@ -44,6 +44,7 @@ import type {
   ChipKey,
   LatLng,
   Place,
+  PlaceSummary,
   SortKey,
   TabKey,
   Viewport,
@@ -87,7 +88,7 @@ export interface InitialGu {
 }
 
 interface UseMapScreenInput {
-  places: Place[];
+  places: PlaceSummary[];
   bookmarkedIds: string[];
   /** /place/[id]로 들어왔을 때 처음부터 열려 있는 상세 */
   initialPlaceId?: string | undefined;

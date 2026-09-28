@@ -45,10 +45,11 @@ export default async function PlacePage({ params }: PlacePageProps) {
   const now = new Date().toISOString();
   const { id } = await params;
 
-  const detail = await detailOrRedirect(id, now);
+  // 상세와 지도 화면 데이터를 같이 기다린다 — 직렬이면 캐시 왕복 한 단이 TTFB에 그대로 붙었다(plan perf-diet A4).
+  // 없는 id의 notFound()는 둘 다 온 뒤(리다이렉트 throw는 그대로 전파된다).
+  const [detail, data] = await Promise.all([detailOrRedirect(id, now), loadMapScreenData(now)]);
   if (!detail) notFound();
 
-  const data = await loadMapScreenData(now);
   return (
     <>
       <JsonLd data={placeJsonLd(detail.place, siteUrl(env.SITE_URL), now)} />
